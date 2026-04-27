@@ -41,27 +41,21 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     let msg = `Error ${res.status}`;
     try { const b = await res.json(); msg = b.message || b.error?.message || b.error || msg; } catch { /* */ }
-    throw new Error(msg);
+    const err = new Error(msg) as Error & { status: number };
+    err.status = res.status;
+    throw err;
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
-// Returns true when the backend doesn't have this endpoint yet (network error,
-// 401 from wrong auth scheme, or 404 route not found) — use mock data instead.
+// Returns true when the backend doesn't have this endpoint yet — use mock data.
 function isNet(err: unknown) {
   if (!(err instanceof Error)) return false;
+  const status = (err as Error & { status?: number }).status;
+  if (status === 401 || status === 403 || status === 404) return true;
   const msg = err.message;
-  return (
-    msg === 'Failed to fetch' ||
-    msg.includes('NetworkError') ||
-    msg.includes('network') ||
-    msg.startsWith('Error 401') ||
-    msg.startsWith('Error 404') ||
-    msg === 'Unauthorized' ||
-    msg.includes('not allowed') ||
-    msg.includes('authentication required')
-  );
+  return msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('network');
 }
 
 function paginate<T>(arr: T[], page = 1, limit = 20) {
