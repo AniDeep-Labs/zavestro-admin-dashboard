@@ -47,10 +47,6 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   };
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
-    if (res.status === 401) {
-      clearAdminToken();
-      clearAdminUser();
-    }
     let msg = `Error ${res.status}`;
     try { const b = await res.json(); msg = b.message || b.error?.message || b.error || msg; } catch { /* */ }
     const err = new Error(msg) as Error & { status: number };
