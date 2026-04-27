@@ -1,0 +1,201 @@
+import React from 'react';
+import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { toggleTheme, getCurrentTheme } from '../../utils/theme';
+import { hasAdminToken } from '../../api/catalogApi';
+import styles from './AdminLayout.module.css';
+
+interface NavItem {
+  label: string;
+  icon: string;
+  path: string;
+  roles: string[];
+  children?: { label: string; path: string }[];
+}
+
+const NAV: NavItem[] = [
+  { label: 'Dashboard', icon: '◎', path: '/admin/dashboard', roles: ['admin', 'admin_finance', 'admin_ops'] },
+  { label: 'Orders', icon: '📦', path: '/admin/orders', roles: ['admin', 'admin_support'] },
+  { label: 'Users', icon: '👥', path: '/admin/users', roles: ['admin', 'admin_support'] },
+  { label: 'Hubs', icon: '🏭', path: '/admin/hubs', roles: ['admin', 'admin_ops'] },
+  {
+    label: 'Catalog', icon: '🏷️', path: '/admin/catalog', roles: ['admin', 'admin_catalog'],
+    children: [
+      { label: 'Products', path: '/admin/catalog/products' },
+      { label: 'Collections', path: '/admin/catalog/collections' },
+      { label: 'Luxe Fabrics', path: '/admin/catalog/luxe-fabrics' },
+      { label: 'Consultation Slots', path: '/admin/catalog/consultation-slots' },
+      { label: 'Consultations', path: '/admin/catalog/consultations' },
+    ],
+  },
+  {
+    label: 'Content', icon: '📝', path: '/admin/content', roles: ['admin', 'admin_catalog'],
+    children: [
+      { label: 'Lookbook', path: '/admin/content/lookbook' },
+      { label: 'Craftspeople', path: '/admin/content/craftspeople' },
+      { label: 'Stories', path: '/admin/content/stories' },
+      { label: 'Journal', path: '/admin/content/journal' },
+    ],
+  },
+  {
+    label: 'Analytics', icon: '📊', path: '/admin/analytics', roles: ['admin', 'admin_finance'],
+    children: [
+      { label: 'Revenue', path: '/admin/analytics/revenue' },
+      { label: 'Orders', path: '/admin/analytics/orders' },
+      { label: 'Fit Scores', path: '/admin/analytics/fit-scores' },
+      { label: 'Hub Performance', path: '/admin/analytics/hubs' },
+      { label: 'Retention', path: '/admin/analytics/retention' },
+      { label: 'Promo Codes', path: '/admin/analytics/promos' },
+    ],
+  },
+  { label: 'Support', icon: '🎧', path: '/admin/support', roles: ['admin', 'admin_support'] },
+  {
+    label: 'System', icon: '⚙️', path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
+    children: [
+      { label: 'App Config', path: '/admin/system/config' },
+      { label: 'Audit Log', path: '/admin/system/audit' },
+      { label: 'Waitlist', path: '/admin/system/waitlist' },
+    ],
+  },
+];
+
+export const AdminLayout: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [theme, setTheme] = React.useState(getCurrentTheme());
+
+  if (!hasAdminToken()) {
+    return <Navigate to="/admin/login" replace />;
+  }
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [expandedSections, setExpandedSections] = React.useState<string[]>(['Catalog', 'Content', 'Analytics', 'System']);
+
+  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+
+  const toggleSection = (label: string) => {
+    setExpandedSections(prev =>
+      prev.includes(label) ? prev.filter(s => s !== label) : [...prev, label]
+    );
+  };
+
+  return (
+    <div className={`${styles.layout} ${collapsed ? styles.collapsed : ''}`}>
+      {/* Sidebar */}
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarTop}>
+          <div className={styles.brand} onClick={() => navigate('/admin/dashboard')}>
+            {!collapsed && (
+              <>
+                <span className={styles.brandName}>Zavestro</span>
+                <span className={styles.adminBadge}>Admin</span>
+              </>
+            )}
+            {collapsed && <span className={styles.brandIcon}>Z</span>}
+          </div>
+
+          <nav className={styles.nav}>
+            {NAV.map(item => {
+              const active = isActive(item.path);
+              const expanded = expandedSections.includes(item.label);
+
+              if (item.children) {
+                return (
+                  <div key={item.label} className={styles.navGroup}>
+                    <button
+                      className={`${styles.navItem} ${active ? styles.navItemActive : ''}`}
+                      onClick={() => !collapsed && toggleSection(item.label)}
+                      title={collapsed ? item.label : undefined}
+                    >
+                      <span className={styles.navIcon}>{item.icon}</span>
+                      {!collapsed && (
+                        <>
+                          <span className={styles.navLabel}>{item.label}</span>
+                          <span className={styles.navChevron}>{expanded ? '▾' : '▸'}</span>
+                        </>
+                      )}
+                    </button>
+                    {!collapsed && expanded && (
+                      <div className={styles.navChildren}>
+                        {item.children.map(child => (
+                          <button
+                            key={child.path}
+                            className={`${styles.navChild} ${isActive(child.path) ? styles.navChildActive : ''}`}
+                            onClick={() => navigate(child.path)}
+                          >
+                            {child.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  key={item.path}
+                  className={`${styles.navItem} ${active ? styles.navItemActive : ''}`}
+                  onClick={() => navigate(item.path)}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <span className={styles.navIcon}>{item.icon}</span>
+                  {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        <button
+          className={styles.collapseBtn}
+          onClick={() => setCollapsed(c => !c)}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? '→' : '←'}
+        </button>
+      </aside>
+
+      {/* Main area */}
+      <div className={styles.main}>
+        {/* Top bar */}
+        <header className={styles.topBar}>
+          <div className={styles.breadcrumb}>
+            {location.pathname.split('/').filter(Boolean).map((part, i, arr) => (
+              <span key={i}>
+                <span
+                  className={i < arr.length - 1 ? styles.breadcrumbLink : styles.breadcrumbCurrent}
+                  onClick={() => i < arr.length - 1 ? navigate('/' + arr.slice(0, i + 1).join('/')) : undefined}
+                >
+                  {part.charAt(0).toUpperCase() + part.slice(1).replace(/-/g, ' ')}
+                </span>
+                {i < arr.length - 1 && <span className={styles.breadcrumbSep}> / </span>}
+              </span>
+            ))}
+          </div>
+
+          <div className={styles.topActions}>
+            <button
+              className={styles.iconBtn}
+              onClick={() => { toggleTheme(); setTheme(getCurrentTheme()); }}
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <button className={styles.iconBtn} aria-label="Notifications">
+              🔔
+              <span className={styles.notifBadge}>5</span>
+            </button>
+            <div className={styles.adminUser}>
+              <div className={styles.avatar}>A</div>
+              {!collapsed && <span className={styles.adminName}>admin@zavestro.com</span>}
+            </div>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className={styles.content}>
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+};

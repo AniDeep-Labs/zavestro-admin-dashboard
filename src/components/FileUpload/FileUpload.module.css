@@ -1,0 +1,76 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl) var(--spacing-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  background-color: var(--color-bg-primary);
+}
+
+.dropzone:hover:not(.disabled) {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-primary-extra-light);
+}
+
+.dragActive {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-extra-light);
+}
+
+.dropzoneError {
+  border-color: var(--color-error);
+}
+
+.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.input {
+  display: none;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.icon {
+  color: var(--color-text-tertiary);
+}
+
+.text {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+}
+
+.link {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.helperText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.errorText {
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+}

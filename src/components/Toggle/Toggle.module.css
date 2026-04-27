@@ -1,0 +1,82 @@
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.wrapper.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.track {
+  position: relative;
+  display: inline-block;
+  background-color: var(--color-border);
+  border-radius: var(--radius-full);
+  transition: background-color var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.size-sm {
+  width: 36px;
+  height: 20px;
+}
+
+.size-md {
+  width: 44px;
+  height: 24px;
+}
+
+.trackActive {
+  background-color: var(--color-primary);
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background-color: #FFFFFF;
+  border-radius: var(--radius-full);
+  transition: transform var(--transition-normal);
+  box-shadow: var(--shadow-sm);
+}
+
+.size-md .thumb {
+  width: 20px;
+  height: 20px;
+}
+
+.thumbActive {
+  transform: translateX(16px);
+}
+
+.size-md .thumbActive {
+  transform: translateX(20px);
+}
+
+.label {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+}
+
+.input:focus-visible + .track {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

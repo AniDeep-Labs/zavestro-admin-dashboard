@@ -1,0 +1,117 @@
+.page {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.back {
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.designRef {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.reqList {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+}
+
+.reqList li {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  margin: var(--spacing-sm) 0 0;
+}
+
+.optionCard {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.optionIcon {
+  font-size: 40px;
+  flex-shrink: 0;
+}
+
+.optionInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.optionTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+.optionDesc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.optionMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.free {
+  color: var(--color-success);
+  font-weight: var(--font-weight-semibold);
+}
+
+.paid {
+  color: var(--color-secondary-dark);
+  font-weight: var(--font-weight-semibold);
+}
+
+.arrow {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-tertiary);
+}
+
+.savedBtn {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.savedBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.savedHint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  text-align: center;
+  margin: 0;
+}

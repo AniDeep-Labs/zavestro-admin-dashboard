@@ -1,0 +1,37 @@
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.divided .item:not(:last-child) {
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  transition: background-color var(--transition-fast);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.leading {
+  flex-shrink: 0;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.trailing {
+  flex-shrink: 0;
+}

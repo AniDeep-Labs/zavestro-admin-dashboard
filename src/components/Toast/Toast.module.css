@@ -1,0 +1,129 @@
+.container {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-width: 400px;
+  width: 100%;
+  pointer-events: none;
+}
+
+.position-top-right {
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
+}
+
+.position-top-left {
+  top: var(--spacing-lg);
+  left: var(--spacing-lg);
+}
+
+.position-bottom-right {
+  bottom: var(--spacing-lg);
+  right: var(--spacing-lg);
+}
+
+.position-bottom-left {
+  bottom: var(--spacing-lg);
+  left: var(--spacing-lg);
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-primary);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+  animation: slideInRight 0.3s ease;
+}
+
+.exit {
+  animation: slideOutRight 0.3s ease forwards;
+}
+
+.type-success {
+  border-left: 4px solid var(--color-success);
+}
+
+.type-error {
+  border-left: 4px solid var(--color-error);
+}
+
+.type-warning {
+  border-left: 4px solid var(--color-warning);
+}
+
+.type-info {
+  border-left: 4px solid var(--color-info);
+}
+
+.icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.type-success .icon { color: var(--color-success); }
+.type-error .icon { color: var(--color-error); }
+.type-warning .icon { color: var(--color-warning); }
+.type-info .icon { color: var(--color-info); }
+
+.content {
+  flex: 1;
+}
+
+.title {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+}
+
+.message {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--color-text-tertiary);
+  padding: 0;
+  transition: color var(--transition-fast);
+}
+
+.close:hover {
+  color: var(--color-text-primary);
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
