@@ -180,3 +180,35 @@
   border-radius: 3px;
   font-size: 11px;
 }
+
+.forgotDesc {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.forgotActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.backBtn {
+  height: 48px;
+  padding: 0 16px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family);
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--transition-fast);
+}
+
+.backBtn:hover { border-color: var(--color-primary); }
+
+.forgotActions .submitBtn { flex: 1; }

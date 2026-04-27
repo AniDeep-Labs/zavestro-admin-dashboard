@@ -41,6 +41,9 @@ import { TicketDetailPage } from './pages/admin/TicketDetailPage';
 import { AppConfigPage } from './pages/admin/AppConfigPage';
 import { AuditLogPage } from './pages/admin/AuditLogPage';
 import { WaitlistPage } from './pages/admin/WaitlistPage';
+import { AdminRegisterPage } from './pages/admin/AdminRegisterPage';
+import { AdminResetPasswordPage } from './pages/admin/AdminResetPasswordPage';
+import { AdminUsersManagePage } from './pages/admin/AdminUsersManagePage';
 import { CollectionsListPage } from './pages/admin/CollectionsListPage';
 import { CollectionEditPage } from './pages/admin/CollectionEditPage';
 import { LuxeFabricsListPage } from './pages/admin/LuxeFabricsListPage';
@@ -70,6 +73,8 @@ function App() {
 
           {/* Admin Routes */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin/register" element={<AdminRegisterPage />} />
+          <Route path="/admin/reset-password" element={<AdminResetPasswordPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="orders" element={<OrdersListPage />} />
@@ -96,6 +101,7 @@ function App() {
             <Route path="system/config" element={<AppConfigPage />} />
             <Route path="system/audit" element={<AuditLogPage />} />
             <Route path="system/waitlist" element={<WaitlistPage />} />
+            <Route path="system/admins" element={<AdminUsersManagePage />} />
           </Route>
 
           {/* Designer Routes */}

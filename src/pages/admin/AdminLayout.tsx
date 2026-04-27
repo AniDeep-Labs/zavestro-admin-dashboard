@@ -55,6 +55,7 @@ const NAV: NavItem[] = [
       { label: 'App Config', path: '/admin/system/config' },
       { label: 'Audit Log', path: '/admin/system/audit' },
       { label: 'Waitlist', path: '/admin/system/waitlist' },
+      { label: 'Admin Users', path: '/admin/system/admins' },
     ],
   },
 ];
