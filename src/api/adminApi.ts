@@ -39,6 +39,11 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   };
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
+    if (res.status === 401) {
+      clearAdminToken();
+      clearAdminUser();
+      window.location.href = '/admin/login';
+    }
     let msg = `Error ${res.status}`;
     try { const b = await res.json(); msg = b.message || b.error?.message || b.error || msg; } catch { /* */ }
     const err = new Error(msg) as Error & { status: number };
@@ -46,16 +51,18 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw err;
   }
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  const json = await res.json();
+  // Unwrap backend's { success, data } envelope when present
+  return (json && typeof json === 'object' && 'data' in json ? json.data : json) as T;
 }
 
-// Returns true when the backend doesn't have this endpoint yet — use mock data.
+// Returns true only for genuinely not-yet-implemented endpoints — use mock data.
+// 401/403 are auth failures and must NOT fall back to mock (they trigger login redirect above).
 function isNet(err: unknown) {
   if (!(err instanceof Error)) return false;
   const status = (err as Error & { status?: number }).status;
-  if (status === 401 || status === 403 || status === 404) return true;
-  const msg = err.message;
-  return msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('network');
+  if (status === 404 || status === 501) return true;
+  return false;
 }
 
 function paginate<T>(arr: T[], page = 1, limit = 20) {
