@@ -11,7 +11,7 @@ import type {
   Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus,
 } from '../data/adminMockData';
 
-const BASE = 'https://api.zavestro.in';
+const BASE = import.meta.env.DEV ? '' : 'https://api.zavestro.in';
 const USER_KEY = 'zavestro_admin_user';
 
 // ─── User info helpers ────────────────────────────────────────────────────────

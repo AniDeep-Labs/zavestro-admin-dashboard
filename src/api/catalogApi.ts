@@ -1,4 +1,4 @@
-const BASE_URL = 'https://api.zavestro.in';
+const BASE_URL = import.meta.env.DEV ? '' : 'https://api.zavestro.in';
 export const TOKEN_KEY = 'zavestro_admin_token';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
