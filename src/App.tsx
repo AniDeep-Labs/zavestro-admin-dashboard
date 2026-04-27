@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { OrderProvider } from './context/OrderContext';
 import { CustomerLayout } from './pages/customer/CustomerLayout';
 import { HomePage } from './pages/customer/HomePage';
@@ -57,8 +57,9 @@ function App() {
       <OrderProvider>
         <Routes>
           {/* Customer Routes */}
+          <Route path="/" element={<Navigate to="/admin/login" replace />} />
           <Route element={<CustomerLayout />}>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/home" element={<HomePage />} />
             <Route path="/fabrics" element={<FabricCatalogPage />} />
             <Route path="/own-fabric" element={<OwnFabricPage />} />
             <Route path="/designs" element={<DesignCatalogPage />} />

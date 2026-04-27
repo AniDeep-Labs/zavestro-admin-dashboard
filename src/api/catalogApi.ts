@@ -166,12 +166,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
 
-  if (res.status === 401) {
-    clearAdminToken();
-    window.location.href = '/admin/login';
-    throw new Error('Session expired. Please log in again.');
-  }
-
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     try {

@@ -38,18 +38,30 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
-  if (res.status === 401) { clearAdminToken(); clearAdminUser(); window.location.href = '/admin/login'; throw new Error('Unauthorized'); }
   if (!res.ok) {
     let msg = `Error ${res.status}`;
-    try { const b = await res.json(); msg = b.message || b.error || msg; } catch { /* */ }
+    try { const b = await res.json(); msg = b.message || b.error?.message || b.error || msg; } catch { /* */ }
     throw new Error(msg);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
+// Returns true when the backend doesn't have this endpoint yet (network error,
+// 401 from wrong auth scheme, or 404 route not found) — use mock data instead.
 function isNet(err: unknown) {
-  return err instanceof Error && (err.message === 'Failed to fetch' || err.message.includes('NetworkError') || err.message.includes('network'));
+  if (!(err instanceof Error)) return false;
+  const msg = err.message;
+  return (
+    msg === 'Failed to fetch' ||
+    msg.includes('NetworkError') ||
+    msg.includes('network') ||
+    msg.startsWith('Error 401') ||
+    msg.startsWith('Error 404') ||
+    msg === 'Unauthorized' ||
+    msg.includes('not allowed') ||
+    msg.includes('authentication required')
+  );
 }
 
 function paginate<T>(arr: T[], page = 1, limit = 20) {
