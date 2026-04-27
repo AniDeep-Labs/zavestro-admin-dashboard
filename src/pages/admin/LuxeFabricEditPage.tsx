@@ -1,6 +1,8 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { luxeFabrics } from '../../data/adminMockData';
+import { luxeFabricsApi } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './LuxeFabricEditPage.module.css';
 
 const MATERIALS = ['Silk', 'Banarasi', 'Organza', 'Handloom', 'Cotton Blend', 'Chiffon', 'Velvet', 'Georgette', 'Crepe', 'Other'];
@@ -11,19 +13,38 @@ export const LuxeFabricEditPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isNew = id === 'new';
-  const existing = isNew ? null : luxeFabrics.find(f => f.id === id) || luxeFabrics[0];
 
-  const [name, setName] = React.useState(existing?.name || '');
-  const [material, setMaterial] = React.useState(existing?.material || '');
-  const [origin, setOrigin] = React.useState(existing?.origin || '');
+  const [name, setName] = React.useState('');
+  const [material, setMaterial] = React.useState('');
+  const [origin, setOrigin] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [careInstructions, setCareInstructions] = React.useState('');
-  const [selectedOccasions, setSelectedOccasions] = React.useState<string[]>(existing?.occasions || []);
+  const [selectedOccasions, setSelectedOccasions] = React.useState<string[]>([]);
   const [selectedGarments, setSelectedGarments] = React.useState<string[]>([]);
   const [colors, setColors] = React.useState('');
-  const [status, setStatus] = React.useState<'Draft' | 'Active' | 'Archived'>(existing?.status || 'Draft');
-  const [featuredForSwatchKit, setFeaturedForSwatchKit] = React.useState(existing?.featuredForSwatchKit || false);
+  const [status, setStatus] = React.useState<'Draft' | 'Active' | 'Archived'>('Draft');
+  const [featuredForSwatchKit, setFeaturedForSwatchKit] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [loadError, setLoadError] = React.useState('');
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
+
+  const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const showToast = (type: ToastData['type'], title: string, message?: string) =>
+    setToasts(t => [...t, createToast(type, title, message)]);
+
+  React.useEffect(() => {
+    if (isNew) return;
+    luxeFabricsApi.get(id!)
+      .then(f => {
+        setName(f.name);
+        setMaterial(f.material);
+        setOrigin(f.origin);
+        setSelectedOccasions(f.occasions);
+        setStatus(f.status);
+        setFeaturedForSwatchKit(f.featuredForSwatchKit);
+      })
+      .catch(err => setLoadError(err instanceof Error ? err.message : 'Failed to load fabric'));
+  }, [id, isNew]);
 
   const toggleOccasion = (o: string) =>
     setSelectedOccasions(prev => prev.includes(o) ? prev.filter(x => x !== o) : [...prev, o]);
@@ -31,17 +52,44 @@ export const LuxeFabricEditPage: React.FC = () => {
   const toggleGarment = (g: string) =>
     setSelectedGarments(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => { setSaving(false); navigate('/admin/catalog/luxe-fabrics'); }, 800);
+    try {
+      const payload = {
+        name, material, origin, description, careInstructions,
+        occasions: selectedOccasions, status, featuredForSwatchKit,
+      };
+      if (isNew) {
+        await luxeFabricsApi.create(payload);
+        showToast('success', 'Fabric created', name);
+      } else {
+        await luxeFabricsApi.update(id!, payload);
+        showToast('success', 'Fabric saved', name);
+      }
+      setTimeout(() => navigate('/admin/catalog/luxe-fabrics'), 600);
+    } catch (err) {
+      showToast('error', 'Save failed', err instanceof Error ? err.message : undefined);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loadError) {
+    return (
+      <div className={styles.page}>
+        <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/luxe-fabrics')}>← Back to Luxe Fabrics</button>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-error)' }}>{loadError}</div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/luxe-fabrics')}>
         ← Back to Luxe Fabrics
       </button>
-      <h1 className={styles.title}>{isNew ? 'Add Fabric' : `Edit: ${existing?.name}`}</h1>
+      <h1 className={styles.title}>{isNew ? 'Add Fabric' : `Edit: ${name}`}</h1>
 
       <div className={styles.form}>
         <div className={styles.card}>

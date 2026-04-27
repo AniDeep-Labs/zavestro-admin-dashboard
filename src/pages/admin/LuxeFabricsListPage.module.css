@@ -40,3 +40,6 @@
 .archiveBtn { padding: 4px 10px; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; background: transparent; color: #dc2626; font-size: 0.75rem; cursor: pointer; }
 
 .pagination { margin-top: 16px; font-size: 0.8rem; color: var(--color-text-muted); }
+.skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #f8fafc) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.retryBtn { margin-top: 10px; padding: 6px 18px; background: var(--color-primary, #1F6B4F); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }

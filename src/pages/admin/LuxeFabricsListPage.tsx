@@ -1,6 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { luxeFabrics } from '../../data/adminMockData';
+import { luxeFabricsApi } from '../../api/adminApi';
+import type { LuxeFabric } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './LuxeFabricsListPage.module.css';
 
 const MATERIALS = ['All', 'Silk', 'Banarasi', 'Organza', 'Handloom', 'Cotton Blend', 'Chiffon', 'Velvet', 'Georgette', 'Crepe'];
@@ -13,16 +16,47 @@ export const LuxeFabricsListPage: React.FC = () => {
   const [occasionFilter, setOccasionFilter] = React.useState('All');
   const [statusFilter, setStatusFilter] = React.useState('All');
 
-  const filtered = luxeFabrics.filter(f => {
-    const matchSearch = !search || f.name.toLowerCase().includes(search.toLowerCase());
-    const matchMaterial = materialFilter === 'All' || f.material === materialFilter;
-    const matchOccasion = occasionFilter === 'All' || f.occasions.includes(occasionFilter);
-    const matchStatus = statusFilter === 'All' || f.status === statusFilter;
-    return matchSearch && matchMaterial && matchOccasion && matchStatus;
-  });
+  const [fabrics, setFabrics] = React.useState<LuxeFabric[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
+
+  const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const showToast = (type: ToastData['type'], title: string, message?: string) =>
+    setToasts(t => [...t, createToast(type, title, message)]);
+
+  React.useEffect(() => {
+    setLoading(true);
+    setError('');
+    luxeFabricsApi.list({
+      search: search || undefined,
+      material: materialFilter !== 'All' ? materialFilter : undefined,
+      occasion: occasionFilter !== 'All' ? occasionFilter : undefined,
+      status: statusFilter !== 'All' ? statusFilter : undefined,
+    })
+      .then(res => { setFabrics(res.fabrics ?? []); setTotal(res.total ?? 0); })
+      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load fabrics'))
+      .finally(() => setLoading(false));
+  }, [search, materialFilter, occasionFilter, statusFilter]);
+
+  const handleArchive = async (e: React.MouseEvent, fabric: LuxeFabric) => {
+    e.stopPropagation();
+    if (!confirm(`Archive "${fabric.name}"?`)) return;
+    try {
+      await luxeFabricsApi.update(fabric.id, { status: 'Archived' });
+      setFabrics(prev => prev.filter(f => f.id !== fabric.id));
+      setTotal(t => t - 1);
+      showToast('success', 'Fabric archived', fabric.name);
+    } catch (err) {
+      showToast('error', 'Archive failed', err instanceof Error ? err.message : undefined);
+    }
+  };
 
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Luxe Fabrics</h1>
         <button className={styles.addBtn} onClick={() => navigate('/admin/catalog/luxe-fabrics/new')}>
@@ -68,10 +102,25 @@ export const LuxeFabricsListPage: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 7 }).map((_, i) => (
+                <tr key={i}>
+                  {Array.from({ length: 7 }).map((__, j) => (
+                    <td key={j}><div className={styles.skeleton} /></td>
+                  ))}
+                </tr>
+              ))
+            ) : error ? (
+              <tr>
+                <td colSpan={7} className={styles.empty}>
+                  <div>{error}</div>
+                  <button className={styles.retryBtn} onClick={() => { setError(''); }}>Retry</button>
+                </td>
+              </tr>
+            ) : fabrics.length === 0 ? (
               <tr><td colSpan={7} className={styles.empty}>No fabrics found.</td></tr>
             ) : (
-              filtered.map(f => (
+              fabrics.map(f => (
                 <tr key={f.id} className={styles.row}>
                   <td>
                     <button className={styles.nameLink} onClick={() => navigate(`/admin/catalog/luxe-fabrics/${f.id}`)}>
@@ -86,9 +135,7 @@ export const LuxeFabricsListPage: React.FC = () => {
                       {f.occasions.map(o => <span key={o} className={styles.occasionChip}>{o}</span>)}
                     </div>
                   </td>
-                  <td>
-                    <div className={styles.swatchThumb}>🎨</div>
-                  </td>
+                  <td><div className={styles.swatchThumb}>🎨</div></td>
                   <td>
                     <span className={`${styles.statusPill} ${styles[`status${f.status}`]}`}>
                       {f.status}
@@ -97,7 +144,9 @@ export const LuxeFabricsListPage: React.FC = () => {
                   <td>
                     <div className={styles.actions}>
                       <button className={styles.actionBtn} onClick={() => navigate(`/admin/catalog/luxe-fabrics/${f.id}`)}>Edit</button>
-                      <button className={styles.archiveBtn}>Archive</button>
+                      {f.status !== 'Archived' && (
+                        <button className={styles.archiveBtn} onClick={e => handleArchive(e, f)}>Archive</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -108,7 +157,7 @@ export const LuxeFabricsListPage: React.FC = () => {
       </div>
 
       <div className={styles.pagination}>
-        Showing {filtered.length} of {luxeFabrics.length} fabrics
+        {loading ? 'Loading…' : `Showing ${fabrics.length} of ${total} fabrics`}
       </div>
     </div>
   );

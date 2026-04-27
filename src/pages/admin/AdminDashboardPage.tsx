@@ -116,7 +116,7 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Revenue mini-chart placeholder */}
+      {/* Revenue mini-chart */}
       <div className={styles.card}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>Revenue Trend — {period}</h2>
@@ -124,12 +124,15 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
         <div className={styles.chartPlaceholder}>
           <div className={styles.chartBars}>
-            {[65, 80, 72, 90, 85, 95, 88, 100, 92, 78, 95, 110, 98, 115].map((h, i) => (
-              <div key={i} className={styles.chartBarGroup}>
-                <div className={styles.chartBarSimplified} style={{ height: `${h * 0.6}%` }} />
-                <div className={styles.chartBarLuxe} style={{ height: `${h * 0.4}%` }} />
-              </div>
-            ))}
+            {(data?.revenue ?? []).map((d, i) => {
+              const maxV = Math.max(...(data?.revenue ?? []).map(r => r.simplified + r.luxe), 1);
+              return (
+                <div key={i} className={styles.chartBarGroup}>
+                  <div className={styles.chartBarSimplified} style={{ height: `${Math.max(4, (d.simplified / maxV) * 100)}%` }} />
+                  <div className={styles.chartBarLuxe} style={{ height: `${Math.max(4, (d.luxe / maxV) * 100)}%` }} />
+                </div>
+              );
+            })}
           </div>
           <div className={styles.chartLegend}>
             <span className={styles.legendSimplified}>■ Simplified</span>

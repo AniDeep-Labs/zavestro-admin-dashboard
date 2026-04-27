@@ -1,5 +1,8 @@
 import React from 'react';
-import { adminConsultations, type ConsultationStatus } from '../../data/adminMockData';
+import { consultationsApi } from '../../api/adminApi';
+import type { Consultation, ConsultationStatus } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ConsultationsListPage.module.css';
 
 const STATUS_LABELS: Record<ConsultationStatus, string> = {
@@ -48,21 +51,54 @@ export const ConsultationsListPage: React.FC = () => {
   const [viewModal, setViewModal] = React.useState<string | null>(null);
   const [selectedStylist, setSelectedStylist] = React.useState('');
 
-  const filtered = adminConsultations.filter(c => {
-    const matchStatus = statusFilter === 'All' || c.status === statusFilter;
-    const matchOccasion = occasionFilter === 'All' || c.occasion === occasionFilter;
-    const matchAssigned = assignedFilter === 'All'
-      || (assignedFilter === 'Assigned' ? c.stylist !== null : c.stylist === null);
-    return matchStatus && matchOccasion && matchAssigned;
-  });
+  const [consultations, setConsultations] = React.useState<Consultation[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
-  const assignTarget = assignModal ? adminConsultations.find(c => c.id === assignModal) : null;
-  const viewTarget = viewModal ? adminConsultations.find(c => c.id === viewModal) : null;
+  const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const showToast = (type: ToastData['type'], title: string, message?: string) =>
+    setToasts(t => [...t, createToast(type, title, message)]);
 
-  const unassignedCount = adminConsultations.filter(c => !c.stylist).length;
+  const load = () => {
+    setLoading(true);
+    consultationsApi.list({
+      status: statusFilter !== 'All' ? statusFilter : undefined,
+      occasion: occasionFilter !== 'All' ? occasionFilter : undefined,
+      assigned: assignedFilter !== 'All' ? assignedFilter : undefined,
+    })
+      .then(res => setConsultations(res.consultations ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  React.useEffect(load, [statusFilter, occasionFilter, assignedFilter]);
+
+  const handleAssign = async () => {
+    if (!assignModal || !selectedStylist) return;
+    const stylist = STYLISTS.find(s => s.id === selectedStylist);
+    if (!stylist) return;
+    try {
+      const updated = await consultationsApi.update(assignModal, {
+        stylist: `${stylist.name} — ${stylist.hub}`,
+        hub: stylist.hub,
+        status: 'assigned',
+      });
+      setConsultations(prev => prev.map(c => c.id === assignModal ? updated : c));
+      showToast('success', 'Stylist assigned', stylist.name);
+    } catch (err) {
+      showToast('error', 'Assignment failed', err instanceof Error ? err.message : undefined);
+    }
+    setAssignModal(null);
+  };
+
+  const assignTarget = assignModal ? consultations.find(c => c.id === assignModal) : null;
+  const viewTarget = viewModal ? consultations.find(c => c.id === viewModal) : null;
+  const unassignedCount = consultations.filter(c => !c.stylist).length;
 
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.title}>Luxe Consultations</h1>
@@ -113,10 +149,18 @@ export const ConsultationsListPage: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i}>
+                  {Array.from({ length: 8 }).map((__, j) => (
+                    <td key={j}><div className={styles.skeleton} /></td>
+                  ))}
+                </tr>
+              ))
+            ) : consultations.length === 0 ? (
               <tr><td colSpan={8} className={styles.empty}>No consultations found.</td></tr>
             ) : (
-              filtered.map(c => (
+              consultations.map(c => (
                 <tr key={c.id} className={`${styles.row} ${!c.stylist ? styles.rowUnassigned : ''}`}>
                   <td className={styles.consultId}>{c.id}</td>
                   <td className={styles.customer}>{c.customer}</td>
@@ -131,8 +175,7 @@ export const ConsultationsListPage: React.FC = () => {
                   <td>
                     {c.stylist
                       ? <span className={styles.stylistName}>{c.stylist}</span>
-                      : <span className={styles.unassigned}>Unassigned</span>
-                    }
+                      : <span className={styles.unassigned}>Unassigned</span>}
                   </td>
                   <td className={styles.slot}>{c.bookedSlot || '—'}</td>
                   <td className={styles.date}>{c.createdAt}</td>
@@ -184,7 +227,7 @@ export const ConsultationsListPage: React.FC = () => {
             </div>
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} onClick={() => setAssignModal(null)}>Cancel</button>
-              <button className={styles.confirmAssignBtn} disabled={!selectedStylist} onClick={() => setAssignModal(null)}>
+              <button className={styles.confirmAssignBtn} disabled={!selectedStylist} onClick={handleAssign}>
                 Assign →
               </button>
             </div>

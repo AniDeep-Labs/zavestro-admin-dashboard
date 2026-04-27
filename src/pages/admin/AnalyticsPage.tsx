@@ -1,5 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
+import { analyticsApi } from '../../api/adminApi';
+import type { AnalyticsData } from '../../api/adminApi';
 import styles from './AnalyticsPage.module.css';
 
 type Section = 'revenue' | 'orders' | 'fit-scores' | 'hubs' | 'retention' | 'promos';
@@ -13,7 +15,17 @@ const SECTION_TITLES: Record<Section, string> = {
   promos: 'Promo Codes',
 };
 
-const revenueKpis = [
+const PERIOD_MAP: Record<string, string> = {
+  'This Week': 'week', 'This Month': 'month', 'Last 30 Days': 'last30', 'This Quarter': 'quarter',
+};
+
+function fmtMoney(val: number): string {
+  if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)}Cr`;
+  if (val >= 100000) return `₹${(val / 100000).toFixed(1)}L`;
+  return `₹${val.toLocaleString('en-IN')}`;
+}
+
+const fallbackRevenueKpis = [
   { label: 'Total GMV', value: '₹28.4L', trend: '+22%', up: true },
   { label: 'Simplified GMV', value: '₹18.2L', trend: '+18%', up: true },
   { label: 'Luxe Prime GMV', value: '₹10.2L', trend: '+31%', up: true },
@@ -46,6 +58,13 @@ export const AnalyticsPage: React.FC = () => {
   const { section = 'revenue' } = useParams<{ section?: string }>();
   const [period, setPeriod] = React.useState('This Month');
   const [showPromoModal, setShowPromoModal] = React.useState(false);
+  const [analyticsData, setAnalyticsData] = React.useState<AnalyticsData | null>(null);
+
+  React.useEffect(() => {
+    analyticsApi.get(PERIOD_MAP[period] ?? 'month')
+      .then(setAnalyticsData)
+      .catch(() => {});
+  }, [period]);
 
   const validSection = (section as Section) in SECTION_TITLES ? (section as Section) : 'revenue';
   const title = SECTION_TITLES[validSection];
@@ -65,15 +84,24 @@ export const AnalyticsPage: React.FC = () => {
       {validSection === 'revenue' && (
         <>
           <div className={styles.kpiGrid}>
-            {revenueKpis.map(k => (
-              <div key={k.label} className={styles.kpiCard}>
-                <div className={styles.kpiLabel}>{k.label}</div>
-                <div className={styles.kpiValue}>{k.value}</div>
-                <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>
-                  {k.up ? '▲' : '▼'} {k.trend}
+            {(analyticsData?.kpis ?? fallbackRevenueKpis.map(k => ({
+              label: k.label, value: 0, trend: k.trend, up: k.up, _raw: k.value,
+            }))).slice(0, 4).map((k, i) => {
+              const displayVal = analyticsData
+                ? (k.label === 'GMV' || k.label === 'Total GMV' || k.label === 'Avg Order Value' || k.label === 'Avg. Order Value'
+                    ? (k.label.includes('Avg') ? `₹${(k as { value: number }).value.toLocaleString('en-IN')}` : fmtMoney((k as { value: number }).value))
+                    : (k as { value: number }).value.toLocaleString('en-IN'))
+                : fallbackRevenueKpis[i]?.value;
+              return (
+                <div key={k.label} className={styles.kpiCard}>
+                  <div className={styles.kpiLabel}>{k.label}</div>
+                  <div className={styles.kpiValue}>{displayVal}</div>
+                  <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>
+                    {k.up ? '▲' : '▼'} {k.trend}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className={styles.card}>
             <div className={styles.cardHeader}>
@@ -82,12 +110,17 @@ export const AnalyticsPage: React.FC = () => {
             </div>
             <div className={styles.chart}>
               <div className={styles.chartBars}>
-                {[65, 80, 72, 90, 85, 95, 88, 100, 92, 78, 95, 110, 98, 115, 105, 120, 110, 130, 118, 135].map((h, i) => (
-                  <div key={i} className={styles.barGroup}>
-                    <div className={styles.barSimplified} style={{ height: `${h * 0.6}%` }} />
-                    <div className={styles.barLuxe} style={{ height: `${h * 0.4}%` }} />
-                  </div>
-                ))}
+                {(analyticsData?.revenue ?? [65, 80, 72, 90, 85, 95, 88, 100, 92, 78, 95, 110, 98, 115, 105, 120, 110, 130, 118, 135].map((v, i) => ({ label: `Day ${i + 1}`, simplified: v * 0.6, luxe: v * 0.4 }))).map((d, i) => {
+                  const maxV = Math.max(...(analyticsData?.revenue ?? []).map(r => Math.max(r.simplified, r.luxe)), 1);
+                  const sh = analyticsData ? Math.max(4, (d.simplified / maxV) * 100) : (d as { simplified: number }).simplified * 0.6;
+                  const lh = analyticsData ? Math.max(4, (d.luxe / maxV) * 100) : (d as { luxe: number }).luxe * 0.6;
+                  return (
+                    <div key={i} className={styles.barGroup}>
+                      <div className={styles.barSimplified} style={{ height: `${sh}%` }} />
+                      <div className={styles.barLuxe} style={{ height: `${lh}%` }} />
+                    </div>
+                  );
+                })}
               </div>
               <div className={styles.legend}>
                 <span className={styles.legendGreen}>■ Simplified</span>

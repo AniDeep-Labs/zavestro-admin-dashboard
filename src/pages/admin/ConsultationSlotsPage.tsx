@@ -1,14 +1,31 @@
 import React from 'react';
-import { consultationSlots, type ConsultationSlot } from '../../data/adminMockData';
+import { consultationSlotsApi } from '../../api/adminApi';
+import type { ConsultationSlot } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ConsultationSlotsPage.module.css';
 
 export const ConsultationSlotsPage: React.FC = () => {
-  const [slots, setSlots] = React.useState([...consultationSlots]);
+  const [slots, setSlots] = React.useState<ConsultationSlot[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [selectedSlot, setSelectedSlot] = React.useState<ConsultationSlot | null>(null);
   const [addDate, setAddDate] = React.useState('');
   const [addTime, setAddTime] = React.useState('10:00');
   const [addMax, setAddMax] = React.useState('2');
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
+
+  const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const showToast = (type: ToastData['type'], title: string, message?: string) =>
+    setToasts(t => [...t, createToast(type, title, message)]);
+
+  React.useEffect(() => {
+    setLoading(true);
+    consultationSlotsApi.list()
+      .then(res => setSlots(res.slots ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const groupedSlots = slots.reduce<Record<string, ConsultationSlot[]>>((acc, slot) => {
     if (!acc[slot.date]) acc[slot.date] = [];
@@ -22,7 +39,7 @@ export const ConsultationSlotsPage: React.FC = () => {
     return 'available';
   };
 
-  const handleAddSlot = () => {
+  const handleAddSlot = async () => {
     if (!addDate || !addTime) return;
     const dateObj = new Date(addDate);
     const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
@@ -33,23 +50,33 @@ export const ConsultationSlotsPage: React.FC = () => {
     const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
     const timeDisplay = `${displayHour}:${m} ${ampm}`;
 
-    const newSlot: ConsultationSlot = {
-      id: `SLT-${Date.now()}`,
-      date: displayDate,
-      time: timeDisplay,
-      dayOfWeek,
-      maxBookings: parseInt(addMax) || 2,
-      booked: 0,
-    };
-    setSlots(prev => [...prev, newSlot]);
+    try {
+      const newSlot = await consultationSlotsApi.create({
+        date: displayDate,
+        time: timeDisplay,
+        dayOfWeek,
+        maxBookings: parseInt(addMax) || 2,
+        booked: 0,
+      });
+      setSlots(prev => [...prev, newSlot]);
+      showToast('success', 'Slot added', `${displayDate} at ${timeDisplay}`);
+    } catch (err) {
+      showToast('error', 'Failed to add slot', err instanceof Error ? err.message : undefined);
+    }
     setShowAddModal(false);
     setAddDate('');
     setAddTime('10:00');
     setAddMax('2');
   };
 
-  const handleDeleteSlot = (slotId: string) => {
-    setSlots(prev => prev.filter(s => s.id !== slotId));
+  const handleDeleteSlot = async (slotId: string) => {
+    try {
+      await consultationSlotsApi.delete(slotId);
+      setSlots(prev => prev.filter(s => s.id !== slotId));
+      showToast('success', 'Slot deleted');
+    } catch (err) {
+      showToast('error', 'Failed to delete slot', err instanceof Error ? err.message : undefined);
+    }
     setSelectedSlot(null);
   };
 
@@ -64,6 +91,8 @@ export const ConsultationSlotsPage: React.FC = () => {
 
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Consultation Slots</h1>
         <button className={styles.addBtn} onClick={() => setShowAddModal(true)}>+ Add Slots</button>
@@ -75,31 +104,44 @@ export const ConsultationSlotsPage: React.FC = () => {
         <span className={`${styles.legendDot} ${styles.dotFull}`} /> Fully Booked
       </div>
 
-      <div className={styles.calendarGrid}>
-        {sortedDates.map(date => (
-          <div key={date} className={styles.dayCol}>
-            <div className={styles.dayHeader}>
-              <span className={styles.dayOfWeek}>{groupedSlots[date][0].dayOfWeek}</span>
-              <span className={styles.dayDate}>{date}</span>
+      {loading ? (
+        <div className={styles.calendarGrid}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className={styles.dayCol}>
+              <div className={styles.skeleton} style={{ height: 40, marginBottom: 8 }} />
+              {Array.from({ length: 3 }).map((__, j) => (
+                <div key={j} className={styles.skeleton} style={{ height: 56, marginBottom: 6 }} />
+              ))}
             </div>
-            <div className={styles.slotList}>
-              {groupedSlots[date].map(slot => {
-                const st = getSlotStatus(slot);
-                return (
-                  <button
-                    key={slot.id}
-                    className={`${styles.slot} ${styles[`slot${st.charAt(0).toUpperCase()}${st.slice(1)}`]}`}
-                    onClick={() => setSelectedSlot(slot)}
-                  >
-                    <span className={styles.slotTime}>{slot.time}</span>
-                    <span className={styles.slotMeta}>{slot.booked}/{slot.maxBookings} booked</span>
-                  </button>
-                );
-              })}
+          ))}
+        </div>
+      ) : (
+        <div className={styles.calendarGrid}>
+          {sortedDates.map(date => (
+            <div key={date} className={styles.dayCol}>
+              <div className={styles.dayHeader}>
+                <span className={styles.dayOfWeek}>{groupedSlots[date][0].dayOfWeek}</span>
+                <span className={styles.dayDate}>{date}</span>
+              </div>
+              <div className={styles.slotList}>
+                {groupedSlots[date].map(slot => {
+                  const st = getSlotStatus(slot);
+                  return (
+                    <button
+                      key={slot.id}
+                      className={`${styles.slot} ${styles[`slot${st.charAt(0).toUpperCase()}${st.slice(1)}`]}`}
+                      onClick={() => setSelectedSlot(slot)}
+                    >
+                      <span className={styles.slotTime}>{slot.time}</span>
+                      <span className={styles.slotMeta}>{slot.booked}/{slot.maxBookings} booked</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Slot Detail Modal */}
       {selectedSlot && (

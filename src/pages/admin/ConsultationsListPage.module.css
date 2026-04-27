@@ -68,3 +68,5 @@
 .cancelModalBtn { padding: 9px 18px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: transparent; color: var(--color-text-muted); font-size: 0.875rem; cursor: pointer; }
 .confirmAssignBtn { padding: 9px 24px; border: none; border-radius: 8px; background: var(--color-primary, #1F6B4F); color: #fff; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
 .confirmAssignBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #f8fafc) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

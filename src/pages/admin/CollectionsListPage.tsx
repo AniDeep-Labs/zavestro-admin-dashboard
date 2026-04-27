@@ -1,6 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminCollections } from '../../data/adminMockData';
+import { collectionsApi } from '../../api/adminApi';
+import type { Collection } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './CollectionsListPage.module.css';
 
 export const CollectionsListPage: React.FC = () => {
@@ -9,15 +12,46 @@ export const CollectionsListPage: React.FC = () => {
   const [modeFilter, setModeFilter] = React.useState('All');
   const [statusFilter, setStatusFilter] = React.useState('All');
 
-  const filtered = adminCollections.filter(c => {
-    const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase());
-    const matchMode = modeFilter === 'All' || c.mode === modeFilter;
-    const matchStatus = statusFilter === 'All' || c.status === statusFilter;
-    return matchSearch && matchMode && matchStatus;
-  });
+  const [collections, setCollections] = React.useState<Collection[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
+
+  const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const showToast = (type: ToastData['type'], title: string, message?: string) =>
+    setToasts(t => [...t, createToast(type, title, message)]);
+
+  React.useEffect(() => {
+    setLoading(true);
+    setError('');
+    collectionsApi.list({
+      search: search || undefined,
+      mode: modeFilter !== 'All' ? modeFilter : undefined,
+      status: statusFilter !== 'All' ? statusFilter : undefined,
+    })
+      .then(res => { setCollections(res.collections ?? []); setTotal(res.total ?? 0); })
+      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load collections'))
+      .finally(() => setLoading(false));
+  }, [search, modeFilter, statusFilter]);
+
+  const handleArchive = async (e: React.MouseEvent, col: Collection) => {
+    e.stopPropagation();
+    if (!confirm(`Archive "${col.name}"?`)) return;
+    try {
+      await collectionsApi.archive(col.id);
+      setCollections(prev => prev.filter(c => c.id !== col.id));
+      setTotal(t => t - 1);
+      showToast('success', 'Collection archived', col.name);
+    } catch (err) {
+      showToast('error', 'Archive failed', err instanceof Error ? err.message : undefined);
+    }
+  };
 
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Collections</h1>
         <button className={styles.addBtn} onClick={() => navigate('/admin/catalog/collections/new')}>
@@ -65,10 +99,25 @@ export const CollectionsListPage: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i}>
+                  {Array.from({ length: 9 }).map((__, j) => (
+                    <td key={j}><div className={styles.skeleton} /></td>
+                  ))}
+                </tr>
+              ))
+            ) : error ? (
+              <tr>
+                <td colSpan={9} className={styles.empty}>
+                  <div>{error}</div>
+                  <button className={styles.retryBtn} onClick={() => { setError(''); }}>Retry</button>
+                </td>
+              </tr>
+            ) : collections.length === 0 ? (
               <tr><td colSpan={9} className={styles.empty}>No collections found.</td></tr>
             ) : (
-              filtered.map(col => (
+              collections.map(col => (
                 <tr key={col.id} className={styles.row}>
                   <td className={styles.dragHandle}>⠿</td>
                   <td>
@@ -90,18 +139,15 @@ export const CollectionsListPage: React.FC = () => {
                   </td>
                   <td className={styles.sortOrder}>#{col.sortOrder}</td>
                   <td>
-                    {col.hasBanner ? (
-                      <div className={styles.bannerThumb}>🖼</div>
-                    ) : (
-                      <span className={styles.noBanner}>—</span>
-                    )}
+                    {col.hasBanner
+                      ? <div className={styles.bannerThumb}>🖼</div>
+                      : <span className={styles.noBanner}>—</span>}
                   </td>
                   <td className={styles.date}>{col.updated}</td>
                   <td>
                     <div className={styles.actions}>
                       <button className={styles.actionBtn} onClick={() => navigate(`/admin/catalog/collections/${col.id}`)}>Edit</button>
-                      <button className={styles.actionBtn}>Duplicate</button>
-                      <button className={styles.archiveBtn}>Archive</button>
+                      <button className={styles.archiveBtn} onClick={e => handleArchive(e, col)}>Archive</button>
                     </div>
                   </td>
                 </tr>
@@ -112,7 +158,7 @@ export const CollectionsListPage: React.FC = () => {
       </div>
 
       <div className={styles.pagination}>
-        Showing {filtered.length} of {adminCollections.length} collections
+        {loading ? 'Loading…' : `Showing ${collections.length} of ${total} collections`}
       </div>
     </div>
   );

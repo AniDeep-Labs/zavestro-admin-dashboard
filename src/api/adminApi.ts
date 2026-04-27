@@ -3,10 +3,12 @@ import {
   adminOrders, adminUsers, adminHubs, supportTickets,
   auditLog, waitlistEntries, dashboardStats, hubPerformance,
   alerts, recentActivity, appConfig,
+  adminCollections, luxeFabrics, adminConsultations, consultationSlots,
 } from '../data/adminMockData';
 import type {
   AdminOrder, AdminUser, Hub, SupportTicket, AuditEntry,
   WaitlistEntry, ConfigGroup, OrderStage,
+  Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus,
 } from '../data/adminMockData';
 
 const BASE = 'https://api.zavestro.in';
@@ -68,11 +70,22 @@ export const adminAuth = {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
+type StatShape = { value: number; trend: string; up: boolean };
+
 export interface DashboardData {
-  stats: typeof dashboardStats;
+  stats: Record<string, StatShape>;
   hubPerformance: typeof hubPerformance;
   alerts: typeof alerts;
   recentActivity: typeof recentActivity;
+  revenue: { label: string; simplified: number; luxe: number }[];
+}
+
+const PERIOD_MULTIPLIER: Record<string, number> = {
+  today: 0.03, week: 0.25, last30: 1.05, month: 1, quarter: 3,
+};
+
+function scaleStat(stat: StatShape, m: number): StatShape {
+  return { value: Math.round(stat.value * m), trend: stat.trend, up: stat.up };
 }
 
 export const dashboardApi = {
@@ -80,7 +93,28 @@ export const dashboardApi = {
     try {
       return await req<DashboardData>(`/api/admin/analytics/dashboard?period=${period}`);
     } catch (err) {
-      if (isNet(err)) return { stats: dashboardStats, hubPerformance, alerts, recentActivity };
+      if (isNet(err)) {
+        const m = PERIOD_MULTIPLIER[period] ?? 1;
+        const revenue = [65, 80, 72, 90, 85, 95, 88, 100, 92, 78, 95, 110, 98, 115].map((v, i) => ({
+          label: `Day ${i + 1}`,
+          simplified: Math.round(v * 1800 * m),
+          luxe: Math.round(v * 1200 * m),
+        }));
+        return {
+          stats: {
+            totalOrders: scaleStat(dashboardStats.totalOrders, m),
+            activeOrders: scaleStat(dashboardStats.activeOrders, m),
+            gmv: scaleStat(dashboardStats.gmv, m),
+            pendingPayments: scaleStat(dashboardStats.pendingPayments, m),
+            openTickets: scaleStat(dashboardStats.openTickets, m),
+            newCustomers: scaleStat(dashboardStats.newCustomers, m),
+          },
+          hubPerformance,
+          alerts,
+          recentActivity,
+          revenue,
+        };
+      }
       throw err;
     }
   },
@@ -400,4 +434,171 @@ export const auditApi = {
   },
 };
 
-export type { AdminOrder, AdminUser, Hub, SupportTicket, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage };
+// ─── Collections ─────────────────────────────────────────────────────────────
+
+export interface CollectionDetail extends Collection { productIds?: string[]; }
+export interface CollectionsResponse { collections: Collection[]; total: number; }
+
+export const collectionsApi = {
+  list: async (params: { search?: string; mode?: string; status?: string } = {}): Promise<CollectionsResponse> => {
+    try {
+      const qs = new URLSearchParams();
+      if (params.search) qs.set('search', params.search);
+      if (params.mode) qs.set('mode', params.mode);
+      if (params.status) qs.set('status', params.status);
+      return await req<CollectionsResponse>(`/api/admin/catalog/collections?${qs}`);
+    } catch (err) {
+      if (isNet(err)) {
+        let filtered = [...adminCollections];
+        if (params.search) { const s = params.search.toLowerCase(); filtered = filtered.filter(c => c.name.toLowerCase().includes(s)); }
+        if (params.mode && params.mode !== 'All') filtered = filtered.filter(c => c.mode === params.mode);
+        if (params.status && params.status !== 'All') filtered = filtered.filter(c => c.status === params.status);
+        return { collections: filtered, total: filtered.length };
+      }
+      throw err;
+    }
+  },
+
+  get: async (id: string): Promise<CollectionDetail> => {
+    try { return await req<CollectionDetail>(`/api/admin/catalog/collections/${id}`); }
+    catch (err) {
+      if (isNet(err)) return { ...(adminCollections.find(c => c.id === id) ?? adminCollections[0]), productIds: [] };
+      throw err;
+    }
+  },
+
+  create: async (data: Partial<CollectionDetail>): Promise<CollectionDetail> => {
+    try { return await req<CollectionDetail>('/api/admin/catalog/collections', { method: 'POST', body: JSON.stringify(data) }); }
+    catch (err) {
+      if (isNet(err)) return { id: `COL-${Date.now()}`, products: 0, sortOrder: 99, hasBanner: false, updated: new Date().toLocaleDateString('en-IN'), ...data } as CollectionDetail;
+      throw err;
+    }
+  },
+
+  update: async (id: string, data: Partial<CollectionDetail>): Promise<CollectionDetail> => {
+    try { return await req<CollectionDetail>(`/api/admin/catalog/collections/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+    catch (err) {
+      if (isNet(err)) return { ...(adminCollections.find(c => c.id === id) ?? adminCollections[0]), ...data } as CollectionDetail;
+      throw err;
+    }
+  },
+
+  archive: async (id: string): Promise<void> => {
+    try { return await req(`/api/admin/catalog/collections/${id}/archive`, { method: 'POST' }); }
+    catch (err) { if (!isNet(err)) throw err; }
+  },
+};
+
+// ─── Luxe Fabrics ─────────────────────────────────────────────────────────────
+
+export interface LuxeFabricsResponse { fabrics: LuxeFabric[]; total: number; }
+
+export const luxeFabricsApi = {
+  list: async (params: { search?: string; material?: string; occasion?: string; status?: string } = {}): Promise<LuxeFabricsResponse> => {
+    try {
+      const qs = new URLSearchParams();
+      if (params.search) qs.set('search', params.search);
+      if (params.material) qs.set('material', params.material);
+      if (params.occasion) qs.set('occasion', params.occasion);
+      if (params.status) qs.set('status', params.status);
+      return await req<LuxeFabricsResponse>(`/api/admin/catalog/luxe-fabrics?${qs}`);
+    } catch (err) {
+      if (isNet(err)) {
+        let filtered = [...luxeFabrics];
+        if (params.search) { const s = params.search.toLowerCase(); filtered = filtered.filter(f => f.name.toLowerCase().includes(s)); }
+        if (params.material && params.material !== 'All') filtered = filtered.filter(f => f.material === params.material);
+        if (params.occasion && params.occasion !== 'All') filtered = filtered.filter(f => f.occasions.includes(params.occasion!));
+        if (params.status && params.status !== 'All') filtered = filtered.filter(f => f.status === params.status);
+        return { fabrics: filtered, total: filtered.length };
+      }
+      throw err;
+    }
+  },
+
+  get: async (id: string): Promise<LuxeFabric> => {
+    try { return await req<LuxeFabric>(`/api/admin/catalog/luxe-fabrics/${id}`); }
+    catch (err) {
+      if (isNet(err)) return luxeFabrics.find(f => f.id === id) ?? luxeFabrics[0];
+      throw err;
+    }
+  },
+
+  create: async (data: Partial<LuxeFabric>): Promise<LuxeFabric> => {
+    try { return await req<LuxeFabric>('/api/admin/catalog/luxe-fabrics', { method: 'POST', body: JSON.stringify(data) }); }
+    catch (err) {
+      if (isNet(err)) return { id: `LXF-${Date.now()}`, occasions: [], featuredForSwatchKit: false, updated: new Date().toLocaleDateString('en-IN'), ...data } as LuxeFabric;
+      throw err;
+    }
+  },
+
+  update: async (id: string, data: Partial<LuxeFabric>): Promise<LuxeFabric> => {
+    try { return await req<LuxeFabric>(`/api/admin/catalog/luxe-fabrics/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+    catch (err) {
+      if (isNet(err)) return { ...(luxeFabrics.find(f => f.id === id) ?? luxeFabrics[0]), ...data } as LuxeFabric;
+      throw err;
+    }
+  },
+};
+
+// ─── Consultations ────────────────────────────────────────────────────────────
+
+export interface ConsultationsResponse { consultations: Consultation[]; total: number; }
+
+export const consultationsApi = {
+  list: async (params: { status?: string; occasion?: string; assigned?: string } = {}): Promise<ConsultationsResponse> => {
+    try {
+      const qs = new URLSearchParams();
+      if (params.status) qs.set('status', params.status);
+      if (params.occasion) qs.set('occasion', params.occasion);
+      if (params.assigned) qs.set('assigned', params.assigned);
+      return await req<ConsultationsResponse>(`/api/admin/consultations?${qs}`);
+    } catch (err) {
+      if (isNet(err)) {
+        let filtered = [...adminConsultations];
+        if (params.status && params.status !== 'All') filtered = filtered.filter(c => c.status === params.status);
+        if (params.occasion && params.occasion !== 'All') filtered = filtered.filter(c => c.occasion === params.occasion);
+        if (params.assigned === 'Assigned') filtered = filtered.filter(c => c.stylist !== null);
+        if (params.assigned === 'Unassigned') filtered = filtered.filter(c => c.stylist === null);
+        return { consultations: filtered, total: filtered.length };
+      }
+      throw err;
+    }
+  },
+
+  update: async (id: string, data: Partial<Consultation>): Promise<Consultation> => {
+    try { return await req<Consultation>(`/api/admin/consultations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
+    catch (err) {
+      if (isNet(err)) return { ...(adminConsultations.find(c => c.id === id) ?? adminConsultations[0]), ...data } as Consultation;
+      throw err;
+    }
+  },
+};
+
+// ─── Consultation Slots ───────────────────────────────────────────────────────
+
+export interface ConsultationSlotsResponse { slots: ConsultationSlot[]; total: number; }
+
+export const consultationSlotsApi = {
+  list: async (): Promise<ConsultationSlotsResponse> => {
+    try { return await req<ConsultationSlotsResponse>('/api/admin/consultation-slots'); }
+    catch (err) {
+      if (isNet(err)) return { slots: [...consultationSlots], total: consultationSlots.length };
+      throw err;
+    }
+  },
+
+  create: async (data: Omit<ConsultationSlot, 'id'>): Promise<ConsultationSlot> => {
+    try { return await req<ConsultationSlot>('/api/admin/consultation-slots', { method: 'POST', body: JSON.stringify(data) }); }
+    catch (err) {
+      if (isNet(err)) return { id: `SLT-${Date.now()}`, ...data };
+      throw err;
+    }
+  },
+
+  delete: async (id: string): Promise<void> => {
+    try { return await req(`/api/admin/consultation-slots/${id}`, { method: 'DELETE' }); }
+    catch (err) { if (!isNet(err)) throw err; }
+  },
+};
+
+export type { AdminOrder, AdminUser, Hub, SupportTicket, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus };

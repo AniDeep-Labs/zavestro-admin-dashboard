@@ -54,3 +54,5 @@
 .createBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .deleteSlotBtn { padding: 9px 18px; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; background: transparent; color: #dc2626; font-size: 0.875rem; cursor: pointer; }
 .deleteSlotBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.skeleton { background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #f8fafc) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 8px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
