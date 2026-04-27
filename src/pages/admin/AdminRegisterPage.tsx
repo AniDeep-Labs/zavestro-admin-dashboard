@@ -1,11 +1,10 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { catalogApi } from '../../api/catalogApi';
 import styles from './AdminLoginPage.module.css';
 import regStyles from './AdminRegisterPage.module.css';
 
 export const AdminRegisterPage: React.FC = () => {
-  const navigate = useNavigate();
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -49,18 +48,20 @@ export const AdminRegisterPage: React.FC = () => {
         <div className={styles.card}>
           <div className={styles.header}>
             <div className={styles.wordmark}>Zavestro</div>
-            <div className={styles.subtitle}>Admin Dashboard</div>
           </div>
           <div className={regStyles.success}>
             <div className={regStyles.successIcon}>✓</div>
-            <h3 className={regStyles.successTitle}>Account request submitted</h3>
+            <h3 className={regStyles.successTitle}>Request submitted!</h3>
             <p className={regStyles.successMsg}>
-              Your account is pending activation. A super admin will review and activate it.
-              You'll be able to log in once approved.
+              Your account has been created and is <strong>pending activation</strong>.
+              A super admin will review and activate it — you'll receive confirmation once approved.
             </p>
-            <button className={styles.submitBtn} onClick={() => navigate('/admin/login')}>
-              Back to Login
-            </button>
+            <p className={regStyles.successNote}>
+              Do not try to log in until your account is activated.
+            </p>
+            <div className={regStyles.loginLink} style={{ marginTop: 8 }}>
+              <Link to="/admin/login" className={regStyles.link}>Go to login page</Link>
+            </div>
           </div>
         </div>
       </div>
