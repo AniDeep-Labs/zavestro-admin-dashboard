@@ -50,13 +50,12 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (res.status === 401) {
       clearAdminToken();
       clearAdminUser();
-      // Notify AdminLayout to redirect via React Router (avoids hard page reload)
-      window.dispatchEvent(new Event('zavestro:auth-expired'));
     }
     let msg = `Error ${res.status}`;
     try { const b = await res.json(); msg = b.message || b.error?.message || b.error || msg; } catch { /* */ }
     const err = new Error(msg) as Error & { status: number };
     err.status = res.status;
+    console.error(`[adminApi] ${init.method ?? 'GET'} ${path} → ${res.status}:`, msg);
     throw err;
   }
   if (res.status === 204) return undefined as T;

@@ -67,12 +67,14 @@ export const AdminLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const [expandedSections, setExpandedSections] = React.useState<string[]>(['Catalog', 'Content', 'Analytics', 'System']);
 
-  // Listen for token-expiry events fired by adminApi.req() on 401 responses
+  // Reactive token check — re-evaluates after every render cycle
+  // so if req() clears the token (on 401), the next child state update
+  // will cause AdminLayout to re-render and redirect naturally.
+  const [, forceCheck] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => {
-    const handleAuthExpired = () => navigate('/admin/login', { replace: true });
-    window.addEventListener('zavestro:auth-expired', handleAuthExpired);
-    return () => window.removeEventListener('zavestro:auth-expired', handleAuthExpired);
-  }, [navigate]);
+    const id = setInterval(() => { if (!hasAdminToken()) forceCheck(); }, 2000);
+    return () => clearInterval(id);
+  }, []);
 
   if (!hasAdminToken()) {
     return <Navigate to="/admin/login" replace />;

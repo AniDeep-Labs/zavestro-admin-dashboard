@@ -22,17 +22,30 @@ export const AdminDashboardPage: React.FC = () => {
   const [period, setPeriod] = React.useState('This Month');
   const [data, setData] = React.useState<DashboardData | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [apiError, setApiError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setLoading(true);
+    setApiError(null);
     dashboardApi.get(PERIOD_MAP[period] ?? 'month')
-      .then(setData)
-      .catch(() => { /* silently use last data */ })
+      .then(d => { setData(d); setApiError(null); })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setApiError(msg);
+      })
       .finally(() => setLoading(false));
   }, [period]);
 
   return (
     <div className={styles.page}>
+      {apiError && (
+        <div style={{ background: '#fee', border: '1px solid #f88', borderRadius: 6, padding: '10px 16px', marginBottom: 16, color: '#c00', fontSize: 13 }}>
+          <strong>API Error:</strong> {apiError} — check browser console (F12 → Network) for details.
+          {apiError.includes('401') || apiError.toLowerCase().includes('token') ? (
+            <span> Your session may have expired — <button style={{ color: '#c00', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => navigate('/admin/login')}>log in again</button>.</span>
+          ) : null}
+        </div>
+      )}
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Dashboard</h1>
         <div className={styles.periodSelector}>
