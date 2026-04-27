@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { toggleTheme, getCurrentTheme } from '../../utils/theme';
 import { hasAdminToken } from '../../api/catalogApi';
+import { adminAuth, getAdminUser } from '../../api/adminApi';
 import styles from './AdminLayout.module.css';
 
 interface NavItem {
@@ -62,12 +63,21 @@ export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [theme, setTheme] = React.useState(getCurrentTheme());
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [expandedSections, setExpandedSections] = React.useState<string[]>(['Catalog', 'Content', 'Analytics', 'System']);
 
   if (!hasAdminToken()) {
     return <Navigate to="/admin/login" replace />;
   }
-  const [collapsed, setCollapsed] = React.useState(false);
-  const [expandedSections, setExpandedSections] = React.useState<string[]>(['Catalog', 'Content', 'Analytics', 'System']);
+
+  const adminUser = getAdminUser();
+  const adminEmail = adminUser?.email ?? 'admin@zavestro.com';
+  const adminInitial = adminEmail[0].toUpperCase();
+
+  const handleLogout = async () => {
+    await adminAuth.logout();
+    navigate('/admin/login', { replace: true });
+  };
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
@@ -180,14 +190,18 @@ export const AdminLayout: React.FC = () => {
             >
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
-            <button className={styles.iconBtn} aria-label="Notifications">
-              🔔
-              <span className={styles.notifBadge}>5</span>
-            </button>
             <div className={styles.adminUser}>
-              <div className={styles.avatar}>A</div>
-              {!collapsed && <span className={styles.adminName}>admin@zavestro.com</span>}
+              <div className={styles.avatar}>{adminInitial}</div>
+              {!collapsed && <span className={styles.adminName}>{adminEmail}</span>}
             </div>
+            <button
+              className={styles.logoutBtn}
+              onClick={handleLogout}
+              aria-label="Log out"
+              title="Log out"
+            >
+              ⏻
+            </button>
           </div>
         </header>
 

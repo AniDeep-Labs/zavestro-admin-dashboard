@@ -96,6 +96,25 @@
 .unassigned { color: var(--color-warning); font-weight: var(--font-weight-semibold); }
 .time { font-size: 12px; color: var(--color-text-tertiary); white-space: nowrap; }
 .rowUnread { border-left: 3px solid var(--color-primary); }
+.rowUnassigned { border-left: 3px solid var(--color-warning); }
 .viewBtn { height: 30px; padding: 0 10px; background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-family: var(--font-family); font-size: 12px; cursor: pointer; color: var(--color-text-secondary); }
 .viewBtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .assignBtn { height: 30px; padding: 0 10px; background: var(--color-primary); color: #fff; border: none; border-radius: var(--radius-sm); font-family: var(--font-family); font-size: 12px; cursor: pointer; }
+.ticketId { font-size: 12px; font-weight: var(--font-weight-semibold); color: var(--color-primary); font-family: monospace; }
+.statusProgress { background: #FEF3C7; color: #92400E; display: inline-block; padding: 2px 8px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
+[data-theme="dark"] .statusProgress { background: rgba(245,158,11,0.2); color: #FCD34D; }
+.kpiCard { background: var(--color-bg-primary); border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); padding: 14px 18px; display: flex; flex-direction: column; gap: 2px; min-width: 100px; }
+.kpiVal { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
+.kpiRed { color: var(--color-error) !important; }
+.kpiYellow { color: var(--color-warning) !important; }
+.kpiOrange { color: #EA580C !important; }
+[data-theme="dark"] .kpiOrange { color: #FB923C !important; }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton { height: 14px; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--color-bg-secondary) 25%, var(--color-bg-hover) 50%, var(--color-bg-secondary) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+.paginationRow { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; flex-wrap: wrap; gap: 8px; }
+.pageButtons { display: flex; align-items: center; gap: 8px; }
+.pageBtn { height: 34px; padding: 0 14px; background: none; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); color: var(--color-text-secondary); cursor: pointer; transition: all var(--transition-fast); }
+.pageBtn:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary); }
+.pageBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pageIndicator { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
+.retryBtn { background: none; border: none; cursor: pointer; font-family: var(--font-family); font-size: 13px; color: var(--color-primary); font-weight: var(--font-weight-medium); padding: 0; text-decoration: underline; display: inline-block; }

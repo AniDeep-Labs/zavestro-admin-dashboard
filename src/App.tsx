@@ -77,6 +77,7 @@ function App() {
             <Route path="users" element={<UsersListPage />} />
             <Route path="users/:id" element={<UserDetailPage />} />
             <Route path="hubs" element={<HubsListPage />} />
+            <Route path="hubs/new" element={<HubDetailPage />} />
             <Route path="hubs/:id" element={<HubDetailPage />} />
             <Route path="catalog/products" element={<ProductsListPage />} />
             <Route path="catalog/products/:id" element={<ProductEditPage />} />

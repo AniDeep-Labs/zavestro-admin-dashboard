@@ -1,29 +1,49 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { appConfig, type ConfigItem } from '../../data/adminMockData';
+import { configApi } from '../../api/adminApi';
+import type { ConfigGroup } from '../../api/adminApi';
 import styles from './AppConfigPage.module.css';
+
+type ConfigItem = ConfigGroup['items'][number];
 
 export const AppConfigPage: React.FC = () => {
   const navigate = useNavigate();
-  const [values, setValues] = React.useState<Record<string, ConfigItem['value']>>(() => {
-    const init: Record<string, ConfigItem['value']> = {};
-    appConfig.forEach(group => group.items.forEach(item => { init[item.key] = item.value; }));
-    return init;
-  });
+  const [groups, setGroups] = React.useState<ConfigGroup[]>([]);
+  const [values, setValues] = React.useState<Record<string, ConfigItem['value']>>({});
   const [dirty, setDirty] = React.useState<Set<string>>(new Set());
   const [showConfirm, setShowConfirm] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    configApi.get().then(loaded => {
+      setGroups(loaded);
+      const init: Record<string, ConfigItem['value']> = {};
+      loaded.forEach(g => g.items.forEach(item => { init[item.key] = item.value; }));
+      setValues(init);
+    }).catch(() => { /* use defaults */ });
+  }, []);
 
   const handleChange = (key: string, value: ConfigItem['value']) => {
     setValues(prev => ({ ...prev, [key]: value }));
     setDirty(prev => new Set(prev).add(key));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setShowConfirm(false);
-    setSaved(true);
-    setDirty(new Set());
-    setTimeout(() => setSaved(false), 3000);
+    setSaving(true);
+    const updated = groups.map(g => ({
+      ...g,
+      items: g.items.map(item => ({ ...item, value: values[item.key] ?? item.value })),
+    }));
+    try {
+      await configApi.save(updated);
+      setGroups(updated);
+      setSaved(true);
+      setDirty(new Set());
+      setTimeout(() => setSaved(false), 3000);
+    } catch { /* silently fail — localStorage fallback already happened */ }
+    finally { setSaving(false); }
   };
 
   const formatUnit = (item: ConfigItem) => {
@@ -43,7 +63,7 @@ export const AppConfigPage: React.FC = () => {
 
       {saved && <div className={styles.successBanner}>Configuration updated ✓</div>}
 
-      {appConfig.map(group => (
+      {groups.map(group => (
         <div key={group.title} className={styles.card}>
           <h2 className={styles.groupTitle}>{group.title}</h2>
           <div className={styles.configList}>
@@ -94,7 +114,7 @@ export const AppConfigPage: React.FC = () => {
           <span className={styles.dirtyCount}>{dirty.size} change{dirty.size > 1 ? 's' : ''} pending</span>
           <button className={styles.cancelChangesBtn} onClick={() => {
             const reset: Record<string, ConfigItem['value']> = {};
-            appConfig.forEach(group => group.items.forEach(item => { reset[item.key] = item.value; }));
+            groups.forEach(g => g.items.forEach(item => { reset[item.key] = item.value; }));
             setValues(reset);
             setDirty(new Set());
           }}>
@@ -121,7 +141,7 @@ export const AppConfigPage: React.FC = () => {
             </p>
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} onClick={() => setShowConfirm(false)}>Cancel</button>
-              <button className={styles.confirmBtn} onClick={handleSave}>Confirm</button>
+              <button className={styles.confirmBtn} disabled={saving} onClick={handleSave}>{saving ? 'Saving…' : 'Confirm'}</button>
             </div>
           </div>
         </div>

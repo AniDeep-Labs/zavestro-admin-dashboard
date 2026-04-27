@@ -1,36 +1,126 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { adminHubs, adminOrders } from '../../data/adminMockData';
+import { hubsApi } from '../../api/adminApi';
+import type { Hub } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './HubDetailPage.module.css';
 
 const TABS = ['Overview', 'Staff', 'Capacity', 'Inventory'];
 
-const staff = [
-  { name: 'Priya Menon', role: 'Hub Manager', email: 'priya@zavestro.com', phone: '+91 98001 23456', status: 'Active' },
-  { name: 'Rajan Kumar', role: 'Tailor', email: 'rajan@zavestro.com', phone: '+91 97001 34567', status: 'Active' },
-  { name: 'Meena Devi', role: 'QC Staff', email: 'meena@zavestro.com', phone: '+91 96001 45678', status: 'Active' },
-  { name: 'Suresh P.', role: 'Tailor', email: 'suresh@zavestro.com', phone: '+91 95001 56789', status: 'Active' },
-  { name: 'Anita R.', role: 'Dispatch', email: 'anita@zavestro.com', phone: '+91 94001 67890', status: 'Active' },
+const MOCK_STAFF = [
+  { name: 'Priya Menon', role: 'Hub Manager', email: 'priya@zavestro.com', phone: '+91 98001 23456' },
+  { name: 'Rajan Kumar', role: 'Tailor', email: 'rajan@zavestro.com', phone: '+91 97001 34567' },
+  { name: 'Meena Devi', role: 'QC Staff', email: 'meena@zavestro.com', phone: '+91 96001 45678' },
 ];
 
-const inventory = [
+const MOCK_INVENTORY = [
   { name: 'Navy Blue Cotton', sku: 'FAB-001', material: 'Cotton', stock: 80, reserved: 35, threshold: 15, status: 'In Stock' },
   { name: 'White Linen', sku: 'FAB-002', material: 'Linen', stock: 12, reserved: 8, threshold: 20, status: 'Low Stock' },
-  { name: 'Olive Linen Blend', sku: 'FAB-003', material: 'Linen Blend', stock: 45, reserved: 20, threshold: 10, status: 'In Stock' },
   { name: 'Black Cotton', sku: 'FAB-004', material: 'Cotton', stock: 0, reserved: 0, threshold: 15, status: 'Out of Stock' },
-  { name: 'Grey Polyester Blend', sku: 'FAB-005', material: 'Polyester Blend', stock: 60, reserved: 25, threshold: 10, status: 'In Stock' },
 ];
+
+const EMPTY_HUB: Partial<Hub> = { name: '', city: '', state: '', address: '', pincode: '', managerName: '', managerPhone: '', status: 'Active', tailorCount: 0, activeOrders: 0, capacityUsed: 0, qcPassRate: 100 };
 
 export const HubDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isNew = id === 'new';
+  const [hub, setHub] = React.useState<Hub | null>(null);
+  const [form, setForm] = React.useState<Partial<Hub>>(EMPTY_HUB);
+  const [loading, setLoading] = React.useState(!isNew);
+  const [saving, setSaving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('Overview');
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
-  const hub = adminHubs.find(h => h.id === id) || adminHubs[0];
-  const hubOrders = adminOrders.filter(o => o.hub === hub.name).slice(0, 10);
+  const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
+  const showToast = (type: ToastData['type'], title: string, msg?: string) =>
+    setToasts(t => [...t, createToast(type, title, msg)]);
 
+  React.useEffect(() => {
+    if (isNew || !id) return;
+    setLoading(true);
+    hubsApi.get(id)
+      .then(h => { setHub(h); setForm(h); })
+      .catch(e => showToast('error', 'Failed to load hub', e instanceof Error ? e.message : undefined))
+      .finally(() => setLoading(false));
+  }, [id, isNew]);
+
+  const handleFormChange = (key: keyof Hub, value: string | number) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    if (!form.name || !form.city) { showToast('error', 'Name and City are required'); return; }
+    setSaving(true);
+    try {
+      if (isNew) {
+        const created = await hubsApi.create(form);
+        showToast('success', 'Hub created', created.name);
+        navigate(`/admin/hubs/${created.id}`, { replace: true });
+      } else if (hub) {
+        const updated = await hubsApi.update(hub.id, form);
+        setHub(updated); setForm(updated);
+        showToast('success', 'Hub saved');
+      }
+    } catch (e) {
+      showToast('error', 'Save failed', e instanceof Error ? e.message : undefined);
+    } finally { setSaving(false); }
+  };
+
+  if (loading) return <div className={styles.page}><div>Loading hub…</div></div>;
+
+  /* ── CREATE MODE ── */
+  if (isNew) {
+    return (
+      <div className={styles.page}>
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}>← Back to Hubs</button>
+        <h1 className={styles.hubName} style={{ marginBottom: 0 }}>New Hub</h1>
+        <div className={styles.card}>
+          <h3 className={styles.sectionTitle}>Hub Details</h3>
+          <div className={styles.formGrid}>
+            {([
+              { key: 'name', label: 'Hub Name *', type: 'text' },
+              { key: 'city', label: 'City *', type: 'text' },
+              { key: 'state', label: 'State', type: 'text' },
+              { key: 'address', label: 'Address', type: 'text' },
+              { key: 'pincode', label: 'Pincode', type: 'text' },
+              { key: 'managerName', label: 'Manager Name', type: 'text' },
+              { key: 'managerPhone', label: 'Manager Phone', type: 'text' },
+            ] as Array<{ key: keyof Hub; label: string; type: string }>).map(f => (
+              <div key={f.key} className={styles.formField}>
+                <label className={styles.metaLabel}>{f.label}</label>
+                <input
+                  type={f.type}
+                  className={styles.fieldInput}
+                  value={(form[f.key] as string) ?? ''}
+                  onChange={e => handleFormChange(f.key, e.target.value)}
+                />
+              </div>
+            ))}
+            <div className={styles.formField}>
+              <label className={styles.metaLabel}>Status</label>
+              <select className={styles.fieldInput} value={form.status ?? 'Active'} onChange={e => handleFormChange('status', e.target.value)}>
+                <option>Active</option><option>Inactive</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}>Cancel</button>
+          <button className={styles.editBtn} disabled={saving} onClick={handleSave}>{saving ? 'Creating…' : 'Create Hub'}</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hub) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}>← Back</button><div>Hub not found.</div></div>;
+
+  /* ── EDIT / DETAIL MODE ── */
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}>← Back to Hubs</button>
 
       <div className={styles.hubHeader}>
@@ -39,66 +129,56 @@ export const HubDetailPage: React.FC = () => {
           <div className={styles.hubSub}>{hub.city}, {hub.state}</div>
         </div>
         <div className={styles.hubActions}>
-          <button className={styles.editBtn}>Edit Hub</button>
-          <button className={styles.deactivateBtn}>Deactivate Hub</button>
+          <button className={styles.editBtn} disabled={saving} onClick={handleSave}>{saving ? 'Saving…' : 'Save Changes'}</button>
+          <button className={styles.deactivateBtn} onClick={async () => {
+            try {
+              const updated = await hubsApi.update(hub.id, { status: hub.status === 'Active' ? 'Inactive' : 'Active' });
+              setHub(updated); setForm(updated);
+              showToast('success', `Hub ${updated.status.toLowerCase()}`);
+            } catch (e) { showToast('error', 'Failed', e instanceof Error ? e.message : undefined); }
+          }}>
+            {hub.status === 'Active' ? 'Deactivate Hub' : 'Activate Hub'}
+          </button>
         </div>
       </div>
 
-      {hub.status === 'At Capacity' && (
-        <div className={styles.capacityBanner}>
-          Hub at capacity. New orders to this hub are currently blocked.
-        </div>
-      )}
-      {hub.status === 'Inactive' && (
-        <div className={styles.inactiveBanner}>
-          This hub is inactive. It is not accepting new orders.
-        </div>
-      )}
+      {hub.status === 'At Capacity' && <div className={styles.capacityBanner}>Hub at capacity. New orders to this hub are currently blocked.</div>}
+      {hub.status === 'Inactive' && <div className={styles.inactiveBanner}>This hub is inactive. It is not accepting new orders.</div>}
 
       <div className={styles.tabs}>
         {TABS.map(tab => (
-          <button
-            key={tab}
-            className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
+          <button key={tab} className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`} onClick={() => setActiveTab(tab)}>{tab}</button>
         ))}
       </div>
 
-      {/* Overview Tab */}
       {activeTab === 'Overview' && (
         <div className={styles.tabContent}>
           <div className={styles.twoCol}>
             <div className={styles.card}>
               <h3 className={styles.sectionTitle}>Hub Details</h3>
-              <div className={styles.detailGrid}>
-                <div><div className={styles.metaLabel}>Address</div><div className={styles.metaValue}>{hub.address}</div></div>
-                <div><div className={styles.metaLabel}>Pincode</div><div className={styles.metaValue}>{hub.pincode}</div></div>
-                <div><div className={styles.metaLabel}>Hub Manager</div><div className={styles.metaValue}>{hub.managerName}</div></div>
-                <div><div className={styles.metaLabel}>Contact</div><div className={styles.metaValue}>{hub.managerPhone}</div></div>
+              <div className={styles.formGrid}>
+                {([
+                  { key: 'address', label: 'Address' },
+                  { key: 'pincode', label: 'Pincode' },
+                  { key: 'managerName', label: 'Hub Manager' },
+                  { key: 'managerPhone', label: 'Contact' },
+                ] as Array<{ key: keyof Hub; label: string }>).map(f => (
+                  <div key={f.key} className={styles.formField}>
+                    <label className={styles.metaLabel}>{f.label}</label>
+                    <input type="text" className={styles.fieldInput}
+                      value={(form[f.key] as string) ?? ''}
+                      onChange={e => handleFormChange(f.key, e.target.value)} />
+                  </div>
+                ))}
               </div>
             </div>
             <div className={styles.card}>
               <h3 className={styles.sectionTitle}>Performance</h3>
               <div className={styles.perfGrid}>
-                <div className={styles.perfCard}>
-                  <div className={styles.perfValue}>{hub.activeOrders}</div>
-                  <div className={styles.perfLabel}>Active Orders</div>
-                </div>
-                <div className={styles.perfCard}>
-                  <div className={styles.perfValue}>{hub.capacityUsed}%</div>
-                  <div className={styles.perfLabel}>Capacity Used</div>
-                </div>
-                <div className={styles.perfCard}>
-                  <div className={styles.perfValue}>{hub.qcPassRate}%</div>
-                  <div className={styles.perfLabel}>QC Pass Rate</div>
-                </div>
-                <div className={styles.perfCard}>
-                  <div className={styles.perfValue}>7.8d</div>
-                  <div className={styles.perfLabel}>Avg. Production</div>
-                </div>
+                <div className={styles.perfCard}><div className={styles.perfValue}>{hub.activeOrders}</div><div className={styles.perfLabel}>Active Orders</div></div>
+                <div className={styles.perfCard}><div className={styles.perfValue}>{hub.capacityUsed}%</div><div className={styles.perfLabel}>Capacity Used</div></div>
+                <div className={styles.perfCard}><div className={styles.perfValue}>{hub.qcPassRate}%</div><div className={styles.perfLabel}>QC Pass Rate</div></div>
+                <div className={styles.perfCard}><div className={styles.perfValue}>{hub.tailorCount}</div><div className={styles.perfLabel}>Tailors</div></div>
               </div>
             </div>
           </div>
@@ -107,29 +187,11 @@ export const HubDetailPage: React.FC = () => {
               <h3 className={styles.sectionTitle}>Recent Orders</h3>
               <button className={styles.linkBtn} onClick={() => navigate('/admin/orders')}>View All →</button>
             </div>
-            {hubOrders.length === 0 ? (
-              <div className={styles.empty}>No recent orders.</div>
-            ) : (
-              <table className={styles.miniTable}>
-                <thead><tr><th>Order #</th><th>Customer</th><th>Stage</th><th>Total</th><th>Date</th></tr></thead>
-                <tbody>
-                  {hubOrders.map((o, i) => (
-                    <tr key={i} className={styles.miniRow} onClick={() => navigate(`/admin/orders/${o.id}`)}>
-                      <td className={styles.orderId}>{o.id}</td>
-                      <td>{o.customer}</td>
-                      <td>{o.stage.replace(/_/g, ' ')}</td>
-                      <td>₹{o.total.toLocaleString()}</td>
-                      <td>{o.created}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <div className={styles.empty}>Navigate to Orders and filter by hub to see orders.</div>
           </div>
         </div>
       )}
 
-      {/* Staff Tab */}
       {activeTab === 'Staff' && (
         <div className={styles.tabContent}>
           <div className={styles.card}>
@@ -140,7 +202,7 @@ export const HubDetailPage: React.FC = () => {
             <table className={styles.staffTable}>
               <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
-                {staff.map((s, i) => (
+                {MOCK_STAFF.map((s, i) => (
                   <tr key={i}>
                     <td className={styles.staffName}>{s.name}</td>
                     <td><span className={styles.rolePill}>{s.role}</span></td>
@@ -161,7 +223,6 @@ export const HubDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Capacity Tab */}
       {activeTab === 'Capacity' && (
         <div className={styles.tabContent}>
           <div className={styles.card}>
@@ -186,12 +247,11 @@ export const HubDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Inventory Tab */}
       {activeTab === 'Inventory' && (
         <div className={styles.tabContent}>
-          {inventory.some(i => i.status !== 'In Stock') && (
+          {MOCK_INVENTORY.some(i => i.status !== 'In Stock') && (
             <div className={styles.lowStockBanner}>
-              {inventory.filter(i => i.status !== 'In Stock').length} fabrics below minimum threshold
+              {MOCK_INVENTORY.filter(i => i.status !== 'In Stock').length} fabrics below minimum threshold
             </div>
           )}
           <div className={styles.card}>
@@ -200,11 +260,9 @@ export const HubDetailPage: React.FC = () => {
               <button className={styles.addBtn}>+ Add Fabric</button>
             </div>
             <table className={styles.inventoryTable}>
-              <thead>
-                <tr><th>Fabric Name</th><th>SKU</th><th>Material</th><th>Total (m)</th><th>Reserved (m)</th><th>Available (m)</th><th>Min Threshold</th><th>Status</th><th>Actions</th></tr>
-              </thead>
+              <thead><tr><th>Fabric Name</th><th>SKU</th><th>Material</th><th>Total (m)</th><th>Reserved (m)</th><th>Available (m)</th><th>Min Threshold</th><th>Status</th></tr></thead>
               <tbody>
-                {inventory.map((item, i) => (
+                {MOCK_INVENTORY.map((item, i) => (
                   <tr key={i}>
                     <td className={styles.fabricName}>{item.name}</td>
                     <td className={styles.sku}>{item.sku}</td>
@@ -217,12 +275,6 @@ export const HubDetailPage: React.FC = () => {
                       <span className={`${styles.stockStatus} ${item.status === 'In Stock' ? styles.stockGood : item.status === 'Low Stock' ? styles.stockLow : styles.stockOut}`}>
                         {item.status}
                       </span>
-                    </td>
-                    <td>
-                      <div className={styles.staffActions}>
-                        <button className={styles.actionBtn}>Edit</button>
-                        <button className={styles.actionBtn}>Restock</button>
-                      </div>
                     </td>
                   </tr>
                 ))}

@@ -77,6 +77,19 @@ export const ProductsListPage: React.FC = () => {
     setPage(1);
   };
 
+  const handleArchive = async (e: React.MouseEvent, product: ApiProduct) => {
+    e.stopPropagation();
+    if (!confirm(`Archive "${product.name}"? It will no longer appear in the catalog.`)) return;
+    try {
+      await catalogApi.updateProduct(product.id, { status: 'archived' });
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+      setTotal(t => t - 1);
+      showToast('success', 'Product archived', product.name);
+    } catch (err) {
+      showToast('error', 'Archive failed', err instanceof Error ? err.message : undefined);
+    }
+  };
+
   const modeLabel = (mode: string) =>
     mode === 'simplified' ? 'Simplified' : mode === 'premium_custom' ? 'Premium Custom' : mode;
 
@@ -204,6 +217,14 @@ export const ProductsListPage: React.FC = () => {
                       >
                         Edit
                       </button>
+                      {product.status !== 'archived' && (
+                        <button
+                          className={`${styles.actionBtn} ${styles.archiveBtn}`}
+                          onClick={e => handleArchive(e, product)}
+                        >
+                          Archive
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

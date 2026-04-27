@@ -256,6 +256,23 @@
   background: var(--color-bg-secondary);
 }
 
+.logoutBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  font-size: 18px;
+  color: var(--color-text-tertiary);
+  transition: color var(--transition-fast), background var(--transition-fast);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.logoutBtn:hover {
+  color: var(--color-error);
+  background: var(--color-bg-secondary);
+}
+
 .notifBadge {
   position: absolute;
   top: 4px;

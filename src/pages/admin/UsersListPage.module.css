@@ -75,8 +75,19 @@
 .userName:hover { color: var(--color-primary); }
 .phone { font-size: 13px; }
 .email { font-size: 13px; }
+.orders { font-weight: var(--font-weight-semibold); }
+.credits { font-weight: var(--font-weight-semibold); white-space: nowrap; }
 .ordersLink { background: none; border: none; cursor: pointer; font-family: var(--font-family); font-size: var(--font-size-base); color: var(--color-primary); font-weight: var(--font-weight-semibold); padding: 0; text-decoration: underline; }
-.status-Active, .statusActive { background: #D1FAE5; color: #065F46; }
+.statusActive { background: #D1FAE5; color: #065F46; }
 .statusDeactivated { background: #FEE2E2; color: #991B1B; }
 [data-theme="dark"] .statusActive { background: rgba(16,185,129,0.2); color: #6EE7B7; }
 [data-theme="dark"] .statusDeactivated { background: rgba(239,68,68,0.2); color: #FCA5A5; }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton { height: 14px; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--color-bg-secondary) 25%, var(--color-bg-hover) 50%, var(--color-bg-secondary) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+.paginationRow { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; flex-wrap: wrap; gap: 8px; }
+.pageButtons { display: flex; align-items: center; gap: 8px; }
+.pageBtn { height: 34px; padding: 0 14px; background: none; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); color: var(--color-text-secondary); cursor: pointer; transition: all var(--transition-fast); }
+.pageBtn:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary); }
+.pageBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pageIndicator { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
+.retryBtn { background: none; border: none; cursor: pointer; font-family: var(--font-family); font-size: 13px; color: var(--color-primary); font-weight: var(--font-weight-medium); padding: 0; text-decoration: underline; display: inline-block; }

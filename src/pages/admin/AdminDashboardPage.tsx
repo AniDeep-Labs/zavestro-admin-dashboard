@@ -1,7 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dashboardStats, hubPerformance, alerts, recentActivity } from '../../data/adminMockData';
+import { dashboardApi } from '../../api/adminApi';
+import type { DashboardData } from '../../api/adminApi';
 import styles from './AdminDashboardPage.module.css';
+
+const PERIOD_MAP: Record<string, string> = {
+  'Today': 'today', 'This Week': 'week', 'This Month': 'month', 'Last 30 Days': 'last30',
+};
 
 const kpis = [
   { label: 'Total Orders', key: 'totalOrders', format: (v: number) => v.toLocaleString() },
@@ -15,6 +20,16 @@ const kpis = [
 export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [period, setPeriod] = React.useState('This Month');
+  const [data, setData] = React.useState<DashboardData | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    setLoading(true);
+    dashboardApi.get(PERIOD_MAP[period] ?? 'month')
+      .then(setData)
+      .catch(() => { /* silently use last data */ })
+      .finally(() => setLoading(false));
+  }, [period]);
 
   return (
     <div className={styles.page}>
@@ -36,14 +51,16 @@ export const AdminDashboardPage: React.FC = () => {
       {/* KPI Row */}
       <div className={styles.kpiGrid}>
         {kpis.map(kpi => {
-          const stat = dashboardStats[kpi.key as keyof typeof dashboardStats];
+          const stat = data?.stats[kpi.key as keyof typeof data.stats];
           return (
-            <div key={kpi.key} className={styles.kpiCard}>
+            <div key={kpi.key} className={`${styles.kpiCard} ${loading ? styles.kpiCardLoading : ''}`}>
               <div className={styles.kpiLabel}>{kpi.label}</div>
-              <div className={styles.kpiValue}>{kpi.format(stat.value)}</div>
-              <div className={`${styles.kpiTrend} ${stat.up ? styles.trendUp : styles.trendDown}`}>
-                {stat.up ? '▲' : '▼'} {stat.trend} vs last period
-              </div>
+              <div className={styles.kpiValue}>{stat ? kpi.format(stat.value) : '—'}</div>
+              {stat && (
+                <div className={`${styles.kpiTrend} ${stat.up ? styles.trendUp : styles.trendDown}`}>
+                  {stat.up ? '▲' : '▼'} {stat.trend} vs last period
+                </div>
+              )}
               <div className={styles.sparkline}>
                 {[40, 55, 48, 62, 70, 58, 75].map((h, i) => (
                   <div key={i} className={styles.sparkBar} style={{ height: `${h}%` }} />
@@ -62,7 +79,7 @@ export const AdminDashboardPage: React.FC = () => {
             <button className={styles.cardLink} onClick={() => navigate('/admin/hubs')}>View All →</button>
           </div>
           <div className={styles.hubList}>
-            {hubPerformance.map(hub => (
+            {(data?.hubPerformance ?? []).map(hub => (
               <div key={hub.name} className={styles.hubRow} onClick={() => navigate('/admin/hubs')}>
                 <div className={styles.hubName}>{hub.name}</div>
                 <div className={styles.hubBar}>
@@ -81,10 +98,10 @@ export const AdminDashboardPage: React.FC = () => {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Alerts</h2>
-            <span className={styles.alertCount}>{alerts.length}</span>
+            {data && <span className={styles.alertCount}>{data.alerts.length}</span>}
           </div>
           <div className={styles.alertList}>
-            {alerts.map((alert, i) => (
+            {(data?.alerts ?? []).map((alert, i) => (
               <div
                 key={i}
                 className={`${styles.alertItem} ${alert.level === 'red' ? styles.alertRed : styles.alertYellow}`}
@@ -127,7 +144,7 @@ export const AdminDashboardPage: React.FC = () => {
           <h2 className={styles.cardTitle}>Recent Activity</h2>
         </div>
         <div className={styles.activityList}>
-          {recentActivity.map((item, i) => (
+          {(data?.recentActivity ?? []).map((item, i) => (
             <div key={i} className={styles.activityItem}>
               <span className={styles.activityIcon}>{item.icon}</span>
               <span className={styles.activityText}>{item.text}</span>

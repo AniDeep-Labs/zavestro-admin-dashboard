@@ -1,24 +1,95 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { adminUsers, adminOrders } from '../../data/adminMockData';
+import { usersApi } from '../../api/adminApi';
+import type { AdminUser } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './UserDetailPage.module.css';
 
 export const UserDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [user, setUser] = React.useState<AdminUser | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [showDeactivateModal, setShowDeactivateModal] = React.useState(false);
   const [deactivateReason, setDeactivateReason] = React.useState('');
   const [showCreditsModal, setShowCreditsModal] = React.useState(false);
   const [creditsAmount, setCreditsAmount] = React.useState('');
   const [creditsReason, setCreditsReason] = React.useState('');
+  const [note, setNote] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
 
-  const user = adminUsers.find(u => u.id === id) || adminUsers[0];
-  const userOrders = adminOrders.slice(0, user.orders).map(o => ({ ...o, customer: user.name }));
+  const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
+  const showToast = (type: ToastData['type'], title: string, msg?: string) =>
+    setToasts(t => [...t, createToast(type, title, msg)]);
+
+  React.useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    usersApi.get(id)
+      .then(setUser)
+      .catch(e => showToast('error', 'Failed to load user', e instanceof Error ? e.message : undefined))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const handleDeactivate = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const updated = await usersApi.update(user.id, { status: 'Deactivated' });
+      setUser(updated);
+      setShowDeactivateModal(false);
+      setDeactivateReason('');
+      showToast('success', 'Account deactivated');
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    } finally { setSaving(false); }
+  };
+
+  const handleReactivate = async () => {
+    if (!user) return;
+    try {
+      const updated = await usersApi.update(user.id, { status: 'Active' });
+      setUser(updated);
+      showToast('success', 'Account reactivated');
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    }
+  };
+
+  const handleIssueCredits = async () => {
+    if (!user || !creditsAmount || !creditsReason) return;
+    setSaving(true);
+    try {
+      await usersApi.issueCredits(user.id, Number(creditsAmount), creditsReason);
+      setShowCreditsModal(false);
+      setCreditsAmount(''); setCreditsReason('');
+      showToast('success', 'Credits issued', `₹${creditsAmount} added to ${user.name}'s account`);
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    } finally { setSaving(false); }
+  };
+
+  const handleSaveNote = async () => {
+    if (!user || !note.trim()) return;
+    try {
+      await usersApi.addNote(user.id, note.trim());
+      setNote('');
+      showToast('success', 'Note saved');
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    }
+  };
+
+  if (loading) return <div className={styles.page}><div className={styles.backBtn}>Loading…</div></div>;
+  if (!user) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/users')}>← Back</button><div>User not found.</div></div>;
 
   const initials = user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <button className={styles.backBtn} onClick={() => navigate('/admin/users')}>← Back to Users</button>
 
       <div className={styles.twoCol}>
@@ -50,20 +121,10 @@ export const UserDetailPage: React.FC = () => {
             </div>
             <table className={styles.miniTable}>
               <thead>
-                <tr><th>Order #</th><th>Mode</th><th>Stage</th><th>Total</th><th>Date</th></tr>
+                <tr><th>Order #</th><th>Mode</th><th>Total</th></tr>
               </thead>
               <tbody>
-                {userOrders.slice(0, 5).map((o, i) => (
-                  <tr key={i} className={styles.miniRow} onClick={() => navigate(`/admin/orders/${o.id}`)}>
-                    <td className={styles.orderId}>{o.id}</td>
-                    <td>
-                      <span className={`${styles.pill} ${o.mode === 'Luxe' ? styles.pillGold : styles.pillGreen}`}>{o.mode}</span>
-                    </td>
-                    <td>{o.stage.replace(/_/g, ' ')}</td>
-                    <td>₹{o.total.toLocaleString()}</td>
-                    <td>{o.created}</td>
-                  </tr>
-                ))}
+                <tr><td colSpan={3} className={styles.empty}>{user.orders} orders — click "View All" to see them</td></tr>
               </tbody>
             </table>
           </div>
@@ -90,12 +151,10 @@ export const UserDetailPage: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>Credits</h3>
-              <span className={styles.creditsBalance}>₹{user.credits}</span>
+              <span className={styles.creditsBalance}>₹{user.credits?.toLocaleString('en-IN') ?? 0}</span>
             </div>
             <div className={styles.creditsLedger}>
-              <div className={styles.ledgerRow}><span>Fit feedback reward</span><span className={styles.credit}>+₹50</span><span>20 Apr 2026</span></div>
-              <div className={styles.ledgerRow}><span>Referral reward</span><span className={styles.credit}>+₹100</span><span>15 Apr 2026</span></div>
-              <div className={styles.ledgerRow}><span>Applied to order</span><span className={styles.debit}>−₹100</span><span>13 Apr 2026</span></div>
+              <div className={styles.ledgerRow}><span>Balance</span><span className={styles.credit}>₹{user.credits?.toLocaleString('en-IN') ?? 0}</span><span>Current</span></div>
             </div>
           </div>
         </div>
@@ -109,22 +168,22 @@ export const UserDetailPage: React.FC = () => {
               {user.status === 'Active' ? (
                 <button className={styles.deactivateBtn} onClick={() => setShowDeactivateModal(true)}>Deactivate Account</button>
               ) : (
-                <button className={styles.reactivateBtn}>Reactivate Account</button>
+                <button className={styles.reactivateBtn} onClick={handleReactivate}>Reactivate Account</button>
               )}
             </div>
           </div>
 
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Admin Notes</h3>
-            <textarea className={styles.notesArea} placeholder="Internal notes (not visible to customer)…" rows={4} />
-            <button className={styles.saveNoteBtn}>Save Note</button>
+            <textarea className={styles.notesArea} placeholder="Internal notes (not visible to customer)…" rows={4}
+              value={note} onChange={e => setNote(e.target.value)} />
+            <button className={styles.saveNoteBtn} disabled={!note.trim()} onClick={handleSaveNote}>Save Note</button>
           </div>
 
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Support Tickets</h3>
             <div className={styles.ticketRow}>
-              <span className={styles.ticketBadge}>2 open</span>
-              <span className={styles.ticketTotal}>5 total</span>
+              <span className={styles.ticketTotal}>View all tickets for this user</span>
             </div>
             <button className={styles.linkBtn} onClick={() => navigate('/admin/support')}>View All Tickets →</button>
           </div>
@@ -153,8 +212,8 @@ export const UserDetailPage: React.FC = () => {
             </div>
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} onClick={() => setShowDeactivateModal(false)}>Cancel</button>
-              <button className={styles.confirmDeactivateBtn} disabled={!deactivateReason} onClick={() => setShowDeactivateModal(false)}>
-                Confirm Deactivation
+              <button className={styles.confirmDeactivateBtn} disabled={!deactivateReason || saving} onClick={handleDeactivate}>
+                {saving ? 'Deactivating…' : 'Confirm Deactivation'}
               </button>
             </div>
           </div>
@@ -176,8 +235,8 @@ export const UserDetailPage: React.FC = () => {
             </div>
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} onClick={() => setShowCreditsModal(false)}>Cancel</button>
-              <button className={styles.issueCreditBtn} disabled={!creditsAmount || !creditsReason} onClick={() => setShowCreditsModal(false)}>
-                Issue Credits
+              <button className={styles.issueCreditBtn} disabled={!creditsAmount || !creditsReason || saving} onClick={handleIssueCredits}>
+                {saving ? 'Issuing…' : 'Issue Credits'}
               </button>
             </div>
           </div>

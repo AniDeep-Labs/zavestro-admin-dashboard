@@ -97,3 +97,23 @@
 .staffCount { font-size: 12px; color: var(--color-text-tertiary); }
 .viewBtn { background: none; border: none; cursor: pointer; font-family: var(--font-family); font-size: 13px; color: var(--color-primary); font-weight: var(--font-weight-semibold); padding: 0; }
 .viewBtn:hover { text-decoration: underline; }
+.hubStatus { display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); white-space: nowrap; }
+.hubStats { display: flex; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); overflow: hidden; }
+.stat { flex: 1; text-align: center; padding: 10px 4px; background: var(--color-bg-secondary); }
+.stat + .stat { border-left: 1px solid var(--color-border-light); }
+.statVal { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
+.statLabel { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
+.capacityRow { display: flex; align-items: center; gap: 8px; }
+.capacityLabel { font-size: 12px; color: var(--color-text-tertiary); white-space: nowrap; flex-shrink: 0; }
+.capacityBar { flex: 1; height: 6px; background: var(--color-bg-secondary); border-radius: var(--radius-full); overflow: hidden; }
+.capacityFill { height: 100%; border-radius: var(--radius-full); transition: width 0.3s; }
+.capacityNormal { background: var(--color-primary); }
+.capacityHigh { background: var(--color-warning); }
+.capacityFull { background: var(--color-error); }
+.capacityPct { font-size: 12px; color: var(--color-text-secondary); white-space: nowrap; flex-shrink: 0; min-width: 32px; text-align: right; }
+.errorBanner { padding: 10px 14px; background: #FEF2F2; border: 1px solid #FECACA; border-radius: var(--radius-md); font-size: 13px; color: #991B1B; display: flex; align-items: center; gap: 8px; }
+[data-theme="dark"] .errorBanner { background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.3); color: #FCA5A5; }
+.retryBtn { background: none; border: none; cursor: pointer; font-family: var(--font-family); font-size: 12px; color: var(--color-primary); font-weight: var(--font-weight-medium); padding: 0 4px; text-decoration: underline; }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton { height: 14px; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--color-bg-secondary) 25%, var(--color-bg-hover) 50%, var(--color-bg-secondary) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+.skeletonCard { opacity: 0.6; pointer-events: none; cursor: default; }

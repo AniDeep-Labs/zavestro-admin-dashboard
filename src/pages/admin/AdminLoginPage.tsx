@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { catalogApi, setAdminToken, hasAdminToken } from '../../api/catalogApi';
+import { setAdminUser } from '../../api/adminApi';
 import styles from './AdminLoginPage.module.css';
 
 export const AdminLoginPage: React.FC = () => {
@@ -29,6 +30,7 @@ export const AdminLoginPage: React.FC = () => {
     try {
       const res = await catalogApi.login(email, password);
       setAdminToken(res.token);
+      setAdminUser({ email: res.user?.email ?? email, role: res.user?.role ?? 'admin' });
       navigate('/admin/dashboard', { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -37,6 +39,7 @@ export const AdminLoginPage: React.FC = () => {
       if (msg === 'Failed to fetch' || msg.includes('fetch')) {
         if (email === 'admin@zavestro.com' && password === 'admin') {
           setAdminToken('dev-mock-token');
+          setAdminUser({ email, role: 'admin' });
           navigate('/admin/dashboard', { replace: true });
           return;
         }

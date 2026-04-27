@@ -1,28 +1,66 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { adminOrders } from '../../data/adminMockData';
+import { ordersApi } from '../../api/adminApi';
+import type { AdminOrder, OrderStage } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrderDetailPage.module.css';
 
-const timeline = [
+const TIMELINE_MOCK = [
   { icon: '🛒', text: 'Order created by customer', time: 'Apr 13, 2:14 PM', actor: 'Customer' },
-  { icon: '💳', text: 'Payment confirmed — ₹1,599', time: 'Apr 13, 2:15 PM', actor: 'System' },
-  { icon: '🧵', text: 'Assigned to Tailor Rajan', time: 'Apr 14, 10:30 AM', actor: 'Hub Manager Priya' },
-  { icon: '✂️', text: 'Stage: fabric_sourced → in_tailoring', time: 'Apr 14, 10:31 AM', actor: 'Tailor Rajan' },
-  { icon: '✅', text: 'QC Pass', time: 'Apr 18, 3:45 PM', actor: 'QC Staff Meena' },
+  { icon: '💳', text: 'Payment confirmed', time: 'Apr 13, 2:15 PM', actor: 'System' },
+  { icon: '🧵', text: 'Assigned to tailor', time: 'Apr 14, 10:30 AM', actor: 'Hub Manager' },
+  { icon: '✂️', text: 'Stage: fabric_sourced → in_tailoring', time: 'Apr 14, 10:31 AM', actor: 'Tailor' },
+  { icon: '✅', text: 'QC Pass', time: 'Apr 18, 3:45 PM', actor: 'QC Staff' },
 ];
 
 export const OrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [order, setOrder] = React.useState<AdminOrder | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [showOverrideModal, setShowOverrideModal] = React.useState(false);
   const [overrideReason, setOverrideReason] = React.useState('');
   const [overrideStage, setOverrideStage] = React.useState('');
   const [overrideChecks, setOverrideChecks] = React.useState([false, false]);
+  const [overriding, setOverriding] = React.useState(false);
 
-  const order = adminOrders.find(o => o.id === id) || adminOrders[0];
+  const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
+  const showToast = (type: ToastData['type'], title: string, msg?: string) =>
+    setToasts(t => [...t, createToast(type, title, msg)]);
+
+  React.useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    ordersApi.get(id)
+      .then(setOrder)
+      .catch(e => showToast('error', 'Failed to load order', e instanceof Error ? e.message : undefined))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const handleOverride = async () => {
+    if (!order || !overrideStage) return;
+    setOverriding(true);
+    try {
+      const updated = await ordersApi.updateStage(order.id, overrideStage as OrderStage, overrideReason);
+      setOrder(updated);
+      setShowOverrideModal(false);
+      setOverrideReason(''); setOverrideStage(''); setOverrideChecks([false, false]);
+      showToast('success', 'Stage updated', `Order moved to ${overrideStage.replace(/_/g, ' ')}`);
+    } catch (e) {
+      showToast('error', 'Override failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setOverriding(false);
+    }
+  };
+
+  if (loading) return <div className={styles.page}><div className={styles.loadingMsg}>Loading order…</div></div>;
+  if (!order) return <div className={styles.page}><div className={styles.loadingMsg}>Order not found.</div></div>;
 
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <button className={styles.backBtn} onClick={() => navigate('/admin/orders')}>← Back to Orders</button>
 
       <div className={styles.twoCol}>
@@ -75,7 +113,7 @@ export const OrderDetailPage: React.FC = () => {
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Order Journey</h3>
             <div className={styles.timeline}>
-              {timeline.map((entry, i) => (
+              {TIMELINE_MOCK.map((entry, i) => (
                 <div key={i} className={styles.timelineEntry}>
                   <div className={styles.timelineDot}>{entry.icon}</div>
                   <div className={styles.timelineContent}>
@@ -189,8 +227,8 @@ export const OrderDetailPage: React.FC = () => {
               <button className={styles.cancelModalBtn} onClick={() => setShowOverrideModal(false)}>Cancel</button>
               <button
                 className={styles.applyBtn}
-                disabled={!overrideStage || overrideReason.length < 20 || !overrideChecks.every(Boolean)}
-                onClick={() => setShowOverrideModal(false)}
+                disabled={!overrideStage || overrideReason.length < 20 || !overrideChecks.every(Boolean) || overriding}
+                onClick={handleOverride}
               >
                 Apply Override
               </button>

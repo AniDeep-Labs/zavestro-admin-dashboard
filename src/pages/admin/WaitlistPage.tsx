@@ -1,20 +1,72 @@
 import React from 'react';
-import { waitlistEntries } from '../../data/adminMockData';
+import { waitlistApi } from '../../api/adminApi';
+import type { WaitlistEntry } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './WaitlistPage.module.css';
+
+function useDebounce<T>(v: T, d: number) {
+  const [dv, setDv] = React.useState(v);
+  React.useEffect(() => { const t = setTimeout(() => setDv(v), d); return () => clearTimeout(t); }, [v, d]);
+  return dv;
+}
 
 export const WaitlistPage: React.FC = () => {
   const [search, setSearch] = React.useState('');
+  const [entries, setEntries] = React.useState<WaitlistEntry[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [loading, setLoading] = React.useState(true);
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [showNotifyModal, setShowNotifyModal] = React.useState(false);
   const [notifyChannel, setNotifyChannel] = React.useState('Email + SMS');
   const [notifySubject, setNotifySubject] = React.useState('');
   const [notifyMessage, setNotifyMessage] = React.useState('');
+  const [sending, setSending] = React.useState(false);
+  const debouncedSearch = useDebounce(search, 350);
 
-  const filtered = waitlistEntries.filter(e =>
-    !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.email.toLowerCase().includes(search.toLowerCase()) || e.city.toLowerCase().includes(search.toLowerCase())
-  );
+  const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
+  const showToast = (type: ToastData['type'], title: string, msg?: string) =>
+    setToasts(t => [...t, createToast(type, title, msg)]);
+
+  React.useEffect(() => {
+    setLoading(true);
+    waitlistApi.list({ search: debouncedSearch || undefined, limit: 200 })
+      .then(r => { setEntries(r.entries); setTotal(r.total); })
+      .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
+      .finally(() => setLoading(false));
+  }, [debouncedSearch]);
+
+  const handleRemove = async (entry: WaitlistEntry) => {
+    if (!confirm(`Remove ${entry.name || entry.email} from waitlist?`)) return;
+    try {
+      await waitlistApi.remove(entry.id);
+      setEntries(prev => prev.filter(e => e.id !== entry.id));
+      setTotal(t => t - 1);
+      showToast('success', 'Removed', `${entry.name || entry.email} removed from waitlist`);
+    } catch (e) {
+      showToast('error', 'Remove failed', e instanceof Error ? e.message : undefined);
+    }
+  };
+
+  const handleSendNotification = async () => {
+    setSending(true);
+    try {
+      await waitlistApi.notify(notifySubject, notifyMessage);
+      setShowNotifyModal(false);
+      setNotifySubject(''); setNotifyMessage('');
+      showToast('success', 'Notification sent', `Sent to ${total.toLocaleString()} waitlist signups`);
+    } catch (e) {
+      showToast('error', 'Send failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const filtered = entries;
 
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Waitlist</h1>
         <div className={styles.headerActions}>
@@ -26,7 +78,7 @@ export const WaitlistPage: React.FC = () => {
       {/* Summary */}
       <div className={styles.summaryCard}>
         <div className={styles.totalSignups}>
-          <span className={styles.totalValue}>{waitlistEntries.length.toLocaleString()}</span>
+          <span className={styles.totalValue}>{loading ? '…' : total.toLocaleString()}</span>
           <span className={styles.totalLabel}>Total Signups</span>
         </div>
         <div className={styles.summaryMeta}>
@@ -71,7 +123,7 @@ export const WaitlistPage: React.FC = () => {
                   <td className={styles.date}>{entry.signedUp}</td>
                   <td><span className={styles.sourcePill}>{entry.source}</span></td>
                   <td>
-                    <button className={styles.removeBtn}>Remove</button>
+                    <button className={styles.removeBtn} onClick={() => handleRemove(entry)}>Remove</button>
                   </td>
                 </tr>
               ))
@@ -80,7 +132,7 @@ export const WaitlistPage: React.FC = () => {
         </table>
       </div>
 
-      <div className={styles.pagination}>Showing {filtered.length} of {waitlistEntries.length} signups</div>
+      <div className={styles.pagination}>{loading ? 'Loading…' : `Showing ${filtered.length} of ${total} signups`}</div>
 
       {/* Notify modal */}
       {showNotifyModal && (
@@ -91,7 +143,7 @@ export const WaitlistPage: React.FC = () => {
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Send to</label>
                 <div className={styles.recipientChoice}>
-                  <span className={styles.recipientAll}>All ({waitlistEntries.length.toLocaleString()} signups)</span>
+                  <span className={styles.recipientAll}>All ({total.toLocaleString()} signups)</span>
                 </div>
               </div>
               <div className={styles.field}>
@@ -118,8 +170,8 @@ export const WaitlistPage: React.FC = () => {
               <button className={styles.cancelModalBtn} onClick={() => setShowNotifyModal(false)}>Cancel</button>
               <button
                 className={styles.sendBtn}
-                disabled={!notifyMessage || (notifyChannel !== 'SMS only' && !notifySubject)}
-                onClick={() => setShowNotifyModal(false)}
+                disabled={sending || !notifyMessage || (notifyChannel !== 'SMS only' && !notifySubject)}
+                onClick={handleSendNotification}
               >
                 Send Notification →
               </button>

@@ -1,115 +1,122 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supportTickets } from '../../data/adminMockData';
+import { supportApi } from '../../api/adminApi';
+import type { SupportTicket } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './SupportListPage.module.css';
+
+const LIMIT = 25;
+
+function useDebounce<T>(v: T, d: number) {
+  const [dv, setDv] = React.useState(v);
+  React.useEffect(() => { const t = setTimeout(() => setDv(v), d); return () => clearTimeout(t); }, [v, d]);
+  return dv;
+}
+
+const priorityCss: Record<string, string> = { High: 'priorityHigh', Medium: 'priorityMedium', Low: 'priorityLow' };
+const statusCss: Record<string, string> = { Open: 'statusOpen', 'In Progress': 'statusProgress', Resolved: 'statusResolved', Closed: 'statusClosed' };
 
 export const SupportListPage: React.FC = () => {
   const navigate = useNavigate();
   const [search, setSearch] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState('All');
-  const [priorityFilter, setPriorityFilter] = React.useState('All');
+  const [statusFilter, setStatusFilter] = React.useState('');
+  const [priorityFilter, setPriorityFilter] = React.useState('');
+  const [page, setPage] = React.useState(1);
+  const [tickets, setTickets] = React.useState<SupportTicket[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [totalPages, setTotalPages] = React.useState(1);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  const debouncedSearch = useDebounce(search, 350);
 
-  const filtered = supportTickets.filter(t => {
-    const matchSearch = !search || t.id.toLowerCase().includes(search.toLowerCase()) || t.customer.toLowerCase().includes(search.toLowerCase()) || t.subject.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'All' || t.status === statusFilter;
-    const matchPriority = priorityFilter === 'All' || t.priority === priorityFilter;
-    return matchSearch && matchStatus && matchPriority;
-  });
+  const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const showToast = (type: ToastData['type'], title: string, msg?: string) =>
+    setToasts(t => [...t, createToast(type, title, msg)]);
 
-  const open = supportTickets.filter(t => t.status === 'Open').length;
-  const inProgress = supportTickets.filter(t => t.status === 'In Progress').length;
-  const unassigned = supportTickets.filter(t => !t.assignedTo).length;
+  React.useEffect(() => {
+    setLoading(true); setError('');
+    supportApi.list({ search: debouncedSearch || undefined, status: statusFilter || undefined, priority: priorityFilter || undefined, page, limit: LIMIT })
+      .then(r => { setTickets(r.tickets); setTotal(r.total); setTotalPages(r.totalPages); })
+      .catch(e => { const msg = e instanceof Error ? e.message : 'Failed to load'; setError(msg); showToast('error', 'Load failed', msg); })
+      .finally(() => setLoading(false));
+  }, [debouncedSearch, statusFilter, priorityFilter, page]);
+
+  const open = tickets.filter(t => t.status === 'Open').length;
+  const inProgress = tickets.filter(t => t.status === 'In Progress').length;
+  const unassigned = tickets.filter(t => !t.assignedTo).length;
 
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Support Tickets</h1>
       </div>
 
-      {/* KPI Row */}
       <div className={styles.kpiRow}>
-        <div className={styles.kpi}><span className={styles.kpiValue}>{open}</span><span className={styles.kpiLabel}>Open</span></div>
-        <div className={styles.kpi}><span className={styles.kpiValue}>{inProgress}</span><span className={styles.kpiLabel}>In Progress</span></div>
-        <div className={styles.kpi}><span className={styles.kpiValue}>3</span><span className={styles.kpiLabel}>Resolved today</span></div>
-        <div className={styles.kpi}><span className={styles.kpiValue}>4.2h</span><span className={styles.kpiLabel}>Avg. Response</span></div>
-        <div className={`${styles.kpi} ${unassigned > 0 ? styles.kpiDanger : ''}`}>
-          <span className={styles.kpiValue}>{unassigned}</span>
-          <span className={styles.kpiLabel}>Unassigned &gt;24h</span>
-        </div>
+        <div className={styles.kpiCard}><div className={styles.kpiVal}>{total}</div><div className={styles.kpiLabel}>Total</div></div>
+        <div className={styles.kpiCard}><div className={`${styles.kpiVal} ${styles.kpiRed}`}>{open}</div><div className={styles.kpiLabel}>Open</div></div>
+        <div className={styles.kpiCard}><div className={`${styles.kpiVal} ${styles.kpiYellow}`}>{inProgress}</div><div className={styles.kpiLabel}>In Progress</div></div>
+        <div className={styles.kpiCard}><div className={`${styles.kpiVal} ${styles.kpiOrange}`}>{unassigned}</div><div className={styles.kpiLabel}>Unassigned</div></div>
       </div>
 
-      {/* Filters */}
       <div className={styles.filterBar}>
-        <input className={styles.searchInput} placeholder="Search by ticket ID, customer, or subject…" value={search} onChange={e => setSearch(e.target.value)} />
-        <select className={styles.filterSelect} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option>All</option>
-          <option>Open</option>
-          <option value="In Progress">In Progress</option>
-          <option>Resolved</option>
-          <option>Closed</option>
+        <input className={styles.searchInput} placeholder="Search ticket ID or customer…"
+          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        <select className={styles.filterSelect} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
+          <option value="">All Status</option>
+          <option>Open</option><option>In Progress</option><option>Resolved</option><option>Closed</option>
         </select>
-        <select className={styles.filterSelect} value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
-          <option>All</option>
-          <option>High</option>
-          <option>Medium</option>
-          <option>Low</option>
+        <select className={styles.filterSelect} value={priorityFilter} onChange={e => { setPriorityFilter(e.target.value); setPage(1); }}>
+          <option value="">All Priority</option>
+          <option>High</option><option>Medium</option><option>Low</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter('All'); setPriorityFilter('All'); }}>Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPriorityFilter(''); setPage(1); }}>Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Ticket ID</th>
-              <th>Customer</th>
-              <th>Subject</th>
-              <th>Category</th>
-              <th>Priority</th>
-              <th>Status</th>
-              <th>Assigned to</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
+          <thead><tr>
+            <th>Ticket ID</th><th>Customer</th><th>Subject</th><th>Category</th>
+            <th>Priority</th><th>Status</th><th>Assigned To</th><th>Last Activity</th>
+          </tr></thead>
           <tbody>
-            {filtered.length === 0 ? (
-              <tr><td colSpan={9} className={styles.empty}>No tickets match your filters.</td></tr>
-            ) : (
-              filtered.map(ticket => (
-                <tr
-                  key={ticket.id}
-                  className={`${styles.row} ${!ticket.assignedTo ? styles.rowUnread : ''}`}
-                  onClick={() => navigate(`/admin/support/${ticket.id}`)}
-                >
-                  <td className={styles.ticketId}>{ticket.id}</td>
-                  <td>
-                    <div className={styles.customerName}>{ticket.customer}</div>
-                    <div className={styles.customerPhone}>{ticket.phone}</div>
-                  </td>
-                  <td className={styles.subject}>{ticket.subject}</td>
-                  <td><span className={styles.categoryPill}>{ticket.category}</span></td>
-                  <td>
-                    <span className={`${styles.priorityPill} ${styles[`priority${ticket.priority}`]}`}>{ticket.priority}</span>
-                  </td>
-                  <td>
-                    <span className={`${styles.statusPill} ${styles[`status${ticket.status.replace(' ', '')}`]}`}>{ticket.status}</span>
-                  </td>
-                  <td className={ticket.assignedTo ? '' : styles.unassigned}>
-                    {ticket.assignedTo || 'Unassigned'}
-                  </td>
-                  <td className={styles.time}>{ticket.created}</td>
-                  <td onClick={e => e.stopPropagation()}>
-                    <div className={styles.actions}>
-                      <button className={styles.viewBtn} onClick={() => navigate(`/admin/support/${ticket.id}`)}>View</button>
-                      {!ticket.assignedTo && <button className={styles.assignBtn}>Assign</button>}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
+            {loading ? Array.from({length: 8}).map((_, i) => (
+              <tr key={i}>{Array.from({length: 8}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
+            )) : error ? (
+              <tr><td colSpan={8} className={styles.empty}>
+                {error}<br/><button className={styles.retryBtn} onClick={() => setPage(1)}>Retry</button>
+              </td></tr>
+            ) : tickets.length === 0 ? (
+              <tr><td colSpan={8} className={styles.empty}>No tickets found.</td></tr>
+            ) : tickets.map(t => (
+              <tr key={t.id} className={`${styles.row} ${!t.assignedTo ? styles.rowUnassigned : ''}`}
+                onClick={() => navigate(`/admin/support/${t.id}`)}>
+                <td className={styles.ticketId}>{t.id}</td>
+                <td>
+                  <div className={styles.customerName}>{t.customer}</div>
+                  <div className={styles.customerPhone}>{t.phone}</div>
+                </td>
+                <td className={styles.subject}>{t.subject}</td>
+                <td>{t.category}</td>
+                <td><span className={`${styles.priorityPill} ${styles[priorityCss[t.priority]]}`}>{t.priority}</span></td>
+                <td><span className={`${styles.statusPill} ${styles[statusCss[t.status]]}`}>{t.status}</span></td>
+                <td className={t.assignedTo ? '' : styles.unassigned}>{t.assignedTo ?? '— Unassigned'}</td>
+                <td className={styles.date}>{t.lastActivity}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
+      </div>
+
+      <div className={styles.paginationRow}>
+        <span className={styles.pagination}>{loading ? 'Loading…' : `${total} ticket${total !== 1 ? 's' : ''} total`}</span>
+        <div className={styles.pageButtons}>
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}>← Prev</button>
+          <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
+          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next →</button>
+        </div>
       </div>
     </div>
   );
