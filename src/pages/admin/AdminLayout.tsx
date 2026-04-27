@@ -67,6 +67,13 @@ export const AdminLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const [expandedSections, setExpandedSections] = React.useState<string[]>(['Catalog', 'Content', 'Analytics', 'System']);
 
+  // Listen for token-expiry events fired by adminApi.req() on 401 responses
+  React.useEffect(() => {
+    const handleAuthExpired = () => navigate('/admin/login', { replace: true });
+    window.addEventListener('zavestro:auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('zavestro:auth-expired', handleAuthExpired);
+  }, [navigate]);
+
   if (!hasAdminToken()) {
     return <Navigate to="/admin/login" replace />;
   }

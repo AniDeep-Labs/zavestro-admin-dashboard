@@ -30,8 +30,16 @@ export function clearAdminUser() {
 
 // ─── Core fetch ───────────────────────────────────────────────────────────────
 
+const DEV_MOCK_TOKEN = 'dev-mock-token';
+
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getAdminToken();
+
+  // Dev offline mode: treat mock token as unreachable so isNet() falls through to mock data
+  if (token === DEV_MOCK_TOKEN) {
+    throw new Error('Failed to fetch');
+  }
+
   const isForm = init.body instanceof FormData;
   const headers: Record<string, string> = {
     ...(!isForm ? { 'Content-Type': 'application/json' } : {}),
@@ -42,7 +50,8 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (res.status === 401) {
       clearAdminToken();
       clearAdminUser();
-      window.location.href = '/admin/login';
+      // Notify AdminLayout to redirect via React Router (avoids hard page reload)
+      window.dispatchEvent(new Event('zavestro:auth-expired'));
     }
     let msg = `Error ${res.status}`;
     try { const b = await res.json(); msg = b.message || b.error?.message || b.error || msg; } catch { /* */ }
@@ -56,13 +65,14 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (json && typeof json === 'object' && 'data' in json ? json.data : json) as T;
 }
 
-// Returns true only for genuinely not-yet-implemented endpoints — use mock data.
-// 401/403 are auth failures and must NOT fall back to mock (they trigger login redirect above).
+// Returns true when the backend doesn't have this endpoint yet, or the network is down.
+// 401/403 are auth failures — must NOT silently fall back to mock data.
 function isNet(err: unknown) {
   if (!(err instanceof Error)) return false;
   const status = (err as Error & { status?: number }).status;
   if (status === 404 || status === 501) return true;
-  return false;
+  const msg = err.message;
+  return msg === 'Failed to fetch' || msg.includes('NetworkError');
 }
 
 function paginate<T>(arr: T[], page = 1, limit = 20) {
