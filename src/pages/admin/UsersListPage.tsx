@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search, Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { usersApi } from '../../api/adminApi';
 import type { AdminUser } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -53,18 +54,21 @@ export const UsersListPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Users</h1>
-        <button className={styles.exportBtn} onClick={exportCSV}>Export CSV</button>
+        <button className={styles.exportBtn} onClick={exportCSV}><Download size={14} /> Export CSV</button>
       </div>
 
       <div className={styles.filterBar}>
-        <input className={styles.searchInput} placeholder="Search by name, phone, or email…"
-          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        <div className={styles.searchWrap}>
+          <Search size={15} className={styles.searchIcon} />
+          <input className={styles.searchInput} placeholder="Search by name, phone, or email…"
+            value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        </div>
         <select className={styles.filterSelect} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="">All Status</option>
           <option value="Active">Active</option>
           <option value="Deactivated">Deactivated</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}>Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}><X size={14} /> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -105,9 +109,9 @@ export const UsersListPage: React.FC = () => {
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} user${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}>← Prev</button>
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
-          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next →</button>
+          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
         </div>
       </div>
     </div>

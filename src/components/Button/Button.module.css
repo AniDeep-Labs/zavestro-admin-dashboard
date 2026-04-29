@@ -31,7 +31,7 @@
 
 .variant-secondary {
   background-color: var(--color-secondary);
-  color: #1A1A1A;
+  color: var(--color-text-primary);
   box-shadow: var(--shadow-sm);
 }
 

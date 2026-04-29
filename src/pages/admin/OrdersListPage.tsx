@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search, Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ordersApi } from '../../api/adminApi';
 import type { AdminOrder, OrderStage } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -71,13 +72,16 @@ export const OrdersListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Orders</h1>
         <div className={styles.headerActions}>
-          <button className={styles.exportBtn} onClick={exportCSV}>Export CSV</button>
+          <button className={styles.exportBtn} onClick={exportCSV}><Download size={14} /> Export CSV</button>
         </div>
       </div>
 
       <div className={styles.filterBar}>
-        <input className={styles.searchInput} placeholder="Search order ID or customer…"
-          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        <div className={styles.searchWrap}>
+          <Search size={15} className={styles.searchIcon} />
+          <input className={styles.searchInput} placeholder="Search order ID or customer…"
+            value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        </div>
         <select className={styles.filterSelect} value={stageFilter} onChange={e => { setStageFilter(e.target.value); setPage(1); }}>
           <option value="">All Stages</option>
           {(Object.keys(stageLabels) as OrderStage[]).map(s => <option key={s} value={s}>{stageLabels[s]}</option>)}
@@ -87,7 +91,7 @@ export const OrdersListPage: React.FC = () => {
           <option value="Simplified">Simplified</option>
           <option value="Luxe">Luxe</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStageFilter(''); setModeFilter(''); setPage(1); }}>Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStageFilter(''); setModeFilter(''); setPage(1); }}><X size={14} /> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -131,9 +135,9 @@ export const OrdersListPage: React.FC = () => {
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} order${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}>← Prev</button>
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
-          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next →</button>
+          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
         </div>
       </div>
     </div>

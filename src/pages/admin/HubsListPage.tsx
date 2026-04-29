@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { X, Plus } from 'lucide-react';
 import { hubsApi } from '../../api/adminApi';
 import type { Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -45,7 +46,7 @@ export const HubsListPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Stitching Hubs</h1>
-        <button className={styles.addBtn} onClick={() => navigate('/admin/hubs/new')}>+ Add Hub</button>
+        <button className={styles.addBtn} onClick={() => navigate('/admin/hubs/new')}><Plus size={15}/> Add Hub</button>
       </div>
 
       <div className={styles.filterBar}>
@@ -56,7 +57,7 @@ export const HubsListPage: React.FC = () => {
           <option>Active</option><option>Inactive</option>
           <option>At Capacity</option><option>Critical</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); }}>Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); }}><X size={14}/> Clear</button>
       </div>
 
       {error && !loading && (

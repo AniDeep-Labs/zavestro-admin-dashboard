@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Eye, EyeOff, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { catalogApi, setAdminToken, hasAdminToken } from '../../api/catalogApi';
 import { setAdminUser } from '../../api/adminApi';
 import styles from './AdminLoginPage.module.css';
@@ -40,18 +41,7 @@ export const AdminLoginPage: React.FC = () => {
       setAdminUser({ email: res.user?.email ?? email, role: res.user?.role ?? 'admin' });
       navigate('/admin/dashboard', { replace: true });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      if (msg === 'Failed to fetch' || msg.includes('fetch')) {
-        if (email === 'admin@zavestro.com' && password === 'admin') {
-          setAdminToken('dev-mock-token');
-          setAdminUser({ email, role: 'admin' });
-          navigate('/admin/dashboard', { replace: true });
-          return;
-        }
-        setError('API unreachable. Use admin@zavestro.com / admin for local dev.');
-      } else {
-        setError(msg || 'Login failed. Please try again.');
-      }
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -91,7 +81,7 @@ export const AdminLoginPage: React.FC = () => {
                 className={styles.input}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="admin@zavestro.in"
+                placeholder="you@zavestro.in"
                 autoFocus
                 autoComplete="email"
                 disabled={loading}
@@ -117,7 +107,7 @@ export const AdminLoginPage: React.FC = () => {
                   onClick={() => setShowPassword(s => !s)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? '🙈' : '👁️'}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
@@ -125,8 +115,8 @@ export const AdminLoginPage: React.FC = () => {
             {error && <div className={styles.error} role="alert">{error}</div>}
 
             <button type="submit" className={styles.submitBtn} disabled={loading}>
-              {loading ? <span className={styles.spinner} /> : null}
-              {loading ? 'Signing in…' : 'Sign In →'}
+              {loading ? <Loader2 size={16} className={styles.spinnerIcon} /> : null}
+              {loading ? 'Signing in…' : <><span>Sign In</span><ArrowRight size={16} /></>}
             </button>
 
             <button
@@ -169,10 +159,10 @@ export const AdminLoginPage: React.FC = () => {
                     className={styles.backBtn}
                     onClick={() => { setShowForgot(false); setForgotDone(false); setForgotError(''); }}
                   >
-                    ← Back
+                    <ArrowLeft size={16} /> Back
                   </button>
                   <button type="submit" className={styles.submitBtn} disabled={forgotLoading}>
-                    {forgotLoading ? <span className={styles.spinner} /> : null}
+                    {forgotLoading ? <Loader2 size={16} className={styles.spinnerIcon} /> : null}
                     {forgotLoading ? 'Sending…' : 'Request Reset'}
                   </button>
                 </div>

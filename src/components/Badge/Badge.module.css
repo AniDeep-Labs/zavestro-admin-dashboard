@@ -22,7 +22,7 @@
 
 .variant-secondary {
   background-color: var(--color-secondary);
-  color: #1A1A1A;
+  color: var(--color-text-primary);
 }
 
 .variant-success {
@@ -37,7 +37,7 @@
 
 .variant-warning {
   background-color: var(--color-warning);
-  color: #1A1A1A;
+  color: var(--color-text-primary);
 }
 
 .variant-info {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search, X, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct, ApiCategory } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -100,18 +101,21 @@ export const ProductsListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Products</h1>
         <button className={styles.addBtn} onClick={() => navigate('/admin/catalog/products/new')}>
-          + Add Product
+          <Plus size={15}/> Add Product
         </button>
       </div>
 
       <div className={styles.filterBar}>
-        <input
-          type="text"
-          className={styles.searchInput}
-          placeholder="Search products…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-        />
+        <div className={styles.searchWrap}>
+          <Search size={15} className={styles.searchIcon} />
+          <input
+            type="text"
+            className={styles.searchInput}
+            placeholder="Search products…"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+          />
+        </div>
         <select
           className={styles.filterSelect}
           value={modeFilter}
@@ -131,7 +135,7 @@ export const ProductsListPage: React.FC = () => {
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <button className={styles.clearBtn} onClick={clearFilters}>Clear</button>
+        <button className={styles.clearBtn} onClick={clearFilters}><X size={14}/> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -244,7 +248,7 @@ export const ProductsListPage: React.FC = () => {
             disabled={page <= 1 || loading}
             onClick={() => setPage(p => p - 1)}
           >
-            ← Prev
+            <ChevronLeft size={15}/> Prev
           </button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
           <button
@@ -252,7 +256,7 @@ export const ProductsListPage: React.FC = () => {
             disabled={page >= totalPages || loading}
             onClick={() => setPage(p => p + 1)}
           >
-            Next →
+            Next <ChevronRight size={15}/>
           </button>
         </div>
       </div>

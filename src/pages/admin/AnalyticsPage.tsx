@@ -1,5 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
+import { TrendingUp, TrendingDown, CheckCircle, AlertTriangle, Plus, Download } from 'lucide-react';
 import { analyticsApi } from '../../api/adminApi';
 import type { AnalyticsData } from '../../api/adminApi';
 import styles from './AnalyticsPage.module.css';
@@ -97,7 +98,7 @@ export const AnalyticsPage: React.FC = () => {
                   <div className={styles.kpiLabel}>{k.label}</div>
                   <div className={styles.kpiValue}>{displayVal}</div>
                   <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>
-                    {k.up ? '▲' : '▼'} {k.trend}
+                    {k.up ? <TrendingUp size={12}/> : <TrendingDown size={12}/>} {k.trend}
                   </div>
                 </div>
               );
@@ -106,7 +107,7 @@ export const AnalyticsPage: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <h2 className={styles.cardTitle}>Revenue Trend</h2>
-              <button className={styles.exportBtn}>Export CSV</button>
+              <button className={styles.exportBtn}><Download size={14}/> Export CSV</button>
             </div>
             <div className={styles.chart}>
               <div className={styles.chartBars}>
@@ -162,7 +163,7 @@ export const AnalyticsPage: React.FC = () => {
               <div key={k.label} className={styles.kpiCard}>
                 <div className={styles.kpiLabel}>{k.label}</div>
                 <div className={styles.kpiValue}>{k.value}</div>
-                <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>{k.trend}</div>
+                <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>{k.up ? <TrendingUp size={12}/> : <TrendingDown size={12}/>} {k.trend}</div>
               </div>
             ))}
           </div>
@@ -182,7 +183,7 @@ export const AnalyticsPage: React.FC = () => {
                     <td>{s.stage}</td>
                     <td>{s.avg} days</td>
                     <td>{s.target} days</td>
-                    <td><span className={s.ok ? styles.onTrack : styles.behind}>{s.ok ? '✓ On Track' : '⚠ Behind'}</span></td>
+                    <td><span className={s.ok ? styles.onTrack : styles.behind}>{s.ok ? <><CheckCircle size={13}/> On Track</> : <><AlertTriangle size={13}/> Behind</>}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -204,7 +205,7 @@ export const AnalyticsPage: React.FC = () => {
               <div key={k.label} className={styles.kpiCard}>
                 <div className={styles.kpiLabel}>{k.label}</div>
                 <div className={styles.kpiValue}>{k.value}</div>
-                <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>{k.trend}</div>
+                <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>{k.up ? <TrendingUp size={12}/> : <TrendingDown size={12}/>} {k.trend}</div>
               </div>
             ))}
           </div>
@@ -269,7 +270,7 @@ export const AnalyticsPage: React.FC = () => {
               <div key={k.label} className={styles.kpiCard}>
                 <div className={styles.kpiLabel}>{k.label}</div>
                 <div className={styles.kpiValue}>{k.value}</div>
-                <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>{k.trend}</div>
+                <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>{k.up ? <TrendingUp size={12}/> : <TrendingDown size={12}/>} {k.trend}</div>
               </div>
             ))}
           </div>
@@ -293,7 +294,7 @@ export const AnalyticsPage: React.FC = () => {
         <>
           <div className={styles.pageHeader} style={{ marginTop: 0 }}>
             <div />
-            <button className={styles.addBtn} onClick={() => setShowPromoModal(true)}>+ Create Promo Code</button>
+            <button className={styles.addBtn} onClick={() => setShowPromoModal(true)}><Plus size={15}/> Create Promo Code</button>
           </div>
           <div className={styles.card}>
             <table className={styles.table}>

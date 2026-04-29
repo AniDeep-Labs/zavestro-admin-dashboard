@@ -1,5 +1,10 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import {
+  LayoutDashboard, ShoppingBag, Users, Building2, Tag, FileText,
+  BarChart3, Headphones, Settings, ChevronDown, ChevronRight,
+  PanelLeftClose, PanelLeftOpen, Sun, Moon, LogOut, Bell,
+} from 'lucide-react';
 import { toggleTheme, getCurrentTheme } from '../../utils/theme';
 import { hasAdminToken } from '../../api/catalogApi';
 import { adminAuth, getAdminUser } from '../../api/adminApi';
@@ -7,55 +12,55 @@ import styles from './AdminLayout.module.css';
 
 interface NavItem {
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   path: string;
   roles: string[];
   children?: { label: string; path: string }[];
 }
 
 const NAV: NavItem[] = [
-  { label: 'Dashboard', icon: '◎', path: '/admin/dashboard', roles: ['admin', 'admin_finance', 'admin_ops'] },
-  { label: 'Orders', icon: '📦', path: '/admin/orders', roles: ['admin', 'admin_support'] },
-  { label: 'Users', icon: '👥', path: '/admin/users', roles: ['admin', 'admin_support'] },
-  { label: 'Hubs', icon: '🏭', path: '/admin/hubs', roles: ['admin', 'admin_ops'] },
+  { label: 'Dashboard',  icon: <LayoutDashboard size={18} />, path: '/admin/dashboard', roles: ['admin', 'admin_finance', 'admin_ops'] },
+  { label: 'Orders',     icon: <ShoppingBag size={18} />,     path: '/admin/orders',    roles: ['admin', 'admin_support'] },
+  { label: 'Users',      icon: <Users size={18} />,           path: '/admin/users',     roles: ['admin', 'admin_support'] },
+  { label: 'Hubs',       icon: <Building2 size={18} />,       path: '/admin/hubs',      roles: ['admin', 'admin_ops'] },
   {
-    label: 'Catalog', icon: '🏷️', path: '/admin/catalog', roles: ['admin', 'admin_catalog'],
+    label: 'Catalog', icon: <Tag size={18} />, path: '/admin/catalog', roles: ['admin', 'admin_catalog'],
     children: [
-      { label: 'Products', path: '/admin/catalog/products' },
-      { label: 'Collections', path: '/admin/catalog/collections' },
-      { label: 'Luxe Fabrics', path: '/admin/catalog/luxe-fabrics' },
-      { label: 'Consultation Slots', path: '/admin/catalog/consultation-slots' },
-      { label: 'Consultations', path: '/admin/catalog/consultations' },
+      { label: 'Products',            path: '/admin/catalog/products' },
+      { label: 'Collections',         path: '/admin/catalog/collections' },
+      { label: 'Luxe Fabrics',        path: '/admin/catalog/luxe-fabrics' },
+      { label: 'Consultation Slots',  path: '/admin/catalog/consultation-slots' },
+      { label: 'Consultations',       path: '/admin/catalog/consultations' },
     ],
   },
   {
-    label: 'Content', icon: '📝', path: '/admin/content', roles: ['admin', 'admin_catalog'],
+    label: 'Content', icon: <FileText size={18} />, path: '/admin/content', roles: ['admin', 'admin_catalog'],
     children: [
-      { label: 'Lookbook', path: '/admin/content/lookbook' },
-      { label: 'Craftspeople', path: '/admin/content/craftspeople' },
-      { label: 'Stories', path: '/admin/content/stories' },
-      { label: 'Journal', path: '/admin/content/journal' },
+      { label: 'Lookbook',       path: '/admin/content/lookbook' },
+      { label: 'Craftspeople',   path: '/admin/content/craftspeople' },
+      { label: 'Stories',        path: '/admin/content/stories' },
+      { label: 'Journal',        path: '/admin/content/journal' },
     ],
   },
   {
-    label: 'Analytics', icon: '📊', path: '/admin/analytics', roles: ['admin', 'admin_finance'],
+    label: 'Analytics', icon: <BarChart3 size={18} />, path: '/admin/analytics', roles: ['admin', 'admin_finance'],
     children: [
-      { label: 'Revenue', path: '/admin/analytics/revenue' },
-      { label: 'Orders', path: '/admin/analytics/orders' },
-      { label: 'Fit Scores', path: '/admin/analytics/fit-scores' },
-      { label: 'Hub Performance', path: '/admin/analytics/hubs' },
-      { label: 'Retention', path: '/admin/analytics/retention' },
-      { label: 'Promo Codes', path: '/admin/analytics/promos' },
+      { label: 'Revenue',          path: '/admin/analytics/revenue' },
+      { label: 'Orders',           path: '/admin/analytics/orders' },
+      { label: 'Fit Scores',       path: '/admin/analytics/fit-scores' },
+      { label: 'Hub Performance',  path: '/admin/analytics/hubs' },
+      { label: 'Retention',        path: '/admin/analytics/retention' },
+      { label: 'Promo Codes',      path: '/admin/analytics/promos' },
     ],
   },
-  { label: 'Support', icon: '🎧', path: '/admin/support', roles: ['admin', 'admin_support'] },
+  { label: 'Support', icon: <Headphones size={18} />, path: '/admin/support', roles: ['admin', 'admin_support'] },
   {
-    label: 'System', icon: '⚙️', path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
+    label: 'System', icon: <Settings size={18} />, path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
     children: [
-      { label: 'App Config', path: '/admin/system/config' },
-      { label: 'Audit Log', path: '/admin/system/audit' },
-      { label: 'Waitlist', path: '/admin/system/waitlist' },
-      { label: 'Admin Users', path: '/admin/system/admins' },
+      { label: 'App Config',   path: '/admin/system/config' },
+      { label: 'Audit Log',    path: '/admin/system/audit' },
+      { label: 'Waitlist',     path: '/admin/system/waitlist' },
+      { label: 'Admin Users',  path: '/admin/system/admins' },
     ],
   },
 ];
@@ -72,7 +77,7 @@ export const AdminLayout: React.FC = () => {
   }
 
   const adminUser = getAdminUser();
-  const adminEmail = adminUser?.email ?? 'admin@zavestro.com';
+  const adminEmail = adminUser?.email ?? 'admin@zavestro.in';
   const adminInitial = adminEmail[0].toUpperCase();
 
   const handleLogout = async () => {
@@ -94,13 +99,14 @@ export const AdminLayout: React.FC = () => {
       <aside className={styles.sidebar}>
         <div className={styles.sidebarTop}>
           <div className={styles.brand} onClick={() => navigate('/admin/dashboard')}>
-            {!collapsed && (
+            {!collapsed ? (
               <>
                 <span className={styles.brandName}>Zavestro</span>
                 <span className={styles.adminBadge}>Admin</span>
               </>
+            ) : (
+              <span className={styles.brandIcon}>Z</span>
             )}
-            {collapsed && <span className={styles.brandIcon}>Z</span>}
           </div>
 
           <nav className={styles.nav}>
@@ -120,7 +126,9 @@ export const AdminLayout: React.FC = () => {
                       {!collapsed && (
                         <>
                           <span className={styles.navLabel}>{item.label}</span>
-                          <span className={styles.navChevron}>{expanded ? '▾' : '▸'}</span>
+                          <span className={styles.navChevron}>
+                            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </span>
                         </>
                       )}
                     </button>
@@ -132,6 +140,7 @@ export const AdminLayout: React.FC = () => {
                             className={`${styles.navChild} ${isActive(child.path) ? styles.navChildActive : ''}`}
                             onClick={() => navigate(child.path)}
                           >
+                            <span className={styles.navChildDot} />
                             {child.label}
                           </button>
                         ))}
@@ -161,7 +170,7 @@ export const AdminLayout: React.FC = () => {
           onClick={() => setCollapsed(c => !c)}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {collapsed ? '→' : '←'}
+          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
       </aside>
 
@@ -189,7 +198,10 @@ export const AdminLayout: React.FC = () => {
               onClick={() => { toggleTheme(); setTheme(getCurrentTheme()); }}
               aria-label="Toggle theme"
             >
-              {theme === 'dark' ? '☀️' : '🌙'}
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <button className={styles.iconBtn} aria-label="Notifications">
+              <Bell size={18} />
             </button>
             <div className={styles.adminUser}>
               <div className={styles.avatar}>{adminInitial}</div>
@@ -201,7 +213,7 @@ export const AdminLayout: React.FC = () => {
               aria-label="Log out"
               title="Log out"
             >
-              ⏻
+              <LogOut size={18} />
             </button>
           </div>
         </header>

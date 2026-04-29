@@ -22,11 +22,11 @@
 }
 
 .wordmark {
-  font-family: var(--font-family);
-  font-size: 24px;
-  font-weight: var(--font-weight-bold);
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-primary);
-  letter-spacing: -0.5px;
+  letter-spacing: 0.5px;
   margin-bottom: 4px;
 }
 
@@ -96,8 +96,8 @@
 
 .error {
   padding: 10px 12px;
-  background: #FEF2F2;
-  border: 1px solid #FECACA;
+  background: rgba(231,76,60,0.06);
+  border: 1px solid rgba(231,76,60,0.3);
   border-radius: var(--radius-md);
   font-size: 13px;
   color: var(--color-error);
@@ -207,8 +207,15 @@
   cursor: pointer;
   white-space: nowrap;
   transition: border-color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .backBtn:hover { border-color: var(--color-primary); }
+
+.spinnerIcon {
+  animation: spin 0.6s linear infinite;
+}
 
 .forgotActions .submitBtn { flex: 1; }

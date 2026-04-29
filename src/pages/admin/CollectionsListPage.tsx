@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search, X, Plus, GripVertical, Image } from 'lucide-react';
 import { collectionsApi } from '../../api/adminApi';
 import type { Collection } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -55,17 +56,20 @@ export const CollectionsListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Collections</h1>
         <button className={styles.addBtn} onClick={() => navigate('/admin/catalog/collections/new')}>
-          + Create Collection
+          <Plus size={15}/> Create Collection
         </button>
       </div>
 
       <div className={styles.filterBar}>
-        <input
-          className={styles.searchInput}
-          placeholder="Search collections…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className={styles.searchWrap}>
+          <Search size={15} className={styles.searchIcon} />
+          <input
+            className={styles.searchInput}
+            placeholder="Search collections…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
         <select className={styles.filterSelect} value={modeFilter} onChange={e => setModeFilter(e.target.value)}>
           <option>All</option>
           <option>Simplified</option>
@@ -79,7 +83,7 @@ export const CollectionsListPage: React.FC = () => {
           <option>Archived</option>
         </select>
         <button className={styles.clearBtn} onClick={() => { setSearch(''); setModeFilter('All'); setStatusFilter('All'); }}>
-          Clear
+          <X size={14}/> Clear
         </button>
       </div>
 
@@ -119,7 +123,7 @@ export const CollectionsListPage: React.FC = () => {
             ) : (
               collections.map(col => (
                 <tr key={col.id} className={styles.row}>
-                  <td className={styles.dragHandle}>⠿</td>
+                  <td className={styles.dragHandle}><GripVertical size={14}/></td>
                   <td>
                     <button className={styles.nameLink} onClick={() => navigate(`/admin/catalog/collections/${col.id}`)}>
                       {col.name}
@@ -140,7 +144,7 @@ export const CollectionsListPage: React.FC = () => {
                   <td className={styles.sortOrder}>#{col.sortOrder}</td>
                   <td>
                     {col.hasBanner
-                      ? <div className={styles.bannerThumb}>🖼</div>
+                      ? <div className={styles.bannerThumb}><Image size={14}/></div>
                       : <span className={styles.noBanner}>—</span>}
                   </td>
                   <td className={styles.date}>{col.updated}</td>

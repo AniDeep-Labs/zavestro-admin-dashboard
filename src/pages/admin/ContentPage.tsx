@@ -1,5 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
+import { Plus, Search, X } from 'lucide-react';
 import styles from './ContentPage.module.css';
 
 type Section = 'lookbook' | 'craftspeople' | 'stories' | 'journal';
@@ -59,12 +60,15 @@ export const ContentPage: React.FC = () => {
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>{data.title}</h1>
-        <button className={styles.addBtn}>+ Add Entry</button>
+        <button className={styles.addBtn}><Plus size={15}/> Add Entry</button>
       </div>
 
       <div className={styles.filterBar}>
-        <input className={styles.searchInput} placeholder={`Search ${data.title.toLowerCase()}…`} value={search} onChange={e => setSearch(e.target.value)} />
-        <button className={styles.clearBtn} onClick={() => setSearch('')}>Clear</button>
+        <div className={styles.searchWrap}>
+          <Search size={15} className={styles.searchIcon} />
+          <input className={styles.searchInput} placeholder={`Search ${data.title.toLowerCase()}…`} value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <button className={styles.clearBtn} onClick={() => setSearch('')}><X size={14}/> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>

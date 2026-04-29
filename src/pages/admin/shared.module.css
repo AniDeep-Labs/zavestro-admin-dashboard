@@ -18,6 +18,7 @@
 }
 
 .title {
+  font-family: var(--font-display);
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
@@ -40,6 +41,7 @@
 }
 
 .sectionTitle {
+  font-family: var(--font-display);
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
@@ -169,12 +171,12 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.status-active, .statusActive { background: #D1FAE5; color: #065F46; }
-.status-completed { background: #DBEAFE; color: #1E40AF; }
-.status-pending { background: #FEF3C7; color: #92400E; }
-.status-cancelled { background: #FEE2E2; color: #991B1B; }
+.status-active, .statusActive { background: rgba(28,92,66,0.1); color: #1C5C42; }
+.status-completed { background: rgba(52,152,219,0.1); color: var(--color-info); }
+.status-pending { background: rgba(201,153,94,0.15); color: #9A6B3A; }
+.status-cancelled { background: rgba(231,76,60,0.08); color: var(--color-error); }
 
-[data-theme="dark"] .status-active, [data-theme="dark"] .statusActive { background: rgba(16,185,129,0.2); color: #6EE7B7; }
+[data-theme="dark"] .status-active, [data-theme="dark"] .statusActive { background: rgba(82,184,130,0.2); color: #52B882; }
 [data-theme="dark"] .status-completed { background: rgba(59,130,246,0.2); color: #93C5FD; }
 [data-theme="dark"] .status-pending { background: rgba(245,158,11,0.2); color: #FCD34D; }
 [data-theme="dark"] .status-cancelled { background: rgba(239,68,68,0.2); color: #FCA5A5; }
@@ -306,6 +308,7 @@
 }
 
 .modalTitle {
+  font-family: var(--font-display);
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ChevronLeft, Send, ChevronDown, ChevronUp, MessageCircle, StickyNote } from 'lucide-react';
 import { supportApi } from '../../api/adminApi';
 import type { SupportTicket } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -84,12 +85,12 @@ export const TicketDetailPage: React.FC = () => {
   };
 
   if (loading) return <div className={styles.page}><div>Loading ticket…</div></div>;
-  if (!ticket) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/support')}>← Back</button><div>Ticket not found.</div></div>;
+  if (!ticket) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/support')}><ChevronLeft size={15}/> Back</button><div>Ticket not found.</div></div>;
 
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/support')}>← Back to Tickets</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/support')}><ChevronLeft size={15}/> Back to Tickets</button>
 
       <div className={styles.twoCol}>
         {/* Left: chat */}
@@ -124,13 +125,13 @@ export const TicketDetailPage: React.FC = () => {
             {/* Reply box */}
             <div className={styles.replyBox}>
               <div className={styles.replyTabs}>
-                <button className={`${styles.replyTab} ${activeTab === 'reply' ? styles.replyTabActive : ''}`} onClick={() => setActiveTab('reply')}>Reply</button>
-                <button className={`${styles.replyTab} ${activeTab === 'notes' ? styles.replyTabActive : ''}`} onClick={() => setActiveTab('notes')}>Internal Notes</button>
+                <button className={`${styles.replyTab} ${activeTab === 'reply' ? styles.replyTabActive : ''}`} onClick={() => setActiveTab('reply')}><MessageCircle size={13}/> Reply</button>
+                <button className={`${styles.replyTab} ${activeTab === 'notes' ? styles.replyTabActive : ''}`} onClick={() => setActiveTab('notes')}><StickyNote size={13}/> Internal Notes</button>
               </div>
               {activeTab === 'reply' ? (
                 <>
                   <div className={styles.templateRow}>
-                    <button className={styles.templateBtn} onClick={() => setShowTemplates(s => !s)}>Use Template ▾</button>
+                    <button className={styles.templateBtn} onClick={() => setShowTemplates(s => !s)}>Use Template {showTemplates ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}</button>
                     {showTemplates && (
                       <div className={styles.templateDropdown}>
                         {TEMPLATES.map((t, i) => (
@@ -152,7 +153,7 @@ export const TicketDetailPage: React.FC = () => {
                       Also change status to: Resolved
                     </label>
                     <button className={styles.sendBtn} disabled={!reply.trim() || sending} onClick={handleSendReply}>
-                      {sending ? 'Sending…' : 'Send Reply'}
+                      <Send size={14}/> {sending ? 'Sending…' : 'Send Reply'}
                     </button>
                   </div>
                 </>

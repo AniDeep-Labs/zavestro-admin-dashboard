@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ChevronLeft, Image } from 'lucide-react';
 import { luxeFabricsApi } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -77,7 +78,7 @@ export const LuxeFabricEditPage: React.FC = () => {
   if (loadError) {
     return (
       <div className={styles.page}>
-        <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/luxe-fabrics')}>← Back to Luxe Fabrics</button>
+        <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/luxe-fabrics')}><ChevronLeft size={15}/> Back to Luxe Fabrics</button>
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-error)' }}>{loadError}</div>
       </div>
     );
@@ -87,7 +88,7 @@ export const LuxeFabricEditPage: React.FC = () => {
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/luxe-fabrics')}>
-        ← Back to Luxe Fabrics
+        <ChevronLeft size={15}/> Back to Luxe Fabrics
       </button>
       <h1 className={styles.title}>{isNew ? 'Add Fabric' : `Edit: ${name}`}</h1>
 
@@ -183,7 +184,7 @@ export const LuxeFabricEditPage: React.FC = () => {
             <div className={styles.field}>
               <label className={styles.label}>Images</label>
               <div className={styles.uploadArea}>
-                <span className={styles.uploadIcon}>🖼</span>
+                <span className={styles.uploadIcon}><Image size={22}/></span>
                 <span className={styles.uploadText}>Upload swatch and garment photos (up to 10 images)</span>
                 <button className={styles.uploadBtn} type="button">Choose Files</button>
               </div>

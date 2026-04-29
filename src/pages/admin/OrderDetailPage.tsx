@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ShoppingCart, CreditCard, Scissors, Shirt, CheckCircle, ChevronLeft } from 'lucide-react';
 import { ordersApi } from '../../api/adminApi';
 import type { AdminOrder, OrderStage } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -7,11 +8,11 @@ import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrderDetailPage.module.css';
 
 const TIMELINE_MOCK = [
-  { icon: '🛒', text: 'Order created by customer', time: 'Apr 13, 2:14 PM', actor: 'Customer' },
-  { icon: '💳', text: 'Payment confirmed', time: 'Apr 13, 2:15 PM', actor: 'System' },
-  { icon: '🧵', text: 'Assigned to tailor', time: 'Apr 14, 10:30 AM', actor: 'Hub Manager' },
-  { icon: '✂️', text: 'Stage: fabric_sourced → in_tailoring', time: 'Apr 14, 10:31 AM', actor: 'Tailor' },
-  { icon: '✅', text: 'QC Pass', time: 'Apr 18, 3:45 PM', actor: 'QC Staff' },
+  { icon: <ShoppingCart size={14}/>, text: 'Order created by customer', time: 'Apr 13, 2:14 PM', actor: 'Customer' },
+  { icon: <CreditCard size={14}/>,   text: 'Payment confirmed',          time: 'Apr 13, 2:15 PM', actor: 'System' },
+  { icon: <Shirt size={14}/>,        text: 'Assigned to tailor',         time: 'Apr 14, 10:30 AM', actor: 'Hub Manager' },
+  { icon: <Scissors size={14}/>,     text: 'Stage: fabric_sourced → in_tailoring', time: 'Apr 14, 10:31 AM', actor: 'Tailor' },
+  { icon: <CheckCircle size={14}/>,  text: 'QC Pass',                    time: 'Apr 18, 3:45 PM', actor: 'QC Staff' },
 ];
 
 export const OrderDetailPage: React.FC = () => {
@@ -61,7 +62,7 @@ export const OrderDetailPage: React.FC = () => {
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/orders')}>← Back to Orders</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/orders')}><ChevronLeft size={15}/> Back to Orders</button>
 
       <div className={styles.twoCol}>
         {/* Left: detail */}
@@ -168,8 +169,8 @@ export const OrderDetailPage: React.FC = () => {
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Audit Trail</h3>
             <div className={styles.auditList}>
-              <div className={styles.auditEntry}>Status set to active · admin@zavestro.com · 1h ago</div>
-              <div className={styles.auditEntry}>Hub reassigned · admin_ops@zavestro.com · 2h ago</div>
+              <div className={styles.auditEntry}>Status set to active · admin@zavestro.in · 1h ago</div>
+              <div className={styles.auditEntry}>Hub reassigned · admin_ops@zavestro.in · 2h ago</div>
             </div>
             <button className={styles.linkBtn} onClick={() => navigate('/admin/system/audit')}>View full audit →</button>
           </div>

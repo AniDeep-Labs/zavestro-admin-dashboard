@@ -11,7 +11,8 @@
 }
 
 .title {
-  font-size: 24px;
+  font-family: var(--font-display);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
@@ -28,6 +29,9 @@
   font-size: 13px;
   cursor: pointer;
   transition: border-color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .refreshBtn:hover { border-color: var(--color-primary); }
@@ -76,8 +80,8 @@
 }
 
 .cardPending {
-  border-color: #FDE68A;
-  background: #FFFBEB;
+  border-color: var(--color-border-gold);
+  background: var(--color-secondary-extra-light);
 }
 
 [data-theme="dark"] .cardPending {
@@ -228,7 +232,7 @@
 .deactivateBtn {
   height: 30px;
   padding: 0 12px;
-  border: 1.5px solid #FECACA;
+  border: 1.5px solid rgba(231, 76, 60, 0.3);
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-error);
@@ -238,7 +242,7 @@
   transition: background var(--transition-fast);
 }
 
-.deactivateBtn:hover { background: #FEF2F2; }
+.deactivateBtn:hover { background: rgba(231, 76, 60, 0.06); }
 
 [data-theme="dark"] .deactivateBtn:hover { background: rgba(231, 76, 60, 0.1); }
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Search, X, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
 import { auditApi } from '../../api/adminApi';
 import type { AuditEntry } from '../../api/adminApi';
 import styles from './AuditLogPage.module.css';
@@ -60,12 +61,15 @@ export const AuditLogPage: React.FC = () => {
       <div className={styles.subtitle}>Read-only. Every admin write action is automatically logged with the admin's identity.</div>
 
       <div className={styles.filterBar}>
-        <input
-          className={styles.searchInput}
-          placeholder="Search by action, entity ID, or admin email…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-        />
+        <div className={styles.searchWrap}>
+          <Search size={15} className={styles.searchIcon} />
+          <input
+            className={styles.searchInput}
+            placeholder="Search by action, entity ID, or admin email…"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+          />
+        </div>
         <select
           className={styles.filterSelect}
           value={actionFilter}
@@ -73,8 +77,8 @@ export const AuditLogPage: React.FC = () => {
         >
           {ACTION_TYPES.map(a => <option key={a}>{a}</option>)}
         </select>
-        <button className={styles.clearBtn} onClick={clearFilters}>Clear</button>
-        <button className={styles.exportBtn}>Export CSV</button>
+        <button className={styles.clearBtn} onClick={clearFilters}><X size={14} /> Clear</button>
+        <button className={styles.exportBtn}><Download size={14} /> Export CSV</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -120,7 +124,7 @@ export const AuditLogPage: React.FC = () => {
                     </td>
                     <td className={styles.ip}>{entry.ip}</td>
                     <td>
-                      <button className={styles.expandBtn}>{expandedId === entry.id ? '▲' : '▼'}</button>
+                      <button className={styles.expandBtn}>{expandedId === entry.id ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</button>
                     </td>
                   </tr>
                   {expandedId === entry.id && (
@@ -150,7 +154,7 @@ export const AuditLogPage: React.FC = () => {
             disabled={page <= 1 || loading}
             onClick={() => setPage(p => p - 1)}
           >
-            ← Prev
+            <ChevronLeft size={15}/> Prev
           </button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
           <button
@@ -158,7 +162,7 @@ export const AuditLogPage: React.FC = () => {
             disabled={page >= totalPages || loading}
             onClick={() => setPage(p => p + 1)}
           >
-            Next →
+            Next <ChevronRight size={15}/>
           </button>
         </div>
       </div>

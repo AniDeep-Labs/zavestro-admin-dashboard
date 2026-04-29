@@ -1,4 +1,5 @@
 import React from 'react';
+import { RefreshCw } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { AdminUser } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -62,7 +63,7 @@ export const AdminUsersManagePage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Admin Users</h1>
         <button className={styles.refreshBtn} onClick={load} disabled={loading}>
-          {loading ? 'Loading…' : 'Refresh'}
+          <RefreshCw size={14}/> {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
 

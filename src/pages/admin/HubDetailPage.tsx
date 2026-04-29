@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ChevronLeft, Save, PowerOff, Power, Plus } from 'lucide-react';
 import { hubsApi } from '../../api/adminApi';
 import type { Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -9,9 +10,9 @@ import styles from './HubDetailPage.module.css';
 const TABS = ['Overview', 'Staff', 'Capacity', 'Inventory'];
 
 const MOCK_STAFF = [
-  { name: 'Priya Menon', role: 'Hub Manager', email: 'priya@zavestro.com', phone: '+91 98001 23456' },
-  { name: 'Rajan Kumar', role: 'Tailor', email: 'rajan@zavestro.com', phone: '+91 97001 34567' },
-  { name: 'Meena Devi', role: 'QC Staff', email: 'meena@zavestro.com', phone: '+91 96001 45678' },
+  { name: 'Priya Menon', role: 'Hub Manager', email: 'priya@zavestro.in', phone: '+91 98001 23456' },
+  { name: 'Rajan Kumar', role: 'Tailor', email: 'rajan@zavestro.in', phone: '+91 97001 34567' },
+  { name: 'Meena Devi', role: 'QC Staff', email: 'meena@zavestro.in', phone: '+91 96001 45678' },
 ];
 
 const MOCK_INVENTORY = [
@@ -75,7 +76,7 @@ export const HubDetailPage: React.FC = () => {
     return (
       <div className={styles.page}>
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-        <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}>← Back to Hubs</button>
+        <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><ChevronLeft size={15}/> Back to Hubs</button>
         <h1 className={styles.hubName} style={{ marginBottom: 0 }}>New Hub</h1>
         <div className={styles.card}>
           <h3 className={styles.sectionTitle}>Hub Details</h3>
@@ -115,13 +116,13 @@ export const HubDetailPage: React.FC = () => {
     );
   }
 
-  if (!hub) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}>← Back</button><div>Hub not found.</div></div>;
+  if (!hub) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><ChevronLeft size={15}/> Back</button><div>Hub not found.</div></div>;
 
   /* ── EDIT / DETAIL MODE ── */
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}>← Back to Hubs</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><ChevronLeft size={15}/> Back to Hubs</button>
 
       <div className={styles.hubHeader}>
         <div>
@@ -129,7 +130,7 @@ export const HubDetailPage: React.FC = () => {
           <div className={styles.hubSub}>{hub.city}, {hub.state}</div>
         </div>
         <div className={styles.hubActions}>
-          <button className={styles.editBtn} disabled={saving} onClick={handleSave}>{saving ? 'Saving…' : 'Save Changes'}</button>
+          <button className={styles.editBtn} disabled={saving} onClick={handleSave}><Save size={14}/> {saving ? 'Saving…' : 'Save Changes'}</button>
           <button className={styles.deactivateBtn} onClick={async () => {
             try {
               const updated = await hubsApi.update(hub.id, { status: hub.status === 'Active' ? 'Inactive' : 'Active' });
@@ -137,7 +138,7 @@ export const HubDetailPage: React.FC = () => {
               showToast('success', `Hub ${updated.status.toLowerCase()}`);
             } catch (e) { showToast('error', 'Failed', e instanceof Error ? e.message : undefined); }
           }}>
-            {hub.status === 'Active' ? 'Deactivate Hub' : 'Activate Hub'}
+            {hub.status === 'Active' ? <><PowerOff size={14}/> Deactivate Hub</> : <><Power size={14}/> Activate Hub</>}
           </button>
         </div>
       </div>
@@ -197,7 +198,7 @@ export const HubDetailPage: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>{hub.name} — Staff</h3>
-              <button className={styles.addBtn}>+ Add Staff Member</button>
+              <button className={styles.addBtn}><Plus size={14}/> Add Staff Member</button>
             </div>
             <table className={styles.staffTable}>
               <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
@@ -257,7 +258,7 @@ export const HubDetailPage: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>{hub.name} — Fabric Inventory</h3>
-              <button className={styles.addBtn}>+ Add Fabric</button>
+              <button className={styles.addBtn}><Plus size={14}/> Add Fabric</button>
             </div>
             <table className={styles.inventoryTable}>
               <thead><tr><th>Fabric Name</th><th>SKU</th><th>Material</th><th>Total (m)</th><th>Reserved (m)</th><th>Available (m)</th><th>Min Threshold</th><th>Status</th></tr></thead>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ChevronLeft, Lock, CheckCircle, Gift, UserX, UserCheck } from 'lucide-react';
 import { usersApi } from '../../api/adminApi';
 import type { AdminUser } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -83,14 +84,14 @@ export const UserDetailPage: React.FC = () => {
   };
 
   if (loading) return <div className={styles.page}><div className={styles.backBtn}>Loading…</div></div>;
-  if (!user) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/users')}>← Back</button><div>User not found.</div></div>;
+  if (!user) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/users')}><ChevronLeft size={15}/> Back</button><div>User not found.</div></div>;
 
   const initials = user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/users')}>← Back to Users</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/users')}><ChevronLeft size={15}/> Back to Users</button>
 
       <div className={styles.twoCol}>
         {/* Left: profile */}
@@ -138,7 +139,7 @@ export const UserDetailPage: React.FC = () => {
                   <div className={styles.fitMemberName}>{member}</div>
                   <div className={styles.fitCategories}>
                     {['Shirt', 'Trouser', 'Kurta'].map(cat => (
-                      <span key={cat} className={styles.fitCat}>{cat} ✓</span>
+                      <span key={cat} className={styles.fitCat}><CheckCircle size={11}/> {cat}</span>
                     ))}
                   </div>
                 </div>
@@ -164,11 +165,11 @@ export const UserDetailPage: React.FC = () => {
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Account Actions</h3>
             <div className={styles.actionList}>
-              <button className={styles.creditsBtn} onClick={() => setShowCreditsModal(true)}>Issue Credits</button>
+              <button className={styles.creditsBtn} onClick={() => setShowCreditsModal(true)}><Gift size={14}/> Issue Credits</button>
               {user.status === 'Active' ? (
-                <button className={styles.deactivateBtn} onClick={() => setShowDeactivateModal(true)}>Deactivate Account</button>
+                <button className={styles.deactivateBtn} onClick={() => setShowDeactivateModal(true)}><UserX size={14}/> Deactivate Account</button>
               ) : (
-                <button className={styles.reactivateBtn} onClick={handleReactivate}>Reactivate Account</button>
+                <button className={styles.reactivateBtn} onClick={handleReactivate}><UserCheck size={14}/> Reactivate Account</button>
               )}
             </div>
           </div>
@@ -194,7 +195,7 @@ export const UserDetailPage: React.FC = () => {
       {showDeactivateModal && (
         <div className={styles.modalOverlay} onClick={() => setShowDeactivateModal(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalIcon}>🔒</div>
+            <div className={styles.modalIcon}><Lock size={22}/></div>
             <h3 className={styles.modalTitle}>Deactivate {user.name}'s account?</h3>
             <p className={styles.modalWarning}>
               This customer will not be able to log in or place new orders. Existing orders will NOT be cancelled.

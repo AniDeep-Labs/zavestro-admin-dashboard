@@ -1,4 +1,5 @@
 import React from 'react';
+import { X, Eye } from 'lucide-react';
 import { consultationsApi } from '../../api/adminApi';
 import type { Consultation, ConsultationStatus } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -130,7 +131,7 @@ export const ConsultationsListPage: React.FC = () => {
           <option>Unassigned</option>
         </select>
         <button className={styles.clearBtn} onClick={() => { setStatusFilter('All'); setOccasionFilter('All'); setAssignedFilter('All'); }}>
-          Clear
+          <X size={14}/> Clear
         </button>
       </div>
 
@@ -186,7 +187,7 @@ export const ConsultationsListPage: React.FC = () => {
                           Assign Stylist
                         </button>
                       )}
-                      <button className={styles.viewBtn} onClick={() => setViewModal(c.id)}>View</button>
+                      <button className={styles.viewBtn} onClick={() => setViewModal(c.id)}><Eye size={13}/> View</button>
                     </div>
                   </td>
                 </tr>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ChevronLeft, Image } from 'lucide-react';
 import { collectionsApi } from '../../api/adminApi';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct } from '../../api/catalogApi';
@@ -104,7 +105,7 @@ export const CollectionEditPage: React.FC = () => {
   if (loadError) {
     return (
       <div className={styles.page}>
-        <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/collections')}>← Back to Collections</button>
+        <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/collections')}><ChevronLeft size={15}/> Back to Collections</button>
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-error)' }}>{loadError}</div>
       </div>
     );
@@ -114,7 +115,7 @@ export const CollectionEditPage: React.FC = () => {
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/collections')}>
-        ← Back to Collections
+        <ChevronLeft size={15}/> Back to Collections
       </button>
       <h1 className={styles.title}>{isNew ? 'Create Collection' : `Edit: ${name}`}</h1>
 
@@ -191,7 +192,7 @@ export const CollectionEditPage: React.FC = () => {
               <div className={styles.field}>
                 <label className={styles.label}>Banner Image</label>
                 <div className={styles.uploadArea}>
-                  <span className={styles.uploadIcon}>🖼</span>
+                  <span className={styles.uploadIcon}><Image size={22}/></span>
                   <span className={styles.uploadText}>Upload banner (1200 × 400px recommended)</span>
                   <button className={styles.uploadBtn} type="button">Choose File</button>
                 </div>

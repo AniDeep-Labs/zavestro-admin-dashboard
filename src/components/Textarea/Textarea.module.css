@@ -34,7 +34,7 @@
 .textarea:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(31, 107, 79, 0.1);
+  box-shadow: 0 0 0 3px rgba(28, 92, 66, 0.1);
 }
 
 .textarea:disabled {

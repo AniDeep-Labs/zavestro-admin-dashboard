@@ -1,11 +1,11 @@
 .page { padding: 24px; max-width: 1400px; }
 .pageHeader { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
-.title { font-family: var(--font-display, 'Poppins', sans-serif); font-size: 1.5rem; font-weight: 600; color: var(--color-text); margin: 0 0 4px; }
-.unassignedAlert { font-size: 0.8rem; color: #D4A574; margin: 0; }
+.title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; color: var(--color-text); margin: 0 0 4px; }
+.unassignedAlert { font-size: 0.8rem; color: var(--color-secondary); margin: 0; }
 
 .filterBar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
 .filterSelect { padding: 8px 12px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: var(--color-bg-card); color: var(--color-text); font-size: 0.875rem; cursor: pointer; }
-.clearBtn { padding: 8px 14px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: transparent; color: var(--color-text-muted); font-size: 0.875rem; cursor: pointer; }
+.clearBtn { padding: 8px 14px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: transparent; color: var(--color-text-muted); font-size: 0.875rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
 
 .tableWrap { overflow-x: auto; background: var(--color-bg-card); border: 1px solid var(--color-border, #e2e8f0); border-radius: 12px; }
 .table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
@@ -13,7 +13,7 @@
 .table td { padding: 14px 16px; vertical-align: middle; border-bottom: 1px solid var(--color-border, #e2e8f0); }
 .row:last-child td { border-bottom: none; }
 .row:hover { background: var(--color-bg-2, rgba(0,0,0,0.02)); }
-.rowUnassigned { border-left: 3px solid #D4A574; }
+.rowUnassigned { border-left: 3px solid var(--color-secondary); }
 .empty { text-align: center; color: var(--color-text-muted); padding: 40px !important; }
 
 .consultId { font-family: monospace; font-size: 0.8rem; color: var(--color-text-muted); }
@@ -25,22 +25,22 @@
 [data-theme="dark"] .occasionPill { background: rgba(99, 102, 241, 0.2); color: #818CF8; }
 
 .statusPill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
-.statusColorSuccess { background: rgba(31, 107, 79, 0.1); color: #1F6B4F; }
-.statusColorWarning { background: rgba(212, 165, 116, 0.15); color: #9A6B3A; }
+.statusColorSuccess { background: rgba(28, 92, 66, 0.1); color: #1C5C42; }
+.statusColorWarning { background: rgba(201, 153, 94, 0.15); color: #9A6B3A; }
 .statusColorBlue { background: rgba(59, 130, 246, 0.1); color: #1d4ed8; }
 [data-theme="dark"] .statusColorBlue { color: #93C5FD; }
 
 .stylistName { font-size: 0.8rem; color: var(--color-text); }
-.unassigned { font-size: 0.8rem; font-weight: 600; color: #D4A574; }
+.unassigned { font-size: 0.8rem; font-weight: 600; color: var(--color-secondary); }
 
 .actions { display: flex; gap: 6px; }
-.assignBtn { padding: 5px 12px; border: none; border-radius: 6px; background: var(--color-primary, #1F6B4F); color: #fff; font-size: 0.75rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.assignBtn { padding: 5px 12px; border: none; border-radius: 6px; background: var(--color-primary, #1C5C42); color: #fff; font-size: 0.75rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
 .viewBtn { padding: 5px 12px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 6px; background: transparent; color: var(--color-text); font-size: 0.75rem; cursor: pointer; }
 
 /* Modals */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .modal { background: var(--color-bg-card); border-radius: 16px; padding: 28px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
-.modalTitle { font-size: 1.1rem; font-weight: 600; color: var(--color-text); margin: 0 0 20px; }
+.modalTitle { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; color: var(--color-text); margin: 0 0 20px; }
 
 .assignSummary { background: var(--color-bg-2); border-radius: 8px; padding: 14px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
 .summaryRow { display: flex; justify-content: space-between; font-size: 0.875rem; }
@@ -50,7 +50,7 @@
 .stylistList { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
 .stylistOption { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1.5px solid var(--color-border, #e2e8f0); border-radius: 10px; cursor: pointer; }
 .stylistOption input[type="radio"] { margin-top: 3px; flex-shrink: 0; }
-.stylistSelected { border-color: var(--color-primary, #1F6B4F); background: rgba(31, 107, 79, 0.05); }
+.stylistSelected { border-color: var(--color-primary, #1C5C42); background: rgba(28, 92, 66, 0.05); }
 .stylistInfo { display: flex; flex-direction: column; gap: 3px; }
 .stylistName { font-size: 0.875rem; font-weight: 500; color: var(--color-text); }
 .stylistSpec { font-size: 0.75rem; color: var(--color-text-muted); }
@@ -66,7 +66,7 @@
 
 .modalActions { display: flex; gap: 10px; justify-content: flex-end; }
 .cancelModalBtn { padding: 9px 18px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: transparent; color: var(--color-text-muted); font-size: 0.875rem; cursor: pointer; }
-.confirmAssignBtn { padding: 9px 24px; border: none; border-radius: 8px; background: var(--color-primary, #1F6B4F); color: #fff; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
+.confirmAssignBtn { padding: 9px 24px; border: none; border-radius: 8px; background: var(--color-primary, #1C5C42); color: #fff; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
 .confirmAssignBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #f8fafc) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

@@ -1,17 +1,11 @@
 import { getAdminToken, clearAdminToken } from './catalogApi';
-import {
-  adminOrders, adminUsers, adminHubs, supportTickets,
-  auditLog, waitlistEntries, dashboardStats, hubPerformance,
-  alerts, recentActivity, appConfig,
-  adminCollections, luxeFabrics, adminConsultations, consultationSlots,
-} from '../data/adminMockData';
 import type {
   AdminOrder, AdminUser, Hub, SupportTicket, AuditEntry,
   WaitlistEntry, ConfigGroup, OrderStage,
   Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus,
 } from '../data/adminMockData';
 
-const BASE = import.meta.env.DEV ? '' : 'https://api.zavestro.in';
+const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://api.zavestro.in';
 const USER_KEY = 'zavestro_admin_user';
 
 // ─── User info helpers ────────────────────────────────────────────────────────
@@ -30,16 +24,8 @@ export function clearAdminUser() {
 
 // ─── Core fetch ───────────────────────────────────────────────────────────────
 
-const DEV_MOCK_TOKEN = 'dev-mock-token';
-
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getAdminToken();
-
-  // Dev offline mode: treat mock token as unreachable so isNet() falls through to mock data
-  if (token === DEV_MOCK_TOKEN) {
-    throw new Error('Failed to fetch');
-  }
-
   const isForm = init.body instanceof FormData;
   const headers: Record<string, string> = {
     ...(!isForm ? { 'Content-Type': 'application/json' } : {}),
@@ -56,24 +42,7 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   if (res.status === 204) return undefined as T;
   const json = await res.json();
-  // Unwrap backend's { success, data } envelope when present
   return (json && typeof json === 'object' && 'data' in json ? json.data : json) as T;
-}
-
-// Returns true when the backend doesn't have this endpoint yet, or the network is down.
-// 401/403 are auth failures — must NOT silently fall back to mock data.
-function isNet(err: unknown) {
-  if (!(err instanceof Error)) return false;
-  const status = (err as Error & { status?: number }).status;
-  if (status === 404 || status === 501) return true;
-  const msg = err.message;
-  return msg === 'Failed to fetch' || msg.includes('NetworkError');
-}
-
-function paginate<T>(arr: T[], page = 1, limit = 20) {
-  const total = arr.length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  return { data: arr.slice((page - 1) * limit, page * limit), total, page, totalPages };
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -92,50 +61,22 @@ type StatShape = { value: number; trend: string; up: boolean };
 
 export interface DashboardData {
   stats: Record<string, StatShape>;
-  hubPerformance: typeof hubPerformance;
-  alerts: typeof alerts;
-  recentActivity: typeof recentActivity;
+  hubPerformance: { name: string; orders: number; capacity: number; qcPassRate: number }[];
+  alerts: { level: string; text: string; link: string }[];
+  recentActivity: { icon: string; text: string; time: string }[];
   revenue: { label: string; simplified: number; luxe: number }[];
-}
-
-const PERIOD_MULTIPLIER: Record<string, number> = {
-  today: 0.03, week: 0.25, last30: 1.05, month: 1, quarter: 3,
-};
-
-function scaleStat(stat: StatShape, m: number): StatShape {
-  return { value: Math.round(stat.value * m), trend: stat.trend, up: stat.up };
+  ordersByStage: { stage: string; label: string; count: number; overdue: number }[];
+  modeSplit: { simplifiedOrders: number; luxeOrders: number; simplifiedRevenue: number; luxeRevenue: number };
+  waitlist: { total: number; trend: string; up: boolean };
+  urgentTickets: { id: string; customer: string; subject: string; created: string }[];
+  overdueOrders: { id: string; customer: string; stage: string; hub: string; created: string }[];
+  consultations: { pending: number; unassigned: number };
+  sparklines: Record<string, number[]>;
 }
 
 export const dashboardApi = {
-  get: async (period = 'month'): Promise<DashboardData> => {
-    try {
-      return await req<DashboardData>(`/api/admin/analytics/dashboard?period=${period}`);
-    } catch (err) {
-      if (isNet(err)) {
-        const m = PERIOD_MULTIPLIER[period] ?? 1;
-        const revenue = [65, 80, 72, 90, 85, 95, 88, 100, 92, 78, 95, 110, 98, 115].map((v, i) => ({
-          label: `Day ${i + 1}`,
-          simplified: Math.round(v * 1800 * m),
-          luxe: Math.round(v * 1200 * m),
-        }));
-        return {
-          stats: {
-            totalOrders: scaleStat(dashboardStats.totalOrders, m),
-            activeOrders: scaleStat(dashboardStats.activeOrders, m),
-            gmv: scaleStat(dashboardStats.gmv, m),
-            pendingPayments: scaleStat(dashboardStats.pendingPayments, m),
-            openTickets: scaleStat(dashboardStats.openTickets, m),
-            newCustomers: scaleStat(dashboardStats.newCustomers, m),
-          },
-          hubPerformance,
-          alerts,
-          recentActivity,
-          revenue,
-        };
-      }
-      throw err;
-    }
-  },
+  get: async (period = 'month', signal?: AbortSignal): Promise<DashboardData> =>
+    req<DashboardData>(`/api/admin/analytics/dashboard?period=${period}`, { signal }),
 };
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
@@ -145,42 +86,20 @@ export interface OrdersResponse { orders: AdminOrder[]; total: number; page: num
 
 export const ordersApi = {
   list: async (params: OrdersParams = {}): Promise<OrdersResponse> => {
-    try {
-      const qs = new URLSearchParams();
-      if (params.search) qs.set('search', params.search);
-      if (params.stage) qs.set('stage', params.stage);
-      if (params.mode) qs.set('mode', params.mode);
-      if (params.page) qs.set('page', String(params.page));
-      if (params.limit) qs.set('limit', String(params.limit));
-      return await req<OrdersResponse>(`/api/admin/orders?${qs}`);
-    } catch (err) {
-      if (isNet(err)) {
-        let filtered = [...adminOrders];
-        if (params.search) { const s = params.search.toLowerCase(); filtered = filtered.filter(o => o.id.toLowerCase().includes(s) || o.customer.toLowerCase().includes(s)); }
-        if (params.stage) filtered = filtered.filter(o => o.stage === params.stage);
-        if (params.mode) filtered = filtered.filter(o => o.mode === params.mode);
-        const p = paginate(filtered, params.page, params.limit);
-        return { orders: p.data, total: p.total, page: p.page, totalPages: p.totalPages };
-      }
-      throw err;
-    }
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.stage)  qs.set('stage',  params.stage);
+    if (params.mode)   qs.set('mode',   params.mode);
+    if (params.page)   qs.set('page',   String(params.page));
+    if (params.limit)  qs.set('limit',  String(params.limit));
+    return req<OrdersResponse>(`/api/admin/orders?${qs}`);
   },
 
-  get: async (id: string): Promise<AdminOrder> => {
-    try { return await req<AdminOrder>(`/api/admin/orders/${id}`); }
-    catch (err) {
-      if (isNet(err)) return adminOrders.find(o => o.id === id) ?? adminOrders[0];
-      throw err;
-    }
-  },
+  get: async (id: string): Promise<AdminOrder> =>
+    req<AdminOrder>(`/api/admin/orders/${id}`),
 
-  updateStage: async (id: string, stage: OrderStage, reason?: string): Promise<AdminOrder> => {
-    try { return await req<AdminOrder>(`/api/admin/orders/${id}/stage`, { method: 'PUT', body: JSON.stringify({ stage, reason }) }); }
-    catch (err) {
-      if (isNet(err)) return { ...adminOrders.find(o => o.id === id)!, stage };
-      throw err;
-    }
-  },
+  updateStage: async (id: string, stage: OrderStage, reason?: string): Promise<AdminOrder> =>
+    req<AdminOrder>(`/api/admin/orders/${id}/stage`, { method: 'PUT', body: JSON.stringify({ stage, reason }) }),
 };
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -190,50 +109,25 @@ export interface UsersResponse { users: AdminUser[]; total: number; page: number
 
 export const usersApi = {
   list: async (params: UsersParams = {}): Promise<UsersResponse> => {
-    try {
-      const qs = new URLSearchParams();
-      if (params.search) qs.set('search', params.search);
-      if (params.status) qs.set('status', params.status);
-      if (params.page) qs.set('page', String(params.page));
-      if (params.limit) qs.set('limit', String(params.limit));
-      return await req<UsersResponse>(`/api/admin/users?${qs}`);
-    } catch (err) {
-      if (isNet(err)) {
-        let filtered = [...adminUsers];
-        if (params.search) { const s = params.search.toLowerCase(); filtered = filtered.filter(u => u.name.toLowerCase().includes(s) || u.phone.includes(params.search!) || u.email.toLowerCase().includes(s)); }
-        if (params.status) filtered = filtered.filter(u => u.status === params.status);
-        const p = paginate(filtered, params.page, params.limit);
-        return { users: p.data, total: p.total, page: p.page, totalPages: p.totalPages };
-      }
-      throw err;
-    }
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.status) qs.set('status', params.status);
+    if (params.page)   qs.set('page',   String(params.page));
+    if (params.limit)  qs.set('limit',  String(params.limit));
+    return req<UsersResponse>(`/api/admin/users?${qs}`);
   },
 
-  get: async (id: string): Promise<AdminUser> => {
-    try { return await req<AdminUser>(`/api/admin/users/${id}`); }
-    catch (err) {
-      if (isNet(err)) return adminUsers.find(u => u.id === id) ?? adminUsers[0];
-      throw err;
-    }
-  },
+  get: async (id: string): Promise<AdminUser> =>
+    req<AdminUser>(`/api/admin/users/${id}`),
 
-  update: async (id: string, data: Partial<AdminUser>): Promise<AdminUser> => {
-    try { return await req<AdminUser>(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) return { ...adminUsers.find(u => u.id === id)!, ...data } as AdminUser;
-      throw err;
-    }
-  },
+  update: async (id: string, data: Partial<AdminUser>): Promise<AdminUser> =>
+    req<AdminUser>(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
-  issueCredits: async (id: string, amount: number, reason: string): Promise<void> => {
-    try { return await req(`/api/admin/users/${id}/credits`, { method: 'POST', body: JSON.stringify({ amount, reason }) }); }
-    catch (err) { if (!isNet(err)) throw err; }
-  },
+  issueCredits: async (id: string, amount: number, reason: string): Promise<void> =>
+    req(`/api/admin/users/${id}/credits`, { method: 'POST', body: JSON.stringify({ amount, reason }) }),
 
-  addNote: async (id: string, note: string): Promise<void> => {
-    try { return await req(`/api/admin/users/${id}/notes`, { method: 'POST', body: JSON.stringify({ note }) }); }
-    catch (err) { if (!isNet(err)) throw err; }
-  },
+  addNote: async (id: string, note: string): Promise<void> =>
+    req(`/api/admin/users/${id}/notes`, { method: 'POST', body: JSON.stringify({ note }) }),
 };
 
 // ─── Hubs ─────────────────────────────────────────────────────────────────────
@@ -243,47 +137,21 @@ export interface HubsResponse { hubs: Hub[]; total: number; }
 
 export const hubsApi = {
   list: async (params: HubsParams = {}): Promise<HubsResponse> => {
-    try {
-      const qs = new URLSearchParams();
-      if (params.search) qs.set('search', params.search);
-      if (params.city) qs.set('city', params.city);
-      if (params.status) qs.set('status', params.status);
-      return await req<HubsResponse>(`/api/admin/hubs?${qs}`);
-    } catch (err) {
-      if (isNet(err)) {
-        let filtered = [...adminHubs];
-        if (params.search) { const s = params.search.toLowerCase(); filtered = filtered.filter(h => h.name.toLowerCase().includes(s) || h.city.toLowerCase().includes(s)); }
-        if (params.city) filtered = filtered.filter(h => h.city === params.city);
-        if (params.status) filtered = filtered.filter(h => h.status === params.status);
-        return { hubs: filtered, total: filtered.length };
-      }
-      throw err;
-    }
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.city)   qs.set('city',   params.city);
+    if (params.status) qs.set('status', params.status);
+    return req<HubsResponse>(`/api/admin/hubs?${qs}`);
   },
 
-  get: async (id: string): Promise<Hub> => {
-    try { return await req<Hub>(`/api/admin/hubs/${id}`); }
-    catch (err) {
-      if (isNet(err)) return adminHubs.find(h => h.id === id) ?? adminHubs[0];
-      throw err;
-    }
-  },
+  get: async (id: string): Promise<Hub> =>
+    req<Hub>(`/api/admin/hubs/${id}`),
 
-  create: async (data: Partial<Hub>): Promise<Hub> => {
-    try { return await req<Hub>('/api/admin/hubs', { method: 'POST', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) return { id: `hub-${Date.now()}`, ...data } as Hub;
-      throw err;
-    }
-  },
+  create: async (data: Partial<Hub>): Promise<Hub> =>
+    req<Hub>('/api/admin/hubs', { method: 'POST', body: JSON.stringify(data) }),
 
-  update: async (id: string, data: Partial<Hub>): Promise<Hub> => {
-    try { return await req<Hub>(`/api/admin/hubs/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) return { ...adminHubs.find(h => h.id === id)!, ...data } as Hub;
-      throw err;
-    }
-  },
+  update: async (id: string, data: Partial<Hub>): Promise<Hub> =>
+    req<Hub>(`/api/admin/hubs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ─── Support ──────────────────────────────────────────────────────────────────
@@ -293,47 +161,23 @@ export interface TicketsResponse { tickets: SupportTicket[]; total: number; page
 
 export const supportApi = {
   list: async (params: TicketsParams = {}): Promise<TicketsResponse> => {
-    try {
-      const qs = new URLSearchParams();
-      if (params.search) qs.set('search', params.search);
-      if (params.status) qs.set('status', params.status);
-      if (params.priority) qs.set('priority', params.priority);
-      if (params.page) qs.set('page', String(params.page));
-      if (params.limit) qs.set('limit', String(params.limit));
-      return await req<TicketsResponse>(`/api/admin/support?${qs}`);
-    } catch (err) {
-      if (isNet(err)) {
-        let filtered = [...supportTickets];
-        if (params.search) { const s = params.search.toLowerCase(); filtered = filtered.filter(t => t.id.toLowerCase().includes(s) || t.customer.toLowerCase().includes(s) || t.subject.toLowerCase().includes(s)); }
-        if (params.status) filtered = filtered.filter(t => t.status === params.status);
-        if (params.priority) filtered = filtered.filter(t => t.priority === params.priority);
-        const p = paginate(filtered, params.page, params.limit);
-        return { tickets: p.data, total: p.total, page: p.page, totalPages: p.totalPages };
-      }
-      throw err;
-    }
+    const qs = new URLSearchParams();
+    if (params.search)   qs.set('search',   params.search);
+    if (params.status)   qs.set('status',   params.status);
+    if (params.priority) qs.set('priority', params.priority);
+    if (params.page)     qs.set('page',     String(params.page));
+    if (params.limit)    qs.set('limit',    String(params.limit));
+    return req<TicketsResponse>(`/api/admin/support?${qs}`);
   },
 
-  get: async (id: string): Promise<SupportTicket> => {
-    try { return await req<SupportTicket>(`/api/admin/support/${id}`); }
-    catch (err) {
-      if (isNet(err)) return supportTickets.find(t => t.id === id) ?? supportTickets[0];
-      throw err;
-    }
-  },
+  get: async (id: string): Promise<SupportTicket> =>
+    req<SupportTicket>(`/api/admin/support/${id}`),
 
-  update: async (id: string, data: Partial<SupportTicket>): Promise<SupportTicket> => {
-    try { return await req<SupportTicket>(`/api/admin/support/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) return { ...supportTickets.find(t => t.id === id)!, ...data } as SupportTicket;
-      throw err;
-    }
-  },
+  update: async (id: string, data: Partial<SupportTicket>): Promise<SupportTicket> =>
+    req<SupportTicket>(`/api/admin/support/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
-  addReply: async (id: string, message: string, internal = false): Promise<void> => {
-    try { return await req(`/api/admin/support/${id}/replies`, { method: 'POST', body: JSON.stringify({ message, internal }) }); }
-    catch (err) { if (!isNet(err)) throw err; }
-  },
+  addReply: async (id: string, message: string, internal = false): Promise<void> =>
+    req(`/api/admin/support/${id}/replies`, { method: 'POST', body: JSON.stringify({ message, internal }) }),
 };
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
@@ -345,27 +189,8 @@ export interface AnalyticsData {
 }
 
 export const analyticsApi = {
-  get: async (period = 'month'): Promise<AnalyticsData> => {
-    try { return await req<AnalyticsData>(`/api/admin/analytics?period=${period}`); }
-    catch (err) {
-      if (isNet(err)) {
-        const multiplier = period === 'today' ? 0.03 : period === 'week' ? 0.25 : period === 'last30' ? 1.05 : 1;
-        return {
-          period,
-          kpis: [
-            { label: 'GMV', value: Math.round(dashboardStats.gmv.value * multiplier), trend: dashboardStats.gmv.trend, up: dashboardStats.gmv.up },
-            { label: 'Orders', value: Math.round(dashboardStats.totalOrders.value * multiplier), trend: dashboardStats.totalOrders.trend, up: dashboardStats.totalOrders.up },
-            { label: 'Customers', value: Math.round(dashboardStats.newCustomers.value * multiplier), trend: dashboardStats.newCustomers.trend, up: dashboardStats.newCustomers.up },
-            { label: 'Avg Order Value', value: Math.round(2400 * multiplier), trend: '+5%', up: true },
-          ],
-          revenue: [65, 80, 72, 90, 85, 95, 88, 100, 92, 78, 95, 110, 98, 115].map((v, i) => ({
-            label: `Day ${i + 1}`, simplified: Math.round(v * 1800 * multiplier), luxe: Math.round(v * 1200 * multiplier),
-          })),
-        };
-      }
-      throw err;
-    }
-  },
+  get: async (period = 'month'): Promise<AnalyticsData> =>
+    req<AnalyticsData>(`/api/admin/analytics?period=${period}`),
 };
 
 // ─── Waitlist ─────────────────────────────────────────────────────────────────
@@ -374,57 +199,28 @@ export interface WaitlistResponse { entries: WaitlistEntry[]; total: number; pag
 
 export const waitlistApi = {
   list: async (params: { search?: string; page?: number; limit?: number } = {}): Promise<WaitlistResponse> => {
-    try {
-      const qs = new URLSearchParams();
-      if (params.search) qs.set('search', params.search);
-      if (params.page) qs.set('page', String(params.page));
-      if (params.limit) qs.set('limit', String(params.limit));
-      return await req<WaitlistResponse>(`/api/admin/waitlist?${qs}`);
-    } catch (err) {
-      if (isNet(err)) {
-        let filtered = [...waitlistEntries];
-        if (params.search) { const s = params.search.toLowerCase(); filtered = filtered.filter(e => e.name?.toLowerCase().includes(s) || e.email.toLowerCase().includes(s)); }
-        const p = paginate(filtered, params.page, params.limit);
-        return { entries: p.data, total: p.total, page: p.page, totalPages: p.totalPages };
-      }
-      throw err;
-    }
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.page)   qs.set('page',   String(params.page));
+    if (params.limit)  qs.set('limit',  String(params.limit));
+    return req<WaitlistResponse>(`/api/admin/waitlist?${qs}`);
   },
 
-  remove: async (id: string): Promise<void> => {
-    try { return await req(`/api/admin/waitlist/${id}`, { method: 'DELETE' }); }
-    catch (err) { if (!isNet(err)) throw err; }
-  },
+  remove: async (id: string): Promise<void> =>
+    req(`/api/admin/waitlist/${id}`, { method: 'DELETE' }),
 
-  notify: async (subject: string, message: string): Promise<void> => {
-    try { return await req('/api/admin/waitlist/notify', { method: 'POST', body: JSON.stringify({ subject, message }) }); }
-    catch (err) { if (!isNet(err)) throw err; }
-  },
+  notify: async (subject: string, message: string): Promise<void> =>
+    req('/api/admin/waitlist/notify', { method: 'POST', body: JSON.stringify({ subject, message }) }),
 };
 
 // ─── App Config ───────────────────────────────────────────────────────────────
 
-const CONFIG_LS_KEY = 'zavestro_app_config';
-
 export const configApi = {
-  get: async (): Promise<ConfigGroup[]> => {
-    try { return await req<ConfigGroup[]>('/api/admin/config'); }
-    catch (err) {
-      if (isNet(err)) {
-        const saved = localStorage.getItem(CONFIG_LS_KEY);
-        return saved ? JSON.parse(saved) : appConfig;
-      }
-      throw err;
-    }
-  },
+  get: async (): Promise<ConfigGroup[]> =>
+    req<ConfigGroup[]>('/api/admin/config'),
 
-  save: async (data: ConfigGroup[]): Promise<void> => {
-    try { return await req('/api/admin/config', { method: 'PUT', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) { localStorage.setItem(CONFIG_LS_KEY, JSON.stringify(data)); return; }
-      throw err;
-    }
-  },
+  save: async (data: ConfigGroup[]): Promise<void> =>
+    req('/api/admin/config', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
@@ -433,22 +229,12 @@ export interface AuditLogResponse { entries: AuditEntry[]; total: number; page: 
 
 export const auditApi = {
   list: async (params: { search?: string; action?: string; page?: number; limit?: number } = {}): Promise<AuditLogResponse> => {
-    try {
-      const qs = new URLSearchParams();
-      if (params.search) qs.set('search', params.search);
-      if (params.action) qs.set('action', params.action);
-      if (params.page) qs.set('page', String(params.page));
-      if (params.limit) qs.set('limit', String(params.limit));
-      return await req<AuditLogResponse>(`/api/admin/audit-log?${qs}`);
-    } catch (err) {
-      if (isNet(err)) {
-        let filtered = [...auditLog];
-        if (params.search) { const s = params.search.toLowerCase(); filtered = filtered.filter(e => e.action?.toLowerCase().includes(s) || (e as unknown as Record<string, unknown>).admin?.toString().toLowerCase().includes(s)); }
-        const p = paginate(filtered, params.page, params.limit);
-        return { entries: p.data, total: p.total, page: p.page, totalPages: p.totalPages };
-      }
-      throw err;
-    }
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.action) qs.set('action', params.action);
+    if (params.page)   qs.set('page',   String(params.page));
+    if (params.limit)  qs.set('limit',  String(params.limit));
+    return req<AuditLogResponse>(`/api/admin/audit-log?${qs}`);
   },
 };
 
@@ -459,52 +245,24 @@ export interface CollectionsResponse { collections: Collection[]; total: number;
 
 export const collectionsApi = {
   list: async (params: { search?: string; mode?: string; status?: string } = {}): Promise<CollectionsResponse> => {
-    try {
-      const qs = new URLSearchParams();
-      if (params.search) qs.set('search', params.search);
-      if (params.mode) qs.set('mode', params.mode);
-      if (params.status) qs.set('status', params.status);
-      return await req<CollectionsResponse>(`/api/admin/catalog/collections?${qs}`);
-    } catch (err) {
-      if (isNet(err)) {
-        let filtered = [...adminCollections];
-        if (params.search) { const s = params.search.toLowerCase(); filtered = filtered.filter(c => c.name.toLowerCase().includes(s)); }
-        if (params.mode && params.mode !== 'All') filtered = filtered.filter(c => c.mode === params.mode);
-        if (params.status && params.status !== 'All') filtered = filtered.filter(c => c.status === params.status);
-        return { collections: filtered, total: filtered.length };
-      }
-      throw err;
-    }
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.mode)   qs.set('mode',   params.mode);
+    if (params.status) qs.set('status', params.status);
+    return req<CollectionsResponse>(`/api/admin/catalog/collections?${qs}`);
   },
 
-  get: async (id: string): Promise<CollectionDetail> => {
-    try { return await req<CollectionDetail>(`/api/admin/catalog/collections/${id}`); }
-    catch (err) {
-      if (isNet(err)) return { ...(adminCollections.find(c => c.id === id) ?? adminCollections[0]), productIds: [] };
-      throw err;
-    }
-  },
+  get: async (id: string): Promise<CollectionDetail> =>
+    req<CollectionDetail>(`/api/admin/catalog/collections/${id}`),
 
-  create: async (data: Partial<CollectionDetail>): Promise<CollectionDetail> => {
-    try { return await req<CollectionDetail>('/api/admin/catalog/collections', { method: 'POST', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) return { id: `COL-${Date.now()}`, products: 0, sortOrder: 99, hasBanner: false, updated: new Date().toLocaleDateString('en-IN'), ...data } as CollectionDetail;
-      throw err;
-    }
-  },
+  create: async (data: Partial<CollectionDetail>): Promise<CollectionDetail> =>
+    req<CollectionDetail>('/api/admin/catalog/collections', { method: 'POST', body: JSON.stringify(data) }),
 
-  update: async (id: string, data: Partial<CollectionDetail>): Promise<CollectionDetail> => {
-    try { return await req<CollectionDetail>(`/api/admin/catalog/collections/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) return { ...(adminCollections.find(c => c.id === id) ?? adminCollections[0]), ...data } as CollectionDetail;
-      throw err;
-    }
-  },
+  update: async (id: string, data: Partial<CollectionDetail>): Promise<CollectionDetail> =>
+    req<CollectionDetail>(`/api/admin/catalog/collections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
-  archive: async (id: string): Promise<void> => {
-    try { return await req(`/api/admin/catalog/collections/${id}/archive`, { method: 'POST' }); }
-    catch (err) { if (!isNet(err)) throw err; }
-  },
+  archive: async (id: string): Promise<void> =>
+    req(`/api/admin/catalog/collections/${id}/archive`, { method: 'POST' }),
 };
 
 // ─── Luxe Fabrics ─────────────────────────────────────────────────────────────
@@ -513,49 +271,22 @@ export interface LuxeFabricsResponse { fabrics: LuxeFabric[]; total: number; }
 
 export const luxeFabricsApi = {
   list: async (params: { search?: string; material?: string; occasion?: string; status?: string } = {}): Promise<LuxeFabricsResponse> => {
-    try {
-      const qs = new URLSearchParams();
-      if (params.search) qs.set('search', params.search);
-      if (params.material) qs.set('material', params.material);
-      if (params.occasion) qs.set('occasion', params.occasion);
-      if (params.status) qs.set('status', params.status);
-      return await req<LuxeFabricsResponse>(`/api/admin/catalog/luxe-fabrics?${qs}`);
-    } catch (err) {
-      if (isNet(err)) {
-        let filtered = [...luxeFabrics];
-        if (params.search) { const s = params.search.toLowerCase(); filtered = filtered.filter(f => f.name.toLowerCase().includes(s)); }
-        if (params.material && params.material !== 'All') filtered = filtered.filter(f => f.material === params.material);
-        if (params.occasion && params.occasion !== 'All') filtered = filtered.filter(f => f.occasions.includes(params.occasion!));
-        if (params.status && params.status !== 'All') filtered = filtered.filter(f => f.status === params.status);
-        return { fabrics: filtered, total: filtered.length };
-      }
-      throw err;
-    }
+    const qs = new URLSearchParams();
+    if (params.search)   qs.set('search',   params.search);
+    if (params.material) qs.set('material', params.material);
+    if (params.occasion) qs.set('occasion', params.occasion);
+    if (params.status)   qs.set('status',   params.status);
+    return req<LuxeFabricsResponse>(`/api/admin/catalog/luxe-fabrics?${qs}`);
   },
 
-  get: async (id: string): Promise<LuxeFabric> => {
-    try { return await req<LuxeFabric>(`/api/admin/catalog/luxe-fabrics/${id}`); }
-    catch (err) {
-      if (isNet(err)) return luxeFabrics.find(f => f.id === id) ?? luxeFabrics[0];
-      throw err;
-    }
-  },
+  get: async (id: string): Promise<LuxeFabric> =>
+    req<LuxeFabric>(`/api/admin/catalog/luxe-fabrics/${id}`),
 
-  create: async (data: Partial<LuxeFabric>): Promise<LuxeFabric> => {
-    try { return await req<LuxeFabric>('/api/admin/catalog/luxe-fabrics', { method: 'POST', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) return { id: `LXF-${Date.now()}`, occasions: [], featuredForSwatchKit: false, updated: new Date().toLocaleDateString('en-IN'), ...data } as LuxeFabric;
-      throw err;
-    }
-  },
+  create: async (data: Partial<LuxeFabric>): Promise<LuxeFabric> =>
+    req<LuxeFabric>('/api/admin/catalog/luxe-fabrics', { method: 'POST', body: JSON.stringify(data) }),
 
-  update: async (id: string, data: Partial<LuxeFabric>): Promise<LuxeFabric> => {
-    try { return await req<LuxeFabric>(`/api/admin/catalog/luxe-fabrics/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) return { ...(luxeFabrics.find(f => f.id === id) ?? luxeFabrics[0]), ...data } as LuxeFabric;
-      throw err;
-    }
-  },
+  update: async (id: string, data: Partial<LuxeFabric>): Promise<LuxeFabric> =>
+    req<LuxeFabric>(`/api/admin/catalog/luxe-fabrics/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ─── Consultations ────────────────────────────────────────────────────────────
@@ -564,32 +295,15 @@ export interface ConsultationsResponse { consultations: Consultation[]; total: n
 
 export const consultationsApi = {
   list: async (params: { status?: string; occasion?: string; assigned?: string } = {}): Promise<ConsultationsResponse> => {
-    try {
-      const qs = new URLSearchParams();
-      if (params.status) qs.set('status', params.status);
-      if (params.occasion) qs.set('occasion', params.occasion);
-      if (params.assigned) qs.set('assigned', params.assigned);
-      return await req<ConsultationsResponse>(`/api/admin/consultations?${qs}`);
-    } catch (err) {
-      if (isNet(err)) {
-        let filtered = [...adminConsultations];
-        if (params.status && params.status !== 'All') filtered = filtered.filter(c => c.status === params.status);
-        if (params.occasion && params.occasion !== 'All') filtered = filtered.filter(c => c.occasion === params.occasion);
-        if (params.assigned === 'Assigned') filtered = filtered.filter(c => c.stylist !== null);
-        if (params.assigned === 'Unassigned') filtered = filtered.filter(c => c.stylist === null);
-        return { consultations: filtered, total: filtered.length };
-      }
-      throw err;
-    }
+    const qs = new URLSearchParams();
+    if (params.status)   qs.set('status',   params.status);
+    if (params.occasion) qs.set('occasion', params.occasion);
+    if (params.assigned) qs.set('assigned', params.assigned);
+    return req<ConsultationsResponse>(`/api/admin/consultations?${qs}`);
   },
 
-  update: async (id: string, data: Partial<Consultation>): Promise<Consultation> => {
-    try { return await req<Consultation>(`/api/admin/consultations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) return { ...(adminConsultations.find(c => c.id === id) ?? adminConsultations[0]), ...data } as Consultation;
-      throw err;
-    }
-  },
+  update: async (id: string, data: Partial<Consultation>): Promise<Consultation> =>
+    req<Consultation>(`/api/admin/consultations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
 // ─── Consultation Slots ───────────────────────────────────────────────────────
@@ -597,26 +311,14 @@ export const consultationsApi = {
 export interface ConsultationSlotsResponse { slots: ConsultationSlot[]; total: number; }
 
 export const consultationSlotsApi = {
-  list: async (): Promise<ConsultationSlotsResponse> => {
-    try { return await req<ConsultationSlotsResponse>('/api/admin/consultation-slots'); }
-    catch (err) {
-      if (isNet(err)) return { slots: [...consultationSlots], total: consultationSlots.length };
-      throw err;
-    }
-  },
+  list: async (): Promise<ConsultationSlotsResponse> =>
+    req<ConsultationSlotsResponse>('/api/admin/consultation-slots'),
 
-  create: async (data: Omit<ConsultationSlot, 'id'>): Promise<ConsultationSlot> => {
-    try { return await req<ConsultationSlot>('/api/admin/consultation-slots', { method: 'POST', body: JSON.stringify(data) }); }
-    catch (err) {
-      if (isNet(err)) return { id: `SLT-${Date.now()}`, ...data };
-      throw err;
-    }
-  },
+  create: async (data: Omit<ConsultationSlot, 'id'>): Promise<ConsultationSlot> =>
+    req<ConsultationSlot>('/api/admin/consultation-slots', { method: 'POST', body: JSON.stringify(data) }),
 
-  delete: async (id: string): Promise<void> => {
-    try { return await req(`/api/admin/consultation-slots/${id}`, { method: 'DELETE' }); }
-    catch (err) { if (!isNet(err)) throw err; }
-  },
+  delete: async (id: string): Promise<void> =>
+    req(`/api/admin/consultation-slots/${id}`, { method: 'DELETE' }),
 };
 
 export type { AdminOrder, AdminUser, Hub, SupportTicket, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus };

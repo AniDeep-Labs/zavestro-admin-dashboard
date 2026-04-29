@@ -1,4 +1,5 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
 import { consultationSlotsApi } from '../../api/adminApi';
 import type { ConsultationSlot } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -95,7 +96,7 @@ export const ConsultationSlotsPage: React.FC = () => {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Consultation Slots</h1>
-        <button className={styles.addBtn} onClick={() => setShowAddModal(true)}>+ Add Slots</button>
+        <button className={styles.addBtn} onClick={() => setShowAddModal(true)}><Plus size={15}/> Add Slots</button>
       </div>
 
       <div className={styles.legend}>

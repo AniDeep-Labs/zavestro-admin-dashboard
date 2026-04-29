@@ -21,9 +21,13 @@ body {
 }
 
 /* ===== TYPOGRAPHY ===== */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
+
 h1 {
   font-size: var(--font-size-5xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
   margin-bottom: var(--spacing-lg);
@@ -31,7 +35,7 @@ h1 {
 
 h2 {
   font-size: var(--font-size-4xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
   margin-bottom: var(--spacing-lg);
@@ -39,7 +43,7 @@ h2 {
 
 h3 {
   font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   margin-bottom: var(--spacing-md);
 }
@@ -144,7 +148,7 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(31, 107, 79, 0.1);
+  box-shadow: 0 0 0 3px rgba(28, 92, 66, 0.1);
 }
 
 input[type="text"]:disabled,

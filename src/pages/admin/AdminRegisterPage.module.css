@@ -11,8 +11,8 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #DCFCE7;
-  color: #16A34A;
+  background: var(--color-primary-extra-light);
+  color: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -23,7 +23,7 @@
 
 [data-theme="dark"] .successIcon {
   background: rgba(22, 163, 74, 0.15);
-  color: #4ADE80;
+  color: var(--color-primary-light);
 }
 
 .successTitle {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search, X, Plus, Palette } from 'lucide-react';
 import { luxeFabricsApi } from '../../api/adminApi';
 import type { LuxeFabric } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -60,17 +61,20 @@ export const LuxeFabricsListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Luxe Fabrics</h1>
         <button className={styles.addBtn} onClick={() => navigate('/admin/catalog/luxe-fabrics/new')}>
-          + Add Fabric
+          <Plus size={15}/> Add Fabric
         </button>
       </div>
 
       <div className={styles.filterBar}>
-        <input
-          className={styles.searchInput}
-          placeholder="Search fabrics…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className={styles.searchWrap}>
+          <Search size={15} className={styles.searchIcon} />
+          <input
+            className={styles.searchInput}
+            placeholder="Search fabrics…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
         <select className={styles.filterSelect} value={materialFilter} onChange={e => setMaterialFilter(e.target.value)}>
           {MATERIALS.map(m => <option key={m}>{m}</option>)}
         </select>
@@ -84,7 +88,7 @@ export const LuxeFabricsListPage: React.FC = () => {
           <option>Archived</option>
         </select>
         <button className={styles.clearBtn} onClick={() => { setSearch(''); setMaterialFilter('All'); setOccasionFilter('All'); setStatusFilter('All'); }}>
-          Clear
+          <X size={14}/> Clear
         </button>
       </div>
 
@@ -135,7 +139,7 @@ export const LuxeFabricsListPage: React.FC = () => {
                       {f.occasions.map(o => <span key={o} className={styles.occasionChip}>{o}</span>)}
                     </div>
                   </td>
-                  <td><div className={styles.swatchThumb}>🎨</div></td>
+                  <td><div className={styles.swatchThumb}><Palette size={14}/></div></td>
                   <td>
                     <span className={`${styles.statusPill} ${styles[`status${f.status}`]}`}>
                       {f.status}
