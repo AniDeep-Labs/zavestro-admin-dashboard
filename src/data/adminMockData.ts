@@ -94,7 +94,8 @@ export interface WaitlistEntry {
   email: string;
   phone: string;
   city: string;
-  signedUp: string;
+  signedUp?: string;
+  created_at?: string;
   source: string;
 }
 

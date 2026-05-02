@@ -82,22 +82,11 @@ export const WaitlistPage: React.FC = () => {
           <span className={styles.totalValue}>{loading ? '…' : total.toLocaleString()}</span>
           <span className={styles.totalLabel}>Total Signups</span>
         </div>
-        <div className={styles.summaryMeta}>
-          <span>Last signup: 26 Apr 2026, 10:32 AM</span>
-          <span>Signups this week: 42 ↑</span>
-        </div>
-      </div>
-
-      {/* Notification history */}
-      <div className={styles.card}>
-        <h3 className={styles.sectionTitle}>Previous Notifications</h3>
-        <table className={styles.miniTable}>
-          <thead><tr><th>Date</th><th>Subject</th><th>Recipients</th><th>Channels</th><th>Sent by</th></tr></thead>
-          <tbody>
-            <tr><td>10 Apr 2026</td><td>We're almost ready — coming soon!</td><td>2,341</td><td>Email + SMS</td><td>admin@zavestro.in</td></tr>
-            <tr><td>1 Mar 2026</td><td>Zavestro waitlist confirmed</td><td>1,180</td><td>Email</td><td>admin@zavestro.in</td></tr>
-          </tbody>
-        </table>
+        {!loading && entries.length > 0 && (
+          <div className={styles.summaryMeta}>
+            <span>Last signup: {new Date(entries[0].created_at ?? entries[0].signedUp ?? '').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          </div>
+        )}
       </div>
 
       {/* Filter */}
@@ -124,7 +113,7 @@ export const WaitlistPage: React.FC = () => {
                   <td>{entry.email}</td>
                   <td>{entry.phone}</td>
                   <td>{entry.city}</td>
-                  <td className={styles.date}>{entry.signedUp}</td>
+                  <td className={styles.date}>{entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : (entry.signedUp ?? '—')}</td>
                   <td><span className={styles.sourcePill}>{entry.source}</span></td>
                   <td>
                     <button className={styles.removeBtn} onClick={() => handleRemove(entry)}><Trash2 size={13}/> Remove</button>
