@@ -177,7 +177,7 @@ export const supportApi = {
     req<SupportTicket>(`/api/admin/support/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   addReply: async (id: string, message: string, internal = false): Promise<void> =>
-    req(`/api/admin/support/${id}/replies`, { method: 'POST', body: JSON.stringify({ message, internal }) }),
+    req(`/api/admin/support/${id}/replies`, { method: 'POST', body: JSON.stringify({ body: message, internal }) }),
 };
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
@@ -319,6 +319,138 @@ export const consultationSlotsApi = {
 
   delete: async (id: string): Promise<void> =>
     req(`/api/admin/consultation-slots/${id}`, { method: 'DELETE' }),
+};
+
+// ─── Returns ──────────────────────────────────────────────────────────────────
+
+export interface ReturnRequest {
+  id: string;
+  order_id: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  status: string;
+  reason: string;
+  review_note?: string;
+  refund_amount?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReturnsResponse { returns: ReturnRequest[]; total: number; page: number; limit: number; }
+
+export const returnsApi = {
+  list: async (params: { status?: string; page?: number; limit?: number } = {}): Promise<ReturnsResponse> => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.page)   qs.set('page',   String(params.page));
+    if (params.limit)  qs.set('limit',  String(params.limit));
+    return req<ReturnsResponse>(`/api/admin/returns?${qs}`);
+  },
+
+  get: async (id: string): Promise<ReturnRequest> =>
+    req<ReturnRequest>(`/api/admin/returns/${id}`),
+
+  review: async (id: string, data: { status: string; review_note?: string; refund_amount?: number }): Promise<ReturnRequest> =>
+    req<ReturnRequest>(`/api/admin/returns/${id}/override`, { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ─── Alterations ──────────────────────────────────────────────────────────────
+
+export interface AlterationRequest {
+  id: string;
+  order_id: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  status: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlterationsResponse { alterations: AlterationRequest[]; total: number; page: number; limit: number; }
+
+export const alterationsApi = {
+  list: async (params: { status?: string; page?: number; limit?: number } = {}): Promise<AlterationsResponse> => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.page)   qs.set('page',   String(params.page));
+    if (params.limit)  qs.set('limit',  String(params.limit));
+    return req<AlterationsResponse>(`/api/admin/alterations?${qs}`);
+  },
+
+  get: async (id: string): Promise<AlterationRequest> =>
+    req<AlterationRequest>(`/api/admin/alterations/${id}`),
+};
+
+// ─── Home Visits ──────────────────────────────────────────────────────────────
+
+export interface HomeVisit {
+  id: string;
+  customer_name: string;
+  customer_phone: string;
+  assigned_staff_name: string | null;
+  status: string;
+  scheduled_at: string;
+  address: string;
+  city: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface HomeVisitsResponse { visits: HomeVisit[]; total: number; page: number; limit: number; }
+
+export const homeVisitsApi = {
+  list: async (params: { status?: string; date?: string; page?: number; limit?: number } = {}): Promise<HomeVisitsResponse> => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.date)   qs.set('date',   params.date);
+    if (params.page)   qs.set('page',   String(params.page));
+    if (params.limit)  qs.set('limit',  String(params.limit));
+    return req<HomeVisitsResponse>(`/api/admin/home-visits?${qs}`);
+  },
+
+  get: async (id: string): Promise<HomeVisit> =>
+    req<HomeVisit>(`/api/admin/home-visits/${id}`),
+
+  updateStatus: async (id: string, status: string): Promise<HomeVisit> =>
+    req<HomeVisit>(`/api/admin/home-visits/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+};
+
+// ─── Invoices ─────────────────────────────────────────────────────────────────
+
+export interface Invoice {
+  id: string;
+  order_id: string;
+  order_number: string;
+  invoice_number: string;
+  customer_name: string;
+  status: string;
+  pdf_key: string | null;
+  created_at: string;
+}
+
+export interface InvoicesResponse { invoices: Invoice[]; total: number; page: number; limit: number; }
+
+export const invoicesApi = {
+  list: async (params: { orderId?: string; status?: string; page?: number; limit?: number } = {}): Promise<InvoicesResponse> => {
+    const qs = new URLSearchParams();
+    if (params.orderId) qs.set('orderId', params.orderId);
+    if (params.status)  qs.set('status',  params.status);
+    if (params.page)    qs.set('page',    String(params.page));
+    if (params.limit)   qs.set('limit',   String(params.limit));
+    return req<InvoicesResponse>(`/api/admin/invoices?${qs}`);
+  },
+
+  get: async (id: string): Promise<Invoice> =>
+    req<Invoice>(`/api/admin/invoices/${id}`),
+
+  regenerate: async (id: string): Promise<void> =>
+    req(`/api/admin/invoices/${id}/regenerate`, { method: 'POST' }),
+
+  getDownloadUrl: async (id: string): Promise<{ url: string }> =>
+    req<{ url: string }>(`/api/admin/invoices/${id}/download`),
 };
 
 export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus };

@@ -50,6 +50,11 @@ import { LuxeFabricsListPage } from './pages/admin/LuxeFabricsListPage';
 import { LuxeFabricEditPage } from './pages/admin/LuxeFabricEditPage';
 import { ConsultationSlotsPage } from './pages/admin/ConsultationSlotsPage';
 import { ConsultationsListPage } from './pages/admin/ConsultationsListPage';
+import { ReturnsListPage } from './pages/admin/ReturnsListPage';
+import { ReturnDetailPage } from './pages/admin/ReturnDetailPage';
+import { AlterationsListPage } from './pages/admin/AlterationsListPage';
+import { HomeVisitsListPage } from './pages/admin/HomeVisitsListPage';
+import { InvoicesListPage } from './pages/admin/InvoicesListPage';
 
 function App() {
   return (
@@ -103,6 +108,11 @@ function App() {
             <Route path="system/audit" element={<AuditLogPage />} />
             <Route path="system/waitlist" element={<WaitlistPage />} />
             <Route path="system/admins" element={<AdminUsersManagePage />} />
+            <Route path="returns" element={<ReturnsListPage />} />
+            <Route path="returns/:id" element={<ReturnDetailPage />} />
+            <Route path="alterations" element={<AlterationsListPage />} />
+            <Route path="home-visits" element={<HomeVisitsListPage />} />
+            <Route path="invoices" element={<InvoicesListPage />} />
           </Route>
 
           {/* Designer Routes */}

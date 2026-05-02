@@ -4,6 +4,7 @@ import {
   LayoutDashboard, ShoppingBag, Users, Building2, Tag, FileText,
   BarChart3, Headphones, Settings, ChevronDown, ChevronRight,
   PanelLeftClose, PanelLeftOpen, Sun, Moon, LogOut, Bell,
+  RotateCcw, Scissors, Home, Receipt,
 } from 'lucide-react';
 import { toggleTheme, getCurrentTheme } from '../../utils/theme';
 import { hasAdminToken } from '../../api/catalogApi';
@@ -53,7 +54,11 @@ const NAV: NavItem[] = [
       { label: 'Promo Codes',      path: '/admin/analytics/promos' },
     ],
   },
-  { label: 'Support', icon: <Headphones size={18} />, path: '/admin/support', roles: ['admin', 'admin_support'] },
+  { label: 'Support',     icon: <Headphones size={18} />,  path: '/admin/support',      roles: ['admin', 'admin_support'] },
+  { label: 'Returns',     icon: <RotateCcw size={18} />,   path: '/admin/returns',      roles: ['admin', 'admin_ops'] },
+  { label: 'Alterations', icon: <Scissors size={18} />,    path: '/admin/alterations',  roles: ['admin', 'admin_ops'] },
+  { label: 'Home Visits', icon: <Home size={18} />,        path: '/admin/home-visits',  roles: ['admin', 'admin_ops'] },
+  { label: 'Invoices',    icon: <Receipt size={18} />,     path: '/admin/invoices',     roles: ['admin', 'admin_finance'] },
   {
     label: 'System', icon: <Settings size={18} />, path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
     children: [
