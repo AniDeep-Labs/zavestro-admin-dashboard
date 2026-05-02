@@ -31,11 +31,12 @@ export const CollectionEditPage: React.FC = () => {
   const [sortOrder, setSortOrder] = React.useState('');
   const [season, setSeason] = React.useState('');
   const [productSearch, setProductSearch] = React.useState('');
-  const [selectedProductIds, setSelectedProductIds] = React.useState<string[]>([]);
+  const [selectedProducts, setSelectedProducts] = React.useState<{id: string; name: string}[]>([]);
   const [searchResults, setSearchResults] = React.useState<ApiProduct[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [loadError, setLoadError] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  const bannerInputRef = React.useRef<HTMLInputElement>(null);
 
   const debouncedProductSearch = useDebounce(productSearch, 350);
 
@@ -46,14 +47,21 @@ export const CollectionEditPage: React.FC = () => {
   React.useEffect(() => {
     if (isNew) return;
     collectionsApi.get(id!)
-      .then(col => {
+      .then(async col => {
         setName(col.name);
         setSlug(col.slug);
         setMode(col.mode);
         setStatus(col.status);
         setSortOrder(String(col.sortOrder));
         setSeason(col.season);
-        setSelectedProductIds(col.productIds ?? []);
+        const pids = col.productIds ?? [];
+        setSelectedProducts(pids.map(id => ({ id, name: '' })));
+        if (pids.length > 0) {
+          const resolved = await Promise.all(
+            pids.map(pid => catalogApi.getProduct(pid).then(p => ({ id: pid, name: p.name })).catch(() => ({ id: pid, name: pid })))
+          );
+          setSelectedProducts(resolved);
+        }
       })
       .catch(err => setLoadError(err instanceof Error ? err.message : 'Failed to load collection'));
   }, [id, isNew]);
@@ -61,9 +69,9 @@ export const CollectionEditPage: React.FC = () => {
   React.useEffect(() => {
     if (debouncedProductSearch.length < 2) { setSearchResults([]); return; }
     catalogApi.getProducts({ search: debouncedProductSearch, limit: 10 })
-      .then(res => setSearchResults((res.products ?? []).filter(p => !selectedProductIds.includes(p.id))))
+      .then(res => setSearchResults((res.products ?? []).filter(p => !selectedProducts.some(sp => sp.id === p.id))))
       .catch(() => setSearchResults([]));
-  }, [debouncedProductSearch, selectedProductIds]);
+  }, [debouncedProductSearch, selectedProducts]);
 
   const handleNameChange = (val: string) => {
     setName(val);
@@ -71,13 +79,13 @@ export const CollectionEditPage: React.FC = () => {
   };
 
   const addProduct = (p: ApiProduct) => {
-    setSelectedProductIds(prev => [...prev, p.id]);
+    setSelectedProducts(prev => [...prev, { id: p.id, name: p.name }]);
     setProductSearch('');
     setSearchResults([]);
   };
 
   const removeProduct = (pid: string) =>
-    setSelectedProductIds(prev => prev.filter(p => p !== pid));
+    setSelectedProducts(prev => prev.filter(p => p.id !== pid));
 
   const handleSave = async () => {
     setSaving(true);
@@ -85,7 +93,7 @@ export const CollectionEditPage: React.FC = () => {
       const payload = {
         name, slug, mode, description, status, featured,
         sortOrder: Number(sortOrder) || 1, season,
-        productIds: selectedProductIds,
+        productIds: selectedProducts.map(p => p.id),
       };
       if (isNew) {
         await collectionsApi.create(payload);
@@ -194,7 +202,8 @@ export const CollectionEditPage: React.FC = () => {
                 <div className={styles.uploadArea}>
                   <span className={styles.uploadIcon}><Image size={22}/></span>
                   <span className={styles.uploadText}>Upload banner (1200 × 400px recommended)</span>
-                  <button className={styles.uploadBtn} type="button">Choose File</button>
+                  <button className={styles.uploadBtn} type="button" onClick={() => bannerInputRef.current?.click()}>Choose File</button>
+                  <input ref={bannerInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={() => showToast('info', 'Banner image upload coming soon')} />
                 </div>
               </div>
               <div className={styles.toggleRow}>
@@ -210,7 +219,7 @@ export const CollectionEditPage: React.FC = () => {
         <div className={styles.sidebar}>
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>
-              Products in this collection ({selectedProductIds.length})
+              Products in this collection ({selectedProducts.length})
             </h3>
             <div className={styles.productSearch}>
               <input
@@ -233,15 +242,15 @@ export const CollectionEditPage: React.FC = () => {
               )}
             </div>
             <div className={styles.productList}>
-              {selectedProductIds.length === 0 ? (
+              {selectedProducts.length === 0 ? (
                 <p className={styles.emptyProducts}>No products added yet. Search above to add.</p>
               ) : (
-                selectedProductIds.map(pid => (
-                  <div key={pid} className={styles.productItem}>
+                selectedProducts.map(p => (
+                  <div key={p.id} className={styles.productItem}>
                     <div className={styles.productInfo}>
-                      <span className={styles.productName}>{pid}</span>
+                      <span className={styles.productName}>{p.name || p.id}</span>
                     </div>
-                    <button className={styles.removeBtn} onClick={() => removeProduct(pid)}>×</button>
+                    <button className={styles.removeBtn} onClick={() => removeProduct(p.id)}>×</button>
                   </div>
                 ))
               )}

@@ -278,6 +278,19 @@ export const catalogApi = {
       }),
     }).then(res => mapVariant(res.data)),
 
+  updateVariant: (productId: string, variantId: string, variant: Partial<VariantPayload>): Promise<ApiVariant> =>
+    request<{ success: boolean; data: Record<string, unknown> }>(`/api/catalog/admin/products/${productId}/variants/${variantId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        ...(variant.sku !== undefined && { sku: variant.sku }),
+        ...(variant.size !== undefined && { size: variant.size }),
+        ...(variant.color !== undefined && { color: variant.color }),
+        ...(variant.price !== undefined && { price: variant.price }),
+        ...(variant.fabric_name !== undefined && { fabric_name: variant.fabric_name }),
+        ...(variant.available !== undefined && { is_available: variant.available }),
+      }),
+    }).then(res => mapVariant(res.data)),
+
   uploadMedia: async (productId: string, file: File): Promise<ApiMedia> => {
     const token = getAdminToken();
     const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};

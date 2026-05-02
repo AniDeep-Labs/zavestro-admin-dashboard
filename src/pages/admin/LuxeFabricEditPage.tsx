@@ -28,6 +28,7 @@ export const LuxeFabricEditPage: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [loadError, setLoadError] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  const imageInputRef = React.useRef<HTMLInputElement>(null);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, message?: string) =>
@@ -58,7 +59,10 @@ export const LuxeFabricEditPage: React.FC = () => {
     try {
       const payload = {
         name, material, origin, description, careInstructions,
-        occasions: selectedOccasions, status, featuredForSwatchKit,
+        occasions: selectedOccasions,
+        garments: selectedGarments,
+        colors: colors.split(',').map(c => c.trim()).filter(Boolean),
+        status, featuredForSwatchKit,
       };
       if (isNew) {
         await luxeFabricsApi.create(payload);
@@ -186,7 +190,8 @@ export const LuxeFabricEditPage: React.FC = () => {
               <div className={styles.uploadArea}>
                 <span className={styles.uploadIcon}><Image size={22}/></span>
                 <span className={styles.uploadText}>Upload swatch and garment photos (up to 10 images)</span>
-                <button className={styles.uploadBtn} type="button">Choose Files</button>
+                <button className={styles.uploadBtn} type="button" onClick={() => imageInputRef.current?.click()}>Choose Files</button>
+                <input ref={imageInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={() => showToast('info', 'Image upload for luxe fabrics coming soon')} />
               </div>
             </div>
             <div className={styles.toggleRow}>

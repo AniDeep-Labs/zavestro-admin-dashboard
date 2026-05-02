@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Eye } from 'lucide-react';
-import { consultationsApi } from '../../api/adminApi';
-import type { Consultation, ConsultationStatus } from '../../api/adminApi';
+import { consultationsApi, allStaffApi } from '../../api/adminApi';
+import type { Consultation, ConsultationStatus, AllStaffMember } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ConsultationsListPage.module.css';
@@ -26,14 +26,6 @@ const STATUS_COLOR: Record<ConsultationStatus, string> = {
   design_approved: 'success',
 };
 
-const STYLISTS = [
-  { id: 'STY-001', name: 'Priya', hub: 'Bengaluru Hub 1', specializations: ['Wedding', 'Bridal'] },
-  { id: 'STY-002', name: 'Anjali', hub: 'Mumbai Hub 1', specializations: ['Wedding', 'Festive'] },
-  { id: 'STY-003', name: 'Rajan', hub: 'Chennai Hub 1', specializations: ['Formal', 'Festive'] },
-  { id: 'STY-004', name: 'Deepa', hub: 'Delhi Hub 1', specializations: ['Wedding', 'Celebration'] },
-  { id: 'STY-005', name: 'Meena', hub: 'Bengaluru Hub 1', specializations: ['Festive', 'Formal'] },
-];
-
 const NEXT_ACTION: Record<ConsultationStatus, string> = {
   pending: 'Assign a stylist to this consultation.',
   assigned: 'Schedule the consultation slot.',
@@ -53,6 +45,7 @@ export const ConsultationsListPage: React.FC = () => {
   const [selectedStylist, setSelectedStylist] = React.useState('');
 
   const [consultations, setConsultations] = React.useState<Consultation[]>([]);
+  const [stylists, setStylists] = React.useState<AllStaffMember[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
@@ -74,14 +67,18 @@ export const ConsultationsListPage: React.FC = () => {
 
   React.useEffect(load, [statusFilter, occasionFilter, assignedFilter]);
 
+  React.useEffect(() => {
+    allStaffApi.list().then(setStylists).catch(() => {});
+  }, []);
+
   const handleAssign = async () => {
     if (!assignModal || !selectedStylist) return;
-    const stylist = STYLISTS.find(s => s.id === selectedStylist);
+    const stylist = stylists.find(s => s.id === selectedStylist);
     if (!stylist) return;
     try {
       const updated = await consultationsApi.update(assignModal, {
-        stylist: `${stylist.name} — ${stylist.hub}`,
-        hub: stylist.hub,
+        stylist: `${stylist.name} — ${stylist.hub_name}`,
+        hub: stylist.hub_name,
         status: 'assigned',
       });
       setConsultations(prev => prev.map(c => c.id === assignModal ? updated : c));
@@ -210,7 +207,9 @@ export const ConsultationsListPage: React.FC = () => {
               )}
             </div>
             <div className={styles.stylistList}>
-              {STYLISTS.map(s => (
+              {stylists.length === 0 ? (
+                <p style={{ color: 'var(--ink-2)', fontSize: '0.85rem', padding: '8px 0' }}>No active staff found. Add hub staff first.</p>
+              ) : stylists.map(s => (
                 <label key={s.id} className={`${styles.stylistOption} ${selectedStylist === s.id ? styles.stylistSelected : ''}`}>
                   <input
                     type="radio"
@@ -220,8 +219,8 @@ export const ConsultationsListPage: React.FC = () => {
                     onChange={() => setSelectedStylist(s.id)}
                   />
                   <div className={styles.stylistInfo}>
-                    <span className={styles.stylistName}>{s.name} — {s.hub}</span>
-                    <span className={styles.stylistSpec}>Specializes in: {s.specializations.join(', ')}</span>
+                    <span className={styles.stylistName}>{s.name} — {s.hub_name}</span>
+                    <span className={styles.stylistSpec}>{s.role}</span>
                   </div>
                 </label>
               ))}

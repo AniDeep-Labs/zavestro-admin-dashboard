@@ -543,6 +543,22 @@ export const hubStaffApi = {
     }),
 };
 
+// ─── All Staff (cross-hub, for consultation assignment) ───────────────────────
+
+export interface AllStaffMember {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  hub_id: string;
+  hub_name: string;
+}
+
+export const allStaffApi = {
+  list: async (): Promise<AllStaffMember[]> =>
+    req<{ staff: AllStaffMember[] }>('/api/admin/staff').then(r => r.staff),
+};
+
 // ─── Fit Analytics ────────────────────────────────────────────────────────────
 
 export interface FitAnalyticsData {

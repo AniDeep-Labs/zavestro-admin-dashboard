@@ -82,6 +82,7 @@ export const ProductEditPage: React.FC = () => {
 
   // Variants
   const [variants, setVariants] = React.useState<VariantDraft[]>([]);
+  const originalVariantsRef = React.useRef<VariantDraft[]>([]);
   const [showAddVariant, setShowAddVariant] = React.useState(false);
   const [variantDraft, setVariantDraft] = React.useState<VariantDraft>(emptyVariant());
 
@@ -124,17 +125,17 @@ export const ProductEditPage: React.FC = () => {
         setIsMadeToOrder(p.is_made_to_order ?? true);
         setStatus(p.status ?? 'draft');
         setExistingImages(p.images ?? []);
-        setVariants(
-          (p.variants ?? []).map((v: ApiVariant) => ({
-            id: v.id,
-            sku: v.sku,
-            size: v.size,
-            color: v.color,
-            price: String(v.price),
-            fabric_name: v.fabric_name,
-            available: v.available,
-          }))
-        );
+        const loadedVariants = (p.variants ?? []).map((v: ApiVariant) => ({
+          id: v.id,
+          sku: v.sku,
+          size: v.size,
+          color: v.color,
+          price: String(v.price),
+          fabric_name: v.fabric_name,
+          available: v.available,
+        }));
+        setVariants(loadedVariants);
+        originalVariantsRef.current = loadedVariants.map(v => ({ ...v }));
       })
       .catch(err => {
         showToast('error', 'Failed to load product', err instanceof Error ? err.message : undefined);
@@ -283,6 +284,17 @@ export const ProductEditPage: React.FC = () => {
           );
         } catch {
           showToast('warning', `Failed to save variant ${v.sku || v.color}`);
+        }
+      }
+
+      // Update existing variants that were modified
+      for (const v of variants.filter(v => !!v.id)) {
+        const orig = originalVariantsRef.current.find(o => o.id === v.id);
+        if (!orig || v.available === orig.available) continue;
+        try {
+          await catalogApi.updateVariant(productId, v.id!, { available: v.available });
+        } catch {
+          showToast('warning', `Failed to update variant ${v.sku || v.color}`);
         }
       }
 
