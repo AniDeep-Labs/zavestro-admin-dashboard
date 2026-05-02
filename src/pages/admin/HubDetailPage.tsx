@@ -9,17 +9,6 @@ import styles from './HubDetailPage.module.css';
 
 const TABS = ['Overview', 'Staff', 'Capacity', 'Inventory'];
 
-const MOCK_STAFF = [
-  { name: 'Priya Menon', role: 'Hub Manager', email: 'priya@zavestro.in', phone: '+91 98001 23456' },
-  { name: 'Rajan Kumar', role: 'Tailor', email: 'rajan@zavestro.in', phone: '+91 97001 34567' },
-  { name: 'Meena Devi', role: 'QC Staff', email: 'meena@zavestro.in', phone: '+91 96001 45678' },
-];
-
-const MOCK_INVENTORY = [
-  { name: 'Navy Blue Cotton', sku: 'FAB-001', material: 'Cotton', stock: 80, reserved: 35, threshold: 15, status: 'In Stock' },
-  { name: 'White Linen', sku: 'FAB-002', material: 'Linen', stock: 12, reserved: 8, threshold: 20, status: 'Low Stock' },
-  { name: 'Black Cotton', sku: 'FAB-004', material: 'Cotton', stock: 0, reserved: 0, threshold: 15, status: 'Out of Stock' },
-];
 
 const EMPTY_HUB: Partial<Hub> = { name: '', city: '', state: '', address: '', pincode: '', managerName: '', managerPhone: '', status: 'Active', tailorCount: 0, activeOrders: 0, capacityUsed: 0, qcPassRate: 100 };
 
@@ -200,26 +189,7 @@ export const HubDetailPage: React.FC = () => {
               <h3 className={styles.sectionTitle}>{hub.name} — Staff</h3>
               <button className={styles.addBtn}><Plus size={14}/> Add Staff Member</button>
             </div>
-            <table className={styles.staffTable}>
-              <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody>
-                {MOCK_STAFF.map((s, i) => (
-                  <tr key={i}>
-                    <td className={styles.staffName}>{s.name}</td>
-                    <td><span className={styles.rolePill}>{s.role}</span></td>
-                    <td>{s.email}</td>
-                    <td>{s.phone}</td>
-                    <td><span className={styles.statusActive}>Active</span></td>
-                    <td>
-                      <div className={styles.staffActions}>
-                        <button className={styles.actionBtn}>Reset Password</button>
-                        <button className={styles.removeBtn}>Remove</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className={styles.empty}>No staff members added yet. Use the button above to add staff to this hub.</div>
           </div>
         </div>
       )}
@@ -250,37 +220,12 @@ export const HubDetailPage: React.FC = () => {
 
       {activeTab === 'Inventory' && (
         <div className={styles.tabContent}>
-          {MOCK_INVENTORY.some(i => i.status !== 'In Stock') && (
-            <div className={styles.lowStockBanner}>
-              {MOCK_INVENTORY.filter(i => i.status !== 'In Stock').length} fabrics below minimum threshold
-            </div>
-          )}
           <div className={styles.card}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>{hub.name} — Fabric Inventory</h3>
               <button className={styles.addBtn}><Plus size={14}/> Add Fabric</button>
             </div>
-            <table className={styles.inventoryTable}>
-              <thead><tr><th>Fabric Name</th><th>SKU</th><th>Material</th><th>Total (m)</th><th>Reserved (m)</th><th>Available (m)</th><th>Min Threshold</th><th>Status</th></tr></thead>
-              <tbody>
-                {MOCK_INVENTORY.map((item, i) => (
-                  <tr key={i}>
-                    <td className={styles.fabricName}>{item.name}</td>
-                    <td className={styles.sku}>{item.sku}</td>
-                    <td>{item.material}</td>
-                    <td>{item.stock}</td>
-                    <td>{item.reserved}</td>
-                    <td className={item.stock - item.reserved === 0 ? styles.zeroStock : ''}>{item.stock - item.reserved}</td>
-                    <td>{item.threshold}</td>
-                    <td>
-                      <span className={`${styles.stockStatus} ${item.status === 'In Stock' ? styles.stockGood : item.status === 'Low Stock' ? styles.stockLow : styles.stockOut}`}>
-                        {item.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className={styles.empty}>No fabric inventory tracked yet. Add fabrics to this hub to start tracking stock.</div>
           </div>
         </div>
       )}

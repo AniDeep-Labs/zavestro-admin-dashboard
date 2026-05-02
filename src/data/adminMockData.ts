@@ -65,6 +65,14 @@ export interface Product {
   updated: string;
 }
 
+export interface TicketMessage {
+  id: string;
+  sender_type: 'customer' | 'staff' | 'system';
+  sender_id: string | null;
+  body: string;
+  created_at: string;
+}
+
 export interface SupportTicket {
   id: string;
   customer: string;
@@ -76,6 +84,7 @@ export interface SupportTicket {
   assignedTo: string | null;
   created: string;
   lastActivity: string;
+  messages?: TicketMessage[];
 }
 
 export interface AuditEntry {

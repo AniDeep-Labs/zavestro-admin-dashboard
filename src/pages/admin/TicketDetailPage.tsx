@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Send, ChevronDown, ChevronUp, MessageCircle, StickyNote } from 'lucide-react';
 import { supportApi } from '../../api/adminApi';
-import type { SupportTicket } from '../../api/adminApi';
+import type { SupportTicket, TicketMessage } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './TicketDetailPage.module.css';
@@ -12,11 +12,6 @@ const TEMPLATES = [
   "We've reviewed your order and are looking into this.",
   'Your refund has been processed and will reflect in 3–5 days.',
   "I'll escalate this to our operations team right away.",
-];
-
-const MOCK_MESSAGES = [
-  { from: 'customer', text: "Hi, my order hasn't been updated in 5 days. It still shows 'in tailoring'. Can you help?", time: '2h ago' },
-  { from: 'system', text: 'Ticket created.', time: '2h ago' },
 ];
 
 export const TicketDetailPage: React.FC = () => {
@@ -108,14 +103,16 @@ export const TicketDetailPage: React.FC = () => {
 
             {/* Thread */}
             <div className={styles.thread}>
-              {MOCK_MESSAGES.map((msg, i) => (
-                <div key={i} className={`${styles.message} ${styles[`msg${msg.from}`]}`}>
-                  {msg.from === 'system' ? (
-                    <div className={styles.systemMsg}>{msg.text}<span className={styles.msgTime}> · {msg.time}</span></div>
+              {(ticket.messages ?? []).length === 0 ? (
+                <div className={styles.systemMsg}>No messages yet.</div>
+              ) : (ticket.messages ?? []).map((msg: TicketMessage) => (
+                <div key={msg.id} className={`${styles.message} ${styles[`msg${msg.sender_type}`]}`}>
+                  {msg.sender_type === 'system' ? (
+                    <div className={styles.systemMsg}>{msg.body}<span className={styles.msgTime}> · {new Date(msg.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>
                   ) : (
                     <div className={styles.bubble}>
-                      <div className={styles.bubbleText}>{msg.text}</div>
-                      <div className={styles.bubbleTime}>{msg.time}</div>
+                      <div className={styles.bubbleText}>{msg.body}</div>
+                      <div className={styles.bubbleTime}>{new Date(msg.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                   )}
                 </div>

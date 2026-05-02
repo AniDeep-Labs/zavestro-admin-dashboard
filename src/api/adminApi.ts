@@ -321,4 +321,4 @@ export const consultationSlotsApi = {
     req(`/api/admin/consultation-slots/${id}`, { method: 'DELETE' }),
 };
 
-export type { AdminOrder, AdminUser, Hub, SupportTicket, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus };
+export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus };
