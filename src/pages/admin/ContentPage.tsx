@@ -9,38 +9,22 @@ const SECTIONS: Record<Section, { title: string; columns: string[]; items: Recor
   lookbook: {
     title: 'Lookbook',
     columns: ['Title', 'Occasion', 'Status', 'Products', 'Published', 'Actions'],
-    items: [
-      { Title: 'The 2026 Wedding Season', Occasion: 'Wedding', Status: 'Active', Products: '12', Published: '1 Apr 2026' },
-      { Title: 'Office Ready — Spring', Occasion: 'Formal', Status: 'Draft', Products: '8', Published: '—' },
-      { Title: 'Festive Glow', Occasion: 'Festive', Status: 'Active', Products: '15', Published: '20 Mar 2026' },
-    ],
+    items: [],
   },
   craftspeople: {
     title: 'Craftspeople',
     columns: ['Name', 'Role', 'Hub', 'Status', 'Published', 'Actions'],
-    items: [
-      { Name: 'Rajan Kumar', Role: 'Master Tailor', Hub: 'Bengaluru Hub 1', Status: 'Active', Published: '15 Feb 2026' },
-      { Name: 'Meena Devi', Role: 'Embroidery Specialist', Hub: 'Mumbai Hub 1', Status: 'Active', Published: '10 Feb 2026' },
-      { Name: 'Suresh Nair', Role: 'Pattern Cutter', Hub: 'Chennai Hub 1', Status: 'Draft', Published: '—' },
-    ],
+    items: [],
   },
   stories: {
     title: 'Customer Stories',
     columns: ['Customer', 'City', 'Rating', 'Mode', 'Status', 'Actions'],
-    items: [
-      { Customer: 'Priya R.', City: 'Mumbai', Rating: '5 ★', Mode: 'Luxe', Status: 'Active' },
-      { Customer: 'Arjun M.', City: 'Delhi', Rating: '4 ★', Mode: 'Simplified', Status: 'Active' },
-      { Customer: 'Sunita K.', City: 'Bengaluru', Rating: '5 ★', Mode: 'Simplified', Status: 'Draft' },
-    ],
+    items: [],
   },
   journal: {
     title: 'Journal',
     columns: ['Title', 'Category', 'Author', 'Status', 'Read Time', 'Published', 'Actions'],
-    items: [
-      { Title: 'How to pick the right fabric', Category: 'Fabric Guide', Author: 'Zavestro Team', Status: 'Active', 'Read Time': '5 min', Published: '20 Apr 2026' },
-      { Title: 'Wedding season dressing guide', Category: 'Occasion Dressing', Author: 'Zavestro Team', Status: 'Active', 'Read Time': '8 min', Published: '10 Apr 2026' },
-      { Title: 'The art of a perfect fit', Category: 'Fit & Tailoring', Author: 'Zavestro Team', Status: 'Draft', 'Read Time': '6 min', Published: '—' },
-    ],
+    items: [],
   },
 };
 
