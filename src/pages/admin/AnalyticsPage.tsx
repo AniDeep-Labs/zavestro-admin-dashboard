@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { TrendingUp, TrendingDown, CheckCircle, AlertTriangle, Plus, Download, BarChart2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Plus, Download, BarChart2 } from 'lucide-react';
 import { analyticsApi, hubsApi } from '../../api/adminApi';
 import type { AnalyticsData, Hub } from '../../api/adminApi';
 import styles from './AnalyticsPage.module.css';

@@ -1,6 +1,6 @@
 import { getAdminToken, clearAdminToken } from './catalogApi';
 import type {
-  AdminOrder, AdminUser, Hub, SupportTicket, AuditEntry,
+  AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry,
   WaitlistEntry, ConfigGroup, OrderStage,
   Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus,
 } from '../data/adminMockData';
