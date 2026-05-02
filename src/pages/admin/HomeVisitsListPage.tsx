@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { homeVisitsApi } from '../../api/adminApi';
 import type { HomeVisit } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
