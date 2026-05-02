@@ -1,16 +1,17 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Save, PowerOff, Power, Plus } from 'lucide-react';
-import { hubsApi } from '../../api/adminApi';
-import type { Hub } from '../../api/adminApi';
+import { hubsApi, hubStaffApi } from '../../api/adminApi';
+import type { Hub, HubStaff } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './HubDetailPage.module.css';
 
 const TABS = ['Overview', 'Staff', 'Capacity', 'Inventory'];
 
-
 const EMPTY_HUB: Partial<Hub> = { name: '', city: '', state: '', address: '', pincode: '', managerName: '', managerPhone: '', status: 'Active', tailorCount: 0, activeOrders: 0, capacityUsed: 0, qcPassRate: 100 };
+
+const STAFF_ROLES = ['tailor', 'qc_staff', 'dispatch'];
 
 export const HubDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,21 @@ export const HubDetailPage: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('Overview');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+
+  // Staff state
+  const [staff, setStaff] = React.useState<HubStaff[]>([]);
+  const [staffLoading, setStaffLoading] = React.useState(false);
+  const [showAddStaff, setShowAddStaff] = React.useState(false);
+  const [staffName, setStaffName] = React.useState('');
+  const [staffEmail, setStaffEmail] = React.useState('');
+  const [staffPassword, setStaffPassword] = React.useState('');
+  const [staffRole, setStaffRole] = React.useState('tailor');
+  const [addingStaff, setAddingStaff] = React.useState(false);
+  const [togglingStaffId, setTogglingStaffId] = React.useState<string | null>(null);
+
+  // Capacity state
+  const [dailyLimit, setDailyLimit] = React.useState(60);
+  const [savingCapacity, setSavingCapacity] = React.useState(false);
 
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -35,6 +51,15 @@ export const HubDetailPage: React.FC = () => {
       .catch(e => showToast('error', 'Failed to load hub', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [id, isNew]);
+
+  React.useEffect(() => {
+    if (isNew || !id || activeTab !== 'Staff') return;
+    setStaffLoading(true);
+    hubStaffApi.list(id)
+      .then(setStaff)
+      .catch(e => showToast('error', 'Failed to load staff', e instanceof Error ? e.message : undefined))
+      .finally(() => setStaffLoading(false));
+  }, [activeTab, id, isNew]);
 
   const handleFormChange = (key: keyof Hub, value: string | number) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -56,6 +81,50 @@ export const HubDetailPage: React.FC = () => {
     } catch (e) {
       showToast('error', 'Save failed', e instanceof Error ? e.message : undefined);
     } finally { setSaving(false); }
+  };
+
+  const handleAddStaff = async () => {
+    if (!staffName.trim() || !staffEmail.trim() || !staffPassword) {
+      showToast('error', 'All fields required');
+      return;
+    }
+    if (!hub) return;
+    setAddingStaff(true);
+    try {
+      const created = await hubStaffApi.create(hub.id, {
+        name: staffName.trim(), email: staffEmail.trim(),
+        password: staffPassword, role: staffRole,
+      });
+      setStaff(prev => [...prev, created]);
+      setShowAddStaff(false);
+      setStaffName(''); setStaffEmail(''); setStaffPassword(''); setStaffRole('tailor');
+      showToast('success', 'Staff added', created.name);
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    } finally { setAddingStaff(false); }
+  };
+
+  const handleToggleStaff = async (member: HubStaff) => {
+    if (!hub) return;
+    setTogglingStaffId(member.id);
+    try {
+      const updated = await hubStaffApi.toggleActive(hub.id, member.id, !member.is_active);
+      setStaff(prev => prev.map(s => s.id === updated.id ? updated : s));
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    } finally { setTogglingStaffId(null); }
+  };
+
+  const handleSaveCapacity = async () => {
+    if (!hub) return;
+    setSavingCapacity(true);
+    try {
+      const updated = await hubsApi.update(hub.id, { ...form, dailyOrderLimit: dailyLimit } as Partial<Hub>);
+      setHub(updated); setForm(updated);
+      showToast('success', 'Capacity saved');
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    } finally { setSavingCapacity(false); }
   };
 
   if (loading) return <div className={styles.page}><div>Loading hub…</div></div>;
@@ -187,10 +256,77 @@ export const HubDetailPage: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>{hub.name} — Staff</h3>
-              <button className={styles.addBtn}><Plus size={14}/> Add Staff Member</button>
+              <button className={styles.addBtn} onClick={() => setShowAddStaff(true)}><Plus size={14}/> Add Staff Member</button>
             </div>
-            <div className={styles.empty}>No staff members added yet. Use the button above to add staff to this hub.</div>
+            {staffLoading ? (
+              <div className={styles.empty}>Loading staff…</div>
+            ) : staff.length === 0 ? (
+              <div className={styles.empty}>No staff members added yet. Use the button above to add staff to this hub.</div>
+            ) : (
+              <table className={styles.miniTable}>
+                <thead>
+                  <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {staff.map(s => (
+                    <tr key={s.id}>
+                      <td>{s.name}</td>
+                      <td style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{s.email}</td>
+                      <td><span className={styles.rolePill}>{s.role.replace(/_/g, ' ')}</span></td>
+                      <td>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: s.is_active ? 'var(--color-primary)' : 'var(--color-text-tertiary)' }}>
+                          {s.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className={styles.actionBtn}
+                          disabled={togglingStaffId === s.id}
+                          onClick={() => handleToggleStaff(s)}
+                        >
+                          {s.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
+
+          {showAddStaff && (
+            <div className={styles.modalOverlay} onClick={() => setShowAddStaff(false)}>
+              <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                <h3 className={styles.modalTitle}>Add Staff Member</h3>
+                <div className={styles.fields}>
+                  <div className={styles.formField}>
+                    <label className={styles.metaLabel}>Name *</label>
+                    <input className={styles.fieldInput} placeholder="Full name" value={staffName} onChange={e => setStaffName(e.target.value)} />
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.metaLabel}>Email *</label>
+                    <input className={styles.fieldInput} type="email" placeholder="staff@zavestro.in" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} />
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.metaLabel}>Temporary Password * (min 8 chars)</label>
+                    <input className={styles.fieldInput} type="password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} />
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.metaLabel}>Role</label>
+                    <select className={styles.fieldInput} value={staffRole} onChange={e => setStaffRole(e.target.value)}>
+                      {STAFF_ROLES.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className={styles.modalActions}>
+                  <button className={styles.cancelBtn} onClick={() => setShowAddStaff(false)}>Cancel</button>
+                  <button className={styles.editBtn} disabled={addingStaff} onClick={handleAddStaff}>
+                    {addingStaff ? 'Adding…' : 'Add Staff'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -202,12 +338,24 @@ export const HubDetailPage: React.FC = () => {
               <div className={styles.capacityRow}>
                 <span className={styles.metaLabel}>Daily order limit</span>
                 <div className={styles.capacityInput}>
-                  <input type="number" defaultValue={60} className={styles.numInput} />
-                  <button className={styles.saveBtn}>Save</button>
+                  <input
+                    type="number"
+                    value={dailyLimit}
+                    min={1}
+                    className={styles.numInput}
+                    onChange={e => setDailyLimit(parseInt(e.target.value) || 1)}
+                  />
+                  <button
+                    className={styles.saveBtn}
+                    disabled={savingCapacity}
+                    onClick={handleSaveCapacity}
+                  >
+                    {savingCapacity ? 'Saving…' : 'Save'}
+                  </button>
                 </div>
               </div>
               <div className={styles.capacityProgress}>
-                <span className={styles.metaLabel}>Today: {hub.activeOrders} / 60 orders</span>
+                <span className={styles.metaLabel}>Today: {hub.activeOrders} / {dailyLimit} orders</span>
                 <div className={styles.progressBar}>
                   <div className={`${styles.progressFill} ${hub.capacityUsed >= 100 ? styles.progressFull : hub.capacityUsed >= 80 ? styles.progressHigh : styles.progressNormal}`}
                     style={{ width: `${Math.min(hub.capacityUsed, 100)}%` }} />
@@ -223,9 +371,8 @@ export const HubDetailPage: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>{hub.name} — Fabric Inventory</h3>
-              <button className={styles.addBtn}><Plus size={14}/> Add Fabric</button>
             </div>
-            <div className={styles.empty}>No fabric inventory tracked yet. Add fabrics to this hub to start tracking stock.</div>
+            <div className={styles.empty}>Fabric inventory tracking is managed via the hub manager portal. View inventory per-hub through the hub manager login.</div>
           </div>
         </div>
       )}

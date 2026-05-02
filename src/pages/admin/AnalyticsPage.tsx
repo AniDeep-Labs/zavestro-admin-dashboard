@@ -1,8 +1,10 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { TrendingUp, TrendingDown, Plus, Download, BarChart2 } from 'lucide-react';
-import { analyticsApi, hubsApi } from '../../api/adminApi';
-import type { AnalyticsData, Hub } from '../../api/adminApi';
+import { TrendingUp, TrendingDown, Plus, Download, BarChart2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { analyticsApi, hubsApi, promosApi, fitAnalyticsApi } from '../../api/adminApi';
+import type { AnalyticsData, Hub, PromoCode, FitAnalyticsData } from '../../api/adminApi';
+import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AnalyticsPage.module.css';
 
 type Section = 'revenue' | 'orders' | 'fit-scores' | 'hubs' | 'retention' | 'promos';
@@ -26,15 +28,6 @@ function fmtMoney(val: number): string {
   return `₹${val.toLocaleString('en-IN')}`;
 }
 
-interface FitData {
-  avg_fit_score: number;
-  feedback_count: number;
-  alteration_rate: number;
-  alteration_success_rate: number;
-  by_product: { name: string; avg_fit_score: number }[];
-  hub_performance: { hub_name: string; avg_fit_score: number }[];
-}
-
 function EmptyState({ message }: { message: string }) {
   return (
     <div className={styles.card} style={{ textAlign: 'center', padding: '48px 24px' }}>
@@ -49,27 +42,42 @@ export const AnalyticsPage: React.FC = () => {
   const [period, setPeriod] = React.useState('This Month');
   const [showPromoModal, setShowPromoModal] = React.useState(false);
   const [analyticsData, setAnalyticsData] = React.useState<AnalyticsData | null>(null);
-  const [fitData, setFitData] = React.useState<FitData | null>(null);
+  const [fitData, setFitData] = React.useState<FitAnalyticsData | null>(null);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
+  const [promos, setPromos] = React.useState<PromoCode[]>([]);
+  const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  const [togglingId, setTogglingId] = React.useState<string | null>(null);
+
+  // Promo form state
+  const [promoCode, setPromoCode] = React.useState('');
+  const [promoType, setPromoType] = React.useState<'percent' | 'flat'>('percent');
+  const [promoValue, setPromoValue] = React.useState('');
+  const [promoExpiry, setPromoExpiry] = React.useState('');
+  const [promoMaxUses, setPromoMaxUses] = React.useState('');
+  const [promoMinOrder, setPromoMinOrder] = React.useState('');
+  const [savingPromo, setSavingPromo] = React.useState(false);
+
+  const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const showToast = (type: ToastData['type'], title: string, msg?: string) =>
+    setToasts(t => [...t, createToast(type, title, msg)]);
 
   React.useEffect(() => {
-    analyticsApi.get(PERIOD_MAP[period] ?? 'month')
-      .then(setAnalyticsData)
-      .catch(() => {});
+    analyticsApi.get(PERIOD_MAP[period] ?? 'month').then(setAnalyticsData).catch(() => {});
   }, [period]);
 
   React.useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/api/admin/analytics/fit`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('zavestro_admin_token')}` },
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => d?.success ? setFitData(d.data) : null)
-      .catch(() => {});
-  }, []);
+    fitAnalyticsApi.get(PERIOD_MAP[period] ?? 'month').then(setFitData).catch(() => {});
+  }, [period]);
 
   React.useEffect(() => {
     hubsApi.list().then(r => setHubs(r.hubs)).catch(() => {});
   }, []);
+
+  React.useEffect(() => {
+    if ((section as Section) === 'promos') {
+      promosApi.list().then(r => setPromos(r.promos)).catch(() => {});
+    }
+  }, [section]);
 
   const validSection = (section as Section) in SECTION_TITLES ? (section as Section) : 'revenue';
   const title = SECTION_TITLES[validSection];
@@ -79,8 +87,40 @@ export const AnalyticsPage: React.FC = () => {
   const custKpi   = analyticsData?.kpis.find(k => k.label === 'Customers');
   const aovKpi    = analyticsData?.kpis.find(k => k.label === 'Avg Order Value');
 
+  const handleCreatePromo = async () => {
+    if (!promoCode.trim() || !promoValue) { showToast('error', 'Code and value are required'); return; }
+    setSavingPromo(true);
+    try {
+      const created = await promosApi.create({
+        code: promoCode.trim().toUpperCase(),
+        discount_type: promoType,
+        discount_value: parseFloat(promoValue),
+        min_order_amount: promoMinOrder ? parseFloat(promoMinOrder) : 0,
+        max_uses: promoMaxUses ? parseInt(promoMaxUses) : undefined,
+        valid_until: promoExpiry ? new Date(promoExpiry).toISOString() : undefined,
+      });
+      setPromos(prev => [created, ...prev]);
+      setShowPromoModal(false);
+      setPromoCode(''); setPromoType('percent'); setPromoValue(''); setPromoExpiry(''); setPromoMaxUses(''); setPromoMinOrder('');
+      showToast('success', 'Promo created', created.code);
+    } catch (e) {
+      showToast('error', 'Failed to create promo', e instanceof Error ? e.message : undefined);
+    } finally { setSavingPromo(false); }
+  };
+
+  const handleTogglePromo = async (promo: PromoCode) => {
+    setTogglingId(promo.id);
+    try {
+      const updated = await promosApi.toggle(promo.id, !promo.is_active);
+      setPromos(prev => prev.map(p => p.id === updated.id ? { ...p, is_active: updated.is_active } : p));
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    } finally { setTogglingId(null); }
+  };
+
   return (
     <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>{title}</h1>
         <div className={styles.periodSelector}>
@@ -175,14 +215,14 @@ export const AnalyticsPage: React.FC = () => {
       {/* Fit Scores */}
       {validSection === 'fit-scores' && (
         <>
-          {fitData ? (
+          {fitData && fitData.feedback_count > 0 ? (
             <>
               <div className={styles.kpiGrid}>
                 {[
-                  { label: 'Avg. Fit Score',        value: `${fitData.avg_fit_score} ★`,       trend: '', up: true },
-                  { label: 'Feedback Submitted',    value: fitData.feedback_count.toString(),   trend: '', up: true },
-                  { label: 'Alteration Rate',       value: `${fitData.alteration_rate}%`,       trend: '', up: false },
-                  { label: 'Alteration → Good Fit', value: `${fitData.alteration_success_rate}%`, trend: '', up: true },
+                  { label: 'Avg. Fit Score',        value: `${fitData.avg_fit_score} ★` },
+                  { label: 'Feedback Submitted',    value: fitData.feedback_count.toString() },
+                  { label: 'Alteration Rate',       value: `${fitData.alteration_rate}%` },
+                  { label: 'Alteration → Good Fit', value: `${fitData.alteration_success_rate}%` },
                 ].map(k => (
                   <div key={k.label} className={styles.kpiCard}>
                     <div className={styles.kpiLabel}>{k.label}</div>
@@ -202,6 +242,23 @@ export const AnalyticsPage: React.FC = () => {
                             style={{ width: `${(item.avg_fit_score / 5) * 100}%` }} />
                         </div>
                         <span className={`${styles.fitScore} ${item.avg_fit_score < 4 ? styles.fitScoreLow : ''}`}>{item.avg_fit_score} ★</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {fitData.hub_performance.length > 0 && (
+                <div className={styles.card}>
+                  <h2 className={styles.cardTitle}>Fit Score by Hub</h2>
+                  <div className={styles.fitBars}>
+                    {fitData.hub_performance.map(h => (
+                      <div key={h.name} className={styles.fitRow}>
+                        <span className={styles.fitCat}>{h.name}</span>
+                        <div className={styles.fitBarWrap}>
+                          <div className={`${styles.fitBar} ${h.avg_fit_score < 4 ? styles.fitBarLow : styles.fitBarHigh}`}
+                            style={{ width: `${(h.avg_fit_score / 5) * 100}%` }} />
+                        </div>
+                        <span className={`${styles.fitScore} ${h.avg_fit_score < 4 ? styles.fitScoreLow : ''}`}>{h.avg_fit_score} ★</span>
                       </div>
                     ))}
                   </div>
@@ -255,7 +312,46 @@ export const AnalyticsPage: React.FC = () => {
             <div />
             <button className={styles.addBtn} onClick={() => setShowPromoModal(true)}><Plus size={15}/> Create Promo Code</button>
           </div>
-          <EmptyState message="No promo codes created yet. Use the button above to create your first promo code." />
+
+          {promos.length === 0 ? (
+            <EmptyState message="No promo codes created yet. Use the button above to create your first promo code." />
+          ) : (
+            <div className={styles.card}>
+              <table className={styles.table}>
+                <thead>
+                  <tr><th>Code</th><th>Type</th><th>Value</th><th>Min Order</th><th>Uses</th><th>Expiry</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {promos.map(p => (
+                    <tr key={p.id}>
+                      <td><strong>{p.code}</strong></td>
+                      <td>{p.discount_type === 'percent' ? 'Percentage' : 'Flat (₹)'}</td>
+                      <td>{p.discount_type === 'percent' ? `${p.discount_value}%` : `₹${p.discount_value}`}</td>
+                      <td>{p.min_order_amount > 0 ? `₹${p.min_order_amount}` : '—'}</td>
+                      <td>{p.max_uses ?? '∞'}</td>
+                      <td>{p.valid_until ? new Date(p.valid_until).toLocaleDateString('en-IN') : '—'}</td>
+                      <td>
+                        <span className={p.is_active ? styles.onTrack : styles.behind}>
+                          {p.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className={styles.exportBtn}
+                          disabled={togglingId === p.id}
+                          onClick={() => handleTogglePromo(p)}
+                          title={p.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                          {p.is_active ? <ToggleRight size={16}/> : <ToggleLeft size={16}/>}
+                          {p.is_active ? ' Deactivate' : ' Activate'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
 
@@ -265,16 +361,44 @@ export const AnalyticsPage: React.FC = () => {
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Create Promo Code</h3>
             <div className={styles.fields}>
-              <div className={styles.field}><label className={styles.fieldLabel}>Code *</label><input className={styles.fieldInput} placeholder="e.g., SAVE10" /></div>
-              <div className={styles.field}><label className={styles.fieldLabel}>Type</label>
-                <select className={styles.fieldSelect}><option>Percentage (%)</option><option>Flat (₹)</option><option>Free Delivery</option></select>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Code *</label>
+                <input className={styles.fieldInput} placeholder="e.g., SAVE10"
+                  value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} />
               </div>
-              <div className={styles.field}><label className={styles.fieldLabel}>Value</label><input className={styles.fieldInput} placeholder="e.g., 10" /></div>
-              <div className={styles.field}><label className={styles.fieldLabel}>Expiry Date</label><input type="date" className={styles.fieldInput} /></div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Type</label>
+                <select className={styles.fieldSelect} value={promoType} onChange={e => setPromoType(e.target.value as 'percent' | 'flat')}>
+                  <option value="percent">Percentage (%)</option>
+                  <option value="flat">Flat (₹)</option>
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Value *</label>
+                <input className={styles.fieldInput} placeholder={promoType === 'percent' ? 'e.g., 10' : 'e.g., 200'}
+                  value={promoValue} onChange={e => setPromoValue(e.target.value)} type="number" min="0" />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Min Order Amount (₹)</label>
+                <input className={styles.fieldInput} placeholder="e.g., 500 (optional)"
+                  value={promoMinOrder} onChange={e => setPromoMinOrder(e.target.value)} type="number" min="0" />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Max Uses (total)</label>
+                <input className={styles.fieldInput} placeholder="Leave blank for unlimited"
+                  value={promoMaxUses} onChange={e => setPromoMaxUses(e.target.value)} type="number" min="1" />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Expiry Date</label>
+                <input type="date" className={styles.fieldInput}
+                  value={promoExpiry} onChange={e => setPromoExpiry(e.target.value)} />
+              </div>
             </div>
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} onClick={() => setShowPromoModal(false)}>Cancel</button>
-              <button className={styles.createBtn} onClick={() => setShowPromoModal(false)}>Create</button>
+              <button className={styles.createBtn} disabled={savingPromo} onClick={handleCreatePromo}>
+                {savingPromo ? 'Creating…' : 'Create'}
+              </button>
             </div>
           </div>
         </div>

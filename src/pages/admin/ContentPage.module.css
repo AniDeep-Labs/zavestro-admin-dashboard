@@ -75,3 +75,12 @@
 
 .primaryCell { font-weight: var(--font-weight-semibold); }
 .archiveBtn { background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 4px 8px; font-size: 12px; cursor: pointer; color: var(--color-text-tertiary); }
+.createBtn { height: 40px; padding: 0 20px; background: var(--color-primary); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; }
+.createBtn:hover:not(:disabled) { opacity: 0.9; }
+.createBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.skeleton { height: 18px; background: var(--color-border-light); border-radius: 4px; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.cmsPlaceholder { background: var(--color-bg-primary); border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); padding: 48px 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.cmsIcon { color: var(--color-text-tertiary); }
+.cmsTitle { font-family: var(--font-display); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin: 0; }
+.cmsDesc { font-size: var(--font-size-base); color: var(--color-text-tertiary); max-width: 480px; margin: 0; line-height: 1.6; }

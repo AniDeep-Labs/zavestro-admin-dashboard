@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, UserPlus } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { AdminUser } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -12,6 +12,14 @@ export const AdminUsersManagePage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [resetLinks, setResetLinks] = React.useState<Record<string, string>>({});
   const [resetting, setResetting] = React.useState<string | null>(null);
+
+  // Create admin modal state
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [newName, setNewName] = React.useState('');
+  const [newEmail, setNewEmail] = React.useState('');
+  const [newPassword, setNewPassword] = React.useState('');
+  const [newRole, setNewRole] = React.useState<'admin' | 'super_admin'>('admin');
+  const [creating, setCreating] = React.useState(false);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, message?: string) =>
@@ -53,6 +61,27 @@ export const AdminUsersManagePage: React.FC = () => {
     }
   };
 
+  const handleCreate = async () => {
+    if (!newName.trim() || !newEmail.trim() || !newPassword) {
+      showToast('error', 'All fields required');
+      return;
+    }
+    if (newPassword.length < 8) {
+      showToast('error', 'Password must be at least 8 characters');
+      return;
+    }
+    setCreating(true);
+    try {
+      const created = await catalogApi.createAdmin({ name: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole });
+      setUsers(prev => [...prev, created]);
+      setShowCreate(false);
+      setNewName(''); setNewEmail(''); setNewPassword(''); setNewRole('admin');
+      showToast('success', 'Admin created', created.email);
+    } catch (err) {
+      showToast('error', 'Failed to create', err instanceof Error ? err.message : '');
+    } finally { setCreating(false); }
+  };
+
   const pending = users.filter(u => !u.is_active);
   const active = users.filter(u => u.is_active);
 
@@ -62,9 +91,14 @@ export const AdminUsersManagePage: React.FC = () => {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Admin Users</h1>
-        <button className={styles.refreshBtn} onClick={load} disabled={loading}>
-          <RefreshCw size={14}/> {loading ? 'Loading…' : 'Refresh'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
+            <UserPlus size={14}/> Create Admin
+          </button>
+          <button className={styles.refreshBtn} onClick={load} disabled={loading}>
+            <RefreshCw size={14}/> {loading ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {pending.length > 0 && (
@@ -87,10 +121,7 @@ export const AdminUsersManagePage: React.FC = () => {
                   </div>
                 </div>
                 <div className={styles.cardActions}>
-                  <button
-                    className={styles.activateBtn}
-                    onClick={() => handleToggleActive(user)}
-                  >
+                  <button className={styles.activateBtn} onClick={() => handleToggleActive(user)}>
                     Activate
                   </button>
                 </div>
@@ -184,6 +215,45 @@ export const AdminUsersManagePage: React.FC = () => {
           </table>
         </div>
       </section>
+
+      {/* Create Admin Modal */}
+      {showCreate && (
+        <div className={styles.modalOverlay} onClick={() => setShowCreate(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Create Admin Account</h3>
+            <div className={styles.fields}>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Name *</label>
+                <input className={styles.fieldInput} placeholder="Full name"
+                  value={newName} onChange={e => setNewName(e.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Email *</label>
+                <input className={styles.fieldInput} type="email" placeholder="admin@zavestro.in"
+                  value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Password * (min 8 chars)</label>
+                <input className={styles.fieldInput} type="password" placeholder="Temporary password"
+                  value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Role</label>
+                <select className={styles.fieldInput} value={newRole} onChange={e => setNewRole(e.target.value as 'admin' | 'super_admin')}>
+                  <option value="admin">Admin</option>
+                  <option value="super_admin">Super Admin</option>
+                </select>
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.cancelBtn} onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className={styles.activateBtn} disabled={creating} onClick={handleCreate}>
+                {creating ? 'Creating…' : 'Create Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

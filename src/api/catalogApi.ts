@@ -345,4 +345,10 @@ export const catalogApi = {
       method: 'POST',
       body: JSON.stringify({ token, password }),
     }).then(res => res.data),
+
+  createAdmin: (data: { name: string; email: string; password: string; role?: 'admin' | 'super_admin' }): Promise<AdminUser> =>
+    request<{ success: boolean; data: AdminUser }>('/api/admin/auth/create-admin', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }).then(res => res.data),
 };

@@ -453,4 +453,110 @@ export const invoicesApi = {
     req<{ url: string }>(`/api/admin/invoices/${id}/download`),
 };
 
+// ─── Promo Codes ──────────────────────────────────────────────────────────────
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  description?: string;
+  discount_type: 'percent' | 'flat';
+  discount_value: number;
+  min_order_amount: number;
+  max_discount?: number;
+  max_uses?: number;
+  uses_per_user: number;
+  valid_from?: string;
+  valid_until?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PromosResponse { promos: PromoCode[]; }
+
+export const promosApi = {
+  list: async (): Promise<PromosResponse> =>
+    req<PromosResponse>('/api/admin/promos'),
+
+  create: async (data: {
+    code: string;
+    description?: string;
+    discount_type: 'percent' | 'flat';
+    discount_value: number;
+    min_order_amount?: number;
+    max_uses?: number;
+    uses_per_user?: number;
+    valid_until?: string;
+  }): Promise<PromoCode> =>
+    req<PromoCode>('/api/admin/promos', { method: 'POST', body: JSON.stringify(data) }),
+
+  toggle: async (id: string, is_active: boolean): Promise<{ id: string; code: string; is_active: boolean }> =>
+    req<{ id: string; code: string; is_active: boolean }>(`/api/admin/promos/${id}/active`, {
+      method: 'PATCH', body: JSON.stringify({ is_active }),
+    }),
+};
+
+// ─── Craftspeople ─────────────────────────────────────────────────────────────
+
+export interface Craftsperson {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  photo_key: string | null;
+  public_photo_url: string | null;
+  years_experience: number | null;
+}
+
+export const craftspeopleApi = {
+  list: async (): Promise<Craftsperson[]> =>
+    req<Craftsperson[]>('/api/admin/craftspeople'),
+
+  updateStory: async (id: string, data: { bio?: string; years_experience?: number }): Promise<Craftsperson> =>
+    req<Craftsperson>(`/api/admin/craftspeople/${id}/story`, {
+      method: 'PATCH', body: JSON.stringify(data),
+    }),
+};
+
+// ─── Hub Staff ────────────────────────────────────────────────────────────────
+
+export interface HubStaff {
+  id: string;
+  hub_id?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export const hubStaffApi = {
+  list: async (hubId: string): Promise<HubStaff[]> =>
+    req<{ staff: HubStaff[] }>(`/api/admin/hubs/${hubId}/staff`).then(r => r.staff),
+
+  create: async (hubId: string, data: { name: string; email: string; password: string; role: string }): Promise<HubStaff> =>
+    req<HubStaff>(`/api/admin/hubs/${hubId}/staff`, { method: 'POST', body: JSON.stringify(data) }),
+
+  toggleActive: async (hubId: string, staffId: string, is_active: boolean): Promise<HubStaff> =>
+    req<HubStaff>(`/api/admin/hubs/${hubId}/staff/${staffId}/active`, {
+      method: 'PATCH', body: JSON.stringify({ is_active }),
+    }),
+};
+
+// ─── Fit Analytics ────────────────────────────────────────────────────────────
+
+export interface FitAnalyticsData {
+  avg_fit_score: number;
+  feedback_count: number;
+  alteration_rate: number;
+  alteration_success_rate: number;
+  by_product: { id: string; name: string; avg_fit_score: number; feedback_count: number }[];
+  hub_performance: { id: string; name: string; avg_fit_score: number; feedback_count: number; good_fit_count: number }[];
+}
+
+export const fitAnalyticsApi = {
+  get: async (period = 'month'): Promise<FitAnalyticsData> =>
+    req<FitAnalyticsData>(`/api/admin/analytics/fit?period=${period}`),
+};
+
 export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus };
