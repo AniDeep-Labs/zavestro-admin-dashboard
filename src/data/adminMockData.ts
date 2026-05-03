@@ -134,11 +134,14 @@ export interface LuxeFabric {
 
 export interface ConsultationSlot {
   id: string;
-  date: string;
-  time: string;
-  dayOfWeek: string;
-  maxBookings: number;
-  booked: number;
+  hub_id: string | null;
+  slot_date: string;       // YYYY-MM-DD
+  time_start: string;      // HH:MM
+  time_end: string;        // HH:MM
+  mode: 'in_person' | 'video';
+  capacity: number;
+  booked_count: number;
+  created_at: string;
 }
 
 export type ConsultationStatus =

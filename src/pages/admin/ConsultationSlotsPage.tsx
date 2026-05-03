@@ -6,14 +6,26 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ConsultationSlotsPage.module.css';
 
+function formatSlotDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function getDayOfWeek(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short' });
+}
+
 export const ConsultationSlotsPage: React.FC = () => {
   const [slots, setSlots] = React.useState<ConsultationSlot[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [selectedSlot, setSelectedSlot] = React.useState<ConsultationSlot | null>(null);
   const [addDate, setAddDate] = React.useState('');
-  const [addTime, setAddTime] = React.useState('10:00');
-  const [addMax, setAddMax] = React.useState('2');
+  const [addStartTime, setAddStartTime] = React.useState('10:00');
+  const [addEndTime, setAddEndTime] = React.useState('11:00');
+  const [addMode, setAddMode] = React.useState<'in_person' | 'video'>('in_person');
+  const [addCapacity, setAddCapacity] = React.useState('1');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
@@ -24,50 +36,47 @@ export const ConsultationSlotsPage: React.FC = () => {
     setLoading(true);
     consultationSlotsApi.list()
       .then(res => setSlots(res.slots ?? []))
-      .catch(() => {})
+      .catch((err: Error) => showToast('error', 'Failed to load slots', err.message))
       .finally(() => setLoading(false));
   }, []);
 
   const groupedSlots = slots.reduce<Record<string, ConsultationSlot[]>>((acc, slot) => {
-    if (!acc[slot.date]) acc[slot.date] = [];
-    acc[slot.date].push(slot);
+    if (!acc[slot.slot_date]) acc[slot.slot_date] = [];
+    acc[slot.slot_date].push(slot);
     return acc;
   }, {});
 
   const getSlotStatus = (slot: ConsultationSlot) => {
-    if (slot.booked >= slot.maxBookings) return 'full';
-    if (slot.booked > 0) return 'partial';
+    if (slot.booked_count >= slot.capacity) return 'full';
+    if (slot.booked_count > 0) return 'partial';
     return 'available';
   };
 
   const handleAddSlot = async () => {
-    if (!addDate || !addTime) return;
-    const dateObj = new Date(addDate);
-    const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-    const displayDate = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\//g, ' ');
-    const [h, m] = addTime.split(':');
-    const hour = parseInt(h);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-    const timeDisplay = `${displayHour}:${m} ${ampm}`;
-
+    if (!addDate || !addStartTime || !addEndTime) return;
+    if (addEndTime <= addStartTime) {
+      showToast('error', 'Invalid time', 'End time must be after start time');
+      return;
+    }
     try {
       const newSlot = await consultationSlotsApi.create({
-        date: displayDate,
-        time: timeDisplay,
-        dayOfWeek,
-        maxBookings: parseInt(addMax) || 2,
-        booked: 0,
+        slot_date: addDate,
+        time_start: addStartTime,
+        time_end: addEndTime,
+        mode: addMode,
+        capacity: parseInt(addCapacity) || 1,
       });
       setSlots(prev => [...prev, newSlot]);
-      showToast('success', 'Slot added', `${displayDate} at ${timeDisplay}`);
+      showToast('success', 'Slot added', `${formatSlotDate(addDate)} at ${addStartTime}`);
     } catch (err) {
       showToast('error', 'Failed to add slot', err instanceof Error ? err.message : undefined);
     }
     setShowAddModal(false);
     setAddDate('');
-    setAddTime('10:00');
-    setAddMax('2');
+    setAddStartTime('10:00');
+    setAddEndTime('11:00');
+    setAddMode('in_person');
+    setAddCapacity('1');
   };
 
   const handleDeleteSlot = async (slotId: string) => {
@@ -81,14 +90,7 @@ export const ConsultationSlotsPage: React.FC = () => {
     setSelectedSlot(null);
   };
 
-  const sortedDates = Object.keys(groupedSlots).sort((a, b) => {
-    const months: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
-    const parseDate = (d: string) => {
-      const parts = d.split(' ');
-      return new Date(parseInt(parts[2]), months[parts[1]], parseInt(parts[0]));
-    };
-    return parseDate(a).getTime() - parseDate(b).getTime();
-  });
+  const sortedDates = Object.keys(groupedSlots).sort();
 
   return (
     <div className={styles.page}>
@@ -121,8 +123,8 @@ export const ConsultationSlotsPage: React.FC = () => {
           {sortedDates.map(date => (
             <div key={date} className={styles.dayCol}>
               <div className={styles.dayHeader}>
-                <span className={styles.dayOfWeek}>{groupedSlots[date][0].dayOfWeek}</span>
-                <span className={styles.dayDate}>{date}</span>
+                <span className={styles.dayOfWeek}>{getDayOfWeek(date)}</span>
+                <span className={styles.dayDate}>{formatSlotDate(date)}</span>
               </div>
               <div className={styles.slotList}>
                 {groupedSlots[date].map(slot => {
@@ -133,8 +135,8 @@ export const ConsultationSlotsPage: React.FC = () => {
                       className={`${styles.slot} ${styles[`slot${st.charAt(0).toUpperCase()}${st.slice(1)}`]}`}
                       onClick={() => setSelectedSlot(slot)}
                     >
-                      <span className={styles.slotTime}>{slot.time}</span>
-                      <span className={styles.slotMeta}>{slot.booked}/{slot.maxBookings} booked</span>
+                      <span className={styles.slotTime}>{slot.time_start} – {slot.time_end}</span>
+                      <span className={styles.slotMeta}>{slot.booked_count}/{slot.capacity} booked</span>
                     </button>
                   );
                 })}
@@ -150,11 +152,12 @@ export const ConsultationSlotsPage: React.FC = () => {
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Slot Details</h3>
             <div className={styles.detailRows}>
-              <div className={styles.detailRow}><span>Date</span><span>{selectedSlot.date}</span></div>
-              <div className={styles.detailRow}><span>Time</span><span>{selectedSlot.time}</span></div>
+              <div className={styles.detailRow}><span>Date</span><span>{formatSlotDate(selectedSlot.slot_date)}</span></div>
+              <div className={styles.detailRow}><span>Time</span><span>{selectedSlot.time_start} – {selectedSlot.time_end}</span></div>
+              <div className={styles.detailRow}><span>Mode</span><span>{selectedSlot.mode === 'in_person' ? 'In Person' : 'Video'}</span></div>
               <div className={styles.detailRow}>
                 <span>Bookings</span>
-                <span>{selectedSlot.booked} / {selectedSlot.maxBookings}</span>
+                <span>{selectedSlot.booked_count} / {selectedSlot.capacity}</span>
               </div>
               <div className={styles.detailRow}>
                 <span>Status</span>
@@ -170,10 +173,10 @@ export const ConsultationSlotsPage: React.FC = () => {
               <button
                 className={styles.deleteSlotBtn}
                 onClick={() => handleDeleteSlot(selectedSlot.id)}
-                disabled={selectedSlot.booked > 0}
-                title={selectedSlot.booked > 0 ? 'Cannot delete — has active bookings' : ''}
+                disabled={selectedSlot.booked_count > 0}
+                title={selectedSlot.booked_count > 0 ? 'Cannot delete — has active bookings' : ''}
               >
-                {selectedSlot.booked > 0 ? 'Has bookings — cannot delete' : 'Delete Slot'}
+                {selectedSlot.booked_count > 0 ? 'Has bookings — cannot delete' : 'Delete Slot'}
               </button>
             </div>
           </div>
@@ -192,24 +195,43 @@ export const ConsultationSlotsPage: React.FC = () => {
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Start Time *</label>
-                <input type="time" className={styles.input} value={addTime} onChange={e => setAddTime(e.target.value)} />
+                <input type="time" className={styles.input} value={addStartTime} onChange={e => setAddStartTime(e.target.value)} />
               </div>
               <div className={styles.field}>
-                <label className={styles.label}>Max Bookings per Slot</label>
+                <label className={styles.label}>End Time *</label>
+                <input type="time" className={styles.input} value={addEndTime} onChange={e => setAddEndTime(e.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label}>Mode</label>
+                <select
+                  className={styles.input}
+                  value={addMode}
+                  onChange={e => setAddMode(e.target.value as 'in_person' | 'video')}
+                >
+                  <option value="in_person">In Person</option>
+                  <option value="video">Video Call</option>
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label}>Capacity</label>
                 <input
                   type="number"
                   className={styles.input}
-                  value={addMax}
-                  onChange={e => setAddMax(e.target.value)}
+                  value={addCapacity}
+                  onChange={e => setAddCapacity(e.target.value)}
                   min="1"
-                  max="10"
+                  max="50"
                 />
                 <span className={styles.fieldHint}>Usually 1–2 for Luxe consultations</span>
               </div>
             </div>
             <div className={styles.modalActions}>
               <button className={styles.cancelBtn} onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className={styles.createBtn} onClick={handleAddSlot} disabled={!addDate || !addTime}>
+              <button
+                className={styles.createBtn}
+                onClick={handleAddSlot}
+                disabled={!addDate || !addStartTime || !addEndTime}
+              >
                 Create Slot
               </button>
             </div>

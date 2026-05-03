@@ -314,7 +314,14 @@ export const consultationSlotsApi = {
   list: async (): Promise<ConsultationSlotsResponse> =>
     req<ConsultationSlotsResponse>('/api/admin/consultation-slots'),
 
-  create: async (data: Omit<ConsultationSlot, 'id'>): Promise<ConsultationSlot> =>
+  create: async (data: {
+    hub_id?: string;
+    slot_date: string;
+    time_start: string;
+    time_end: string;
+    mode?: 'in_person' | 'video';
+    capacity?: number;
+  }): Promise<ConsultationSlot> =>
     req<ConsultationSlot>('/api/admin/consultation-slots', { method: 'POST', body: JSON.stringify(data) }),
 
   delete: async (id: string): Promise<void> =>

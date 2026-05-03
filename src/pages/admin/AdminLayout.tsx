@@ -83,6 +83,7 @@ export const AdminLayout: React.FC = () => {
 
   const adminUser = getAdminUser();
   const adminEmail = adminUser?.email ?? 'admin@zavestro.in';
+  const adminRole = adminUser?.role ?? 'admin';
   const adminInitial = adminEmail[0].toUpperCase();
 
   const handleLogout = async () => {
@@ -210,7 +211,14 @@ export const AdminLayout: React.FC = () => {
             </button>
             <div className={styles.adminUser}>
               <div className={styles.avatar}>{adminInitial}</div>
-              {!collapsed && <span className={styles.adminName}>{adminEmail}</span>}
+              {!collapsed && (
+                <>
+                  <span className={styles.adminName}>{adminEmail}</span>
+                  <span className={`${styles.roleBadge} ${adminRole === 'super_admin' ? styles.roleBadgeSuperAdmin : ''}`}>
+                    {adminRole === 'super_admin' ? 'Super Admin' : adminRole.replace('_', ' ')}
+                  </span>
+                </>
+              )}
             </div>
             <button
               className={styles.logoutBtn}

@@ -66,7 +66,9 @@ export const AnalyticsPage: React.FC = () => {
   }, [period]);
 
   React.useEffect(() => {
-    fitAnalyticsApi.get(PERIOD_MAP[period] ?? 'month').then(setFitData).catch(() => {});
+    fitAnalyticsApi.get(PERIOD_MAP[period] ?? 'month').then(setFitData).catch((e: Error) => {
+      showToast('error', 'Failed to load fit scores', e.message);
+    });
   }, [period]);
 
   React.useEffect(() => {
@@ -215,7 +217,7 @@ export const AnalyticsPage: React.FC = () => {
       {/* Fit Scores */}
       {validSection === 'fit-scores' && (
         <>
-          {fitData && fitData.feedback_count > 0 ? (
+          {fitData ? (
             <>
               <div className={styles.kpiGrid}>
                 {[
