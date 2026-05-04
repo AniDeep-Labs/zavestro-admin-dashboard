@@ -99,7 +99,7 @@ const kpis: { label: string; key: string; format: (v: number) => string; icon: I
   { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders' },
   { label: 'Open Tickets',     key: 'openTickets',     format: v => v.toLocaleString(),                   icon: 'Headphones',    accent: 'Red',     navPath: '/admin/support' },
   { label: 'New Customers',    key: 'newCustomers',    format: v => v.toLocaleString(),                   icon: 'UserPlus',      accent: 'Emerald', navPath: '/admin/users' },
-  { label: 'Waitlist Signups', key: 'waitlistSignups', format: v => v.toLocaleString(),                   icon: 'ClipboardList', accent: 'Gold',    navPath: '/admin/waitlist' },
+  { label: 'Waitlist Signups', key: 'waitlistSignups', format: v => v.toLocaleString(),                   icon: 'ClipboardList', accent: 'Gold',    navPath: '/admin/system/waitlist' },
 ];
 
 const ACTIVITY_ICON: Record<string, IconKey> = {
@@ -381,12 +381,12 @@ export const AdminDashboardPage: React.FC = () => {
               <div className={styles.consultMiniTitle}>Consultations needing action</div>
               <div className={styles.consultMiniRow}>
                 {data.consultations.pending > 0 && (
-                  <button className={styles.consultChip} onClick={() => navigate('/admin/catalog/consultations')}>
+                  <button className={styles.consultChip} onClick={() => navigate('/admin/consultations')}>
                     {data.consultations.pending} pending
                   </button>
                 )}
                 {data.consultations.unassigned > 0 && (
-                  <button className={styles.consultChip} onClick={() => navigate('/admin/catalog/consultations')}>
+                  <button className={styles.consultChip} onClick={() => navigate('/admin/consultations')}>
                     {data.consultations.unassigned} unassigned
                   </button>
                 )}

@@ -8,10 +8,27 @@ export type OrderStage =
   | 'in_tailoring' | 'quality_check' | 'ready_to_dispatch'
   | 'dispatched' | 'delivered' | 'return_requested' | 'returned';
 
+export interface OrderItem {
+  id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface OrderTimelineEntry {
+  id: string;
+  to_stage: string;
+  note: string | null;
+  created_at: string;
+}
+
 export interface AdminOrder {
   id: string;
+  uuid?: string;
   customer: string;
   phone: string;
+  email?: string;
+  user_id?: string;
   mode: OrderMode;
   products: string[];
   stage: OrderStage;
@@ -20,6 +37,8 @@ export interface AdminOrder {
   total: number;
   status: LifecycleStatus;
   overdue?: boolean;
+  items?: OrderItem[];
+  timeline?: OrderTimelineEntry[];
 }
 
 export interface AdminUser {

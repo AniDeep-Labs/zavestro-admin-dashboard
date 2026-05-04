@@ -1,19 +1,11 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ShoppingCart, CreditCard, Scissors, Shirt, CheckCircle, ChevronLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { ordersApi, invoicesApi } from '../../api/adminApi';
 import type { AdminOrder, OrderStage } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrderDetailPage.module.css';
-
-const TIMELINE_MOCK = [
-  { icon: <ShoppingCart size={14}/>, text: 'Order created by customer', time: 'Apr 13, 2:14 PM', actor: 'Customer' },
-  { icon: <CreditCard size={14}/>,   text: 'Payment confirmed',          time: 'Apr 13, 2:15 PM', actor: 'System' },
-  { icon: <Shirt size={14}/>,        text: 'Assigned to tailor',         time: 'Apr 14, 10:30 AM', actor: 'Hub Manager' },
-  { icon: <Scissors size={14}/>,     text: 'Stage: fabric_sourced → in_tailoring', time: 'Apr 14, 10:31 AM', actor: 'Tailor' },
-  { icon: <CheckCircle size={14}/>,  text: 'QC Pass',                    time: 'Apr 18, 3:45 PM', actor: 'QC Staff' },
-];
 
 export const OrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,11 +35,12 @@ export const OrderDetailPage: React.FC = () => {
 
   const handleDownloadInvoice = async () => {
     if (!order) return;
+    const orderId = order.uuid ?? order.id;
     setInvoiceLoading(true);
     try {
-      const { invoices } = await invoicesApi.list({ orderId: order.id, limit: 1 });
+      const { invoices } = await invoicesApi.list({ orderId, limit: 1 });
       if (invoices.length === 0 || invoices[0].status !== 'generated') {
-        await invoicesApi.generateForOrder(order.id);
+        await invoicesApi.generateForOrder(orderId);
         showToast('info', 'Invoice queued', 'Invoice is being generated. Check the Invoices page in a few moments.');
       } else {
         const { url } = await invoicesApi.getDownloadUrl(invoices[0].id);
@@ -64,8 +57,8 @@ export const OrderDetailPage: React.FC = () => {
     if (!order || !overrideStage) return;
     setOverriding(true);
     try {
-      const updated = await ordersApi.updateStage(order.id, overrideStage as OrderStage, overrideReason);
-      setOrder(updated);
+      const { stage, status } = await ordersApi.updateStage(order.id, overrideStage as OrderStage, overrideReason);
+      setOrder(prev => prev ? { ...prev, stage, status } : prev);
       setShowOverrideModal(false);
       setOverrideReason(''); setOverrideStage(''); setOverrideChecks([false, false]);
       showToast('success', 'Stage updated', `Order moved to ${overrideStage.replace(/_/g, ' ')}`);
@@ -105,7 +98,9 @@ export const OrderDetailPage: React.FC = () => {
               <span className={styles.customerLabel}>Customer</span>
               <span className={styles.customerName}>{order.customer}</span>
               <span className={styles.customerPhone}>{order.phone}</span>
-              <button className={styles.linkBtn} onClick={() => navigate('/admin/users')}>View Profile →</button>
+              {order.user_id && (
+                <button className={styles.linkBtn} onClick={() => navigate(`/admin/users/${order.user_id}`)}>View Profile →</button>
+              )}
             </div>
           </div>
 
@@ -114,35 +109,52 @@ export const OrderDetailPage: React.FC = () => {
             <h3 className={styles.sectionTitle}>Items</h3>
             <table className={styles.itemsTable}>
               <thead>
-                <tr><th>Product</th><th>Variant</th><th>Qty</th><th>Total</th></tr>
+                <tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
               </thead>
               <tbody>
-                {order.products.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p}</td>
-                    <td>Navy Blue · Cotton</td>
-                    <td>1</td>
-                    <td>₹{Math.floor(order.total / order.products.length).toLocaleString()}</td>
-                  </tr>
-                ))}
+                {(order.items ?? []).length > 0
+                  ? (order.items ?? []).map(it => (
+                    <tr key={it.id}>
+                      <td>{it.product_name}</td>
+                      <td>{it.quantity}</td>
+                      <td>₹{it.unit_price.toLocaleString('en-IN')}</td>
+                      <td>₹{(it.quantity * it.unit_price).toLocaleString('en-IN')}</td>
+                    </tr>
+                  ))
+                  : order.products.map((p, i) => (
+                    <tr key={i}>
+                      <td>{p}</td>
+                      <td>1</td>
+                      <td>—</td>
+                      <td>—</td>
+                    </tr>
+                  ))
+                }
               </tbody>
             </table>
-            <div className={styles.profileNote}>Fit profile: Self · Shirt category · v2</div>
           </div>
 
           {/* Timeline */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Order Journey</h3>
             <div className={styles.timeline}>
-              {TIMELINE_MOCK.map((entry, i) => (
-                <div key={i} className={styles.timelineEntry}>
-                  <div className={styles.timelineDot}>{entry.icon}</div>
-                  <div className={styles.timelineContent}>
-                    <div className={styles.timelineText}>{entry.text}</div>
-                    <div className={styles.timelineMeta}>{entry.time} · {entry.actor}</div>
+              {(order.timeline ?? []).length > 0
+                ? (order.timeline ?? []).map((entry, i) => (
+                  <div key={entry.id ?? i} className={styles.timelineEntry}>
+                    <div className={styles.timelineDot} />
+                    <div className={styles.timelineContent}>
+                      <div className={styles.timelineText}>
+                        Stage: <strong>{entry.to_stage.replace(/_/g, ' ')}</strong>
+                        {entry.note ? ` — ${entry.note}` : ''}
+                      </div>
+                      <div className={styles.timelineMeta}>
+                        {new Date(entry.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+                : <div className={styles.timelineEntry} style={{ color: 'var(--color-text-tertiary)', fontSize: 13 }}>No stage transitions yet.</div>
+              }
             </div>
           </div>
 

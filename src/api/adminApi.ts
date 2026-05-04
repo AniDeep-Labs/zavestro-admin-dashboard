@@ -3,6 +3,7 @@ import type {
   AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry,
   WaitlistEntry, ConfigGroup, OrderStage,
   Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus,
+  OrderItem, OrderTimelineEntry,
 } from '../data/adminMockData';
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://api.zavestro.in';
@@ -95,11 +96,33 @@ export const ordersApi = {
     return req<OrdersResponse>(`/api/admin/orders?${qs}`);
   },
 
-  get: async (id: string): Promise<AdminOrder> =>
-    req<AdminOrder>(`/api/admin/orders/${id}`),
+  get: async (id: string): Promise<AdminOrder> => {
+    type DetailResp = { order: Record<string, unknown>; items: OrderItem[]; timeline: OrderTimelineEntry[] };
+    const data = await req<DetailResp>(`/api/admin/orders/${id}`);
+    const o = data.order;
+    return {
+      id: (o.order_number ?? o.id) as string,
+      uuid: o.id as string,
+      customer: (o.customer_name ?? '') as string,
+      phone: (o.customer_phone ?? '') as string,
+      email: (o.customer_email ?? '') as string,
+      user_id: o.user_id as string,
+      mode: ((o.mode as string) === 'simplified' ? 'Simplified' : 'Luxe') as AdminOrder['mode'],
+      stage: o.stage as OrderStage,
+      status: o.lifecycle_status as AdminOrder['status'],
+      hub: (o.hub_name ?? '') as string,
+      total: parseFloat(String(o.total_amount ?? 0)),
+      products: (data.items ?? []).map(it => it.product_name).filter(Boolean),
+      created: new Date(o.created_at as string).toLocaleDateString('en-IN'),
+      items: data.items ?? [],
+      timeline: data.timeline ?? [],
+    };
+  },
 
-  updateStage: async (id: string, stage: OrderStage, reason?: string): Promise<AdminOrder> =>
-    req<AdminOrder>(`/api/admin/orders/${id}/stage`, { method: 'PUT', body: JSON.stringify({ stage, reason }) }),
+  updateStage: async (id: string, stage: OrderStage, reason?: string): Promise<Pick<AdminOrder, 'stage' | 'status'>> => {
+    const o = await req<Record<string, unknown>>(`/api/admin/orders/${id}/stage`, { method: 'PUT', body: JSON.stringify({ stage, reason }) });
+    return { stage: o.stage as OrderStage, status: o.lifecycle_status as AdminOrder['status'] };
+  },
 };
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -716,4 +739,4 @@ export const fitAnalyticsApi = {
     req<FitAnalyticsData>(`/api/admin/analytics/fit?period=${period}`),
 };
 
-export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus };
+export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus, OrderItem, OrderTimelineEntry };
