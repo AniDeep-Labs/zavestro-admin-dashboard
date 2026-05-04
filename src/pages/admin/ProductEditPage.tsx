@@ -98,7 +98,7 @@ export const ProductEditPage: React.FC = () => {
         setName(p.name ?? '');
         setShortDesc(p.short_description ?? '');
         setDescription(p.description ?? '');
-        setMode(p.mode ?? 'simplified');
+
         setBasePrice(String(p.base_price ?? ''));
         setCategoryId(typeof p.category === 'object' ? p.category?.id ?? '' : '');
         setTags((p.tags ?? []).join(', '));
