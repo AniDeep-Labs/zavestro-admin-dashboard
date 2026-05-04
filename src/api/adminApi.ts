@@ -361,6 +361,7 @@ export const auditApi = {
         action: (e.action ?? '') as string,
         entityType: (e.entityType ?? e.entity_type ?? '') as string,
         entityId: (e.entityId ?? e.entity_id ?? '') as string,
+        ip: (e.ip ?? '') as string,
       })),
     };
   },
