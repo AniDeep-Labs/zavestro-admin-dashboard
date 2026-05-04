@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { homeVisitsApi } from '../../api/adminApi';
-import type { HomeVisit } from '../../api/adminApi';
+import { homeVisitsApi, hubsApi } from '../../api/adminApi';
+import type { HomeVisit, Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
@@ -21,24 +21,36 @@ export const HomeVisitsListPage: React.FC = () => {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = React.useState('');
   const [dateFilter, setDateFilter] = React.useState('');
+  const [hubFilter, setHubFilter] = React.useState('');
   const [page, setPage] = React.useState(1);
   const [visits, setVisits] = React.useState<HomeVisit[]>([]);
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
+  const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
 
+  React.useEffect(() => {
+    hubsApi.list({ status: 'Active' }).then(r => setHubs(r.hubs)).catch(() => {});
+  }, []);
+
   const load = React.useCallback(() => {
     setLoading(true);
-    homeVisitsApi.list({ status: statusFilter || undefined, date: dateFilter || undefined, page, limit: 25 })
+    homeVisitsApi.list({
+      status: statusFilter || undefined,
+      date: dateFilter || undefined,
+      hub_id: hubFilter || undefined,
+      page,
+      limit: 25,
+    })
       .then(r => { setVisits(r.visits); setTotal(r.total); })
       .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-  }, [statusFilter, dateFilter, page]);
+  }, [statusFilter, dateFilter, hubFilter, page]);
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -53,6 +65,8 @@ export const HomeVisitsListPage: React.FC = () => {
     } finally { setUpdatingId(null); }
   };
 
+  const clearFilters = () => { setStatusFilter(''); setDateFilter(''); setHubFilter(''); setPage(1); };
+
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -65,26 +79,31 @@ export const HomeVisitsListPage: React.FC = () => {
           <option value="">All Statuses</option>
           {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
+        <select className={styles.filterSelect} value={hubFilter} onChange={e => { setHubFilter(e.target.value); setPage(1); }}>
+          <option value="">All Hubs</option>
+          {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+        </select>
         <input type="date" className={styles.filterSelect} value={dateFilter} onChange={e => { setDateFilter(e.target.value); setPage(1); }} />
-        <button className={styles.clearBtn} onClick={() => { setStatusFilter(''); setDateFilter(''); setPage(1); }}><X size={14}/> Clear</button>
+        <button className={styles.clearBtn} onClick={clearFilters}><X size={14}/> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead><tr>
-            <th>Customer</th><th>Phone</th><th>Scheduled</th><th>City</th><th>Assigned Staff</th><th>Status</th><th>Actions</th>
+            <th>Customer</th><th>Phone</th><th>Scheduled</th><th>City</th><th>Hub</th><th>Assigned Staff</th><th>Status</th><th>Actions</th>
           </tr></thead>
           <tbody>
             {loading ? Array.from({ length: 6 }).map((_, i) => (
-              <tr key={i}>{Array.from({ length: 7 }).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
+              <tr key={i}>{Array.from({ length: 8 }).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
             )) : visits.length === 0 ? (
-              <tr><td colSpan={7} className={styles.empty}>No home visits found.</td></tr>
+              <tr><td colSpan={8} className={styles.empty}>No home visits found.</td></tr>
             ) : visits.map(v => (
               <tr key={v.id} className={styles.row} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/home-visits/${v.id}`)}>
                 <td><div className={styles.customerName}>{v.customer_name}</div></td>
                 <td><div className={styles.customerPhone}>{v.customer_phone ?? '—'}</div></td>
                 <td className={styles.date}>{new Date(v.scheduled_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                 <td>{v.city ?? '—'}</td>
+                <td>{v.hub_name ?? '—'}</td>
                 <td>{v.assigned_staff_name ?? <span style={{ color: 'var(--color-text-tertiary)' }}>Unassigned</span>}</td>
                 <td><span className={`${styles.stagePill} ${styles[STATUS_CSS[v.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[v.status] ?? v.status}</span></td>
                 <td onClick={e => e.stopPropagation()}>

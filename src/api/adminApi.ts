@@ -420,11 +420,34 @@ export interface HomeVisit {
 
 export interface HomeVisitsResponse { visits: HomeVisit[]; total: number; page: number; limit: number; }
 
+export interface BodyMeasurement {
+  id: string;
+  fit_profile_id: string;
+  chest: number | null;
+  waist: number | null;
+  hips: number | null;
+  shoulders: number | null;
+  sleeve_length: number | null;
+  neck: number | null;
+  inseam: number | null;
+  thigh: number | null;
+  calf: number | null;
+  bicep: number | null;
+  wrist: number | null;
+  shirt_length: number | null;
+  kurta_length: number | null;
+  trouser_length: number | null;
+  measurement_method: string;
+  measured_at: string;
+  created_at: string;
+}
+
 export const homeVisitsApi = {
-  list: async (params: { status?: string; date?: string; page?: number; limit?: number } = {}): Promise<HomeVisitsResponse> => {
+  list: async (params: { status?: string; date?: string; hub_id?: string; page?: number; limit?: number } = {}): Promise<HomeVisitsResponse> => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
     if (params.date)   qs.set('date',   params.date);
+    if (params.hub_id) qs.set('hub_id', params.hub_id);
     if (params.page)   qs.set('page',   String(params.page));
     if (params.limit)  qs.set('limit',  String(params.limit));
     return req<HomeVisitsResponse>(`/api/admin/home-visits?${qs}`);
@@ -435,6 +458,15 @@ export const homeVisitsApi = {
 
   updateStatus: async (id: string, status: string): Promise<HomeVisit> =>
     req<HomeVisit>(`/api/admin/home-visits/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  assign: async (id: string, staff_id: string): Promise<HomeVisit> =>
+    req<HomeVisit>(`/api/admin/home-visits/${id}/assign`, { method: 'POST', body: JSON.stringify({ staff_id }) }),
+
+  reschedule: async (id: string, scheduled_at: string): Promise<{ id: string; scheduled_at: string }> =>
+    req<{ id: string; scheduled_at: string }>(`/api/admin/home-visits/${id}/reschedule`, { method: 'PATCH', body: JSON.stringify({ scheduled_at }) }),
+
+  getMeasurements: async (id: string): Promise<BodyMeasurement[]> =>
+    req<{ measurements: BodyMeasurement[] }>(`/api/admin/home-visits/${id}/measurements`).then(r => r.measurements),
 };
 
 // ─── Invoices ─────────────────────────────────────────────────────────────────
