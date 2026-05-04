@@ -467,6 +467,26 @@ export const homeVisitsApi = {
 
   getMeasurements: async (id: string): Promise<BodyMeasurement[]> =>
     req<{ measurements: BodyMeasurement[] }>(`/api/admin/home-visits/${id}/measurements`).then(r => r.measurements),
+
+  create: async (data: {
+    user_id: string;
+    scheduled_at: string;
+    hub_id?: string;
+    notes?: string;
+    address_name?: string;
+    address_phone?: string;
+    address_line1: string;
+    address_line2?: string;
+    city: string;
+    state?: string;
+    pincode?: string;
+  }): Promise<HomeVisit> =>
+    req<HomeVisit>('/api/admin/home-visits', { method: 'POST', body: JSON.stringify(data) }),
+
+  searchUsers: async (q: string): Promise<{ id: string; name: string; phone: string; email: string }[]> =>
+    req<{ users: { id: string; name: string; phone: string; email: string }[] }>(
+      `/api/admin/home-visits/user-search?q=${encodeURIComponent(q)}`
+    ).then(r => r.users),
 };
 
 // ─── Invoices ─────────────────────────────────────────────────────────────────
