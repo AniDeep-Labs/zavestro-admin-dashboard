@@ -58,7 +58,8 @@ export const LuxeFabricEditPage: React.FC = () => {
     setSaving(true);
     try {
       const payload = {
-        name, material, origin, description, careInstructions,
+        name, material, origin, description,
+        care_instructions: careInstructions,
         occasions: selectedOccasions,
         garments: selectedGarments,
         colors: colors.split(',').map(c => c.trim()).filter(Boolean),

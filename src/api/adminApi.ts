@@ -286,7 +286,7 @@ export const luxeFabricsApi = {
     req<LuxeFabric>('/api/admin/catalog/luxe-fabrics', { method: 'POST', body: JSON.stringify(data) }),
 
   update: async (id: string, data: Partial<LuxeFabric>): Promise<LuxeFabric> =>
-    req<LuxeFabric>(`/api/admin/catalog/luxe-fabrics/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    req<LuxeFabric>(`/api/admin/catalog/luxe-fabrics/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
 // ─── Consultations ────────────────────────────────────────────────────────────
