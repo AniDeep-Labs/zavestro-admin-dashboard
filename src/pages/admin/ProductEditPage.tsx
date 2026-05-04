@@ -4,7 +4,6 @@ import { ChevronLeft, Image, Check, Plus } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiCategory, ApiVariant, ApiMedia, VariantPayload } from '../../api/catalogApi';
 
-const FALLBACK_CATEGORIES: ApiCategory[] = [];
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ProductEditPage.module.css';
