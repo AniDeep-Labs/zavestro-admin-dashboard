@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { alterationsApi } from '../../api/adminApi';
 import type { AlterationRequest } from '../../api/adminApi';
@@ -22,7 +21,6 @@ function useDebounce<T>(v: T, d: number) {
 }
 
 export const AlterationsListPage: React.FC = () => {
-  const navigate = useNavigate();
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('');
   const [page, setPage] = React.useState(1);
@@ -82,7 +80,7 @@ export const AlterationsListPage: React.FC = () => {
             )) : filtered.length === 0 ? (
               <tr><td colSpan={6} className={styles.empty}>No alteration requests found.</td></tr>
             ) : filtered.map(a => (
-              <tr key={a.id} className={styles.row} onClick={() => navigate(`/admin/alterations/${a.id}`)}>
+              <tr key={a.id} className={styles.row}>
                 <td className={styles.orderId}>{a.order_number}</td>
                 <td><div className={styles.customerName}>{a.customer_name}</div></td>
                 <td><div className={styles.customerPhone}>{a.customer_phone}</div></td>
