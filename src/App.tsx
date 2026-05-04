@@ -50,6 +50,7 @@ import { ReturnsListPage } from './pages/admin/ReturnsListPage';
 import { ReturnDetailPage } from './pages/admin/ReturnDetailPage';
 import { AlterationsListPage } from './pages/admin/AlterationsListPage';
 import { HomeVisitsListPage } from './pages/admin/HomeVisitsListPage';
+import { HomeVisitDetailPage } from './pages/admin/HomeVisitDetailPage';
 import { InvoicesListPage } from './pages/admin/InvoicesListPage';
 
 function App() {
@@ -104,6 +105,7 @@ function App() {
             <Route path="returns/:id" element={<ReturnDetailPage />} />
             <Route path="alterations" element={<AlterationsListPage />} />
             <Route path="home-visits" element={<HomeVisitsListPage />} />
+            <Route path="home-visits/:id" element={<HomeVisitDetailPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
           </Route>
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { homeVisitsApi } from '../../api/adminApi';
 import type { HomeVisit } from '../../api/adminApi';
@@ -17,6 +18,7 @@ const STATUS_CSS: Record<string, string> = {
 const VALID_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
 
 export const HomeVisitsListPage: React.FC = () => {
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = React.useState('');
   const [dateFilter, setDateFilter] = React.useState('');
   const [page, setPage] = React.useState(1);
@@ -78,7 +80,7 @@ export const HomeVisitsListPage: React.FC = () => {
             )) : visits.length === 0 ? (
               <tr><td colSpan={7} className={styles.empty}>No home visits found.</td></tr>
             ) : visits.map(v => (
-              <tr key={v.id} className={styles.row}>
+              <tr key={v.id} className={styles.row} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/home-visits/${v.id}`)}>
                 <td><div className={styles.customerName}>{v.customer_name}</div></td>
                 <td><div className={styles.customerPhone}>{v.customer_phone ?? '—'}</div></td>
                 <td className={styles.date}>{new Date(v.scheduled_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>

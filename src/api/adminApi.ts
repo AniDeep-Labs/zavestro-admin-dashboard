@@ -397,11 +397,23 @@ export interface HomeVisit {
   id: string;
   customer_name: string;
   customer_phone: string;
+  customer_id?: string;
+  assigned_staff_id?: string | null;
   assigned_staff_name: string | null;
+  hub_id?: string | null;
+  hub_name?: string | null;
+  fit_profile_id?: string | null;
   status: string;
   scheduled_at: string;
-  address: string;
+  completed_at?: string | null;
+  address: Record<string, string>;
   city: string;
+  state?: string;
+  pincode?: string;
+  address_line1?: string;
+  address_line2?: string;
+  address_name?: string;
+  address_phone?: string;
   notes?: string;
   created_at: string;
 }

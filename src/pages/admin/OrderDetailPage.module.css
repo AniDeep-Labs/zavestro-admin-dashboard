@@ -28,6 +28,26 @@
 .warningBanner { padding: 10px 14px; background: rgba(231,76,60,0.06); border: 1px solid rgba(231,76,60,0.3); border-radius: var(--radius-md); font-size: 13px; color: #991B1B; }
 [data-theme="dark"] .warningBanner { background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.3); color: #FCA5A5; }
 .loadingMsg { padding: 40px; color: var(--color-text-tertiary); text-align: center; }
+/* Shared detail page layout */
+.headerRow { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.cardHeader { font-size: 12px; font-weight: var(--font-weight-semibold); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+.cardBody { display: flex; flex-direction: column; gap: 12px; }
+.fieldValue { font-size: var(--font-size-base); color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
+.actionBtn { height: 36px; padding: 0 16px; background: var(--color-bg-secondary); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: 13px; font-weight: var(--font-weight-medium); cursor: pointer; color: var(--color-text-primary); transition: background 0.15s; }
+.actionBtn:hover:not(:disabled) { background: var(--color-border-light); }
+.actionBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.skeleton { background: var(--color-bg-secondary); border-radius: var(--radius-md); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.stagePill { display: inline-block; padding: 3px 10px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
+.stageWarning { background: rgba(201,153,94,0.15); color: #9A6B3A; }
+.stageBlue { background: rgba(52,152,219,0.1); color: var(--color-info); }
+.stageSuccess { background: rgba(28,92,66,0.1); color: #1C5C42; }
+.stageNeutral { background: var(--color-bg-secondary); color: var(--color-text-secondary); }
+[data-theme="dark"] .stageWarning { background: rgba(245,158,11,0.2); color: #FCD34D; }
+[data-theme="dark"] .stageBlue { background: rgba(59,130,246,0.2); color: #93C5FD; }
+[data-theme="dark"] .stageSuccess { background: rgba(82,184,130,0.2); color: #52B882; }
+[data-theme="dark"] .stageNeutral { background: rgba(255,255,255,0.06); color: var(--color-text-secondary); }
 /* OrderDetailPage-specific styles */
 .orderHeader { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
 .orderMeta { font-size: 12px; color: var(--color-text-tertiary); margin-top: 2px; }
