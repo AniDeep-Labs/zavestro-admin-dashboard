@@ -343,19 +343,16 @@ export const ProductEditPage: React.FC = () => {
                 />
               </div>
 
-              <div className={styles.fieldRow}>
-                <div className={styles.field}>
-                <div className={styles.field}>
-                  <label className={styles.label}>Base Price (₹) *</label>
-                  <input
-                    className={styles.input}
-                    type="number"
-                    min="0"
-                    value={basePrice}
-                    onChange={e => setBasePrice(e.target.value)}
-                    placeholder="e.g., 1299"
-                  />
-                </div>
+              <div className={styles.field}>
+                <label className={styles.label}>Base Price (₹) *</label>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min="0"
+                  value={basePrice}
+                  onChange={e => setBasePrice(e.target.value)}
+                  placeholder="e.g., 1299"
+                />
               </div>
 
               <div className={styles.field}>
