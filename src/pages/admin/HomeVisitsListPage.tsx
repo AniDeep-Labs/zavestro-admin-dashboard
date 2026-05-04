@@ -31,6 +31,8 @@ interface CreateForm {
   userQuery: string;
   userId: string;
   userName: string;
+  newCustomerName: string;
+  newCustomerPhone: string;
   date: string;
   time: string;
   hubId: string;
@@ -46,6 +48,7 @@ interface CreateForm {
 
 const EMPTY_FORM: CreateForm = {
   userQuery: '', userId: '', userName: '',
+  newCustomerName: '', newCustomerPhone: '',
   date: '', time: '10:00',
   hubId: '', notes: '',
   addressName: '', addressPhone: '',
@@ -115,8 +118,12 @@ export const HomeVisitsListPage: React.FC = () => {
 
   const setF = (key: keyof CreateForm, val: string) => setForm(f => ({ ...f, [key]: val }));
 
+  const isNewCustomer = !form.userId;
+  const canSubmit = (form.userId || (form.newCustomerName && form.newCustomerPhone)) &&
+    form.date && form.time && form.line1 && form.city;
+
   const handleCreate = async () => {
-    if (!form.userId || !form.date || !form.time || !form.line1 || !form.city) {
+    if (!canSubmit) {
       showToast('error', 'Fill required fields', 'Customer, date, time, address line 1, and city are required');
       return;
     }
@@ -124,7 +131,9 @@ export const HomeVisitsListPage: React.FC = () => {
     try {
       const scheduled_at = new Date(`${form.date}T${form.time}:00`).toISOString();
       const visit = await homeVisitsApi.create({
-        user_id: form.userId,
+        user_id: form.userId || undefined,
+        customer_name: isNewCustomer ? form.newCustomerName : undefined,
+        customer_phone: isNewCustomer ? form.newCustomerPhone : undefined,
         scheduled_at,
         hub_id: form.hubId || undefined,
         notes: form.notes || undefined,
@@ -245,41 +254,57 @@ export const HomeVisitsListPage: React.FC = () => {
 
             {/* Customer search */}
             <div className={modalStyles.field}>
-              <label className={modalStyles.fieldLabel}>Customer * <span style={{ fontWeight: 400, color: 'var(--color-text-tertiary)' }}>(search by name, phone, or email)</span></label>
-              <div style={{ position: 'relative' }}>
-                <div style={{ display: 'flex', gap: 6 }}>
+              <label className={modalStyles.fieldLabel}>Customer *</label>
+              {!form.userId && (
+                <div style={{ position: 'relative' }}>
                   <input
                     className={modalStyles.fieldSelect}
-                    style={{ flex: 1 }}
-                    placeholder="Type to search…"
+                    placeholder="Search by name, phone, or email…"
                     value={form.userQuery}
-                    onChange={e => { setF('userQuery', e.target.value); if (form.userId) clearUser(); }}
+                    onChange={e => { setF('userQuery', e.target.value); setF('newCustomerName', ''); setF('newCustomerPhone', ''); }}
                     autoComplete="off"
                   />
-                  {form.userId && (
-                    <button
-                      style={{ padding: '0 10px', background: 'none', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
-                      onClick={clearUser}
-                    >✕</button>
+                  {userResults.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', marginTop: 2 }}>
+                      {userResults.map(u => (
+                        <button
+                          key={u.id}
+                          style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--color-border-light)', fontFamily: 'var(--font-family)' }}
+                          onClick={() => selectUser(u)}
+                        >
+                          <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{u.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{u.phone} · {u.email}</div>
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
-                {userResults.length > 0 && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', marginTop: 2 }}>
-                    {userResults.map(u => (
-                      <button
-                        key={u.id}
-                        style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--color-border-light)', fontFamily: 'var(--font-family)' }}
-                        onClick={() => selectUser(u)}
-                      >
-                        <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{u.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{u.phone} · {u.email}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
               {form.userId && (
-                <div style={{ fontSize: 12, color: 'var(--color-success)', marginTop: 4 }}>✓ {form.userName}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--color-primary)' }}>
+                  <span style={{ flex: 1, fontWeight: 500, color: 'var(--color-text-primary)' }}>✓ {form.userName}</span>
+                  <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: 16 }} onClick={clearUser}>✕</button>
+                </div>
+              )}
+              {/* Walk-in / new customer path */}
+              {!form.userId && debouncedQuery.length >= 2 && userResults.length === 0 && (
+                <div style={{ marginTop: 8, padding: '10px 12px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 8 }}>No existing customer found — enter details to create a walk-in record:</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <input
+                      className={modalStyles.fieldSelect}
+                      placeholder="Full name *"
+                      value={form.newCustomerName}
+                      onChange={e => setF('newCustomerName', e.target.value)}
+                    />
+                    <input
+                      className={modalStyles.fieldSelect}
+                      placeholder="Phone number *"
+                      value={form.newCustomerPhone}
+                      onChange={e => setF('newCustomerPhone', e.target.value)}
+                    />
+                  </div>
+                </div>
               )}
             </div>
 
@@ -354,9 +379,9 @@ export const HomeVisitsListPage: React.FC = () => {
             <div className={modalStyles.modalActions}>
               <button className={modalStyles.cancelModalBtn} onClick={() => { setShowCreate(false); setForm(EMPTY_FORM); setUserResults([]); }}>Cancel</button>
               <button
-                disabled={creating || !form.userId || !form.date || !form.time || !form.line1 || !form.city}
+                disabled={creating || !canSubmit}
                 onClick={handleCreate}
-                style={{ height: 40, padding: '0 20px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-family)', fontSize: 'var(--font-size-base)', fontWeight: 600, cursor: 'pointer', opacity: (creating || !form.userId || !form.date || !form.time || !form.line1 || !form.city) ? 0.5 : 1 }}
+                style={{ height: 40, padding: '0 20px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-family)', fontSize: 'var(--font-size-base)', fontWeight: 600, cursor: creating || !canSubmit ? 'not-allowed' : 'pointer', opacity: creating || !canSubmit ? 0.45 : 1 }}
               >
                 {creating ? 'Creating…' : 'Create Visit'}
               </button>

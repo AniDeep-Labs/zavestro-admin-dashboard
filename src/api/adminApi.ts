@@ -469,7 +469,9 @@ export const homeVisitsApi = {
     req<{ measurements: BodyMeasurement[] }>(`/api/admin/home-visits/${id}/measurements`).then(r => r.measurements),
 
   create: async (data: {
-    user_id: string;
+    user_id?: string;
+    customer_name?: string;
+    customer_phone?: string;
     scheduled_at: string;
     hub_id?: string;
     notes?: string;
