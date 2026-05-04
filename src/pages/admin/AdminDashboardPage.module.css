@@ -138,9 +138,8 @@
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 /* KPI metric icon */

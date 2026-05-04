@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Download, X, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
 import { usersApi } from '../../api/adminApi';
 import type { AdminUser } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -54,7 +54,13 @@ export const UsersListPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Users</h1>
-        <button className={styles.exportBtn} onClick={exportCSV}><Download size={14} /> Export CSV</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className={styles.exportBtn} onClick={() => showToast('info', 'Invite User', 'Users register via the Zavestro app. Admin-created accounts are not supported yet.')}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}>
+            <UserPlus size={14}/> Invite User
+          </button>
+          <button className={styles.exportBtn} onClick={exportCSV}><Download size={14} /> Export CSV</button>
+        </div>
       </div>
 
       <div className={styles.filterBar}>

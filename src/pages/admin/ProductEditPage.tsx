@@ -205,12 +205,15 @@ export const ProductEditPage: React.FC = () => {
       showToast('warning', 'Enter a valid base price');
       return false;
     }
+    if (!categoryId) { showToast('warning', 'Please select a category'); return false; }
     return true;
   };
 
-  const handleSave = async (targetStatus: 'active' | 'draft') => {
+  const handleSave = async (targetStatus?: 'active' | 'draft') => {
     if (!validate()) return;
+    const saveStatus = targetStatus ?? status;
     setSaving(true);
+    setStatus(saveStatus);
 
     const payload = {
       name: name.trim(),
@@ -223,7 +226,7 @@ export const ProductEditPage: React.FC = () => {
       delivery_days_min: Number(deliveryMin),
       delivery_days_max: Number(deliveryMax),
       is_made_to_order: isMadeToOrder,
-      status: targetStatus,
+      status: saveStatus,
     };
 
     try {

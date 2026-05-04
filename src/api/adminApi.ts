@@ -135,23 +135,56 @@ export const usersApi = {
 export interface HubsParams { search?: string; city?: string; status?: string; page?: number; limit?: number; }
 export interface HubsResponse { hubs: Hub[]; total: number; }
 
+function mapHub(h: Record<string, unknown>): Hub {
+  const activeOrders = (h.activeOrders ?? h.active_orders ?? 0) as number;
+  const staffCount   = (h.staffCount   ?? h.staff_count   ?? 0) as number;
+  const tailorCount  = (h.tailorCount  ?? h.tailor_count  ?? 0) as number;
+  const qcCount      = (h.qcCount      ?? h.qc_count      ?? 0) as number;
+  const capacityUsed = staffCount > 0 ? Math.min(100, Math.round((activeOrders / staffCount) * 20)) : 0;
+  return {
+    id:           h.id as string,
+    name:         (h.name as string) ?? '',
+    city:         (h.city as string) ?? '',
+    state:        (h.state as string) ?? '',
+    address:      (h.address as string) ?? '',
+    pincode:      (h.pincode as string) ?? '',
+    phone:        (h.phone as string) ?? '',
+    status:       ((h.status ?? (h.is_active ? 'Active' : 'Inactive')) as Hub['status']),
+    activeOrders,
+    staffCount,
+    tailorCount,
+    qcCount,
+    capacityUsed,
+    qcPassRate:   (h.qcPassRate as number) ?? 100,
+    managerName:  (h.managerName ?? h.manager_name ?? '') as string,
+    managerPhone: (h.managerPhone ?? h.manager_phone ?? '') as string,
+  };
+}
+
 export const hubsApi = {
   list: async (params: HubsParams = {}): Promise<HubsResponse> => {
     const qs = new URLSearchParams();
     if (params.search) qs.set('search', params.search);
     if (params.city)   qs.set('city',   params.city);
     if (params.status) qs.set('status', params.status);
-    return req<HubsResponse>(`/api/admin/hubs?${qs}`);
+    const raw = await req<{ hubs: Record<string, unknown>[]; total: number }>(`/api/admin/hubs?${qs}`);
+    return { hubs: (raw.hubs ?? []).map(mapHub), total: raw.total ?? 0 };
   },
 
-  get: async (id: string): Promise<Hub> =>
-    req<Hub>(`/api/admin/hubs/${id}`),
+  get: async (id: string): Promise<Hub> => {
+    const raw = await req<Record<string, unknown>>(`/api/admin/hubs/${id}`);
+    return mapHub(raw);
+  },
 
-  create: async (data: Partial<Hub>): Promise<Hub> =>
-    req<Hub>('/api/admin/hubs', { method: 'POST', body: JSON.stringify(data) }),
+  create: async (data: Partial<Hub>): Promise<Hub> => {
+    const raw = await req<Record<string, unknown>>('/api/admin/hubs', { method: 'POST', body: JSON.stringify(data) });
+    return mapHub(raw);
+  },
 
-  update: async (id: string, data: Partial<Hub>): Promise<Hub> =>
-    req<Hub>(`/api/admin/hubs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  update: async (id: string, data: Partial<Hub>): Promise<Hub> => {
+    const raw = await req<Record<string, unknown>>(`/api/admin/hubs/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    return mapHub(raw);
+  },
 };
 
 // ─── Support ──────────────────────────────────────────────────────────────────

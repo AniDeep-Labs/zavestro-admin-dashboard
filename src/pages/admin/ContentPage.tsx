@@ -31,6 +31,7 @@ export const ContentPage: React.FC = () => {
   const [search, setSearch] = React.useState('');
   const [craftspeople, setCraftspeople] = React.useState<Craftsperson[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [craftError, setCraftError] = React.useState('');
   const [editTarget, setEditTarget] = React.useState<Craftsperson | null>(null);
   const [editBio, setEditBio] = React.useState('');
   const [editYears, setEditYears] = React.useState('');
@@ -48,9 +49,10 @@ export const ContentPage: React.FC = () => {
   React.useEffect(() => {
     if (validSection !== 'craftspeople') return;
     setLoading(true);
+    setCraftError('');
     craftspeopleApi.list()
       .then(data => setCraftspeople(data))
-      .catch(e => showToast('error', 'Failed to load', e instanceof Error ? e.message : undefined))
+      .catch(e => setCraftError(e instanceof Error ? e.message : 'Failed to load craftspeople'))
       .finally(() => setLoading(false));
   }, [validSection]);
 
@@ -130,6 +132,11 @@ export const ContentPage: React.FC = () => {
               Array.from({ length: 4 }).map((_, i) => (
                 <tr key={i}>{Array.from({ length: 5 }).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
               ))
+            ) : craftError ? (
+              <tr><td colSpan={5} className={styles.empty}>
+                <div style={{ color: 'var(--color-error)' }}>{craftError}</div>
+                <button className={styles.actionBtn} style={{ marginTop: 8 }} onClick={() => { setCraftError(''); setLoading(true); craftspeopleApi.list().then(setCraftspeople).catch(e => setCraftError(e instanceof Error ? e.message : 'Failed')).finally(() => setLoading(false)); }}>Retry</button>
+              </td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={5} className={styles.empty}>
                 {craftspeople.length === 0 ? 'No craftspeople records found. Add records via the database.' : 'No matches.'}

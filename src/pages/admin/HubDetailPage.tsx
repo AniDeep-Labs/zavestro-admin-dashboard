@@ -16,7 +16,7 @@ const STAFF_ROLES = ['tailor', 'qc_staff', 'dispatch'];
 export const HubDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const isNew = id === 'new';
+  const isNew = !id || id === 'new';
   const [hub, setHub] = React.useState<Hub | null>(null);
   const [form, setForm] = React.useState<Partial<Hub>>(EMPTY_HUB);
   const [loading, setLoading] = React.useState(!isNew);

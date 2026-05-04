@@ -48,8 +48,10 @@ export interface Hub {
   qcCount: number;
   address: string;
   pincode: string;
+  phone?: string;
   managerName: string;
   managerPhone: string;
+  dailyOrderLimit?: number;
 }
 
 export interface Product {
