@@ -140,11 +140,37 @@ export const usersApi = {
     return req<UsersResponse>(`/api/admin/users?${qs}`);
   },
 
-  get: async (id: string): Promise<AdminUser> =>
-    req<AdminUser>(`/api/admin/users/${id}`),
+  get: async (id: string): Promise<AdminUser> => {
+    const u = await req<Record<string, unknown>>(`/api/admin/users/${id}`);
+    return {
+      id: u.id as string,
+      name: (u.name ?? '') as string,
+      phone: (u.phone ?? '') as string,
+      email: (u.email ?? '') as string,
+      city: (u.city ?? '') as string,
+      orders: (u.order_count ?? u.orders ?? 0) as number,
+      credits: Math.round(parseFloat(String(u.credits ?? u.wallet_balance ?? 0))),
+      joined: u.created_at ? new Date(u.created_at as string).toLocaleDateString('en-IN') : '',
+      status: (u.is_active !== undefined ? (u.is_active ? 'Active' : 'Deactivated') : (u.status ?? 'Active')) as AdminUser['status'],
+    };
+  },
 
-  update: async (id: string, data: Partial<AdminUser>): Promise<AdminUser> =>
-    req<AdminUser>(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  update: async (id: string, data: Partial<AdminUser>): Promise<AdminUser> => {
+    const body: Record<string, unknown> = {};
+    if (data.status !== undefined) body.is_active = data.status === 'Active';
+    const u = await req<Record<string, unknown>>(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+    return {
+      id: u.id as string,
+      name: (u.name ?? '') as string,
+      phone: (u.phone ?? '') as string,
+      email: (u.email ?? '') as string,
+      city: (u.city ?? '') as string,
+      orders: (u.order_count ?? 0) as number,
+      credits: 0,
+      joined: u.created_at ? new Date(u.created_at as string).toLocaleDateString('en-IN') : '',
+      status: (u.is_active ? 'Active' : 'Deactivated') as AdminUser['status'],
+    };
+  },
 
   issueCredits: async (id: string, amount: number, reason: string): Promise<void> =>
     req(`/api/admin/users/${id}/credits`, { method: 'POST', body: JSON.stringify({ amount, reason }) }),
@@ -215,6 +241,28 @@ export const hubsApi = {
 export interface TicketsParams { search?: string; status?: string; priority?: string; page?: number; limit?: number; }
 export interface TicketsResponse { tickets: SupportTicket[]; total: number; page: number; totalPages: number; }
 
+function mapTicket(t: Record<string, unknown>): SupportTicket {
+  const STATUS_MAP: Record<string, SupportTicket['status']> = {
+    open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed',
+  };
+  const PRIORITY_MAP: Record<string, SupportTicket['priority']> = {
+    urgent: 'High', high: 'High', normal: 'Medium', medium: 'Medium', low: 'Low',
+  };
+  return {
+    id: t.id as string,
+    customer: (t.customer_name ?? t.customer ?? '') as string,
+    phone: (t.customer_phone ?? t.phone ?? '') as string,
+    subject: (t.subject ?? '') as string,
+    category: (t.category ?? 'General') as string,
+    priority: (PRIORITY_MAP[t.priority as string] ?? (t.priority as SupportTicket['priority']) ?? 'Medium'),
+    status: (STATUS_MAP[t.status as string] ?? (t.status as SupportTicket['status']) ?? 'Open'),
+    assignedTo: (t.assigned_to ?? t.assignedTo ?? null) as string | null,
+    created: t.created_at ? new Date(t.created_at as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : (t.created as string) ?? '',
+    lastActivity: t.updated_at ? new Date(t.updated_at as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : (t.lastActivity as string) ?? '',
+    messages: (t.messages as SupportTicket['messages']) ?? undefined,
+  };
+}
+
 export const supportApi = {
   list: async (params: TicketsParams = {}): Promise<TicketsResponse> => {
     const qs = new URLSearchParams();
@@ -223,14 +271,19 @@ export const supportApi = {
     if (params.priority) qs.set('priority', params.priority);
     if (params.page)     qs.set('page',     String(params.page));
     if (params.limit)    qs.set('limit',    String(params.limit));
-    return req<TicketsResponse>(`/api/admin/support?${qs}`);
+    const raw = await req<{ tickets: Record<string, unknown>[]; total: number; page: number; totalPages: number }>(`/api/admin/support?${qs}`);
+    return { ...raw, tickets: raw.tickets.map(mapTicket) };
   },
 
-  get: async (id: string): Promise<SupportTicket> =>
-    req<SupportTicket>(`/api/admin/support/${id}`),
+  get: async (id: string): Promise<SupportTicket> => {
+    const raw = await req<Record<string, unknown>>(`/api/admin/support/${id}`);
+    return mapTicket(raw);
+  },
 
-  update: async (id: string, data: Partial<SupportTicket>): Promise<SupportTicket> =>
-    req<SupportTicket>(`/api/admin/support/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  update: async (id: string, data: Partial<SupportTicket>): Promise<SupportTicket> => {
+    const raw = await req<Record<string, unknown>>(`/api/admin/support/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+    return mapTicket(raw);
+  },
 
   addReply: async (id: string, message: string, internal = false): Promise<void> =>
     req(`/api/admin/support/${id}/replies`, { method: 'POST', body: JSON.stringify({ body: message, internal }) }),
