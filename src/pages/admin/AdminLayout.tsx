@@ -29,9 +29,6 @@ const NAV: NavItem[] = [
     children: [
       { label: 'Products',            path: '/admin/catalog/products' },
       { label: 'Collections',         path: '/admin/catalog/collections' },
-      { label: 'Luxe Fabrics',        path: '/admin/catalog/luxe-fabrics' },
-      { label: 'Consultation Slots',  path: '/admin/catalog/consultation-slots' },
-      { label: 'Consultations',       path: '/admin/catalog/consultations' },
     ],
   },
   {
