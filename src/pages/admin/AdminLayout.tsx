@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingBag, Users, Building2, Tag, FileText,
   BarChart3, Headphones, Settings, ChevronDown, ChevronRight,
   PanelLeftClose, PanelLeftOpen, Sun, Moon, LogOut, Bell,
-  RotateCcw, Scissors, Home, Receipt,
+  RotateCcw, Scissors, Home, Receipt, CalendarDays,
 } from 'lucide-react';
 import { toggleTheme, getCurrentTheme } from '../../utils/theme';
 import { hasAdminToken } from '../../api/catalogApi';
@@ -30,6 +30,7 @@ const NAV: NavItem[] = [
     children: [
       { label: 'Products',            path: '/admin/catalog/products' },
       { label: 'Collections',         path: '/admin/catalog/collections' },
+      { label: 'Luxe Fabrics',        path: '/admin/catalog/luxe-fabrics' },
     ],
   },
   {
@@ -58,6 +59,13 @@ const NAV: NavItem[] = [
   { label: 'Home Visits', icon: <Home size={18} />,        path: '/admin/home-visits',  roles: ['admin', 'admin_ops'] },
   { label: 'Invoices',    icon: <Receipt size={18} />,     path: '/admin/invoices',     roles: ['admin', 'admin_finance'] },
   {
+    label: 'Consultations', icon: <CalendarDays size={18} />, path: '/admin/consultations', roles: ['admin', 'admin_ops'],
+    children: [
+      { label: 'All Consultations', path: '/admin/consultations' },
+      { label: 'Slots',             path: '/admin/consultations/slots' },
+    ],
+  },
+  {
     label: 'System', icon: <Settings size={18} />, path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
     children: [
       { label: 'App Config',   path: '/admin/system/config' },
@@ -73,7 +81,7 @@ export const AdminLayout: React.FC = () => {
   const location = useLocation();
   const [theme, setTheme] = React.useState(getCurrentTheme());
   const [collapsed, setCollapsed] = React.useState(false);
-  const [expandedSections, setExpandedSections] = React.useState<string[]>(['Catalog', 'Content', 'Analytics', 'System']);
+  const [expandedSections, setExpandedSections] = React.useState<string[]>(['Catalog', 'Content', 'Analytics', 'System', 'Consultations']);
 
   if (!hasAdminToken()) {
     return <Navigate to="/admin/login" replace />;

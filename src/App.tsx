@@ -52,6 +52,10 @@ import { AlterationsListPage } from './pages/admin/AlterationsListPage';
 import { HomeVisitsListPage } from './pages/admin/HomeVisitsListPage';
 import { HomeVisitDetailPage } from './pages/admin/HomeVisitDetailPage';
 import { InvoicesListPage } from './pages/admin/InvoicesListPage';
+import { LuxeFabricsListPage } from './pages/admin/LuxeFabricsListPage';
+import { LuxeFabricEditPage } from './pages/admin/LuxeFabricEditPage';
+import { ConsultationsListPage } from './pages/admin/ConsultationsListPage';
+import { ConsultationSlotsPage } from './pages/admin/ConsultationSlotsPage';
 
 function NotFoundPage() {
   return (
@@ -117,6 +121,11 @@ function App() {
             <Route path="home-visits" element={<HomeVisitsListPage />} />
             <Route path="home-visits/:id" element={<HomeVisitDetailPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
+            <Route path="catalog/luxe-fabrics" element={<LuxeFabricsListPage />} />
+            <Route path="catalog/luxe-fabrics/new" element={<LuxeFabricEditPage />} />
+            <Route path="catalog/luxe-fabrics/:id" element={<LuxeFabricEditPage />} />
+            <Route path="consultations" element={<ConsultationsListPage />} />
+            <Route path="consultations/slots" element={<ConsultationSlotsPage />} />
           </Route>
 
           {/* 404 */}

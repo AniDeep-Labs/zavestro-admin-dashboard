@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ShoppingCart, CreditCard, Scissors, Shirt, CheckCircle, ChevronLeft } from 'lucide-react';
-import { ordersApi } from '../../api/adminApi';
+import { ordersApi, invoicesApi } from '../../api/adminApi';
 import type { AdminOrder, OrderStage } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -26,6 +26,7 @@ export const OrderDetailPage: React.FC = () => {
   const [overrideStage, setOverrideStage] = React.useState('');
   const [overrideChecks, setOverrideChecks] = React.useState([false, false]);
   const [overriding, setOverriding] = React.useState(false);
+  const [invoiceLoading, setInvoiceLoading] = React.useState(false);
 
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -39,6 +40,25 @@ export const OrderDetailPage: React.FC = () => {
       .catch(e => showToast('error', 'Failed to load order', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleDownloadInvoice = async () => {
+    if (!order) return;
+    setInvoiceLoading(true);
+    try {
+      const { invoices } = await invoicesApi.list({ orderId: order.id, limit: 1 });
+      if (invoices.length === 0 || invoices[0].status !== 'generated') {
+        await invoicesApi.generateForOrder(order.id);
+        showToast('info', 'Invoice queued', 'Invoice is being generated. Check the Invoices page in a few moments.');
+      } else {
+        const { url } = await invoicesApi.getDownloadUrl(invoices[0].id);
+        window.open(url, '_blank');
+      }
+    } catch (e) {
+      showToast('error', 'Invoice error', e instanceof Error ? e.message : undefined);
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
 
   const handleOverride = async () => {
     if (!order || !overrideStage) return;
@@ -161,7 +181,9 @@ export const OrderDetailPage: React.FC = () => {
             <div className={styles.actionList}>
               <button className={styles.overrideBtn} onClick={() => setShowOverrideModal(true)}>Override Status</button>
               <button className={styles.actionBtnSecondary}>Reassign Hub</button>
-              <button className={styles.actionBtnSecondary}>Download Invoice</button>
+              <button className={styles.actionBtnSecondary} disabled={invoiceLoading} onClick={handleDownloadInvoice}>
+                {invoiceLoading ? 'Loading…' : 'Download Invoice'}
+              </button>
               <button className={styles.cancelBtn}>Cancel Order</button>
             </div>
           </div>

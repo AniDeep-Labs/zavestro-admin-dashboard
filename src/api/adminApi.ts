@@ -589,6 +589,9 @@ export const invoicesApi = {
 
   getDownloadUrl: async (id: string): Promise<{ url: string }> =>
     req<{ url: string }>(`/api/admin/invoices/${id}/download`),
+
+  generateForOrder: async (orderId: string): Promise<{ invoice_id: string; message: string }> =>
+    req<{ invoice_id: string; message: string }>(`/api/admin/orders/${orderId}/invoice`, { method: 'POST' }),
 };
 
 // ─── Promo Codes ──────────────────────────────────────────────────────────────

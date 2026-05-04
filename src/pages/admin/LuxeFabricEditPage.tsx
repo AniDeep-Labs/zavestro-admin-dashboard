@@ -13,7 +13,7 @@ const GARMENTS = ['Lehenga', 'Saree Blouse', 'Kurta', 'Kurta Set', 'Sherwani', '
 export const LuxeFabricEditPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const isNew = id === 'new';
+  const isNew = !id || id === 'new';
 
   const [name, setName] = React.useState('');
   const [material, setMaterial] = React.useState('');
