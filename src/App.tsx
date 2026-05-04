@@ -49,6 +49,7 @@ import { CollectionEditPage } from './pages/admin/CollectionEditPage';
 import { ReturnsListPage } from './pages/admin/ReturnsListPage';
 import { ReturnDetailPage } from './pages/admin/ReturnDetailPage';
 import { AlterationsListPage } from './pages/admin/AlterationsListPage';
+import { HomeVisitsListPage } from './pages/admin/HomeVisitsListPage';
 import { InvoicesListPage } from './pages/admin/InvoicesListPage';
 
 function App() {
@@ -102,6 +103,7 @@ function App() {
             <Route path="returns" element={<ReturnsListPage />} />
             <Route path="returns/:id" element={<ReturnDetailPage />} />
             <Route path="alterations" element={<AlterationsListPage />} />
+            <Route path="home-visits" element={<HomeVisitsListPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
           </Route>
 
