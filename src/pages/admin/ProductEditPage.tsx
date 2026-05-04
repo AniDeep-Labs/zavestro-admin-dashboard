@@ -4,24 +4,7 @@ import { ChevronLeft, Image, Check, Plus } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiCategory, ApiVariant, ApiMedia, VariantPayload } from '../../api/catalogApi';
 
-const FALLBACK_CATEGORIES: ApiCategory[] = [
-  { id: 'shirt', name: 'Shirt' },
-  { id: 'trouser', name: 'Trouser' },
-  { id: 'kurta', name: 'Kurta' },
-  { id: 'kurta-set', name: 'Kurta Set' },
-  { id: 'top', name: 'Top' },
-  { id: 'blouse', name: 'Blouse' },
-  { id: 'palazzo', name: 'Palazzo' },
-  { id: 'jeans', name: 'Jeans' },
-  { id: 'lehenga', name: 'Lehenga' },
-  { id: 'sherwani', name: 'Sherwani' },
-  { id: 'bandhgala', name: 'Bandhgala' },
-  { id: 'saree-blouse', name: 'Saree Blouse' },
-  { id: 'bespoke-suit', name: 'Bespoke Suit' },
-  { id: 'indo-western', name: 'Indo-Western' },
-  { id: 'anarkali', name: 'Anarkali' },
-  { id: 'salwar-suit', name: 'Salwar Suit' },
-];
+const FALLBACK_CATEGORIES: ApiCategory[] = [];
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ProductEditPage.module.css';
@@ -101,9 +84,9 @@ export const ProductEditPage: React.FC = () => {
     catalogApi.getCategories()
       .then(res => {
         const list = Array.isArray(res) ? res : (res as { categories: ApiCategory[] }).categories;
-        setCategories(list?.length ? list : FALLBACK_CATEGORIES);
+        setCategories(list ?? []);
       })
-      .catch(() => setCategories(FALLBACK_CATEGORIES));
+      .catch(() => setCategories([]));
   }, []);
 
   // ─── Load product (edit mode) ─────────────────────────────────────────────
@@ -219,7 +202,6 @@ export const ProductEditPage: React.FC = () => {
 
   const validate = () => {
     if (!name.trim()) { showToast('warning', 'Product name is required'); return false; }
-    if (!categoryId) { showToast('warning', 'Please select a category'); return false; }
     if (!basePrice || isNaN(Number(basePrice)) || Number(basePrice) <= 0) {
       showToast('warning', 'Enter a valid base price');
       return false;

@@ -228,7 +228,7 @@ export const catalogApi = {
         description: data.description,
         mode: data.mode,
         base_price: data.base_price,
-        category_id: data.category_id,
+        ...(data.category_id ? { category_id: data.category_id } : {}),
         tags: data.tags,
         delivery_days_min: data.delivery_days_min,
         delivery_days_max: data.delivery_days_max,
