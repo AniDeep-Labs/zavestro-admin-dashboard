@@ -9,6 +9,7 @@ import {
 import { toggleTheme, getCurrentTheme } from '../../utils/theme';
 import { hasAdminToken } from '../../api/catalogApi';
 import { adminAuth, getAdminUser } from '../../api/adminApi';
+import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import styles from './AdminLayout.module.css';
 
 interface NavItem {
@@ -230,7 +231,9 @@ export const AdminLayout: React.FC = () => {
 
         {/* Page content */}
         <main className={styles.content}>
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

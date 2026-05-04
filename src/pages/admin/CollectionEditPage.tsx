@@ -50,7 +50,7 @@ export const CollectionEditPage: React.FC = () => {
       .then(async col => {
         setName(col.name);
         setSlug(col.slug);
-        setMode(col.mode === 'Luxe' ? 'Both' : (col.mode as 'Simplified' | 'Both') ?? 'Simplified');
+        setMode((col.mode as 'Simplified' | 'Both') ?? 'Simplified');
         setStatus(col.status);
         setSortOrder(String(col.sortOrder));
         setSeason(col.season);

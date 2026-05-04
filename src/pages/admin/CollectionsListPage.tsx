@@ -73,7 +73,6 @@ export const CollectionsListPage: React.FC = () => {
         <select className={styles.filterSelect} value={modeFilter} onChange={e => setModeFilter(e.target.value)}>
           <option>All</option>
           <option>Simplified</option>
-          <option>Luxe</option>
           <option>Both</option>
         </select>
         <select className={styles.filterSelect} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
@@ -122,16 +121,16 @@ export const CollectionsListPage: React.FC = () => {
               <tr><td colSpan={9} className={styles.empty}>No collections found.</td></tr>
             ) : (
               collections.map(col => (
-                <tr key={col.id} className={styles.row}>
-                  <td className={styles.dragHandle}><GripVertical size={14}/></td>
+                <tr key={col.id} className={styles.row} onClick={() => navigate(`/admin/catalog/collections/${col.id}`)} style={{ cursor: 'pointer' }}>
+                  <td className={styles.dragHandle} onClick={e => e.stopPropagation()}><GripVertical size={14}/></td>
                   <td>
-                    <button className={styles.nameLink} onClick={() => navigate(`/admin/catalog/collections/${col.id}`)}>
+                    <button className={styles.nameLink} onClick={e => { e.stopPropagation(); navigate(`/admin/catalog/collections/${col.id}`); }}>
                       {col.name}
                     </button>
                     <div className={styles.slug}>/{col.slug}</div>
                   </td>
                   <td>
-                    <span className={`${styles.modePill} ${col.mode === 'Luxe' ? styles.modeLuxe : col.mode === 'Both' ? styles.modeBoth : styles.modeSimplified}`}>
+                    <span className={`${styles.modePill} ${col.mode === 'Both' ? styles.modeBoth : styles.modeSimplified}`}>
                       {col.mode}
                     </span>
                   </td>
@@ -148,7 +147,7 @@ export const CollectionsListPage: React.FC = () => {
                       : <span className={styles.noBanner}>—</span>}
                   </td>
                   <td className={styles.date}>{col.updated}</td>
-                  <td>
+                  <td onClick={e => e.stopPropagation()}>
                     <div className={styles.actions}>
                       <button className={styles.actionBtn} onClick={() => navigate(`/admin/catalog/collections/${col.id}`)}>Edit</button>
                       <button className={styles.archiveBtn} onClick={e => handleArchive(e, col)}>Archive</button>

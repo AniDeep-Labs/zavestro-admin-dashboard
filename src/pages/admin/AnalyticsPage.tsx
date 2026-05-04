@@ -159,22 +159,20 @@ export const AnalyticsPage: React.FC = () => {
               <h2 className={styles.cardTitle}>Revenue Trend</h2>
               <button className={styles.exportBtn}><Download size={14}/> Export CSV</button>
             </div>
-            {analyticsData && analyticsData.revenue.some(r => r.simplified > 0 || r.luxe > 0) ? (
+            {analyticsData && analyticsData.revenue.some(r => r.simplified > 0) ? (
               <div className={styles.chart}>
                 <div className={styles.chartBars}>
                   {analyticsData.revenue.map((d, i) => {
-                    const maxV = Math.max(...analyticsData.revenue.map(r => Math.max(r.simplified, r.luxe)), 1);
+                    const maxV = Math.max(...analyticsData.revenue.map(r => r.simplified), 1);
                     return (
                       <div key={i} className={styles.barGroup}>
                         <div className={styles.barSimplified} style={{ height: `${Math.max(4, (d.simplified / maxV) * 100)}%` }} />
-                        <div className={styles.barLuxe} style={{ height: `${Math.max(4, (d.luxe / maxV) * 100)}%` }} />
                       </div>
                     );
                   })}
                 </div>
                 <div className={styles.legend}>
-                  <span className={styles.legendGreen}>■ Simplified</span>
-                  <span className={styles.legendGold}>■ Luxe Prime</span>
+                  <span className={styles.legendGreen}>■ Revenue</span>
                 </div>
               </div>
             ) : (

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ChevronLeft, ChevronRight, AlertCircle, Clock, UserMinus, Inbox } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, AlertCircle, Clock, UserMinus, Inbox, Plus } from 'lucide-react';
 import { supportApi } from '../../api/adminApi';
 import type { SupportTicket } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -53,6 +53,10 @@ export const SupportListPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Support Tickets</h1>
+        <button className={styles.addBtn ?? styles.exportBtn} onClick={() => showToast('info', 'Create Ticket', 'Admin-created tickets are coming soon. Tickets are currently opened by customers via the app.')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--green)', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}>
+          <Plus size={14}/> Create Ticket
+        </button>
       </div>
 
       <div className={styles.kpiRow}>

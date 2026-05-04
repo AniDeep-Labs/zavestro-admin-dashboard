@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Download, X, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { ordersApi } from '../../api/adminApi';
 import type { AdminOrder, OrderStage } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -73,6 +73,10 @@ export const OrdersListPage: React.FC = () => {
         <h1 className={styles.title}>Orders</h1>
         <div className={styles.headerActions}>
           <button className={styles.exportBtn} onClick={exportCSV}><Download size={14} /> Export CSV</button>
+          <button className={styles.exportBtn} onClick={() => showToast('info', 'Manual Order', 'Manual order creation coming soon. Ask the customer to place the order via the app, or contact support.')}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green)', color: '#fff', border: 'none' }}>
+            <Plus size={14}/> Create Order
+          </button>
         </div>
       </div>
 

@@ -150,7 +150,7 @@ export const AdminDashboardPage: React.FC = () => {
 
   const { maxRevenue, yLabels } = React.useMemo(() => {
     const rev = data?.revenue ?? [];
-    const max = Math.max(...rev.map(r => r.simplified + r.luxe), 1);
+    const max = Math.max(...rev.map(r => r.simplified), 1);
     return { maxRevenue: max, yLabels: [fmtRupees(max), fmtRupees(Math.round(max * 0.5)), '₹0'] };
   }, [data?.revenue]);
 
@@ -278,47 +278,33 @@ export const AdminDashboardPage: React.FC = () => {
         )}
       </div>
 
-      {/* Mode Split + Hub Performance */}
+      {/* Order Summary + Hub Performance */}
       <div className={styles.twoCol}>
-        {/* Mode Split */}
+        {/* Order Summary */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Simplified vs Luxe</h2>
+            <h2 className={styles.cardTitle}>Order Summary</h2>
           </div>
           {data?.modeSplit ? (() => {
             const ms = data.modeSplit;
-            const total = ms.simplifiedOrders + ms.luxeOrders;
-            const sPct = Math.round(ms.simplifiedOrders / total * 100);
+            const aov = ms.simplifiedOrders > 0 ? Math.round(ms.simplifiedRevenue / ms.simplifiedOrders) : 0;
             return (
               <div className={styles.modeSplit}>
                 <div className={styles.modeRow}>
                   <div className={styles.modeDotPrimary} />
                   <div className={styles.modeInfo}>
-                    <div className={styles.modeName}>Simplified</div>
-                    <div className={styles.modeStats}>{ms.simplifiedOrders.toLocaleString()} orders · {fmtRupees(ms.simplifiedRevenue)}</div>
+                    <div className={styles.modeName}>Simplified Orders</div>
+                    <div className={styles.modeStats}>{ms.simplifiedOrders.toLocaleString()} orders</div>
                   </div>
-                  <div className={styles.modePct}>{sPct}%</div>
+                  <div className={styles.modePct}>{fmtRupees(ms.simplifiedRevenue)}</div>
                 </div>
                 <div className={styles.modeBar}>
-                  <div className={styles.modeBarSimplified} style={{ width: `${sPct}%` }} />
-                  <div className={styles.modeBarLuxe} />
-                </div>
-                <div className={styles.modeRow}>
-                  <div className={styles.modeDotSecondary} />
-                  <div className={styles.modeInfo}>
-                    <div className={styles.modeName}>Luxe</div>
-                    <div className={styles.modeStats}>{ms.luxeOrders.toLocaleString()} orders · {fmtRupees(ms.luxeRevenue)}</div>
-                  </div>
-                  <div className={styles.modePct}>{100 - sPct}%</div>
+                  <div className={styles.modeBarSimplified} style={{ width: '100%' }} />
                 </div>
                 <div className={styles.modeDivider} />
                 <div className={styles.modeAOV}>
                   <span>Avg Order Value</span>
-                  <span>
-                    <strong>Simplified:</strong> {fmtRupees(Math.round(ms.simplifiedRevenue / ms.simplifiedOrders))}
-                    {' · '}
-                    <strong>Luxe:</strong> {fmtRupees(Math.round(ms.luxeRevenue / ms.luxeOrders))}
-                  </span>
+                  <span><strong>{fmtRupees(aov)}</strong></span>
                 </div>
               </div>
             );
@@ -456,10 +442,9 @@ export const AdminDashboardPage: React.FC = () => {
                 <div
                   key={i}
                   className={styles.chartBarGroup}
-                  title={`${d.label}: Simplified ${fmtRupees(d.simplified)}, Luxe ${fmtRupees(d.luxe)}`}
+                  title={`${d.label}: ${fmtRupees(d.simplified)}`}
                 >
                   <div className={styles.chartBarSimplified} style={{ height: `${Math.max(2, (d.simplified / maxRevenue) * 100)}%` }} />
-                  <div className={styles.chartBarLuxe} style={{ height: `${Math.max(2, (d.luxe / maxRevenue) * 100)}%` }} />
                 </div>
               ))}
             </div>
@@ -471,8 +456,7 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
         <div className={styles.chartLegend}>
-          <span className={styles.legendSimplified}>■ Simplified</span>
-          <span className={styles.legendLuxe}>■ Luxe Prime</span>
+          <span className={styles.legendSimplified}>■ Revenue</span>
         </div>
       </div>
 

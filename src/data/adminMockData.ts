@@ -112,7 +112,7 @@ export interface Collection {
   id: string;
   name: string;
   slug: string;
-  mode: 'Simplified' | 'Luxe' | 'Both';
+  mode: 'Simplified' | 'Both';
   products: number;
   status: 'Active' | 'Draft' | 'Archived';
   sortOrder: number;

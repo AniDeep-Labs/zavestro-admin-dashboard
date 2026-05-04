@@ -243,23 +243,55 @@ export const auditApi = {
 export interface CollectionDetail extends Collection { productIds?: string[]; }
 export interface CollectionsResponse { collections: Collection[]; total: number; }
 
+function mapCollection(c: Record<string, unknown>): Collection {
+  return {
+    id: c.id as string,
+    name: c.name as string,
+    slug: c.slug as string,
+    mode: ((c.mode as string) || 'Simplified') as Collection['mode'],
+    products: (c.product_count as number) ?? (c.products as number) ?? 0,
+    status: ((c.status as string) || 'Draft') as Collection['status'],
+    sortOrder: (c.sort_order as number) ?? (c.sortOrder as number) ?? 0,
+    hasBanner: !!(c.cover_image),
+    season: (c.season as string) ?? '',
+    updated: c.updated_at
+      ? new Date(c.updated_at as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '—',
+  };
+}
+
+function mapCollectionDetail(c: Record<string, unknown>): CollectionDetail {
+  const prods = (c.products as { id: string }[] | undefined) ?? [];
+  return {
+    ...mapCollection(c),
+    productIds: prods.map(p => p.id),
+  };
+}
+
 export const collectionsApi = {
   list: async (params: { search?: string; mode?: string; status?: string } = {}): Promise<CollectionsResponse> => {
     const qs = new URLSearchParams();
     if (params.search) qs.set('search', params.search);
     if (params.mode)   qs.set('mode',   params.mode);
     if (params.status) qs.set('status', params.status);
-    return req<CollectionsResponse>(`/api/admin/catalog/collections?${qs}`);
+    const raw = await req<{ collections: Record<string, unknown>[]; total: number }>(`/api/admin/catalog/collections?${qs}`);
+    return { collections: (raw.collections ?? []).map(mapCollection), total: raw.total ?? 0 };
   },
 
-  get: async (id: string): Promise<CollectionDetail> =>
-    req<CollectionDetail>(`/api/admin/catalog/collections/${id}`),
+  get: async (id: string): Promise<CollectionDetail> => {
+    const raw = await req<Record<string, unknown>>(`/api/admin/catalog/collections/${id}`);
+    return mapCollectionDetail(raw);
+  },
 
-  create: async (data: Partial<CollectionDetail>): Promise<CollectionDetail> =>
-    req<CollectionDetail>('/api/admin/catalog/collections', { method: 'POST', body: JSON.stringify(data) }),
+  create: async (data: Partial<CollectionDetail>): Promise<CollectionDetail> => {
+    const raw = await req<Record<string, unknown>>('/api/admin/catalog/collections', { method: 'POST', body: JSON.stringify(data) });
+    return mapCollectionDetail(raw);
+  },
 
-  update: async (id: string, data: Partial<CollectionDetail>): Promise<CollectionDetail> =>
-    req<CollectionDetail>(`/api/admin/catalog/collections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  update: async (id: string, data: Partial<CollectionDetail>): Promise<CollectionDetail> => {
+    const raw = await req<Record<string, unknown>>(`/api/admin/catalog/collections/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    return mapCollectionDetail(raw);
+  },
 
   archive: async (id: string): Promise<void> =>
     req(`/api/admin/catalog/collections/${id}/archive`, { method: 'POST' }),

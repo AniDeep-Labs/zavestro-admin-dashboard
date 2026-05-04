@@ -53,6 +53,16 @@ import { HomeVisitsListPage } from './pages/admin/HomeVisitsListPage';
 import { HomeVisitDetailPage } from './pages/admin/HomeVisitDetailPage';
 import { InvoicesListPage } from './pages/admin/InvoicesListPage';
 
+function NotFoundPage() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center', padding: '48px 24px' }}>
+      <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>404</div>
+      <h2 style={{ marginBottom: 8, fontSize: '1.25rem', color: 'var(--ink)' }}>Page not found</h2>
+      <p style={{ color: 'var(--ink-3)', fontSize: '0.875rem' }}>The page you're looking for doesn't exist or has been moved.</p>
+    </div>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -108,6 +118,9 @@ function App() {
             <Route path="home-visits/:id" element={<HomeVisitDetailPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
           </Route>
+
+          {/* 404 */}
+          <Route path="*" element={<NotFoundPage />} />
 
           {/* Designer Routes */}
           <Route path="/designer/onboarding" element={<DesignerOnboardingPage />} />
