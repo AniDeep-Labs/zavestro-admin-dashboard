@@ -3,7 +3,7 @@ import type {
   AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry,
   WaitlistEntry, ConfigGroup, OrderStage,
   Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus,
-  OrderItem, OrderTimelineEntry,
+  OrderItem, OrderTimelineEntry, OrderPayment,
 } from '../data/adminMockData';
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://api.zavestro.in';
@@ -82,22 +82,23 @@ export const dashboardApi = {
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
-export interface OrdersParams { search?: string; stage?: string; mode?: string; page?: number; limit?: number; }
+export interface OrdersParams { search?: string; stage?: string; mode?: string; userId?: string; page?: number; limit?: number; }
 export interface OrdersResponse { orders: AdminOrder[]; total: number; page: number; totalPages: number; }
 
 export const ordersApi = {
   list: async (params: OrdersParams = {}): Promise<OrdersResponse> => {
     const qs = new URLSearchParams();
-    if (params.search) qs.set('search', params.search);
-    if (params.stage)  qs.set('stage',  params.stage);
-    if (params.mode)   qs.set('mode',   params.mode);
-    if (params.page)   qs.set('page',   String(params.page));
-    if (params.limit)  qs.set('limit',  String(params.limit));
+    if (params.search)  qs.set('search',  params.search);
+    if (params.stage)   qs.set('stage',   params.stage);
+    if (params.mode)    qs.set('mode',    params.mode);
+    if (params.userId)  qs.set('user_id', params.userId);
+    if (params.page)    qs.set('page',    String(params.page));
+    if (params.limit)   qs.set('limit',   String(params.limit));
     return req<OrdersResponse>(`/api/admin/orders?${qs}`);
   },
 
   get: async (id: string): Promise<AdminOrder> => {
-    type DetailResp = { order: Record<string, unknown>; items: OrderItem[]; timeline: OrderTimelineEntry[] };
+    type DetailResp = { order: Record<string, unknown>; items: OrderItem[]; timeline: OrderTimelineEntry[]; payments: OrderPayment[] };
     const data = await req<DetailResp>(`/api/admin/orders/${id}`);
     const o = data.order;
     return {
@@ -116,6 +117,7 @@ export const ordersApi = {
       created: new Date(o.created_at as string).toLocaleDateString('en-IN'),
       items: data.items ?? [],
       timeline: data.timeline ?? [],
+      payments: data.payments ?? [],
     };
   },
 
@@ -226,12 +228,18 @@ export const hubsApi = {
   },
 
   create: async (data: Partial<Hub>): Promise<Hub> => {
-    const raw = await req<Record<string, unknown>>('/api/admin/hubs', { method: 'POST', body: JSON.stringify(data) });
+    const { status, ...rest } = data;
+    const body: Record<string, unknown> = { ...rest };
+    if (status !== undefined) body.is_active = status === 'Active';
+    const raw = await req<Record<string, unknown>>('/api/admin/hubs', { method: 'POST', body: JSON.stringify(body) });
     return mapHub(raw);
   },
 
   update: async (id: string, data: Partial<Hub>): Promise<Hub> => {
-    const raw = await req<Record<string, unknown>>(`/api/admin/hubs/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    const { status, ...rest } = data;
+    const body: Record<string, unknown> = { ...rest };
+    if (status !== undefined) body.is_active = status === 'Active';
+    const raw = await req<Record<string, unknown>>(`/api/admin/hubs/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     return mapHub(raw);
   },
 };
@@ -343,7 +351,18 @@ export const auditApi = {
     if (params.action) qs.set('action', params.action);
     if (params.page)   qs.set('page',   String(params.page));
     if (params.limit)  qs.set('limit',  String(params.limit));
-    return req<AuditLogResponse>(`/api/admin/audit-log?${qs}`);
+    const raw = await req<{ entries: Record<string, unknown>[]; total: number; page: number; totalPages: number }>(`/api/admin/audit-log?${qs}`);
+    return {
+      ...raw,
+      entries: (raw.entries ?? []).map(e => ({
+        id: e.id as string,
+        timestamp: e.timestamp ? new Date(e.timestamp as string).toLocaleString('en-IN') : (e.created_at ? new Date(e.created_at as string).toLocaleString('en-IN') : ''),
+        admin: (e.admin ?? e.email ?? '') as string,
+        action: (e.action ?? '') as string,
+        entityType: (e.entityType ?? e.entity_type ?? '') as string,
+        entityId: (e.entityId ?? e.entity_id ?? '') as string,
+      })),
+    };
   },
 };
 
@@ -792,4 +811,4 @@ export const fitAnalyticsApi = {
     req<FitAnalyticsData>(`/api/admin/analytics/fit?period=${period}`),
 };
 
-export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus, OrderItem, OrderTimelineEntry };
+export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus, OrderItem, OrderTimelineEntry, OrderPayment };

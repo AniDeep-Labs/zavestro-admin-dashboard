@@ -161,12 +161,19 @@ export const OrderDetailPage: React.FC = () => {
           {/* Payment */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Payment</h3>
-            <div className={styles.paymentGrid}>
-              <div><div className={styles.metaLabel}>Method</div><div className={styles.metaValue}>UPI · Google Pay</div></div>
-              <div><div className={styles.metaLabel}>Amount</div><div className={styles.metaValue}>₹{order.total.toLocaleString()}</div></div>
-              <div><div className={styles.metaLabel}>Payment ID</div><div className={styles.metaValue}>pay_QFxXXXXX</div></div>
-              <div><div className={styles.metaLabel}>Status</div><div className={styles.metaValue}><span className={styles.captured}>captured</span></div></div>
-            </div>
+            {(order.payments ?? []).length === 0 ? (
+              <div className={styles.paymentGrid}>
+                <div><div className={styles.metaLabel}>Amount</div><div className={styles.metaValue}>₹{order.total.toLocaleString('en-IN')}</div></div>
+                <div><div className={styles.metaLabel}>Status</div><div className={styles.metaValue}><span className={styles.captured}>pending</span></div></div>
+              </div>
+            ) : (order.payments ?? []).map((p, i) => (
+              <div key={p.id ?? i} className={styles.paymentGrid}>
+                <div><div className={styles.metaLabel}>Method</div><div className={styles.metaValue}>{p.payment_method ?? '—'}</div></div>
+                <div><div className={styles.metaLabel}>Amount</div><div className={styles.metaValue}>₹{parseFloat(String(p.amount)).toLocaleString('en-IN')}</div></div>
+                {p.payment_gateway_id && <div><div className={styles.metaLabel}>Payment ID</div><div className={styles.metaValue}>{p.payment_gateway_id}</div></div>}
+                <div><div className={styles.metaLabel}>Status</div><div className={styles.metaValue}><span className={styles.captured}>{p.status}</span></div></div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -181,10 +188,6 @@ export const OrderDetailPage: React.FC = () => {
             <div className={styles.statusRow}>
               <div className={styles.metaLabel}>Hub</div>
               <div className={styles.metaValue}>{order.hub}</div>
-            </div>
-            <div className={styles.statusRow}>
-              <div className={styles.metaLabel}>Tailor</div>
-              <div className={styles.metaValue}>Rajan K.</div>
             </div>
           </div>
 
@@ -203,8 +206,16 @@ export const OrderDetailPage: React.FC = () => {
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Audit Trail</h3>
             <div className={styles.auditList}>
-              <div className={styles.auditEntry}>Status set to active · admin@zavestro.in · 1h ago</div>
-              <div className={styles.auditEntry}>Hub reassigned · admin_ops@zavestro.in · 2h ago</div>
+              {(order.timeline ?? []).slice(0, 3).map((entry, i) => (
+                <div key={entry.id ?? i} className={styles.auditEntry}>
+                  Stage → {entry.to_stage.replace(/_/g, ' ')}
+                  {entry.note ? ` · ${entry.note}` : ''}
+                  {' · '}{new Date(entry.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </div>
+              ))}
+              {(order.timeline ?? []).length === 0 && (
+                <div className={styles.auditEntry} style={{ color: 'var(--color-text-tertiary)', fontSize: 13 }}>No stage history yet.</div>
+              )}
             </div>
             <button className={styles.linkBtn} onClick={() => navigate('/admin/system/audit')}>View full audit →</button>
           </div>

@@ -22,6 +22,15 @@ export interface OrderTimelineEntry {
   created_at: string;
 }
 
+export interface OrderPayment {
+  id: string;
+  payment_method: string | null;
+  payment_gateway_id: string | null;
+  amount: number;
+  status: string;
+  created_at: string;
+}
+
 export interface AdminOrder {
   id: string;
   uuid?: string;
@@ -39,6 +48,7 @@ export interface AdminOrder {
   overdue?: boolean;
   items?: OrderItem[];
   timeline?: OrderTimelineEntry[];
+  payments?: OrderPayment[];
 }
 
 export interface AdminUser {

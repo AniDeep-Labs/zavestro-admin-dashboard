@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Lock, CheckCircle, Gift, UserX, UserCheck } from 'lucide-react';
-import { usersApi } from '../../api/adminApi';
-import type { AdminUser } from '../../api/adminApi';
+import { ChevronLeft, Lock, Gift, UserX, UserCheck } from 'lucide-react';
+import { usersApi, ordersApi } from '../../api/adminApi';
+import type { AdminUser, AdminOrder } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './UserDetailPage.module.css';
@@ -12,6 +12,7 @@ export const UserDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [user, setUser] = React.useState<AdminUser | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [userOrders, setUserOrders] = React.useState<AdminOrder[]>([]);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [showDeactivateModal, setShowDeactivateModal] = React.useState(false);
   const [deactivateReason, setDeactivateReason] = React.useState('');
@@ -28,8 +29,11 @@ export const UserDetailPage: React.FC = () => {
   React.useEffect(() => {
     if (!id) return;
     setLoading(true);
-    usersApi.get(id)
-      .then(setUser)
+    Promise.all([
+      usersApi.get(id),
+      ordersApi.list({ userId: id, limit: 10 }),
+    ])
+      .then(([u, ordersResp]) => { setUser(u); setUserOrders(ordersResp.orders); })
       .catch(e => showToast('error', 'Failed to load user', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [id]);
@@ -118,14 +122,23 @@ export const UserDetailPage: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>Orders ({user.orders} total)</h3>
-              <button className={styles.linkBtn} onClick={() => navigate('/admin/orders')}>View All →</button>
+              <button className={styles.linkBtn} onClick={() => navigate(`/admin/orders?search=${encodeURIComponent(user.phone)}`)}>View All →</button>
             </div>
             <table className={styles.miniTable}>
               <thead>
-                <tr><th>Order #</th><th>Mode</th><th>Total</th></tr>
+                <tr><th>Order #</th><th>Mode</th><th>Stage</th><th>Total</th></tr>
               </thead>
               <tbody>
-                <tr><td colSpan={3} className={styles.empty}>{user.orders} orders — click "View All" to see them</td></tr>
+                {userOrders.length === 0 ? (
+                  <tr><td colSpan={4} className={styles.empty}>No orders found.</td></tr>
+                ) : userOrders.map(o => (
+                  <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/orders/${o.uuid ?? o.id}`)}>
+                    <td>{o.id}</td>
+                    <td>{o.mode}</td>
+                    <td>{o.stage.replace(/_/g, ' ')}</td>
+                    <td>₹{o.total.toLocaleString('en-IN')}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -133,19 +146,7 @@ export const UserDetailPage: React.FC = () => {
           {/* Fit Profiles */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Fit Profiles</h3>
-            <div className={styles.fitProfiles}>
-              {['Self', 'Spouse'].map(member => (
-                <div key={member} className={styles.fitMember}>
-                  <div className={styles.fitMemberName}>{member}</div>
-                  <div className={styles.fitCategories}>
-                    {['Shirt', 'Trouser', 'Kurta'].map(cat => (
-                      <span key={cat} className={styles.fitCat}><CheckCircle size={11}/> {cat}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className={styles.profileNote}>Read-only — admins cannot edit customer measurements.</div>
+            <div className={styles.profileNote}>Read-only — admins cannot edit customer measurements. Use "View Profile" on an order to see fit data.</div>
           </div>
 
           {/* Credits */}
