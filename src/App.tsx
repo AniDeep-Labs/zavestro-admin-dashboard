@@ -46,14 +46,9 @@ import { AdminResetPasswordPage } from './pages/admin/AdminResetPasswordPage';
 import { AdminUsersManagePage } from './pages/admin/AdminUsersManagePage';
 import { CollectionsListPage } from './pages/admin/CollectionsListPage';
 import { CollectionEditPage } from './pages/admin/CollectionEditPage';
-import { LuxeFabricsListPage } from './pages/admin/LuxeFabricsListPage';
-import { LuxeFabricEditPage } from './pages/admin/LuxeFabricEditPage';
-import { ConsultationSlotsPage } from './pages/admin/ConsultationSlotsPage';
-import { ConsultationsListPage } from './pages/admin/ConsultationsListPage';
 import { ReturnsListPage } from './pages/admin/ReturnsListPage';
 import { ReturnDetailPage } from './pages/admin/ReturnDetailPage';
 import { AlterationsListPage } from './pages/admin/AlterationsListPage';
-import { HomeVisitsListPage } from './pages/admin/HomeVisitsListPage';
 import { InvoicesListPage } from './pages/admin/InvoicesListPage';
 
 function App() {
@@ -94,10 +89,6 @@ function App() {
             <Route path="catalog/products/:id" element={<ProductEditPage />} />
             <Route path="catalog/collections" element={<CollectionsListPage />} />
             <Route path="catalog/collections/:id" element={<CollectionEditPage />} />
-            <Route path="catalog/luxe-fabrics" element={<LuxeFabricsListPage />} />
-            <Route path="catalog/luxe-fabrics/:id" element={<LuxeFabricEditPage />} />
-            <Route path="catalog/consultation-slots" element={<ConsultationSlotsPage />} />
-            <Route path="catalog/consultations" element={<ConsultationsListPage />} />
             <Route path="content/:section" element={<ContentPage />} />
             <Route path="content" element={<ContentPage />} />
             <Route path="analytics/:section" element={<AnalyticsPage />} />
@@ -111,7 +102,6 @@ function App() {
             <Route path="returns" element={<ReturnsListPage />} />
             <Route path="returns/:id" element={<ReturnDetailPage />} />
             <Route path="alterations" element={<AlterationsListPage />} />
-            <Route path="home-visits" element={<HomeVisitsListPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
           </Route>
 

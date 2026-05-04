@@ -89,7 +89,6 @@ export const OrdersListPage: React.FC = () => {
         <select className={styles.filterSelect} value={modeFilter} onChange={e => { setModeFilter(e.target.value); setPage(1); }}>
           <option value="">All Modes</option>
           <option value="Simplified">Simplified</option>
-          <option value="Luxe">Luxe</option>
         </select>
         <button className={styles.clearBtn} onClick={() => { setSearch(''); setStageFilter(''); setModeFilter(''); setPage(1); }}><X size={14} /> Clear</button>
       </div>

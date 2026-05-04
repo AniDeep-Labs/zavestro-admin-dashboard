@@ -24,7 +24,7 @@ export const CollectionEditPage: React.FC = () => {
 
   const [name, setName] = React.useState('');
   const [slug, setSlug] = React.useState('');
-  const [mode, setMode] = React.useState<'Simplified' | 'Luxe' | 'Both'>('Both');
+  const [mode, setMode] = React.useState<'Simplified' | 'Both'>('Simplified');
   const [description, setDescription] = React.useState('');
   const [status, setStatus] = React.useState<'Draft' | 'Active' | 'Archived'>('Draft');
   const [featured, setFeatured] = React.useState(false);
@@ -153,7 +153,6 @@ export const CollectionEditPage: React.FC = () => {
                   <label className={styles.label}>Mode *</label>
                   <select className={styles.select} value={mode} onChange={e => setMode(e.target.value as typeof mode)}>
                     <option>Simplified</option>
-                    <option>Luxe</option>
                     <option>Both</option>
                   </select>
                 </div>

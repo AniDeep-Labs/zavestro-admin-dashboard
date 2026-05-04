@@ -41,7 +41,7 @@ export const ProductEditPage: React.FC = () => {
   const [name, setName] = React.useState('');
   const [shortDesc, setShortDesc] = React.useState('');
   const [description, setDescription] = React.useState('');
-  const [mode, setMode] = React.useState<'simplified' | 'premium_custom'>('simplified');
+  const [mode] = React.useState<'simplified'>('simplified');
   const [basePrice, setBasePrice] = React.useState('');
   const [categoryId, setCategoryId] = React.useState('');
   const [tags, setTags] = React.useState('');
@@ -345,20 +345,6 @@ export const ProductEditPage: React.FC = () => {
 
               <div className={styles.fieldRow}>
                 <div className={styles.field}>
-                  <label className={styles.label}>Mode *</label>
-                  <div className={styles.modeToggle}>
-                    {(['simplified', 'premium_custom'] as const).map(m => (
-                      <button
-                        key={m}
-                        type="button"
-                        className={`${styles.modeBtn} ${mode === m ? styles.modeBtnActive : ''}`}
-                        onClick={() => setMode(m)}
-                      >
-                        {m === 'simplified' ? 'Simplified' : 'Premium Custom'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
                 <div className={styles.field}>
                   <label className={styles.label}>Base Price (₹) *</label>
                   <input

@@ -123,7 +123,6 @@ export const ProductsListPage: React.FC = () => {
         >
           <option value="">All Modes</option>
           <option value="simplified">Simplified</option>
-          <option value="premium_custom">Premium Custom</option>
         </select>
         <select
           className={styles.filterSelect}
