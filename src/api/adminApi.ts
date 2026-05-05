@@ -680,8 +680,10 @@ export interface Craftsperson {
 }
 
 export const craftspeopleApi = {
-  list: async (): Promise<Craftsperson[]> =>
-    req<Craftsperson[]>('/api/admin/craftspeople'),
+  list: async (): Promise<Craftsperson[]> => {
+    const data = await req<Craftsperson[] | { craftspeople: Craftsperson[] }>('/api/admin/craftspeople');
+    return Array.isArray(data) ? data : ((data as { craftspeople?: Craftsperson[] }).craftspeople ?? []);
+  },
 
   updateStory: async (id: string, data: { bio?: string; years_experience?: number }): Promise<Craftsperson> =>
     req<Craftsperson>(`/api/admin/craftspeople/${id}/story`, {
