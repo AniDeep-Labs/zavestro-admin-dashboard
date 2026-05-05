@@ -91,8 +91,7 @@ export const ProductsListPage: React.FC = () => {
     }
   };
 
-  const modeLabel = (mode: string) =>
-    mode === 'simplified' ? 'Simplified' : mode === 'premium_custom' ? 'Premium Custom' : mode;
+  const modeLabel = (mode: string) => mode === 'simplified' ? 'Simplified' : mode;
 
   return (
     <div className={styles.page}>
@@ -184,7 +183,7 @@ export const ProductsListPage: React.FC = () => {
                 >
                   <td className={styles.productName}>{product.name}</td>
                   <td>
-                    <span className={`${styles.pill} ${product.mode === 'simplified' ? styles.pillGreen : styles.pillGold}`}>
+                    <span className={`${styles.pill} ${styles.pillGreen}`}>
                       {modeLabel(product.mode)}
                     </span>
                   </td>

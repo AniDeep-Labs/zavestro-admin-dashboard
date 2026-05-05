@@ -120,7 +120,7 @@ export const OrdersListPage: React.FC = () => {
                   <div className={styles.customerName}>{o.customer}</div>
                   <div className={styles.customerPhone}>{o.phone}</div>
                 </td>
-                <td><span className={`${styles.modePill} ${o.mode === 'Luxe' ? styles.pillGold : styles.pillGreen}`}>{o.mode}</span></td>
+                <td><span className={`${styles.modePill} ${styles.pillGreen}`}>{o.mode}</span></td>
                 <td className={styles.products}>
                   {o.products?.slice(0,2).join(', ')}
                   {(o.products?.length ?? 0) > 2 ? ` +${o.products.length - 2}` : ''}

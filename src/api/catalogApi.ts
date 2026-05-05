@@ -30,7 +30,7 @@ export interface ApiProduct {
   name: string;
   short_description: string;
   description: string;
-  mode: 'simplified' | 'premium_custom';
+  mode: 'simplified';
   base_price: number;
   category: ApiCategory;
   tags: string[];
@@ -55,7 +55,7 @@ export interface ProductPayload {
   name: string;
   short_description: string;
   description: string;
-  mode: 'simplified' | 'premium_custom';
+  mode: 'simplified';
   base_price: number;
   category_id: string;
   tags: string[];
@@ -135,7 +135,7 @@ function mapProduct(p: Record<string, unknown>): ApiProduct {
     name: p.name as string,
     short_description: (p.short_description ?? '') as string,
     description: (p.description ?? '') as string,
-    mode: p.mode as 'simplified' | 'premium_custom',
+    mode: p.mode as 'simplified',
     base_price: p.base_price as number,
     category: category
       ? { id: category.id as string, name: category.name as string, slug: category.slug as string }

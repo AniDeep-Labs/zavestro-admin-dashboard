@@ -2,7 +2,7 @@ import { getAdminToken, clearAdminToken } from './catalogApi';
 import type {
   AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry,
   WaitlistEntry, ConfigGroup, OrderStage,
-  Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus,
+  Collection,
   OrderItem, OrderTimelineEntry, OrderPayment,
 } from '../data/adminMockData';
 
@@ -65,13 +65,11 @@ export interface DashboardData {
   hubPerformance: { name: string; orders: number; capacity: number; qcPassRate: number }[];
   alerts: { level: string; text: string; link: string }[];
   recentActivity: { icon: string; text: string; time: string }[];
-  revenue: { label: string; simplified: number; luxe: number }[];
+  revenue: { label: string; simplified: number }[];
   ordersByStage: { stage: string; label: string; count: number; overdue: number }[];
-  modeSplit: { simplifiedOrders: number; luxeOrders: number; simplifiedRevenue: number; luxeRevenue: number };
   waitlist: { total: number; trend: string; up: boolean };
   urgentTickets: { id: string; customer: string; subject: string; created: string }[];
   overdueOrders: { id: string; customer: string; stage: string; hub: string; created: string }[];
-  consultations: { pending: number; unassigned: number };
   sparklines: Record<string, number[]>;
 }
 
@@ -108,7 +106,7 @@ export const ordersApi = {
       phone: (o.customer_phone ?? '') as string,
       email: (o.customer_email ?? '') as string,
       user_id: o.user_id as string,
-      mode: ((o.mode as string) === 'simplified' ? 'Simplified' : 'Luxe') as AdminOrder['mode'],
+      mode: 'Simplified' as AdminOrder['mode'],
       stage: o.stage as OrderStage,
       status: o.lifecycle_status as AdminOrder['status'],
       hub: (o.hub_name ?? '') as string,
@@ -301,7 +299,7 @@ export const supportApi = {
 
 export interface AnalyticsData {
   kpis: { label: string; value: number; trend: string; up: boolean }[];
-  revenue: { label: string; simplified: number; luxe: number }[];
+  revenue: { label: string; simplified: number }[];
   period: string;
 }
 
@@ -424,69 +422,6 @@ export const collectionsApi = {
 
   archive: async (id: string): Promise<void> =>
     req(`/api/admin/catalog/collections/${id}/archive`, { method: 'POST' }),
-};
-
-// ─── Luxe Fabrics ─────────────────────────────────────────────────────────────
-
-export interface LuxeFabricsResponse { fabrics: LuxeFabric[]; total: number; }
-
-export const luxeFabricsApi = {
-  list: async (params: { search?: string; material?: string; occasion?: string; status?: string } = {}): Promise<LuxeFabricsResponse> => {
-    const qs = new URLSearchParams();
-    if (params.search)   qs.set('search',   params.search);
-    if (params.material) qs.set('material', params.material);
-    if (params.occasion) qs.set('occasion', params.occasion);
-    if (params.status)   qs.set('status',   params.status);
-    return req<LuxeFabricsResponse>(`/api/admin/catalog/luxe-fabrics?${qs}`);
-  },
-
-  get: async (id: string): Promise<LuxeFabric> =>
-    req<LuxeFabric>(`/api/admin/catalog/luxe-fabrics/${id}`),
-
-  create: async (data: Partial<LuxeFabric>): Promise<LuxeFabric> =>
-    req<LuxeFabric>('/api/admin/catalog/luxe-fabrics', { method: 'POST', body: JSON.stringify(data) }),
-
-  update: async (id: string, data: Partial<LuxeFabric>): Promise<LuxeFabric> =>
-    req<LuxeFabric>(`/api/admin/catalog/luxe-fabrics/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-};
-
-// ─── Consultations ────────────────────────────────────────────────────────────
-
-export interface ConsultationsResponse { consultations: Consultation[]; total: number; }
-
-export const consultationsApi = {
-  list: async (params: { status?: string; occasion?: string; assigned?: string } = {}): Promise<ConsultationsResponse> => {
-    const qs = new URLSearchParams();
-    if (params.status)   qs.set('status',   params.status);
-    if (params.occasion) qs.set('occasion', params.occasion);
-    if (params.assigned) qs.set('assigned', params.assigned);
-    return req<ConsultationsResponse>(`/api/admin/consultations?${qs}`);
-  },
-
-  update: async (id: string, data: Partial<Consultation>): Promise<Consultation> =>
-    req<Consultation>(`/api/admin/consultations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-};
-
-// ─── Consultation Slots ───────────────────────────────────────────────────────
-
-export interface ConsultationSlotsResponse { slots: ConsultationSlot[]; total: number; }
-
-export const consultationSlotsApi = {
-  list: async (): Promise<ConsultationSlotsResponse> =>
-    req<ConsultationSlotsResponse>('/api/admin/consultation-slots'),
-
-  create: async (data: {
-    hub_id?: string;
-    slot_date: string;
-    time_start: string;
-    time_end: string;
-    mode?: 'in_person' | 'video';
-    capacity?: number;
-  }): Promise<ConsultationSlot> =>
-    req<ConsultationSlot>('/api/admin/consultation-slots', { method: 'POST', body: JSON.stringify(data) }),
-
-  delete: async (id: string): Promise<void> =>
-    req(`/api/admin/consultation-slots/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Returns ──────────────────────────────────────────────────────────────────
@@ -812,4 +747,4 @@ export const fitAnalyticsApi = {
     req<FitAnalyticsData>(`/api/admin/analytics/fit?period=${period}`),
 };
 
-export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, LuxeFabric, Consultation, ConsultationSlot, ConsultationStatus, OrderItem, OrderTimelineEntry, OrderPayment };
+export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, OrderItem, OrderTimelineEntry, OrderPayment };

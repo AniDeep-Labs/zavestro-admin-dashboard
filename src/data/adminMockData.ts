@@ -1,7 +1,7 @@
 // ─── Admin Types ─────────────────────────────────────────────────────────────
 
 export type AdminRole = 'admin' | 'admin_ops' | 'admin_finance' | 'admin_catalog' | 'admin_support';
-export type OrderMode = 'Simplified' | 'Luxe';
+export type OrderMode = 'Simplified';
 export type LifecycleStatus = 'pending' | 'active' | 'completed' | 'cancelled';
 export type OrderStage =
   | 'payment_pending' | 'payment_confirmed' | 'fabric_sourced'
@@ -152,43 +152,6 @@ export interface Collection {
   updated: string;
 }
 
-export interface LuxeFabric {
-  id: string;
-  name: string;
-  material: string;
-  origin: string;
-  occasions: string[];
-  status: 'Active' | 'Draft' | 'Archived';
-  featuredForSwatchKit: boolean;
-  updated: string;
-}
-
-export interface ConsultationSlot {
-  id: string;
-  hub_id: string | null;
-  slot_date: string;       // YYYY-MM-DD
-  time_start: string;      // HH:MM
-  time_end: string;        // HH:MM
-  mode: 'in_person' | 'video';
-  capacity: number;
-  booked_count: number;
-  created_at: string;
-}
-
-export type ConsultationStatus =
-  | 'pending' | 'assigned' | 'scheduled' | 'consultation_done'
-  | 'awaiting_design_approval' | 'awaiting_advance_payment' | 'design_approved';
-
-export interface Consultation {
-  id: string;
-  customer: string;
-  occasion: string;
-  status: ConsultationStatus;
-  stylist: string | null;
-  hub: string | null;
-  bookedSlot: string | null;
-  createdAt: string;
-}
 
 export interface ConfigItem {
   key: string;

@@ -90,7 +90,7 @@ export const OrderDetailPage: React.FC = () => {
                 </div>
               </div>
               <div className={styles.badges}>
-                <span className={`${styles.pill} ${order.mode === 'Luxe' ? styles.pillGold : styles.pillGreen}`}>{order.mode}</span>
+                <span className={`${styles.pill} ${styles.pillGreen}`}>{order.mode}</span>
                 <span className={`${styles.statusPill} ${styles[`status-${order.status}`]}`}>{order.status}</span>
               </div>
             </div>

@@ -285,30 +285,12 @@ export const AdminDashboardPage: React.FC = () => {
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Order Summary</h2>
           </div>
-          {data?.modeSplit ? (() => {
-            const ms = data.modeSplit;
-            const aov = ms.simplifiedOrders > 0 ? Math.round(ms.simplifiedRevenue / ms.simplifiedOrders) : 0;
-            return (
-              <div className={styles.modeSplit}>
-                <div className={styles.modeRow}>
-                  <div className={styles.modeDotPrimary} />
-                  <div className={styles.modeInfo}>
-                    <div className={styles.modeName}>Simplified Orders</div>
-                    <div className={styles.modeStats}>{ms.simplifiedOrders.toLocaleString()} orders</div>
-                  </div>
-                  <div className={styles.modePct}>{fmtRupees(ms.simplifiedRevenue)}</div>
-                </div>
-                <div className={styles.modeBar}>
-                  <div className={styles.modeBarSimplified} style={{ width: '100%' }} />
-                </div>
-                <div className={styles.modeDivider} />
-                <div className={styles.modeAOV}>
-                  <span>Avg Order Value</span>
-                  <span><strong>{fmtRupees(aov)}</strong></span>
-                </div>
-              </div>
-            );
-          })() : (
+          {data?.stats ? (
+            <div className={styles.modeAOV}>
+              <span>Total Orders</span>
+              <span><strong>{data.stats.totalOrders?.value?.toLocaleString() ?? '—'}</strong></span>
+            </div>
+          ) : (
             <div className={`${styles.skeletonBlock} ${loading ? styles.skeletonPulse : ''}`} />
           )}
         </div>
@@ -375,23 +357,6 @@ export const AdminDashboardPage: React.FC = () => {
             <div className={`${styles.skeletonBlock} ${styles.skeletonPulse}`} />
           ) : (
             <div className={styles.emptyState}>No urgent tickets — all clear!</div>
-          )}
-          {data?.consultations && (data.consultations.pending > 0 || data.consultations.unassigned > 0) && (
-            <div className={styles.consultMini}>
-              <div className={styles.consultMiniTitle}>Consultations needing action</div>
-              <div className={styles.consultMiniRow}>
-                {data.consultations.pending > 0 && (
-                  <button className={styles.consultChip} onClick={() => navigate('/admin/consultations')}>
-                    {data.consultations.pending} pending
-                  </button>
-                )}
-                {data.consultations.unassigned > 0 && (
-                  <button className={styles.consultChip} onClick={() => navigate('/admin/consultations')}>
-                    {data.consultations.unassigned} unassigned
-                  </button>
-                )}
-              </div>
-            </div>
           )}
         </div>
 
