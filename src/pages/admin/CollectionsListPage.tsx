@@ -71,12 +71,12 @@ export const CollectionsListPage: React.FC = () => {
           />
         </div>
         <select className={styles.filterSelect} value={modeFilter} onChange={e => setModeFilter(e.target.value)}>
-          <option>All</option>
+          <option value="All">All Modes</option>
           <option>Simplified</option>
           <option>Both</option>
         </select>
         <select className={styles.filterSelect} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option>All</option>
+          <option value="All">All Statuses</option>
           <option>Active</option>
           <option>Draft</option>
           <option>Archived</option>

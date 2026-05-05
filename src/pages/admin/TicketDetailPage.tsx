@@ -5,6 +5,7 @@ import { supportApi } from '../../api/adminApi';
 import type { SupportTicket, TicketMessage } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './TicketDetailPage.module.css';
 
 const TEMPLATES = [
@@ -30,6 +31,8 @@ export const TicketDetailPage: React.FC = () => {
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
+
+  useBreadcrumbTitle(ticket?.subject);
 
   React.useEffect(() => {
     if (!id) return;

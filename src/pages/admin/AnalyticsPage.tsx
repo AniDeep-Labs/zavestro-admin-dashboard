@@ -7,13 +7,13 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AnalyticsPage.module.css';
 
-type Section = 'revenue' | 'orders' | 'fit-scores' | 'hubs' | 'retention' | 'promos';
+type Section = 'revenue' | 'orders' | 'fit-scores' | 'hub-performance' | 'retention' | 'promos';
 
 const SECTION_TITLES: Record<Section, string> = {
   revenue: 'Revenue Dashboard',
   orders: 'Orders Analytics',
   'fit-scores': 'Fit Scores Analytics',
-  hubs: 'Hub Performance Comparison',
+  'hub-performance': 'Hub Performance',
   retention: 'Customer Retention Metrics',
   promos: 'Promo Codes',
 };
@@ -278,7 +278,7 @@ export const AnalyticsPage: React.FC = () => {
       )}
 
       {/* Hub Performance */}
-      {validSection === 'hubs' && (
+      {validSection === 'hub-performance' && (
         <div className={styles.card}>
           <h2 className={styles.cardTitle}>Hub Performance Comparison</h2>
           {hubs.length === 0 ? (

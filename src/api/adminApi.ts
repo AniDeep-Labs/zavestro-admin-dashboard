@@ -34,6 +34,12 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   };
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
+    if (res.status === 401) {
+      clearAdminToken();
+      clearAdminUser();
+      window.location.href = '/admin/login';
+      throw new Error('Session expired. Redirecting to login…');
+    }
     let msg = `Error ${res.status}`;
     try { const b = await res.json(); msg = b.message || b.error?.message || b.error || msg; } catch { /* */ }
     const err = new Error(msg) as Error & { status: number };
@@ -130,6 +136,20 @@ export const ordersApi = {
 export interface UsersParams { search?: string; status?: string; city?: string; page?: number; limit?: number; }
 export interface UsersResponse { users: AdminUser[]; total: number; page: number; totalPages: number; }
 
+function mapUser(u: Record<string, unknown>): AdminUser {
+  return {
+    id: u.id as string,
+    name: (u.name ?? '') as string,
+    phone: (u.phone ?? '') as string,
+    email: (u.email ?? '') as string,
+    city: (u.city ?? '') as string,
+    orders: (u.order_count ?? u.orders ?? 0) as number,
+    credits: Math.round(parseFloat(String(u.credits ?? u.wallet_balance ?? 0))),
+    joined: u.created_at ? new Date(u.created_at as string).toLocaleDateString('en-IN') : ((u.joined ?? '') as string),
+    status: (u.is_active !== undefined ? (u.is_active ? 'Active' : 'Deactivated') : (u.status ?? 'Active')) as AdminUser['status'],
+  };
+}
+
 export const usersApi = {
   list: async (params: UsersParams = {}): Promise<UsersResponse> => {
     const qs = new URLSearchParams();
@@ -137,39 +157,25 @@ export const usersApi = {
     if (params.status) qs.set('status', params.status);
     if (params.page)   qs.set('page',   String(params.page));
     if (params.limit)  qs.set('limit',  String(params.limit));
-    return req<UsersResponse>(`/api/admin/users?${qs}`);
+    const raw = await req<{ users: Record<string, unknown>[]; total: number; page: number; totalPages: number }>(`/api/admin/users?${qs}`);
+    return {
+      users: (raw.users ?? []).map(mapUser),
+      total: raw.total,
+      page: raw.page,
+      totalPages: raw.totalPages,
+    };
   },
 
   get: async (id: string): Promise<AdminUser> => {
     const u = await req<Record<string, unknown>>(`/api/admin/users/${id}`);
-    return {
-      id: u.id as string,
-      name: (u.name ?? '') as string,
-      phone: (u.phone ?? '') as string,
-      email: (u.email ?? '') as string,
-      city: (u.city ?? '') as string,
-      orders: (u.order_count ?? u.orders ?? 0) as number,
-      credits: Math.round(parseFloat(String(u.credits ?? u.wallet_balance ?? 0))),
-      joined: u.created_at ? new Date(u.created_at as string).toLocaleDateString('en-IN') : '',
-      status: (u.is_active !== undefined ? (u.is_active ? 'Active' : 'Deactivated') : (u.status ?? 'Active')) as AdminUser['status'],
-    };
+    return mapUser(u);
   },
 
   update: async (id: string, data: Partial<AdminUser>): Promise<AdminUser> => {
     const body: Record<string, unknown> = {};
     if (data.status !== undefined) body.is_active = data.status === 'Active';
     const u = await req<Record<string, unknown>>(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
-    return {
-      id: u.id as string,
-      name: (u.name ?? '') as string,
-      phone: (u.phone ?? '') as string,
-      email: (u.email ?? '') as string,
-      city: (u.city ?? '') as string,
-      orders: (u.order_count ?? 0) as number,
-      credits: 0,
-      joined: u.created_at ? new Date(u.created_at as string).toLocaleDateString('en-IN') : '',
-      status: (u.is_active ? 'Active' : 'Deactivated') as AdminUser['status'],
-    };
+    return mapUser(u);
   },
 
   issueCredits: async (id: string, amount: number, reason: string): Promise<void> =>
@@ -226,17 +232,21 @@ export const hubsApi = {
   },
 
   create: async (data: Partial<Hub>): Promise<Hub> => {
-    const { status, ...rest } = data;
+    const { status, managerName, managerPhone, ...rest } = data;
     const body: Record<string, unknown> = { ...rest };
     if (status !== undefined) body.is_active = status === 'Active';
+    if (managerName !== undefined) body.manager_name = managerName;
+    if (managerPhone !== undefined) body.manager_phone = managerPhone;
     const raw = await req<Record<string, unknown>>('/api/admin/hubs', { method: 'POST', body: JSON.stringify(body) });
     return mapHub(raw);
   },
 
   update: async (id: string, data: Partial<Hub>): Promise<Hub> => {
-    const { status, ...rest } = data;
+    const { status, managerName, managerPhone, ...rest } = data;
     const body: Record<string, unknown> = { ...rest };
     if (status !== undefined) body.is_active = status === 'Active';
+    if (managerName !== undefined) body.manager_name = managerName;
+    if (managerPhone !== undefined) body.manager_phone = managerPhone;
     const raw = await req<Record<string, unknown>>(`/api/admin/hubs/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     return mapHub(raw);
   },
@@ -679,10 +689,29 @@ export interface Craftsperson {
   years_experience: number | null;
 }
 
+const normalizeCraftspeople = (data: unknown): Craftsperson[] => {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== 'object') return [];
+
+  const response = data as {
+    craftspeople?: unknown;
+    items?: unknown;
+    results?: unknown;
+    data?: unknown;
+  };
+
+  if (Array.isArray(response.craftspeople)) return response.craftspeople;
+  if (Array.isArray(response.items)) return response.items;
+  if (Array.isArray(response.results)) return response.results;
+  if (Array.isArray(response.data)) return response.data;
+
+  return [];
+};
+
 export const craftspeopleApi = {
   list: async (): Promise<Craftsperson[]> => {
-    const data = await req<Craftsperson[] | { craftspeople: Craftsperson[] }>('/api/admin/craftspeople');
-    return Array.isArray(data) ? data : ((data as { craftspeople?: Craftsperson[] }).craftspeople ?? []);
+    const data = await req<unknown>('/api/admin/craftspeople');
+    return normalizeCraftspeople(data);
   },
 
   updateStory: async (id: string, data: { bio?: string; years_experience?: number }): Promise<Craftsperson> =>

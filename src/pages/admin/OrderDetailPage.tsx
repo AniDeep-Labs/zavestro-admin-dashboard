@@ -5,6 +5,7 @@ import { ordersApi, invoicesApi } from '../../api/adminApi';
 import type { AdminOrder, OrderStage } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './OrderDetailPage.module.css';
 
 export const OrderDetailPage: React.FC = () => {
@@ -23,6 +24,8 @@ export const OrderDetailPage: React.FC = () => {
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
+
+  useBreadcrumbTitle(order ? `Order ${order.id}` : undefined);
 
   React.useEffect(() => {
     if (!id) return;

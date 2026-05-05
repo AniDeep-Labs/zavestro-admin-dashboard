@@ -5,6 +5,7 @@ import { hubsApi, hubStaffApi } from '../../api/adminApi';
 import type { Hub, HubStaff } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './HubDetailPage.module.css';
 
 const TABS = ['Overview', 'Staff', 'Capacity', 'Inventory'];
@@ -23,6 +24,8 @@ export const HubDetailPage: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('Overview');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+
+  useBreadcrumbTitle(hub?.name || form.name || (isNew ? 'New Hub' : undefined));
 
   // Staff state
   const [staff, setStaff] = React.useState<HubStaff[]>([]);

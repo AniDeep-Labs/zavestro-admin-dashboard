@@ -23,6 +23,7 @@ export const ProductsListPage: React.FC = () => {
   const [search, setSearch] = React.useState('');
   const [modeFilter, setModeFilter] = React.useState('');
   const [categoryFilter, setCategoryFilter] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('');
   const [page, setPage] = React.useState(1);
 
   const [products, setProducts] = React.useState<ApiProduct[]>([]);
@@ -55,6 +56,7 @@ export const ProductsListPage: React.FC = () => {
       search: debouncedSearch || undefined,
       mode: modeFilter || undefined,
       category: categoryFilter || undefined,
+      status: statusFilter || undefined,
       page,
       limit: LIMIT,
     })
@@ -69,12 +71,13 @@ export const ProductsListPage: React.FC = () => {
         showToast('error', 'Load failed', msg);
       })
       .finally(() => setLoading(false));
-  }, [debouncedSearch, modeFilter, categoryFilter, page]);
+  }, [debouncedSearch, modeFilter, categoryFilter, statusFilter, page]);
 
   const clearFilters = () => {
     setSearch('');
     setModeFilter('');
     setCategoryFilter('');
+    setStatusFilter('');
     setPage(1);
   };
 
@@ -132,6 +135,16 @@ export const ProductsListPage: React.FC = () => {
           {categories.map(c => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
+        </select>
+        <select
+          className={styles.filterSelect}
+          value={statusFilter}
+          onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="draft">Draft</option>
+          <option value="archived">Archived</option>
         </select>
         <button className={styles.clearBtn} onClick={clearFilters}><X size={14}/> Clear</button>
       </div>

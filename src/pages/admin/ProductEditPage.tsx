@@ -6,6 +6,7 @@ import type { ApiCategory, ApiVariant, ApiMedia, VariantPayload } from '../../ap
 
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './ProductEditPage.module.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -49,6 +50,8 @@ export const ProductEditPage: React.FC = () => {
   const [deliveryMax, setDeliveryMax] = React.useState('10');
   const [isMadeToOrder, setIsMadeToOrder] = React.useState(true);
   const [status, setStatus] = React.useState<'active' | 'draft' | 'archived'>('draft');
+
+  useBreadcrumbTitle(name || (isNew ? 'New Product' : undefined));
 
   // Meta
   const [categories, setCategories] = React.useState<ApiCategory[]>([]);

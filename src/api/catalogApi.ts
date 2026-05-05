@@ -126,7 +126,10 @@ function mapMedia(m: Record<string, unknown>): ApiMedia {
 }
 
 function mapProduct(p: Record<string, unknown>): ApiProduct {
-  const category = (p.category ?? null) as Record<string, unknown> | null;
+  const rawCat = p.category ?? null;
+  const category = (typeof rawCat === 'object' && rawCat !== null) ? rawCat as Record<string, unknown> : null;
+  const categoryName = (p.category_name ?? '') as string;
+  const categoryId   = (p.category_id ?? '') as string;
   const mediaArr = (p.media ?? p.images ?? []) as Record<string, unknown>[];
   const variantArr = (p.variants ?? []) as Record<string, unknown>[];
 
@@ -139,13 +142,15 @@ function mapProduct(p: Record<string, unknown>): ApiProduct {
     base_price: p.base_price as number,
     category: category
       ? { id: category.id as string, name: category.name as string, slug: category.slug as string }
-      : { id: '', name: '—' },
+      : (categoryName || categoryId)
+        ? { id: categoryId, name: categoryName || '—', slug: '' }
+        : { id: '', name: '—' },
     tags: (p.tags ?? []) as string[],
     images: mediaArr.map(mapMedia),
     delivery_days_min: (p.delivery_days_min ?? 7) as number,
     delivery_days_max: (p.delivery_days_max ?? 10) as number,
     is_made_to_order: (p.is_made_to_order ?? true) as boolean,
-    status: p.is_active === false ? 'archived' : 'active',
+    status: (p.status === 'draft' ? 'draft' : p.is_active === false ? 'archived' : 'active'),
     variants: variantArr.map(mapVariant),
     created_at: (p.created_at ?? '') as string,
     updated_at: (p.updated_at ?? '') as string,
@@ -167,6 +172,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      clearAdminToken();
+      window.location.href = '/admin/login';
+      throw new Error('Session expired. Redirecting to login\u2026');
+    }
     let msg = `Request failed (${res.status})`;
     try {
       const body = await res.json();
@@ -194,6 +204,7 @@ export const catalogApi = {
   getProducts: (params: {
     category?: string;
     mode?: string;
+    status?: string;
     page?: number;
     limit?: number;
     search?: string;
@@ -202,6 +213,7 @@ export const catalogApi = {
     if (params.search) qs.set('q', params.search);
     if (params.category) qs.set('category_id', params.category);
     if (params.mode) qs.set('mode', params.mode);
+    if (params.status) qs.set('status', params.status);
     if (params.page) qs.set('page', String(params.page));
     if (params.limit) qs.set('limit', String(params.limit));
     const q = qs.toString();
@@ -233,6 +245,8 @@ export const catalogApi = {
         delivery_days_min: data.delivery_days_min,
         delivery_days_max: data.delivery_days_max,
         is_made_to_order: data.is_made_to_order,
+        is_active: data.status === 'active',
+        status: data.status ?? 'active',
       }),
     }).then(res => mapProduct(res.data)),
 

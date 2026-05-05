@@ -5,6 +5,7 @@ import { usersApi, ordersApi } from '../../api/adminApi';
 import type { AdminUser, AdminOrder } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './UserDetailPage.module.css';
 
 export const UserDetailPage: React.FC = () => {
@@ -25,6 +26,8 @@ export const UserDetailPage: React.FC = () => {
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
+
+  useBreadcrumbTitle(user?.name);
 
   React.useEffect(() => {
     if (!id) return;
@@ -107,7 +110,7 @@ export const UserDetailPage: React.FC = () => {
                 <div className={styles.profileName}>{user.name}</div>
                 <div className={styles.profileDetails}>
                   <span>{user.phone}</span>
-                  <span>{user.email}</span>
+                  {user.email && <span>{user.email}</span>}
                   <span>{user.city}</span>
                   <span>Joined {user.joined}</span>
                 </div>

@@ -5,6 +5,7 @@ import { returnsApi } from '../../api/adminApi';
 import type { ReturnRequest } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './OrdersListPage.module.css';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -25,6 +26,8 @@ export const ReturnDetailPage: React.FC = () => {
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
+
+  useBreadcrumbTitle(ret ? `Return – ${ret.order_number}` : undefined);
 
   React.useEffect(() => {
     if (!id) return;

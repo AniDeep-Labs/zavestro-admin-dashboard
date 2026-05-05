@@ -108,16 +108,17 @@ function App() {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="support" element={<SupportListPage />} />
             <Route path="support/:id" element={<TicketDetailPage />} />
-            <Route path="system/config" element={<AppConfigPage />} />
-            <Route path="system/audit" element={<AuditLogPage />} />
+            <Route path="system/app-config" element={<AppConfigPage />} />
+            <Route path="system/audit-log" element={<AuditLogPage />} />
             <Route path="system/waitlist" element={<WaitlistPage />} />
-            <Route path="system/admins" element={<AdminUsersManagePage />} />
+            <Route path="system/admin-users" element={<AdminUsersManagePage />} />
             <Route path="returns" element={<ReturnsListPage />} />
             <Route path="returns/:id" element={<ReturnDetailPage />} />
             <Route path="alterations" element={<AlterationsListPage />} />
             <Route path="home-visits" element={<HomeVisitsListPage />} />
             <Route path="home-visits/:id" element={<HomeVisitDetailPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
+            <Route path="promo-codes" element={<Navigate to="/admin/analytics/promos" replace />} />
           </Route>
 
           {/* 404 */}

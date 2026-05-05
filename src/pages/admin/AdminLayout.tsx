@@ -10,6 +10,7 @@ import { toggleTheme, getCurrentTheme } from '../../utils/theme';
 import { hasAdminToken } from '../../api/catalogApi';
 import { adminAuth, getAdminUser } from '../../api/adminApi';
 import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
+import { BreadcrumbProvider, useBreadcrumb } from '../../contexts/BreadcrumbContext';
 import styles from './AdminLayout.module.css';
 
 interface NavItem {
@@ -47,9 +48,9 @@ const NAV: NavItem[] = [
       { label: 'Revenue',          path: '/admin/analytics/revenue' },
       { label: 'Orders',           path: '/admin/analytics/orders' },
       { label: 'Fit Scores',       path: '/admin/analytics/fit-scores' },
-      { label: 'Hub Performance',  path: '/admin/analytics/hubs' },
+      { label: 'Hub Performance',  path: '/admin/analytics/hub-performance' },
       { label: 'Retention',        path: '/admin/analytics/retention' },
-      { label: 'Promo Codes',      path: '/admin/analytics/promos' },
+      { label: 'Promo Codes',      path: '/admin/promo-codes' },
     ],
   },
   { label: 'Support',     icon: <Headphones size={18} />,  path: '/admin/support',      roles: ['admin', 'admin_support'] },
@@ -60,10 +61,10 @@ const NAV: NavItem[] = [
   {
     label: 'System', icon: <Settings size={18} />, path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
     children: [
-      { label: 'App Config',   path: '/admin/system/config' },
-      { label: 'Audit Log',    path: '/admin/system/audit' },
+      { label: 'App Config',   path: '/admin/system/app-config' },
+      { label: 'Audit Log',    path: '/admin/system/audit-log' },
       { label: 'Waitlist',     path: '/admin/system/waitlist' },
-      { label: 'Admin Users',  path: '/admin/system/admins' },
+      { label: 'Admin Users',  path: '/admin/system/admin-users' },
     ],
   },
 ];
@@ -71,6 +72,7 @@ const NAV: NavItem[] = [
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { title: entityTitle } = useBreadcrumb();
   const [theme, setTheme] = React.useState(getCurrentTheme());
   const [collapsed, setCollapsed] = React.useState(false);
   const [expandedSections, setExpandedSections] = React.useState<string[]>(['Catalog', 'Content', 'Analytics', 'System', 'Consultations']);
@@ -98,6 +100,7 @@ export const AdminLayout: React.FC = () => {
   };
 
   return (
+    <BreadcrumbProvider>
     <div className={`${styles.layout} ${collapsed ? styles.collapsed : ''}`}>
       {/* Sidebar */}
       <aside className={styles.sidebar}>
@@ -183,17 +186,31 @@ export const AdminLayout: React.FC = () => {
         {/* Top bar */}
         <header className={styles.topBar}>
           <div className={styles.breadcrumb}>
-            {location.pathname.split('/').filter(Boolean).map((part, i, arr) => (
-              <span key={i}>
-                <span
-                  className={i < arr.length - 1 ? styles.breadcrumbLink : styles.breadcrumbCurrent}
-                  onClick={() => i < arr.length - 1 ? navigate('/' + arr.slice(0, i + 1).join('/')) : undefined}
-                >
-                  {part.charAt(0).toUpperCase() + part.slice(1).replace(/-/g, ' ')}
+            {location.pathname.split('/').filter(Boolean).map((part, i, arr) => {
+              const isLast = i === arr.length - 1;
+              // Detect UUID-like segments (8-4-4-4-12 hex or 32 hex chars)
+              const isUuid = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(part)
+                          || /^[0-9a-f]{24,}$/i.test(part);
+              let label: string;
+              if (isUuid && entityTitle) {
+                label = entityTitle;
+              } else if (isUuid) {
+                label = '…';
+              } else {
+                label = part.charAt(0).toUpperCase() + part.slice(1).replace(/-/g, ' ');
+              }
+              return (
+                <span key={i}>
+                  <span
+                    className={isLast ? styles.breadcrumbCurrent : styles.breadcrumbLink}
+                    onClick={() => !isLast ? navigate('/' + arr.slice(0, i + 1).join('/')) : undefined}
+                  >
+                    {label}
+                  </span>
+                  {!isLast && <span className={styles.breadcrumbSep}> / </span>}
                 </span>
-                {i < arr.length - 1 && <span className={styles.breadcrumbSep}> / </span>}
-              </span>
-            ))}
+              );
+            })}
           </div>
 
           <div className={styles.topActions}>
@@ -232,10 +249,11 @@ export const AdminLayout: React.FC = () => {
         {/* Page content */}
         <main className={styles.content}>
           <ErrorBoundary>
-            <Outlet />
+              <Outlet />
           </ErrorBoundary>
         </main>
       </div>
     </div>
+    </BreadcrumbProvider>
   );
 };

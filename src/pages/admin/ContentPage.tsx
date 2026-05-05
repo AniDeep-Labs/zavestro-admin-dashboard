@@ -26,6 +26,9 @@ const CMS_INFO: Record<string, { title: string; description: string }> = {
   },
 };
 
+const asCraftspeopleArray = (data: unknown): Craftsperson[] =>
+  Array.isArray(data) ? data : [];
+
 export const ContentPage: React.FC = () => {
   const { section = 'lookbook' } = useParams<{ section?: string }>();
   const [search, setSearch] = React.useState('');
@@ -51,7 +54,7 @@ export const ContentPage: React.FC = () => {
     setLoading(true);
     setCraftError('');
     craftspeopleApi.list()
-      .then(data => setCraftspeople(data))
+      .then(data => setCraftspeople(asCraftspeopleArray(data)))
       .catch(e => setCraftError(e instanceof Error ? e.message : 'Failed to load craftspeople'))
       .finally(() => setLoading(false));
   }, [validSection]);
@@ -96,10 +99,11 @@ export const ContentPage: React.FC = () => {
   }
 
   // Craftspeople section
-  const filtered = craftspeople.filter(p =>
+  const craftspeopleList = Array.isArray(craftspeople) ? craftspeople : [];
+  const filtered = craftspeopleList.filter(p =>
     !search ||
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.role.toLowerCase().includes(search.toLowerCase())
+    (p.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.role ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -135,11 +139,11 @@ export const ContentPage: React.FC = () => {
             ) : craftError ? (
               <tr><td colSpan={5} className={styles.empty}>
                 <div style={{ color: 'var(--color-error)' }}>{craftError}</div>
-                <button className={styles.actionBtn} style={{ marginTop: 8 }} onClick={() => { setCraftError(''); setLoading(true); craftspeopleApi.list().then(setCraftspeople).catch(e => setCraftError(e instanceof Error ? e.message : 'Failed')).finally(() => setLoading(false)); }}>Retry</button>
+                <button className={styles.actionBtn} style={{ marginTop: 8 }} onClick={() => { setCraftError(''); setLoading(true); craftspeopleApi.list().then(data => setCraftspeople(asCraftspeopleArray(data))).catch(e => setCraftError(e instanceof Error ? e.message : 'Failed')).finally(() => setLoading(false)); }}>Retry</button>
               </td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={5} className={styles.empty}>
-                {craftspeople.length === 0 ? 'No craftspeople records found. Add records via the database.' : 'No matches.'}
+                {craftspeopleList.length === 0 ? 'No craftspeople records found. Add records via the database.' : 'No matches.'}
               </td></tr>
             ) : filtered.map(p => (
               <tr key={p.id} className={styles.row}>

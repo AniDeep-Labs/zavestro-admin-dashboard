@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../api/adminApi';
 import type { DashboardData } from '../../api/adminApi';
+import { clearAdminToken } from '../../api/catalogApi';
 import styles from './AdminDashboardPage.module.css';
 
 /* ── Inline SVG icons (Lucide-style) ── */
@@ -160,7 +161,7 @@ export const AdminDashboardPage: React.FC = () => {
         <div className={styles.errorBanner}>
           <strong>API Error:</strong> {apiError} — check browser console (F12 → Network) for details.
           {apiErrorStatus === 401 ? (
-            <span> Your session may have expired — <button className={styles.errorBannerLink} onClick={() => navigate('/admin/login')}>log in again</button>.</span>
+            <span> Your session may have expired — <button className={styles.errorBannerLink} onClick={() => { clearAdminToken(); navigate('/admin/login'); }}>log in again</button>.</span>
           ) : null}
         </div>
       )}
@@ -429,7 +430,7 @@ export const AdminDashboardPage: React.FC = () => {
       <div className={styles.card}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>Recent Activity</h2>
-          <button className={styles.cardLink} onClick={() => navigate('/admin/system/audit')}>View Audit Log →</button>
+          <button className={styles.cardLink} onClick={() => navigate('/admin/system/audit-log')}>View Audit Log →</button>
         </div>
         <div className={styles.activityList}>
           {(data?.recentActivity ?? []).length > 0

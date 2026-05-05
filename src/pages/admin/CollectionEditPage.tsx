@@ -6,6 +6,7 @@ import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './CollectionEditPage.module.css';
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -23,6 +24,8 @@ export const CollectionEditPage: React.FC = () => {
   const isNew = id === 'new';
 
   const [name, setName] = React.useState('');
+
+  useBreadcrumbTitle(name || (isNew ? 'New Collection' : undefined));
   const [slug, setSlug] = React.useState('');
   const [mode, setMode] = React.useState<'Simplified' | 'Both'>('Simplified');
   const [description, setDescription] = React.useState('');
