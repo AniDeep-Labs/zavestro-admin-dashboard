@@ -219,10 +219,10 @@ export const AnalyticsPage: React.FC = () => {
             <>
               <div className={styles.kpiGrid}>
                 {[
-                  { label: 'Avg. Fit Score',        value: `${fitData.avg_fit_score} ★` },
-                  { label: 'Feedback Submitted',    value: fitData.feedback_count.toString() },
-                  { label: 'Alteration Rate',       value: `${fitData.alteration_rate}%` },
-                  { label: 'Alteration → Good Fit', value: `${fitData.alteration_success_rate}%` },
+                  { label: 'Avg. Fit Score',        value: `${fitData.avg_fit_score ?? 0} ★` },
+                  { label: 'Feedback Submitted',    value: String(fitData.feedback_count ?? 0) },
+                  { label: 'Alteration Rate',       value: `${fitData.alteration_rate ?? 0}%` },
+                  { label: 'Alteration → Good Fit', value: `${fitData.alteration_success_rate ?? 0}%` },
                 ].map(k => (
                   <div key={k.label} className={styles.kpiCard}>
                     <div className={styles.kpiLabel}>{k.label}</div>
@@ -230,37 +230,43 @@ export const AnalyticsPage: React.FC = () => {
                   </div>
                 ))}
               </div>
-              {fitData.by_product.length > 0 && (
+              {(fitData.by_product ?? []).length > 0 && (
                 <div className={styles.card}>
                   <h2 className={styles.cardTitle}>Fit Score by Product</h2>
                   <div className={styles.fitBars}>
-                    {fitData.by_product.map(item => (
-                      <div key={item.name} className={styles.fitRow}>
-                        <span className={styles.fitCat}>{item.name}</span>
-                        <div className={styles.fitBarWrap}>
-                          <div className={`${styles.fitBar} ${item.avg_fit_score < 4 ? styles.fitBarLow : styles.fitBarHigh}`}
-                            style={{ width: `${(item.avg_fit_score / 5) * 100}%` }} />
+                    {(fitData.by_product ?? []).map(item => {
+                      const score = item.avg_fit_score ?? 0;
+                      return (
+                        <div key={item.name} className={styles.fitRow}>
+                          <span className={styles.fitCat}>{item.name}</span>
+                          <div className={styles.fitBarWrap}>
+                            <div className={`${styles.fitBar} ${score < 4 ? styles.fitBarLow : styles.fitBarHigh}`}
+                              style={{ width: `${(score / 5) * 100}%` }} />
+                          </div>
+                          <span className={`${styles.fitScore} ${score < 4 ? styles.fitScoreLow : ''}`}>{score} ★</span>
                         </div>
-                        <span className={`${styles.fitScore} ${item.avg_fit_score < 4 ? styles.fitScoreLow : ''}`}>{item.avg_fit_score} ★</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
-              {fitData.hub_performance.length > 0 && (
+              {(fitData.hub_performance ?? []).length > 0 && (
                 <div className={styles.card}>
                   <h2 className={styles.cardTitle}>Fit Score by Hub</h2>
                   <div className={styles.fitBars}>
-                    {fitData.hub_performance.map(h => (
-                      <div key={h.name} className={styles.fitRow}>
-                        <span className={styles.fitCat}>{h.name}</span>
-                        <div className={styles.fitBarWrap}>
-                          <div className={`${styles.fitBar} ${h.avg_fit_score < 4 ? styles.fitBarLow : styles.fitBarHigh}`}
-                            style={{ width: `${(h.avg_fit_score / 5) * 100}%` }} />
+                    {(fitData.hub_performance ?? []).map(h => {
+                      const score = h.avg_fit_score ?? 0;
+                      return (
+                        <div key={h.name} className={styles.fitRow}>
+                          <span className={styles.fitCat}>{h.name}</span>
+                          <div className={styles.fitBarWrap}>
+                            <div className={`${styles.fitBar} ${score < 4 ? styles.fitBarLow : styles.fitBarHigh}`}
+                              style={{ width: `${(score / 5) * 100}%` }} />
+                          </div>
+                          <span className={`${styles.fitScore} ${score < 4 ? styles.fitScoreLow : ''}`}>{score} ★</span>
                         </div>
-                        <span className={`${styles.fitScore} ${h.avg_fit_score < 4 ? styles.fitScoreLow : ''}`}>{h.avg_fit_score} ★</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
