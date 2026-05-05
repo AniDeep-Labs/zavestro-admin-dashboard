@@ -70,6 +70,7 @@ function App() {
         <Routes>
           {/* Customer Routes */}
           <Route path="/" element={<Navigate to="/admin/login" replace />} />
+          <Route path="/login" element={<Navigate to="/admin/login" replace />} />
           <Route element={<CustomerLayout />}>
             <Route path="/home" element={<HomePage />} />
             <Route path="/fabrics" element={<FabricCatalogPage />} />
