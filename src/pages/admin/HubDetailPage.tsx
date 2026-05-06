@@ -41,6 +41,7 @@ export const HubDetailPage: React.FC = () => {
   // Capacity state
   const [dailyLimit, setDailyLimit] = React.useState(60);
   const [savingCapacity, setSavingCapacity] = React.useState(false);
+  const [submitted, setSubmitted] = React.useState(false);
 
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -69,6 +70,7 @@ export const HubDetailPage: React.FC = () => {
   };
 
   const handleSave = async () => {
+    setSubmitted(true);
     if (!form.name || !form.city) { showToast('error', 'Name and City are required'); return; }
     setSaving(true);
     try {
@@ -155,10 +157,11 @@ export const HubDetailPage: React.FC = () => {
                 <label className={styles.metaLabel}>{f.label}</label>
                 <input
                   type={f.type}
-                  className={styles.fieldInput}
+                  className={`${styles.fieldInput} ${submitted && (f.key === 'name' || f.key === 'city') && !form[f.key] ? styles.inputError : ''}`}
                   value={(form[f.key] as string) ?? ''}
                   onChange={e => handleFormChange(f.key, e.target.value)}
                 />
+                {submitted && (f.key === 'name' || f.key === 'city') && !form[f.key] && <span className={styles.fieldHint}>This field is required</span>}
               </div>
             ))}
             <div className={styles.formField}>

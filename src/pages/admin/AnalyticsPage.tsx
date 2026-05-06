@@ -19,7 +19,7 @@ const SECTION_TITLES: Record<Section, string> = {
 };
 
 const PERIOD_MAP: Record<string, string> = {
-  'This Week': 'week', 'This Month': 'month', 'Last 30 Days': 'last30', 'This Quarter': 'quarter',
+  'Today': 'today', 'This Week': 'week', 'This Month': 'month', 'Last 30 Days': 'last30', 'This Quarter': 'quarter',
 };
 
 function fmtMoney(val: number): string {
@@ -126,7 +126,7 @@ export const AnalyticsPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>{title}</h1>
         <div className={styles.periodSelector}>
-          {['This Week', 'This Month', 'Last 30 Days', 'This Quarter'].map(p => (
+          {['Today', 'This Week', 'This Month', 'Last 30 Days', 'This Quarter'].map(p => (
             <button key={p} className={`${styles.periodBtn} ${period === p ? styles.periodBtnActive : ''}`} onClick={() => setPeriod(p)}>{p}</button>
           ))}
         </div>

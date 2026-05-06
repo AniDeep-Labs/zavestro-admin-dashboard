@@ -97,7 +97,7 @@ export const AlterationsListPage: React.FC = () => {
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} alteration${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
           <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
-          <span className={styles.pageIndicator}>Page {page}</span>
+          <span className={styles.pageIndicator}>Page {page} of {Math.max(1, Math.ceil(total / 25))}</span>
           <button className={styles.pageBtn} disabled={alterations.length < 25 || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
         </div>
       </div>

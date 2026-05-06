@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, X, Download, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, X, Download, RefreshCw, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { invoicesApi } from '../../api/adminApi';
 import type { Invoice } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -74,6 +74,12 @@ export const InvoicesListPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Invoices</h1>
+        <button 
+          className={styles.addBtn} 
+          onClick={() => showToast('info', 'Coming Soon', 'Manual invoice generation will be available soon. Invoices are currently auto-generated from orders.')}
+        >
+          <Plus size={15} /> Generate Invoice
+        </button>
       </div>
 
       <div className={styles.filterBar}>

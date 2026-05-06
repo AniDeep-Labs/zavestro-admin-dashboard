@@ -38,6 +38,7 @@ import { ContentPage } from './pages/admin/ContentPage';
 import { AnalyticsPage } from './pages/admin/AnalyticsPage';
 import { SupportListPage } from './pages/admin/SupportListPage';
 import { TicketDetailPage } from './pages/admin/TicketDetailPage';
+import { PromoCodesPage } from './pages/admin/PromoCodesPage';
 import { AppConfigPage } from './pages/admin/AppConfigPage';
 import { AuditLogPage } from './pages/admin/AuditLogPage';
 import { WaitlistPage } from './pages/admin/WaitlistPage';
@@ -129,7 +130,7 @@ function App() {
             <Route path="home-visits" element={<HomeVisitsListPage />} />
             <Route path="home-visits/:id" element={<HomeVisitDetailPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
-            <Route path="promo-codes" element={<Navigate to="/admin/analytics/promos" replace />} />
+            <Route path="promo-codes" element={<PromoCodesPage />} />
             {/* Admin 404 — renders inside the sidebar layout */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>

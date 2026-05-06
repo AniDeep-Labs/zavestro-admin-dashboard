@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingBag, Users, Building2, Tag, FileText,
   BarChart3, Headphones, Settings, ChevronDown, ChevronRight,
   PanelLeftClose, PanelLeftOpen, Sun, Moon, LogOut, Bell,
-  RotateCcw, Scissors, Home, Receipt,
+  RotateCcw, Scissors, Home, Receipt, Ticket,
 } from 'lucide-react';
 import { toggleTheme, getCurrentTheme } from '../../utils/theme';
 import { hasAdminToken } from '../../api/catalogApi';
@@ -50,9 +50,9 @@ const NAV: NavItem[] = [
       { label: 'Fit Scores',       path: '/admin/analytics/fit-scores' },
       { label: 'Hub Performance',  path: '/admin/analytics/hub-performance' },
       { label: 'Retention',        path: '/admin/analytics/retention' },
-      { label: 'Promo Codes',      path: '/admin/promo-codes' },
     ],
   },
+  { label: 'Promo Codes', icon: <Ticket size={18} />, path: '/admin/promo-codes', roles: ['admin', 'admin_marketing'] },
   { label: 'Support',     icon: <Headphones size={18} />,  path: '/admin/support',      roles: ['admin', 'admin_support'] },
   { label: 'Returns',     icon: <RotateCcw size={18} />,   path: '/admin/returns',      roles: ['admin', 'admin_ops'] },
   { label: 'Alterations', icon: <Scissors size={18} />,    path: '/admin/alterations',  roles: ['admin', 'admin_ops'] },

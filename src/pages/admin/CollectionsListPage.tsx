@@ -10,7 +10,6 @@ import styles from './CollectionsListPage.module.css';
 export const CollectionsListPage: React.FC = () => {
   const navigate = useNavigate();
   const [search, setSearch] = React.useState('');
-  const [modeFilter, setModeFilter] = React.useState('All');
   const [statusFilter, setStatusFilter] = React.useState('All');
 
   const [collections, setCollections] = React.useState<Collection[]>([]);
@@ -28,13 +27,12 @@ export const CollectionsListPage: React.FC = () => {
     setError('');
     collectionsApi.list({
       search: search || undefined,
-      mode: modeFilter !== 'All' ? modeFilter : undefined,
       status: statusFilter !== 'All' ? statusFilter : undefined,
     })
       .then(res => { setCollections(res.collections ?? []); setTotal(res.total ?? 0); })
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load collections'))
       .finally(() => setLoading(false));
-  }, [search, modeFilter, statusFilter]);
+  }, [search, statusFilter]);
 
   const handleArchive = async (e: React.MouseEvent, col: Collection) => {
     e.stopPropagation();
@@ -70,18 +68,13 @@ export const CollectionsListPage: React.FC = () => {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select className={styles.filterSelect} value={modeFilter} onChange={e => setModeFilter(e.target.value)}>
-          <option value="All">All Modes</option>
-          <option>Simplified</option>
-          <option>Both</option>
-        </select>
         <select className={styles.filterSelect} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="All">All Statuses</option>
           <option>Active</option>
           <option>Draft</option>
           <option>Archived</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setModeFilter('All'); setStatusFilter('All'); }}>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter('All'); }}>
           <X size={14}/> Clear
         </button>
       </div>
@@ -92,7 +85,6 @@ export const CollectionsListPage: React.FC = () => {
             <tr>
               <th></th>
               <th>Collection Name</th>
-              <th>Mode</th>
               <th>Products</th>
               <th>Status</th>
               <th>Sort</th>
@@ -105,20 +97,20 @@ export const CollectionsListPage: React.FC = () => {
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 9 }).map((__, j) => (
+                  {Array.from({ length: 8 }).map((__, j) => (
                     <td key={j}><div className={styles.skeleton} /></td>
                   ))}
                 </tr>
               ))
             ) : error ? (
               <tr>
-                <td colSpan={9} className={styles.empty}>
+                <td colSpan={8} className={styles.empty}>
                   <div>{error}</div>
                   <button className={styles.retryBtn} onClick={() => { setError(''); }}>Retry</button>
                 </td>
               </tr>
             ) : collections.length === 0 ? (
-              <tr><td colSpan={9} className={styles.empty}>No collections found.</td></tr>
+              <tr><td colSpan={8} className={styles.empty}>No collections found.</td></tr>
             ) : (
               collections.map(col => (
                 <tr key={col.id} className={styles.row} onClick={() => navigate(`/admin/catalog/collections/${col.id}`)} style={{ cursor: 'pointer' }}>
@@ -128,11 +120,6 @@ export const CollectionsListPage: React.FC = () => {
                       {col.name}
                     </button>
                     <div className={styles.slug}>/{col.slug}</div>
-                  </td>
-                  <td>
-                    <span className={`${styles.modePill} ${col.mode === 'Both' ? styles.modeBoth : styles.modeSimplified}`}>
-                      {col.mode}
-                    </span>
                   </td>
                   <td className={styles.count}>{col.products}</td>
                   <td>

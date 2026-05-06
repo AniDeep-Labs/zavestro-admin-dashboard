@@ -206,7 +206,7 @@ export const AdminDashboardPage: React.FC = () => {
                   <KpiIcon />
                 </div>
               </div>
-              <div className={styles.kpiValue}>{stat ? kpi.format(stat.value) : '—'}</div>
+              <div className={styles.kpiValue}>{kpi.format(stat?.value ?? 0)}</div>
               {stat && (
                 <div className={`${styles.kpiTrend} ${stat.up ? styles.trendUp : styles.trendDown}`}>
                   <span className={styles.kpiTrendIcon}>

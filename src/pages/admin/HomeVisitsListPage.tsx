@@ -120,11 +120,11 @@ export const HomeVisitsListPage: React.FC = () => {
 
   const isNewCustomer = !form.userId;
   const canSubmit = (form.userId || (form.newCustomerName && form.newCustomerPhone)) &&
-    form.date && form.time && form.line1 && form.city;
+    form.date && form.time && form.line1 && form.city && form.hubId;
 
   const handleCreate = async () => {
     if (!canSubmit) {
-      showToast('error', 'Fill required fields', 'Customer, date, time, address line 1, and city are required');
+      showToast('error', 'Fill required fields', 'Customer, date, time, hub, address line 1, and city are required');
       return;
     }
     setCreating(true);
@@ -181,7 +181,10 @@ export const HomeVisitsListPage: React.FC = () => {
         <button
           className={styles.createBtn ?? styles.filterSelect}
           style={{ height: 38, padding: '0 16px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-family)', fontSize: 'var(--font-size-base)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-          onClick={() => setShowCreate(true)}
+          onClick={() => {
+            setForm({ ...EMPTY_FORM, hubId: hubs.length === 1 ? hubs[0].id : '' });
+            setShowCreate(true);
+          }}
         >
           <Plus size={15} /> Create Visit
         </button>
@@ -322,9 +325,9 @@ export const HomeVisitsListPage: React.FC = () => {
 
             {/* Hub */}
             <div className={modalStyles.field}>
-              <label className={modalStyles.fieldLabel}>Hub</label>
+              <label className={modalStyles.fieldLabel}>Hub *</label>
               <select className={modalStyles.fieldSelect} value={form.hubId} onChange={e => setF('hubId', e.target.value)}>
-                <option value="">— No hub assigned —</option>
+                <option value="">— Select a Hub —</option>
                 {hubs.map(h => <option key={h.id} value={h.id}>{h.name} ({h.city})</option>)}
               </select>
             </div>
@@ -379,9 +382,9 @@ export const HomeVisitsListPage: React.FC = () => {
             <div className={modalStyles.modalActions}>
               <button className={modalStyles.cancelModalBtn} onClick={() => { setShowCreate(false); setForm(EMPTY_FORM); setUserResults([]); }}>Cancel</button>
               <button
-                disabled={creating || !canSubmit}
+                disabled={creating}
                 onClick={handleCreate}
-                style={{ height: 40, padding: '0 20px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-family)', fontSize: 'var(--font-size-base)', fontWeight: 600, cursor: creating || !canSubmit ? 'not-allowed' : 'pointer', opacity: creating || !canSubmit ? 0.45 : 1 }}
+                style={{ height: 40, padding: '0 20px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-family)', fontSize: 'var(--font-size-base)', fontWeight: 600, cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.7 : 1 }}
               >
                 {creating ? 'Creating…' : 'Create Visit'}
               </button>

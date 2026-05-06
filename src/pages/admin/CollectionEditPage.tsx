@@ -27,7 +27,7 @@ export const CollectionEditPage: React.FC = () => {
 
   useBreadcrumbTitle(name || (isNew ? 'New Collection' : undefined));
   const [slug, setSlug] = React.useState('');
-  const [mode, setMode] = React.useState<'Simplified' | 'Both'>('Simplified');
+  const [slugTouched, setSlugTouched] = React.useState(false);
   const [description, setDescription] = React.useState('');
   const [status, setStatus] = React.useState<'Draft' | 'Active' | 'Archived'>('Draft');
   const [featured, setFeatured] = React.useState(false);
@@ -39,6 +39,7 @@ export const CollectionEditPage: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [loadError, setLoadError] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  const [submitted, setSubmitted] = React.useState(false);
   const bannerInputRef = React.useRef<HTMLInputElement>(null);
 
   const debouncedProductSearch = useDebounce(productSearch, 350);
@@ -53,7 +54,6 @@ export const CollectionEditPage: React.FC = () => {
       .then(async col => {
         setName(col.name);
         setSlug(col.slug);
-        setMode((col.mode as 'Simplified' | 'Both') ?? 'Simplified');
         setStatus(col.status);
         setSortOrder(String(col.sortOrder));
         setSeason(col.season);
@@ -78,7 +78,14 @@ export const CollectionEditPage: React.FC = () => {
 
   const handleNameChange = (val: string) => {
     setName(val);
-    if (isNew) setSlug(val.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+    if (!slugTouched && (isNew || !slug)) {
+      setSlug(val.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+    }
+  };
+
+  const handleSlugChange = (val: string) => {
+    setSlug(val);
+    setSlugTouched(true);
   };
 
   const addProduct = (p: ApiProduct) => {
@@ -91,10 +98,15 @@ export const CollectionEditPage: React.FC = () => {
     setSelectedProducts(prev => prev.filter(p => p.id !== pid));
 
   const handleSave = async () => {
+    setSubmitted(true);
+    if (!name) {
+      showToast('error', 'Validation Error', 'Collection Name is required');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
-        name, slug, mode, description, status, featured,
+        name, slug, description, status, featured,
         sortOrder: Number(sortOrder) || 1, season,
         productIds: selectedProducts.map(p => p.id),
       };
@@ -138,27 +150,21 @@ export const CollectionEditPage: React.FC = () => {
               <div className={styles.field}>
                 <label className={styles.label}>Collection Name *</label>
                 <input
-                  className={styles.input}
+                  className={`${styles.input} ${submitted && !name ? styles.inputError : ''}`}
                   value={name}
                   onChange={e => handleNameChange(e.target.value)}
                   placeholder="e.g., Wedding Season 2026"
                 />
+                {submitted && !name && <span className={styles.fieldHint}>This field is required</span>}
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Slug</label>
                 <div className={styles.slugRow}>
                   <span className={styles.slugPrefix}>/collections/</span>
-                  <input className={styles.input} value={slug} onChange={e => setSlug(e.target.value)} />
+                  <input className={styles.input} value={slug} onChange={e => handleSlugChange(e.target.value)} />
                 </div>
               </div>
               <div className={styles.fieldRow}>
-                <div className={styles.field}>
-                  <label className={styles.label}>Mode *</label>
-                  <select className={styles.select} value={mode} onChange={e => setMode(e.target.value as typeof mode)}>
-                    <option>Simplified</option>
-                    <option>Both</option>
-                  </select>
-                </div>
                 <div className={styles.field}>
                   <label className={styles.label}>Status</label>
                   <select className={styles.select} value={status} onChange={e => setStatus(e.target.value as typeof status)}>
@@ -263,7 +269,7 @@ export const CollectionEditPage: React.FC = () => {
 
       <div className={styles.saveBar}>
         <button className={styles.cancelBtn} onClick={() => navigate('/admin/catalog/collections')}>Cancel</button>
-        <button className={styles.saveBtn} onClick={handleSave} disabled={saving || !name}>
+        <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
           {saving ? 'Saving…' : isNew ? 'Create Collection' : 'Save Changes'}
         </button>
       </div>

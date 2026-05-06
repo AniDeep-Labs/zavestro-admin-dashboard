@@ -285,8 +285,8 @@ export const ProductEditPage: React.FC = () => {
         }
       }
 
-      showToast('success', isNew ? 'Product created' : 'Product updated');
-      setTimeout(() => navigate('/admin/catalog/products'), 800);
+      const msg = saveStatus === 'draft' ? 'Product saved as Draft' : isNew ? 'Product created' : 'Product updated';
+      navigate('/admin/catalog/products', { state: { toast: { type: 'success', title: msg } } });
     } catch (err) {
       showToast('error', 'Save failed', err instanceof Error ? err.message : undefined);
     } finally {

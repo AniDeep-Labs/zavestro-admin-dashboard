@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, X, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct, ApiCategory } from '../../api/catalogApi';
@@ -20,6 +20,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export const ProductsListPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [search, setSearch] = React.useState('');
   const [modeFilter, setModeFilter] = React.useState('');
   const [categoryFilter, setCategoryFilter] = React.useState('');
@@ -39,6 +40,14 @@ export const ProductsListPage: React.FC = () => {
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, message?: string) =>
     setToasts(t => [...t, createToast(type, title, message)]);
+
+  React.useEffect(() => {
+    if (location.state?.toast) {
+      const t = location.state.toast;
+      showToast(t.type, t.title, t.message);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   React.useEffect(() => {
     catalogApi.getCategories()
