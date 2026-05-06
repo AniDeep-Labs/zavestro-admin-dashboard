@@ -817,7 +817,8 @@
 .chartXAxis {
   display: flex;
   gap: 4px;
-  height: 16px;
+  height: 22px;
+  overflow: visible;
 }
 
 .chartXLabel {
@@ -826,8 +827,8 @@
   color: var(--color-text-tertiary);
   text-align: center;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  min-width: 0;
 }
 
 .chartXLabelHidden { visibility: hidden; }

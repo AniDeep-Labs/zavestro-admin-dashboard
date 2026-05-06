@@ -13,6 +13,7 @@ export const AdminLoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [submitted, setSubmitted] = React.useState(false);
 
   // Forgot password state
   const [showForgot, setShowForgot] = React.useState(false);
@@ -28,9 +29,9 @@ export const AdminLoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSubmitted(true);
 
     if (!email || !password) {
-      setError('Please enter your email and password.');
       return;
     }
 
@@ -78,7 +79,7 @@ export const AdminLoginPage: React.FC = () => {
               <input
                 id="email"
                 type="email"
-                className={styles.input}
+                className={`${styles.input} ${submitted && !email ? styles.inputError : ''}`}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@zavestro.in"
@@ -86,6 +87,7 @@ export const AdminLoginPage: React.FC = () => {
                 autoComplete="email"
                 disabled={loading}
               />
+              {submitted && !email && <span className={styles.fieldHint}>Email is required</span>}
             </div>
 
             <div className={styles.field}>
@@ -94,10 +96,10 @@ export const AdminLoginPage: React.FC = () => {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  className={styles.input}
+                  className={`${styles.input} ${submitted && !password ? styles.inputError : ''}`}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   autoComplete="current-password"
                   disabled={loading}
                 />
@@ -110,6 +112,7 @@ export const AdminLoginPage: React.FC = () => {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {submitted && !password && <span className={styles.fieldHint}>Password is required</span>}
             </div>
 
             {error && <div className={styles.error} role="alert">{error}</div>}

@@ -415,9 +415,13 @@ export const AdminDashboardPage: React.FC = () => {
               ))}
             </div>
             <div className={styles.chartXAxis}>
-              {(data?.revenue ?? []).map((d, i) => (
-                <div key={i} className={`${styles.chartXLabel} ${i % 2 !== 0 ? styles.chartXLabelHidden : ''}`}>{d.label}</div>
-              ))}
+              {(() => {
+                const rev = data?.revenue ?? [];
+                const step = Math.max(1, Math.ceil(rev.length / 8));
+                return rev.map((d, i) => (
+                  <div key={i} className={`${styles.chartXLabel} ${i % step !== 0 ? styles.chartXLabelHidden : ''}`}>{d.label}</div>
+                ));
+              })()}
             </div>
           </div>
         </div>

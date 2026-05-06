@@ -221,7 +221,20 @@ export const AdminLayout: React.FC = () => {
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <button className={styles.iconBtn} aria-label="Notifications">
+            <button
+              className={styles.iconBtn}
+              aria-label="Notifications"
+              title="Notifications — coming soon"
+              onClick={() => {
+                const btn = document.getElementById('notif-bell');
+                if (btn) {
+                  btn.setAttribute('data-tooltip', 'visible');
+                  setTimeout(() => btn.removeAttribute('data-tooltip'), 2000);
+                }
+              }}
+              id="notif-bell"
+              style={{ position: 'relative' }}
+            >
               <Bell size={18} />
             </button>
             <div className={styles.adminUser}>

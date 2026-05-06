@@ -73,6 +73,16 @@
   border-color: var(--color-primary);
 }
 
+.inputError {
+  border-color: var(--color-error) !important;
+}
+
+.fieldHint {
+  font-size: 12px;
+  color: var(--color-error);
+  margin-top: -2px;
+}
+
 .passwordWrap {
   position: relative;
 }

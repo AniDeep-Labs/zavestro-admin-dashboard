@@ -188,7 +188,7 @@ export const HubDetailPage: React.FC = () => {
       <div className={styles.hubHeader}>
         <div>
           <h1 className={styles.hubName}>{hub.name}</h1>
-          <div className={styles.hubSub}>{hub.city}, {hub.state}</div>
+          <div className={styles.hubSub}>{[hub.city, hub.state].filter(Boolean).join(', ')}</div>
         </div>
         <div className={styles.hubActions}>
           <button className={styles.editBtn} disabled={saving} onClick={handleSave}><Save size={14}/> {saving ? 'Saving…' : 'Save Changes'}</button>
