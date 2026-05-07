@@ -1,7 +1,7 @@
 import { getAdminToken, clearAdminToken } from './catalogApi';
 import type {
   AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry,
-  WaitlistEntry, ConfigGroup, OrderStage,
+  WaitlistEntry, ConfigGroup, ConfigItem, OrderStage,
   Collection,
   OrderItem, OrderTimelineEntry, OrderPayment,
 } from '../data/adminMockData';
@@ -37,8 +37,9 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (res.status === 401) {
       clearAdminToken();
       clearAdminUser();
-      window.location.href = '/admin/login';
-      throw new Error('Session expired. Redirecting to login…');
+      const err = new Error('Session expired. Please log in again.') as Error & { status: number };
+      err.status = 401;
+      throw err;
     }
     let msg = `Error ${res.status}`;
     try { const b = await res.json(); msg = b.message || b.error?.message || b.error || msg; } catch { /* */ }
@@ -280,6 +281,11 @@ function mapTicket(t: Record<string, unknown>): SupportTicket {
 }
 
 export const supportApi = {
+  create: async (data: Record<string, any>): Promise<SupportTicket> => {
+    const raw = await req<Record<string, unknown>>('/api/admin/support', { method: 'POST', body: JSON.stringify(data) });
+    return mapTicket(raw);
+  },
+
   list: async (params: TicketsParams = {}): Promise<TicketsResponse> => {
     const qs = new URLSearchParams();
     if (params.search)   qs.set('search',   params.search);
@@ -341,11 +347,23 @@ export const waitlistApi = {
 // ─── App Config ───────────────────────────────────────────────────────────────
 
 export const configApi = {
-  get: async (): Promise<ConfigGroup[]> =>
-    req<ConfigGroup[]>('/api/admin/config'),
+  get: async (): Promise<ConfigGroup[]> => {
+    const rows = await req<{ key: string; value: unknown; description?: string }[]>('/api/admin/config');
+    if (!rows || rows.length === 0) return [];
+    const items = rows.map(r => ({
+      key: r.key,
+      label: r.key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      value: r.value as ConfigItem['value'],
+      type: (typeof r.value === 'boolean' ? 'boolean' : 'number') as ConfigItem['type'],
+      description: r.description,
+    }));
+    return [{ title: 'App Configuration', items }];
+  },
 
-  save: async (data: ConfigGroup[]): Promise<void> =>
-    req('/api/admin/config', { method: 'PUT', body: JSON.stringify(data) }),
+  save: async (data: ConfigGroup[]): Promise<void> => {
+    const entries = data.flatMap(g => g.items.map(item => ({ key: item.key, value: item.value })));
+    return req('/api/admin/config', { method: 'PUT', body: JSON.stringify(entries) });
+  },
 };
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
@@ -377,7 +395,7 @@ export const auditApi = {
 
 // ─── Collections ─────────────────────────────────────────────────────────────
 
-export interface CollectionDetail extends Collection { productIds?: string[]; }
+export interface CollectionDetail extends Collection { productIds?: string[]; description?: string; }
 export interface CollectionsResponse { collections: Collection[]; total: number; }
 
 function mapCollection(c: Record<string, unknown>): Collection {
@@ -387,7 +405,7 @@ function mapCollection(c: Record<string, unknown>): Collection {
     slug: c.slug as string,
     mode: ((c.mode as string) || 'Simplified') as Collection['mode'],
     products: (c.product_count as number) ?? (c.products as number) ?? 0,
-    status: ((c.status as string) || 'Draft') as Collection['status'],
+    status: ((c.status as string) ?? 'Draft') as Collection['status'],
     sortOrder: (c.sort_order as number) ?? (c.sortOrder as number) ?? 0,
     hasBanner: !!(c.cover_image),
     season: (c.season as string) ?? '',
@@ -401,6 +419,7 @@ function mapCollectionDetail(c: Record<string, unknown>): CollectionDetail {
   const prods = (c.products as { id: string }[] | undefined) ?? [];
   return {
     ...mapCollection(c),
+    description: (c.description as string) ?? '',
     productIds: prods.map(p => p.id),
   };
 }

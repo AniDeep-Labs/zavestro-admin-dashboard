@@ -58,13 +58,15 @@ function NotFoundPage() {
   const nav = useNav404();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center', padding: '48px 24px' }}>
-      <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>404</div>
-      <h2 style={{ marginBottom: 8, fontSize: '1.25rem', color: 'var(--ink)' }}>Page not found</h2>
-      <p style={{ color: 'var(--ink-3)', fontSize: '0.875rem', marginBottom: 24 }}>The page you're looking for doesn't exist or has been moved.</p>
+      <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.25 }}>404</div>
+      <h2 style={{ margin: '0 0 8px', fontSize: '1.25rem', fontWeight: 600 }}>Page not found</h2>
+      <p style={{ margin: '0 0 24px', fontSize: '0.875rem', opacity: 0.55, maxWidth: 360 }}>
+        The page you're looking for doesn't exist or has been moved.
+      </p>
       <button
         onClick={() => nav('/admin/dashboard')}
         style={{
-          padding: '10px 24px', background: 'var(--green, #16a34a)', color: '#fff',
+          padding: '10px 24px', background: 'var(--color-primary, #1C5C42)', color: '#fff',
           border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem',
           fontFamily: 'inherit', fontWeight: 500,
         }}

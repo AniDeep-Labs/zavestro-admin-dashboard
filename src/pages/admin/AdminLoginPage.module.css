@@ -73,6 +73,13 @@
   border-color: var(--color-primary);
 }
 
+.input::placeholder {
+  font-family: var(--font-family);
+  color: var(--color-text-tertiary);
+  letter-spacing: normal;
+  -webkit-text-security: none;
+}
+
 .inputError {
   border-color: var(--color-error) !important;
 }
@@ -156,6 +163,24 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+.rememberRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  margin-top: -4px;
+}
+
+.rememberRow input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .forgotBtn {

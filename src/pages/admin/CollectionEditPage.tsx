@@ -54,6 +54,7 @@ export const CollectionEditPage: React.FC = () => {
       .then(async col => {
         setName(col.name);
         setSlug(col.slug);
+        setDescription(col.description ?? '');
         setStatus(col.status);
         setSortOrder(String(col.sortOrder));
         setSeason(col.season);
@@ -79,12 +80,18 @@ export const CollectionEditPage: React.FC = () => {
   const handleNameChange = (val: string) => {
     setName(val);
     if (!slugTouched && (isNew || !slug)) {
-      setSlug(val.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+      setSlug(
+        val.toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9-]/g, '')
+          .replace(/-+/g, '-')
+          .replace(/^-+|-+$/g, ''),
+      );
     }
   };
 
   const handleSlugChange = (val: string) => {
-    setSlug(val);
+    setSlug(val.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/-{2,}/g, '-'));
     setSlugTouched(true);
   };
 
@@ -99,14 +106,16 @@ export const CollectionEditPage: React.FC = () => {
 
   const handleSave = async () => {
     setSubmitted(true);
+    const cleanSlug = slug.replace(/^-+|-+$/g, '');
     if (!name) {
       showToast('error', 'Validation Error', 'Collection Name is required');
       return;
     }
+    if (cleanSlug !== slug) setSlug(cleanSlug);
     setSaving(true);
     try {
       const payload = {
-        name, slug, description, status, featured,
+        name, slug: cleanSlug, description, status, featured,
         sortOrder: Number(sortOrder) || 1, season,
         productIds: selectedProducts.map(p => p.id),
       };
@@ -161,8 +170,15 @@ export const CollectionEditPage: React.FC = () => {
                 <label className={styles.label}>Slug</label>
                 <div className={styles.slugRow}>
                   <span className={styles.slugPrefix}>/collections/</span>
-                  <input className={styles.input} value={slug} onChange={e => handleSlugChange(e.target.value)} />
+                  <input
+                    className={`${styles.input} ${slug && /^-|-$/.test(slug) ? styles.inputError : ''}`}
+                    value={slug}
+                    onChange={e => handleSlugChange(e.target.value)}
+                  />
                 </div>
+                {slug && /^-|-$/.test(slug) && (
+                  <span className={styles.fieldHint}>Slug must not start or end with a dash</span>
+                )}
               </div>
               <div className={styles.fieldRow}>
                 <div className={styles.field}>

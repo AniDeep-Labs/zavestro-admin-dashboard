@@ -32,7 +32,7 @@ function EmptyState({ message }: { message: string }) {
   return (
     <div className={styles.card} style={{ textAlign: 'center', padding: '48px 24px' }}>
       <BarChart2 size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
-      <p style={{ color: 'var(--ink-3)', fontSize: '0.875rem' }}>{message}</p>
+      <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>{message}</p>
     </div>
   );
 }
@@ -81,8 +81,10 @@ export const AnalyticsPage: React.FC = () => {
     }
   }, [section]);
 
-  const validSection = (section as Section) in SECTION_TITLES ? (section as Section) : 'revenue';
-  const title = SECTION_TITLES[validSection];
+  const VALID_SECTIONS = Object.keys(SECTION_TITLES) as Section[];
+  const isKnownSection = VALID_SECTIONS.includes(section as Section);
+  const validSection: Section = isKnownSection ? (section as Section) : 'revenue';
+  const title = isKnownSection ? SECTION_TITLES[validSection] : 'Analytics';
 
   const ordersKpi = analyticsData?.kpis.find(k => k.label === 'Orders');
   const gmvKpi    = analyticsData?.kpis.find(k => k.label === 'GMV');
@@ -132,8 +134,12 @@ export const AnalyticsPage: React.FC = () => {
         </div>
       </div>
 
+      {!isKnownSection && !!section && (
+        <EmptyState message={`Analytics section "${section}" not found.`} />
+      )}
+
       {/* Revenue */}
-      {validSection === 'revenue' && (
+      {isKnownSection && validSection === 'revenue' && (
         <>
           <div className={styles.kpiGrid}>
             {[
@@ -176,13 +182,13 @@ export const AnalyticsPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <p style={{ color: 'var(--ink-3)', fontSize: '0.875rem', padding: '24px 0' }}>No revenue recorded yet for this period.</p>
+              <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem', padding: '24px 0' }}>No revenue recorded yet for this period.</p>
             )}
           </div>
 
           <div className={styles.card}>
             <h2 className={styles.cardTitle}>Top Products by Revenue</h2>
-            <p style={{ color: 'var(--ink-3)', fontSize: '0.875rem', padding: '16px 0' }}>No orders recorded yet — top products will appear here once orders come in.</p>
+            <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem', padding: '16px 0' }}>No orders recorded yet — top products will appear here once orders come in.</p>
           </div>
         </>
       )}
@@ -282,7 +288,7 @@ export const AnalyticsPage: React.FC = () => {
         <div className={styles.card}>
           <h2 className={styles.cardTitle}>Hub Performance Comparison</h2>
           {hubs.length === 0 ? (
-            <p style={{ color: 'var(--ink-3)', fontSize: '0.875rem', padding: '16px 0' }}>No hubs configured yet. Add hubs from the Hubs section.</p>
+            <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem', padding: '16px 0' }}>No hubs configured yet. Add hubs from the Hubs section.</p>
           ) : (
             <table className={styles.table}>
               <thead>

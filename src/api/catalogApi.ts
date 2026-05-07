@@ -133,6 +133,12 @@ function mapProduct(p: Record<string, unknown>): ApiProduct {
   const mediaArr = (p.media ?? p.images ?? []) as Record<string, unknown>[];
   const variantArr = (p.variants ?? []) as Record<string, unknown>[];
 
+  const resolvedStatus = (p.status as string | undefined) === 'draft'
+    ? 'draft'
+    : (p.status as string | undefined) === 'archived'
+      ? 'archived'
+      : (p.is_active === false ? 'archived' : 'active');
+
   return {
     id: p.id as string,
     name: p.name as string,
@@ -143,14 +149,14 @@ function mapProduct(p: Record<string, unknown>): ApiProduct {
     category: category
       ? { id: category.id as string, name: category.name as string, slug: category.slug as string }
       : (categoryName || categoryId)
-        ? { id: categoryId, name: categoryName || '—', slug: '' }
+        ? { id: categoryId, name: categoryName, slug: '' }
         : { id: '', name: '—' },
     tags: (p.tags ?? []) as string[],
     images: mediaArr.map(mapMedia),
     delivery_days_min: (p.delivery_days_min ?? 7) as number,
     delivery_days_max: (p.delivery_days_max ?? 10) as number,
     is_made_to_order: (p.is_made_to_order ?? true) as boolean,
-    status: (p.status === 'draft' ? 'draft' : p.is_active === false ? 'archived' : 'active'),
+    status: resolvedStatus as 'active' | 'draft' | 'archived',
     variants: variantArr.map(mapVariant),
     created_at: (p.created_at ?? '') as string,
     updated_at: (p.updated_at ?? '') as string,
@@ -192,10 +198,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 // ─── API surface ──────────────────────────────────────────────────────────────
 
 export const catalogApi = {
-  login: (email: string, password: string) =>
+  login: (email: string, password: string, rememberMe?: boolean) =>
     request<{ success: boolean; data: { token: string; admin: { id: string; email: string; role: string } } }>(
       '/api/admin/auth/login',
-      { method: 'POST', body: JSON.stringify({ email, password }) }
+      { method: 'POST', body: JSON.stringify({ email, password, rememberMe }) }
     ).then(res => ({
       token: res.data.token,
       user: res.data.admin,
@@ -217,8 +223,9 @@ export const catalogApi = {
     if (params.page) qs.set('page', String(params.page));
     if (params.limit) qs.set('limit', String(params.limit));
     const q = qs.toString();
+    // Use admin endpoint so drafts and archived products are visible
     return request<{ success: boolean; data: Record<string, unknown>[]; meta: { total: number; page: number; limit: number } }>(
-      `/api/catalog/products${q ? `?${q}` : ''}`
+      `/api/catalog/admin/products${q ? `?${q}` : ''}`
     ).then(res => ({
       products: res.data.map(mapProduct),
       total: res.meta.total,
@@ -245,7 +252,6 @@ export const catalogApi = {
         delivery_days_min: data.delivery_days_min,
         delivery_days_max: data.delivery_days_max,
         is_made_to_order: data.is_made_to_order,
-        is_active: data.status === 'active',
         status: data.status ?? 'active',
       }),
     }).then(res => mapProduct(res.data)),
@@ -264,7 +270,7 @@ export const catalogApi = {
         ...(data.delivery_days_min !== undefined && { delivery_days_min: data.delivery_days_min }),
         ...(data.delivery_days_max !== undefined && { delivery_days_max: data.delivery_days_max }),
         ...(data.is_made_to_order !== undefined && { is_made_to_order: data.is_made_to_order }),
-        ...(data.status !== undefined && { is_active: data.status === 'active' }),
+        ...(data.status !== undefined && { status: data.status }),
       }),
     }).then(res => mapProduct(res.data)),
 
@@ -377,5 +383,10 @@ export const catalogApi = {
     request<{ success: boolean; data: AdminUser }>('/api/admin/auth/create-admin', {
       method: 'POST',
       body: JSON.stringify(data),
+    }).then(res => res.data),
+
+  generateResetLink: (adminId: string): Promise<{ token: string }> =>
+    request<{ success: boolean; data: { token: string } }>(`/api/admin/auth/users/${adminId}/reset-link`, {
+      method: 'POST',
     }).then(res => res.data),
 };

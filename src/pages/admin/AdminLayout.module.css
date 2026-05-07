@@ -385,7 +385,7 @@
   flex: 1;
   padding: 24px;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   min-width: 0;
 }
 

@@ -77,7 +77,7 @@ export const HubsListPage: React.FC = () => {
               <div className={styles.hubHeader}>
                 <div>
                   <div className={styles.hubName}>{hub.name}</div>
-                  <div className={styles.hubLocation}>{hub.city}, {hub.state}</div>
+                  <div className={styles.hubLocation}>{[hub.city, hub.state].map(s => s?.trim()).filter(Boolean).join(', ')}</div>
                 </div>
                 <span className={`${styles.hubStatus} ${styles[statusCss[hub.status]]}`}>{hub.status}</span>
               </div>

@@ -72,6 +72,7 @@ export const HomeVisitsListPage: React.FC = () => {
   const [showCreate, setShowCreate] = React.useState(false);
   const [form, setForm] = React.useState<CreateForm>(EMPTY_FORM);
   const [creating, setCreating] = React.useState(false);
+  const [modalSubmitted, setModalSubmitted] = React.useState(false);
   const [userResults, setUserResults] = React.useState<{ id: string; name: string; phone: string; email: string }[]>([]);
   const debouncedQuery = useDebounce(form.userQuery, 350);
 
@@ -123,6 +124,7 @@ export const HomeVisitsListPage: React.FC = () => {
     form.date && form.time && form.line1 && form.city && form.hubId;
 
   const handleCreate = async () => {
+    setModalSubmitted(true);
     if (!canSubmit) {
       showToast('error', 'Fill required fields', 'Customer, date, time, hub, address line 1, and city are required');
       return;
@@ -149,6 +151,7 @@ export const HomeVisitsListPage: React.FC = () => {
       setShowCreate(false);
       setForm(EMPTY_FORM);
       setUserResults([]);
+      setModalSubmitted(false);
       load();
       navigate(`/admin/home-visits/${visit.id}`);
     } catch (e) {
@@ -244,14 +247,14 @@ export const HomeVisitsListPage: React.FC = () => {
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} visit${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
           <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
-          <span className={styles.pageIndicator}>Page {page}</span>
+          <span className={styles.pageIndicator}>Page {page} of {Math.max(1, Math.ceil(total / 25))}</span>
           <button className={styles.pageBtn} disabled={visits.length < 25 || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
         </div>
       </div>
 
       {/* Create Visit Modal */}
       {showCreate && (
-        <div className={modalStyles.modalOverlay} onClick={() => setShowCreate(false)}>
+        <div className={modalStyles.modalOverlay} onClick={() => { setShowCreate(false); setModalSubmitted(false); }}>
           <div className={modalStyles.modal} style={{ maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <h2 className={modalStyles.modalTitle}>Create Home Visit</h2>
 
@@ -326,10 +329,18 @@ export const HomeVisitsListPage: React.FC = () => {
             {/* Hub */}
             <div className={modalStyles.field}>
               <label className={modalStyles.fieldLabel}>Hub *</label>
-              <select className={modalStyles.fieldSelect} value={form.hubId} onChange={e => setF('hubId', e.target.value)}>
+              <select
+                className={modalStyles.fieldSelect}
+                value={form.hubId}
+                onChange={e => setF('hubId', e.target.value)}
+                style={modalSubmitted && !form.hubId ? { borderColor: 'var(--color-error)' } : undefined}
+              >
                 <option value="">— Select a Hub —</option>
                 {hubs.map(h => <option key={h.id} value={h.id}>{h.name} ({h.city})</option>)}
               </select>
+              {modalSubmitted && !form.hubId && (
+                <div style={{ fontSize: 12, color: 'var(--color-error)', marginTop: 2 }}>Please select a hub</div>
+              )}
             </div>
 
             {/* Address */}
@@ -380,7 +391,7 @@ export const HomeVisitsListPage: React.FC = () => {
             </div>
 
             <div className={modalStyles.modalActions}>
-              <button className={modalStyles.cancelModalBtn} onClick={() => { setShowCreate(false); setForm(EMPTY_FORM); setUserResults([]); }}>Cancel</button>
+              <button className={modalStyles.cancelModalBtn} onClick={() => { setShowCreate(false); setForm(EMPTY_FORM); setUserResults([]); setModalSubmitted(false); }}>Cancel</button>
               <button
                 disabled={creating}
                 onClick={handleCreate}

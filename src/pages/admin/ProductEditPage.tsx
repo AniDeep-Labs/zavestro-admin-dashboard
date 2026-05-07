@@ -74,6 +74,7 @@ export const ProductEditPage: React.FC = () => {
   // Loading
   const [fetchLoading, setFetchLoading] = React.useState(!isNew);
   const [saving, setSaving] = React.useState(false);
+  const [submitted, setSubmitted] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
@@ -203,17 +204,15 @@ export const ProductEditPage: React.FC = () => {
   // ─── Save ─────────────────────────────────────────────────────────────────
 
   const validate = () => {
-    if (!name.trim()) { showToast('warning', 'Product name is required'); return false; }
-    if (!basePrice || isNaN(Number(basePrice)) || Number(basePrice) <= 0) {
-      showToast('warning', 'Enter a valid base price');
-      return false;
-    }
-    if (!categoryId) { showToast('warning', 'Please select a category'); return false; }
+    if (!name.trim()) return false;
+    if (!basePrice || isNaN(Number(basePrice)) || Number(basePrice) <= 0) return false;
+    if (!categoryId) return false;
     return true;
   };
 
   const handleSave = async (targetStatus?: 'active' | 'draft') => {
-    if (!validate()) return;
+    setSubmitted(true);
+    if (!validate()) { showToast('warning', 'Please fill in all required fields'); return; }
     const saveStatus = targetStatus ?? status;
     setSaving(true);
     setStatus(saveStatus);
@@ -332,11 +331,12 @@ export const ProductEditPage: React.FC = () => {
               <div className={styles.field}>
                 <label className={styles.label}>Product Name *</label>
                 <input
-                  className={styles.input}
+                  className={`${styles.input} ${submitted && !name.trim() ? styles.inputError : ''}`}
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="e.g., Classic Oxford Shirt"
                 />
+                {submitted && !name.trim() && <span className={styles.fieldHint}>Product name is required</span>}
               </div>
 
               <div className={styles.field}>
@@ -352,13 +352,14 @@ export const ProductEditPage: React.FC = () => {
               <div className={styles.field}>
                 <label className={styles.label}>Base Price (₹) *</label>
                 <input
-                  className={styles.input}
+                  className={`${styles.input} ${submitted && (!basePrice || isNaN(Number(basePrice)) || Number(basePrice) <= 0) ? styles.inputError : ''}`}
                   type="number"
                   min="0"
                   value={basePrice}
                   onChange={e => setBasePrice(e.target.value)}
                   placeholder="e.g., 1299"
                 />
+                {submitted && (!basePrice || isNaN(Number(basePrice)) || Number(basePrice) <= 0) && <span className={styles.fieldHint}>Enter a valid base price</span>}
               </div>
 
               <div className={styles.field}>
@@ -391,16 +392,19 @@ export const ProductEditPage: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  <select
-                    className={styles.select}
-                    value={categoryId}
-                    onChange={e => setCategoryId(e.target.value)}
-                  >
-                    <option value="">Select category…</option>
-                    {categories.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                  <>
+                    <select
+                      className={`${styles.select} ${submitted && !categoryId ? styles.inputError : ''}`}
+                      value={categoryId}
+                      onChange={e => setCategoryId(e.target.value)}
+                    >
+                      <option value="">Select category…</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    {submitted && !categoryId && <span className={styles.fieldHint}>Please select a category</span>}
+                  </>
                 )}
               </div>
 

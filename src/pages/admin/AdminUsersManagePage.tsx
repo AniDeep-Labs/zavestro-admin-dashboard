@@ -48,12 +48,10 @@ export const AdminUsersManagePage: React.FC = () => {
   const handleResetLink = async (user: AdminUser) => {
     setResetting(user.id);
     try {
-      const result = await catalogApi.forgotPassword(user.email);
-      if (result.token) {
-        const link = `${window.location.origin}/admin/reset-password?token=${result.token}`;
-        setResetLinks(prev => ({ ...prev, [user.id]: link }));
-        showToast('success', 'Reset link generated');
-      }
+      const result = await catalogApi.generateResetLink(user.id);
+      const link = `${window.location.origin}/admin/reset-password?token=${result.token}`;
+      setResetLinks(prev => ({ ...prev, [user.id]: link }));
+      showToast('success', 'Reset link generated');
     } catch (err) {
       showToast('error', 'Failed', err instanceof Error ? err.message : '');
     } finally {

@@ -69,17 +69,16 @@ const NAV: NavItem[] = [
   },
 ];
 
-export const AdminLayout: React.FC = () => {
+// Inner component rendered inside BreadcrumbProvider so useBreadcrumb() reads
+// the correct context value (entity titles set by detail pages).
+const AdminLayoutInner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { title: entityTitle } = useBreadcrumb();
   const [theme, setTheme] = React.useState(getCurrentTheme());
   const [collapsed, setCollapsed] = React.useState(false);
   const [expandedSections, setExpandedSections] = React.useState<string[]>(['Catalog', 'Content', 'Analytics', 'System', 'Consultations']);
-
-  if (!hasAdminToken()) {
-    return <Navigate to="/admin/login" replace />;
-  }
+  const [showNotifTooltip, setShowNotifTooltip] = React.useState(false);
 
   const adminUser = getAdminUser();
   const adminEmail = adminUser?.email ?? 'admin@zavestro.in';
@@ -100,7 +99,6 @@ export const AdminLayout: React.FC = () => {
   };
 
   return (
-    <BreadcrumbProvider>
     <div className={`${styles.layout} ${collapsed ? styles.collapsed : ''}`}>
       {/* Sidebar */}
       <aside className={styles.sidebar}>
@@ -224,18 +222,24 @@ export const AdminLayout: React.FC = () => {
             <button
               className={styles.iconBtn}
               aria-label="Notifications"
-              title="Notifications — coming soon"
-              onClick={() => {
-                const btn = document.getElementById('notif-bell');
-                if (btn) {
-                  btn.setAttribute('data-tooltip', 'visible');
-                  setTimeout(() => btn.removeAttribute('data-tooltip'), 2000);
-                }
-              }}
-              id="notif-bell"
               style={{ position: 'relative' }}
+              onClick={() => {
+                setShowNotifTooltip(true);
+                setTimeout(() => setShowNotifTooltip(false), 2200);
+              }}
             >
               <Bell size={18} />
+              {showNotifTooltip && (
+                <span style={{
+                  position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                  background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-light)',
+                  borderRadius: 6, padding: '6px 12px', fontSize: 12,
+                  color: 'var(--color-text-secondary)', whiteSpace: 'nowrap',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.12)', zIndex: 200,
+                }}>
+                  Notifications coming soon
+                </span>
+              )}
             </button>
             <div className={styles.adminUser}>
               <div className={styles.avatar}>{adminInitial}</div>
@@ -267,6 +271,16 @@ export const AdminLayout: React.FC = () => {
         </main>
       </div>
     </div>
+  );
+};
+
+export const AdminLayout: React.FC = () => {
+  if (!hasAdminToken()) {
+    return <Navigate to="/admin/login" replace />;
+  }
+  return (
+    <BreadcrumbProvider>
+      <AdminLayoutInner />
     </BreadcrumbProvider>
   );
 };

@@ -11,6 +11,7 @@ export const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
+  const [rememberMe, setRememberMe] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [submitted, setSubmitted] = React.useState(false);
@@ -37,7 +38,7 @@ export const AdminLoginPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await catalogApi.login(email, password);
+      const res = await catalogApi.login(email, password, rememberMe);
       setAdminToken(res.token);
       setAdminUser({ email: res.user?.email ?? email, role: res.user?.role ?? 'admin' });
       navigate('/admin/dashboard', { replace: true });
@@ -114,6 +115,16 @@ export const AdminLoginPage: React.FC = () => {
               </div>
               {submitted && !password && <span className={styles.fieldHint}>Password is required</span>}
             </div>
+
+            <label className={styles.rememberRow}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                disabled={loading}
+              />
+              <span>Remember me for 30 days</span>
+            </label>
 
             {error && <div className={styles.error} role="alert">{error}</div>}
 

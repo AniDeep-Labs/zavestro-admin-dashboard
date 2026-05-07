@@ -96,8 +96,8 @@ export const UsersListPage: React.FC = () => {
               <tr key={u.id} className={styles.row} onClick={() => navigate(`/admin/users/${u.id}`)}>
                 <td className={styles.userName}>{u.name}</td>
                 <td className={styles.phone}>{u.phone}</td>
-                <td className={styles.email}>{u.email}</td>
-                <td>{u.city}</td>
+                <td className={styles.email}>{u.email || '—'}</td>
+                <td>{u.city || '—'}</td>
                 <td className={styles.orders}>{u.orders}</td>
                 <td className={styles.credits}>₹{u.credits?.toLocaleString('en-IN')}</td>
                 <td className={styles.date}>{u.joined}</td>

@@ -158,7 +158,7 @@ export const AppConfigPage: React.FC = () => {
       )}
 
       <div className={styles.auditLink}>
-        <button className={styles.linkBtn} onClick={() => navigate('/admin/system/audit')}>
+        <button className={styles.linkBtn} onClick={() => navigate('/admin/system/audit-log')}>
           View config change history →
         </button>
       </div>

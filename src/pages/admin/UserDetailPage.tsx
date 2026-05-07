@@ -110,8 +110,14 @@ export const UserDetailPage: React.FC = () => {
                 <div className={styles.profileName}>{user.name}</div>
                 <div className={styles.profileDetails}>
                   <span>{user.phone}</span>
-                  {user.email && <span>{user.email}</span>}
-                  <span>{user.city}</span>
+                  <span className={styles.profileDetailRow}>
+                    <span className={styles.profileDetailLabel}>Email</span>
+                    {user.email || '—'}
+                  </span>
+                  <span className={styles.profileDetailRow}>
+                    <span className={styles.profileDetailLabel}>City</span>
+                    {user.city || '—'}
+                  </span>
                   <span>Joined {user.joined}</span>
                 </div>
               </div>

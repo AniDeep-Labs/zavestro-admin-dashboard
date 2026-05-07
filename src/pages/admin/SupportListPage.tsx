@@ -32,6 +32,12 @@ export const SupportListPage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const debouncedSearch = useDebounce(search, 350);
 
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [creating, setCreating] = React.useState(false);
+  const [form, setForm] = React.useState({ customerName: '', customerPhone: '', subject: '', category: 'General', priority: 'Medium', message: '' });
+
+  const setF = (k: keyof typeof form, v: string) => setForm(p => ({ ...p, [k]: v }));
+
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
@@ -44,6 +50,32 @@ export const SupportListPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [debouncedSearch, statusFilter, priorityFilter, page]);
 
+  const handleCreate = async () => {
+    if (!form.customerName || !form.subject || !form.message) {
+      showToast('error', 'Required fields missing', 'Please fill in customer name, subject, and initial message.');
+      return;
+    }
+    setCreating(true);
+    try {
+      const newTicket = await supportApi.create({
+        customer_name: form.customerName,
+        customer_phone: form.customerPhone,
+        subject: form.subject,
+        category: form.category,
+        priority: form.priority,
+        messages: [{ sender: 'admin', body: form.message, timestamp: new Date().toISOString() }]
+      });
+      setTickets(prev => [newTicket, ...prev]);
+      setShowCreate(false);
+      setForm({ customerName: '', customerPhone: '', subject: '', category: 'General', priority: 'Medium', message: '' });
+      showToast('success', 'Ticket created', `Ticket #${newTicket.id} created successfully.`);
+    } catch (e) {
+      showToast('error', 'Failed to create ticket', e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const open = tickets.filter(t => t.status === 'Open').length;
   const inProgress = tickets.filter(t => t.status === 'In Progress').length;
   const unassigned = tickets.filter(t => !t.assignedTo).length;
@@ -53,7 +85,7 @@ export const SupportListPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Support Tickets</h1>
-        <button className={styles.addBtn ?? styles.exportBtn} onClick={() => showToast('info', 'Create Ticket', 'Admin-created tickets are coming soon. Tickets are currently opened by customers via the app.')}
+        <button className={styles.addBtn ?? styles.exportBtn} onClick={() => setShowCreate(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--green)', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}>
           <Plus size={14}/> Create Ticket
         </button>
@@ -142,6 +174,59 @@ export const SupportListPage: React.FC = () => {
           <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
         </div>
       </div>
+
+      {showCreate && (
+        <div className={styles.modalOverlay} onClick={() => setShowCreate(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Create Support Ticket</h2>
+            <div className={styles.fields}>
+              <div className={styles.fieldRow} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Customer Name *</label>
+                  <input className={styles.fieldInput} value={form.customerName} onChange={e => setF('customerName', e.target.value)} placeholder="Full Name" />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Phone</label>
+                  <input className={styles.fieldInput} value={form.customerPhone} onChange={e => setF('customerPhone', e.target.value)} placeholder="+91..." />
+                </div>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Subject *</label>
+                <input className={styles.fieldInput} value={form.subject} onChange={e => setF('subject', e.target.value)} placeholder="Issue summary" />
+              </div>
+              <div className={styles.fieldRow} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Category</label>
+                  <select className={styles.fieldSelect} value={form.category} onChange={e => setF('category', e.target.value)}>
+                    <option>General</option>
+                    <option>Order Issue</option>
+                    <option>Return/Refund</option>
+                    <option>Technical Support</option>
+                  </select>
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Priority</label>
+                  <select className={styles.fieldSelect} value={form.priority} onChange={e => setF('priority', e.target.value)}>
+                    <option>Low</option>
+                    <option>Medium</option>
+                    <option>High</option>
+                  </select>
+                </div>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Initial Message *</label>
+                <textarea className={styles.fieldTextarea} rows={4} value={form.message} onChange={e => setF('message', e.target.value)} placeholder="Describe the issue..."></textarea>
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.cancelModalBtn} onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className={styles.addBtn} onClick={handleCreate} disabled={creating} style={{ opacity: creating ? 0.7 : 1 }}>
+                {creating ? 'Creating...' : 'Create Ticket'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
