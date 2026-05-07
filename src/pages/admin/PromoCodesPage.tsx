@@ -10,7 +10,7 @@ function EmptyState({ message }: { message: string }) {
   return (
     <div className={styles.card} style={{ textAlign: 'center', padding: '48px 24px' }}>
       <BarChart2 size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
-      <p style={{ color: 'var(--ink-3)', fontSize: '0.875rem' }}>{message}</p>
+      <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>{message}</p>
     </div>
   );
 }

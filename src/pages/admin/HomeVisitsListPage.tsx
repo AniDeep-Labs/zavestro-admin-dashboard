@@ -18,12 +18,12 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled',
+  pending: 'Pending', confirmed: 'Confirmed', ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled',
 };
 const STATUS_CSS: Record<string, string> = {
-  pending: 'stageWarning', confirmed: 'stageBlue', completed: 'stageSuccess', cancelled: 'stageNeutral',
+  pending: 'stageWarning', confirmed: 'stageBlue', ongoing: 'stageBlue', completed: 'stageSuccess', cancelled: 'stageNeutral',
 };
-const VALID_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
+const VALID_STATUSES = ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled'];
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
