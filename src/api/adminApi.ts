@@ -190,6 +190,11 @@ export const usersApi = {
     return mapUser(u);
   },
 
+  create: async (data: { phone: string; name?: string; email?: string }): Promise<AdminUser> => {
+    const raw = await req<Record<string, unknown>>('/api/admin/users', { method: 'POST', body: JSON.stringify(data) });
+    return mapUser(raw);
+  },
+
   issueCredits: async (id: string, amount: number, reason: string): Promise<void> =>
     req(`/api/admin/users/${id}/credits`, { method: 'POST', body: JSON.stringify({ amount, reason }) }),
 

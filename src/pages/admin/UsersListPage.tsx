@@ -28,6 +28,13 @@ export const UsersListPage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const debouncedSearch = useDebounce(search, 350);
 
+  // Create user modal
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [newPhone, setNewPhone] = React.useState('');
+  const [newName, setNewName] = React.useState('');
+  const [newEmail, setNewEmail] = React.useState('');
+  const [creating, setCreating] = React.useState(false);
+
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
@@ -49,15 +56,34 @@ export const UsersListPage: React.FC = () => {
     a.download = `users-${new Date().toISOString().slice(0,10)}.csv`; a.click();
   };
 
+  const handleCreateUser = async () => {
+    if (!newPhone.trim()) { showToast('error', 'Phone number is required'); return; }
+    setCreating(true);
+    try {
+      const created = await usersApi.create({
+        phone: newPhone.trim(),
+        name: newName.trim() || undefined,
+        email: newEmail.trim() || undefined,
+      });
+      setUsers(prev => [created, ...prev]);
+      setTotal(t => t + 1);
+      setShowCreate(false);
+      setNewPhone(''); setNewName(''); setNewEmail('');
+      showToast('success', 'User created', `${created.name || created.phone} added`);
+    } catch (e) {
+      showToast('error', 'Failed to create user', e instanceof Error ? e.message : undefined);
+    } finally { setCreating(false); }
+  };
+
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Users</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className={styles.exportBtn} onClick={() => showToast('info', 'Invite User', 'Users register via the Zavestro app. Admin-created accounts are not supported yet.')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}>
-            <UserPlus size={14}/> Invite User
+          <button className={styles.exportBtn} onClick={() => setShowCreate(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-green, var(--green))', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}>
+            <UserPlus size={14}/> Add User
           </button>
           <button className={styles.exportBtn} onClick={exportCSV}><Download size={14} /> Export CSV</button>
         </div>
@@ -94,7 +120,7 @@ export const UsersListPage: React.FC = () => {
               <tr><td colSpan={8} className={styles.empty}>No users found.</td></tr>
             ) : users.map(u => (
               <tr key={u.id} className={styles.row} onClick={() => navigate(`/admin/users/${u.id}`)}>
-                <td className={styles.userName}>{u.name}</td>
+                <td className={styles.userName}>{u.name || '—'}</td>
                 <td className={styles.phone}>{u.phone}</td>
                 <td className={styles.email}>{u.email || '—'}</td>
                 <td>{u.city || '—'}</td>
@@ -120,6 +146,39 @@ export const UsersListPage: React.FC = () => {
           <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
         </div>
       </div>
+
+      {showCreate && (
+        <div className={styles.modalOverlay} onClick={() => setShowCreate(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Add User Account</h3>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>Creates an app account. The user can log in with their phone number via OTP.</p>
+            <div className={styles.fields}>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Phone * (with country code)</label>
+                <input className={styles.fieldInput} placeholder="e.g., +919876543210"
+                  value={newPhone} onChange={e => setNewPhone(e.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Name (optional)</label>
+                <input className={styles.fieldInput} placeholder="Full name"
+                  value={newName} onChange={e => setNewName(e.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Email (optional)</label>
+                <input className={styles.fieldInput} type="email" placeholder="user@example.com"
+                  value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.cancelModalBtn} onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className={styles.addBtn} disabled={creating} onClick={handleCreateUser}
+                style={{ height: 40, padding: '0 20px', borderRadius: 'var(--radius-md)', cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.7 : 1 }}>
+                {creating ? 'Creating…' : 'Create Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
