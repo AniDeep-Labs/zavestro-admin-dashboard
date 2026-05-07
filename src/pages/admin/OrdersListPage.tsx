@@ -153,7 +153,7 @@ export const OrdersListPage: React.FC = () => {
       });
       showToast('success', 'Order created', created.order_number ?? created.id);
       setShowCreate(false);
-      setOrders(prev => [{ id: created.order_number ?? created.id, uuid: created.id, customer: selectedUser.name, phone: selectedUser.phone, email: selectedUser.email, user_id: selectedUser.id, mode: 'Simplified', stage: 'payment_confirmed', status: 'confirmed', hub: hubs.find(h => h.id === selectedHubId)?.name ?? '', total: totalAmount, products: orderItems.map(i => i.product_name), created: new Date().toLocaleDateString('en-IN'), overdue: false, items: [], timeline: [], payments: [] }, ...prev]);
+      setOrders(prev => [{ id: created.order_number ?? created.id, uuid: created.id, customer: selectedUser.name, phone: selectedUser.phone, email: selectedUser.email, user_id: selectedUser.id, mode: 'Simplified', stage: 'payment_confirmed', status: 'active', hub: hubs.find(h => h.id === selectedHubId)?.name ?? '', total: totalAmount, products: orderItems.map(i => i.product_name), created: new Date().toLocaleDateString('en-IN'), overdue: false, items: [], timeline: [], payments: [] }, ...prev]);
     } catch (e) {
       showToast('error', 'Failed to create order', e instanceof Error ? e.message : undefined);
     } finally { setCreating(false); }
