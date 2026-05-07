@@ -619,6 +619,9 @@ export const homeVisitsApi = {
   getMeasurements: async (id: string): Promise<BodyMeasurement[]> =>
     req<{ measurements: BodyMeasurement[] }>(`/api/admin/home-visits/${id}/measurements`).then(r => r.measurements),
 
+  recordMeasurements: async (id: string, data: Partial<Record<string, number>>): Promise<BodyMeasurement> =>
+    req<BodyMeasurement>(`/api/admin/home-visits/${id}/measurements`, { method: 'POST', body: JSON.stringify(data) }),
+
   create: async (data: {
     user_id?: string;
     customer_name?: string;

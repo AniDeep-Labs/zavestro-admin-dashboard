@@ -11,6 +11,7 @@ import styles from './OrderDetailPage.module.css';
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   confirmed: 'Confirmed',
+  ongoing: 'Ongoing',
   completed: 'Completed',
   cancelled: 'Cancelled',
 };
@@ -18,11 +19,12 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_CSS: Record<string, string> = {
   pending: 'stageWarning',
   confirmed: 'stageBlue',
+  ongoing: 'stageBlue',
   completed: 'stageSuccess',
   cancelled: 'stageNeutral',
 };
 
-const VALID_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
+const VALID_STATUSES = ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled'];
 
 const MEASUREMENT_FIELDS: { key: keyof BodyMeasurement; label: string }[] = [
   { key: 'chest',          label: 'Chest' },
@@ -69,6 +71,9 @@ export const HomeVisitDetailPage: React.FC = () => {
   const [measurements, setMeasurements] = React.useState<BodyMeasurement[]>([]);
   const [measurementsLoaded, setMeasurementsLoaded] = React.useState(false);
   const [loadingMeasurements, setLoadingMeasurements] = React.useState(false);
+  const [showRecordForm, setShowRecordForm] = React.useState(false);
+  const [recordForm, setRecordForm] = React.useState<Record<string, string>>({});
+  const [savingMeasurements, setSavingMeasurements] = React.useState(false);
 
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -169,6 +174,32 @@ export const HomeVisitDetailPage: React.FC = () => {
       showToast('error', 'Failed to load measurements', e instanceof Error ? e.message : undefined);
     } finally {
       setLoadingMeasurements(false);
+    }
+  };
+
+  const handleRecordMeasurements = async () => {
+    if (!visit || savingMeasurements) return;
+    const data: Record<string, number> = {};
+    for (const [k, v] of Object.entries(recordForm)) {
+      const n = parseFloat(v);
+      if (!isNaN(n) && n > 0) data[k] = n;
+    }
+    if (Object.keys(data).length === 0) {
+      showToast('error', 'Enter at least one measurement');
+      return;
+    }
+    setSavingMeasurements(true);
+    try {
+      const saved = await homeVisitsApi.recordMeasurements(visit.id, data);
+      setMeasurements(prev => [saved, ...prev]);
+      setMeasurementsLoaded(true);
+      setShowRecordForm(false);
+      setRecordForm({});
+      showToast('success', 'Measurements recorded');
+    } catch (e) {
+      showToast('error', 'Failed to save measurements', e instanceof Error ? e.message : undefined);
+    } finally {
+      setSavingMeasurements(false);
     }
   };
 
@@ -466,22 +497,63 @@ export const HomeVisitDetailPage: React.FC = () => {
       <div className={styles.card} style={{ marginTop: 12 }}>
         <div className={styles.cardHeader} style={{ justifyContent: 'space-between' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Ruler size={15} /> Measurements</span>
-          {!measurementsLoaded && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            {!measurementsLoaded && (
+              <button className={styles.actionBtn} onClick={handleLoadMeasurements} disabled={loadingMeasurements}>
+                {loadingMeasurements ? 'Loading…' : 'Load Measurements'}
+              </button>
+            )}
             <button
               className={styles.actionBtn}
-              style={{ marginLeft: 'auto' }}
-              onClick={handleLoadMeasurements}
-              disabled={loadingMeasurements}
+              style={{ background: 'var(--color-primary)', color: '#fff', border: 'none' }}
+              onClick={() => setShowRecordForm(v => !v)}
             >
-              {loadingMeasurements ? 'Loading…' : 'Load Measurements'}
+              {showRecordForm ? 'Cancel' : 'Record Measurements'}
             </button>
-          )}
+          </div>
         </div>
+        {showRecordForm && (
+          <div className={styles.cardBody} style={{ borderBottom: '1px solid var(--color-border-light)', marginBottom: 0, paddingBottom: 16 }}>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              Enter measurements in centimetres. Leave blank to skip a field.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px 16px' }}>
+              {MEASUREMENT_FIELDS.map(({ key, label }) => (
+                <div key={key} className={styles.field}>
+                  <span className={styles.fieldLabel}>{label} (cm)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    className={styles.fieldSelect}
+                    style={{ height: 34, padding: '0 8px', fontSize: 13 }}
+                    placeholder="—"
+                    value={recordForm[key] ?? ''}
+                    onChange={e => setRecordForm(f => ({ ...f, [key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+              <button
+                className={styles.actionBtn}
+                style={{ background: 'var(--color-primary)', color: '#fff', border: 'none' }}
+                disabled={savingMeasurements}
+                onClick={handleRecordMeasurements}
+              >
+                {savingMeasurements ? 'Saving…' : 'Save Measurements'}
+              </button>
+              <button className={styles.actionBtn} onClick={() => { setShowRecordForm(false); setRecordForm({}); }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {measurementsLoaded && (
           <div className={styles.cardBody}>
             {measurements.length === 0 ? (
               <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-tertiary)' }}>
-                {visit.fit_profile_id ? 'No measurements recorded yet for this fit profile.' : 'No fit profile linked to this visit.'}
+                No measurements recorded yet. Use "Record Measurements" above after the visit.
               </p>
             ) : measurements.map((m, i) => (
               <div key={m.id} style={{ marginBottom: i < measurements.length - 1 ? 20 : 0 }}>
