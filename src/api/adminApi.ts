@@ -233,6 +233,19 @@ function mapHub(h: Record<string, unknown>): Hub {
   };
 }
 
+export interface HubPincode { id: string; pincode: string; created_at: string; }
+
+export const hubPincodesApi = {
+  list: async (hubId: string): Promise<HubPincode[]> =>
+    req<{ pincodes: HubPincode[] }>(`/api/admin/hubs/${hubId}/pincodes`).then(r => r.pincodes),
+
+  add: async (hubId: string, pincodes: string[]): Promise<{ added: HubPincode[] }> =>
+    req<{ added: HubPincode[] }>(`/api/admin/hubs/${hubId}/pincodes`, { method: 'POST', body: JSON.stringify({ pincodes }) }),
+
+  remove: async (hubId: string, pincode: string): Promise<void> =>
+    req(`/api/admin/hubs/${hubId}/pincodes/${encodeURIComponent(pincode)}`, { method: 'DELETE' }),
+};
+
 export const hubsApi = {
   list: async (params: HubsParams = {}): Promise<HubsResponse> => {
     const qs = new URLSearchParams();

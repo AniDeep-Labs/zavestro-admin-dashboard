@@ -1,14 +1,14 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Save, PowerOff, Power, Plus } from 'lucide-react';
-import { hubsApi, hubStaffApi } from '../../api/adminApi';
-import type { Hub, HubStaff } from '../../api/adminApi';
+import { hubsApi, hubStaffApi, hubPincodesApi } from '../../api/adminApi';
+import type { Hub, HubStaff, HubPincode } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './HubDetailPage.module.css';
 
-const TABS = ['Overview', 'Staff', 'Capacity', 'Inventory'];
+const TABS = ['Overview', 'Staff', 'Capacity', 'Pincodes', 'Inventory'];
 
 const EMPTY_HUB: Partial<Hub> = { name: '', city: '', state: '', address: '', pincode: '', managerName: '', managerPhone: '', status: 'Active', tailorCount: 0, activeOrders: 0, capacityUsed: 0, qcPassRate: 100 };
 
@@ -43,6 +43,14 @@ export const HubDetailPage: React.FC = () => {
   const [savingCapacity, setSavingCapacity] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
 
+  // Pincodes state
+  const [pincodes, setPincodes] = React.useState<HubPincode[]>([]);
+  const [pincodesLoaded, setPincodesLoaded] = React.useState(false);
+  const [pincodesLoading, setPincodesLoading] = React.useState(false);
+  const [pincodeInput, setPincodeInput] = React.useState('');
+  const [addingPincodes, setAddingPincodes] = React.useState(false);
+  const [removingPincode, setRemovingPincode] = React.useState<string | null>(null);
+
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
@@ -64,6 +72,44 @@ export const HubDetailPage: React.FC = () => {
       .catch(e => showToast('error', 'Failed to load staff', e instanceof Error ? e.message : undefined))
       .finally(() => setStaffLoading(false));
   }, [activeTab, id, isNew]);
+
+  React.useEffect(() => {
+    if (isNew || !id || activeTab !== 'Pincodes' || pincodesLoaded) return;
+    setPincodesLoading(true);
+    hubPincodesApi.list(id)
+      .then(data => { setPincodes(data); setPincodesLoaded(true); })
+      .catch(e => showToast('error', 'Failed to load pincodes', e instanceof Error ? e.message : undefined))
+      .finally(() => setPincodesLoading(false));
+  }, [activeTab, id, isNew, pincodesLoaded]);
+
+  const handleAddPincodes = async () => {
+    if (!hub || !pincodeInput.trim()) return;
+    const list = pincodeInput.split(/[\s,\n]+/).map(p => p.trim()).filter(p => p.length >= 4);
+    if (list.length === 0) { showToast('error', 'Enter at least one valid pincode (min 4 digits)'); return; }
+    setAddingPincodes(true);
+    try {
+      const { added } = await hubPincodesApi.add(hub.id, list);
+      setPincodes(prev => {
+        const existing = new Set(prev.map(p => p.pincode));
+        return [...prev, ...added.filter(p => !existing.has(p.pincode))].sort((a, b) => a.pincode.localeCompare(b.pincode));
+      });
+      setPincodeInput('');
+      showToast('success', `${added.length} pincode${added.length !== 1 ? 's' : ''} added`);
+    } catch (e) {
+      showToast('error', 'Failed to add pincodes', e instanceof Error ? e.message : undefined);
+    } finally { setAddingPincodes(false); }
+  };
+
+  const handleRemovePincode = async (pincode: string) => {
+    if (!hub) return;
+    setRemovingPincode(pincode);
+    try {
+      await hubPincodesApi.remove(hub.id, pincode);
+      setPincodes(prev => prev.filter(p => p.pincode !== pincode));
+    } catch (e) {
+      showToast('error', 'Failed to remove pincode', e instanceof Error ? e.message : undefined);
+    } finally { setRemovingPincode(null); }
+  };
 
   const handleFormChange = (key: keyof Hub, value: string | number) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -368,6 +414,59 @@ export const HubDetailPage: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'Pincodes' && (
+        <div className={styles.tabContent}>
+          <div className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <h3 className={styles.sectionTitle}>{hub.name} — Service Pincodes</h3>
+            </div>
+            <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              Pincodes listed here are serviceable by this hub. Orders to other pincodes will be blocked at checkout.
+              Enter multiple pincodes separated by spaces, commas, or new lines.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              <textarea
+                rows={3}
+                className={styles.fieldInput}
+                style={{ flex: '1 1 300px', padding: '8px 12px', resize: 'vertical', fontFamily: 'monospace', fontSize: 13 }}
+                placeholder="e.g., 110001, 110002, 400001"
+                value={pincodeInput}
+                onChange={e => setPincodeInput(e.target.value)}
+              />
+              <button
+                className={styles.editBtn}
+                disabled={addingPincodes || !pincodeInput.trim()}
+                onClick={handleAddPincodes}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                {addingPincodes ? 'Adding…' : 'Add Pincodes'}
+              </button>
+            </div>
+            {pincodesLoading ? (
+              <div className={styles.empty}>Loading pincodes…</div>
+            ) : pincodes.length === 0 ? (
+              <div className={styles.empty}>No pincodes added yet. This hub will not be matched for any orders until pincodes are added.</div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {pincodes.map(p => (
+                  <div key={p.pincode} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-light)', borderRadius: 6, padding: '4px 10px', fontSize: 13, fontFamily: 'monospace' }}>
+                    <span>{p.pincode}</span>
+                    <button
+                      onClick={() => handleRemovePincode(p.pincode)}
+                      disabled={removingPincode === p.pincode}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '0 0 0 4px', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center' }}
+                      title="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
