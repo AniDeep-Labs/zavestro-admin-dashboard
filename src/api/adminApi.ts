@@ -130,6 +130,17 @@ export const ordersApi = {
     const o = await req<Record<string, unknown>>(`/api/admin/orders/${id}/stage`, { method: 'PUT', body: JSON.stringify({ stage, reason }) });
     return { stage: o.stage as OrderStage, status: o.lifecycle_status as AdminOrder['status'] };
   },
+
+  create: async (data: {
+    user_id: string;
+    hub_id: string;
+    mode: 'simplified';
+    delivery_address: { line1: string; line2?: string; city: string; state: string; pincode: string };
+    items: { variant_id?: string; product_name: string; unit_price: number; quantity: number }[];
+    payment_method?: 'cod' | 'offline_transfer' | 'already_paid';
+    internal_note?: string;
+  }): Promise<{ id: string; order_number: string }> =>
+    req<{ id: string; order_number: string }>('/api/admin/orders', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -346,6 +357,15 @@ export const waitlistApi = {
 
 // ─── App Config ───────────────────────────────────────────────────────────────
 
+function inferConfigType(key: string, value: unknown): ConfigItem['type'] {
+  if (typeof value === 'boolean') return 'boolean';
+  if (/price|fee|amount|threshold|min_|max_/.test(key)) return 'currency';
+  if (/percent|rate_target/.test(key)) return 'percentage';
+  if (/days/.test(key)) return 'days';
+  if (/hours/.test(key)) return 'hours';
+  return 'number';
+}
+
 export const configApi = {
   get: async (): Promise<ConfigGroup[]> => {
     const rows = await req<{ key: string; value: unknown; description?: string }[]>('/api/admin/config');
@@ -354,7 +374,7 @@ export const configApi = {
       key: r.key,
       label: r.key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
       value: r.value as ConfigItem['value'],
-      type: (typeof r.value === 'boolean' ? 'boolean' : 'number') as ConfigItem['type'],
+      type: inferConfigType(r.key, r.value),
       description: r.description,
     }));
     return [{ title: 'App Configuration', items }];
@@ -403,7 +423,6 @@ function mapCollection(c: Record<string, unknown>): Collection {
     id: c.id as string,
     name: c.name as string,
     slug: c.slug as string,
-    mode: ((c.mode as string) || 'Simplified') as Collection['mode'],
     products: (c.product_count as number) ?? (c.products as number) ?? 0,
     status: ((c.status as string) ?? 'Draft') as Collection['status'],
     sortOrder: (c.sort_order as number) ?? (c.sortOrder as number) ?? 0,
@@ -425,10 +444,9 @@ function mapCollectionDetail(c: Record<string, unknown>): CollectionDetail {
 }
 
 export const collectionsApi = {
-  list: async (params: { search?: string; mode?: string; status?: string } = {}): Promise<CollectionsResponse> => {
+  list: async (params: { search?: string; status?: string } = {}): Promise<CollectionsResponse> => {
     const qs = new URLSearchParams();
     if (params.search) qs.set('search', params.search);
-    if (params.mode)   qs.set('mode',   params.mode);
     if (params.status) qs.set('status', params.status);
     const raw = await req<{ collections: Record<string, unknown>[]; total: number }>(`/api/admin/catalog/collections?${qs}`);
     return { collections: (raw.collections ?? []).map(mapCollection), total: raw.total ?? 0 };
@@ -583,6 +601,9 @@ export const homeVisitsApi = {
 
   updateStatus: async (id: string, status: string): Promise<HomeVisit> =>
     req<HomeVisit>(`/api/admin/home-visits/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  assignHub: async (id: string, hub_id: string): Promise<HomeVisit> =>
+    req<HomeVisit>(`/api/admin/home-visits/${id}/hub`, { method: 'PATCH', body: JSON.stringify({ hub_id }) }),
 
   assign: async (id: string, staff_id: string): Promise<HomeVisit> =>
     req<HomeVisit>(`/api/admin/home-visits/${id}/assign`, { method: 'POST', body: JSON.stringify({ staff_id }) }),
@@ -795,6 +816,82 @@ export interface FitAnalyticsData {
 export const fitAnalyticsApi = {
   get: async (period = 'month'): Promise<FitAnalyticsData> =>
     req<FitAnalyticsData>(`/api/admin/analytics/fit?period=${period}`),
+};
+
+// ─── CMS ──────────────────────────────────────────────────────────────────────
+
+export interface LookbookItem {
+  id: string;
+  title: string;
+  description: string | null;
+  image_key: string | null;
+  tags: string[];
+  published: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JournalPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  body: string | null;
+  cover_image_key: string | null;
+  status: 'draft' | 'published' | 'archived';
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerStory {
+  id: string;
+  customer_name: string;
+  location: string | null;
+  story_text: string;
+  product_name: string | null;
+  rating: number | null;
+  published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export const cmsApi = {
+  lookbook: {
+    list: (): Promise<LookbookItem[]> =>
+      req<{ items: LookbookItem[] }>('/api/admin/cms/lookbook').then(r => r.items),
+    create: (data: Partial<LookbookItem>): Promise<LookbookItem> =>
+      req<LookbookItem>('/api/admin/cms/lookbook', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<LookbookItem>): Promise<LookbookItem> =>
+      req<LookbookItem>(`/api/admin/cms/lookbook/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string): Promise<void> =>
+      req<void>(`/api/admin/cms/lookbook/${id}`, { method: 'DELETE' }),
+  },
+
+  journal: {
+    list: (status?: string): Promise<JournalPost[]> =>
+      req<{ posts: JournalPost[] }>(`/api/admin/cms/journal${status ? `?status=${status}` : ''}`).then(r => r.posts),
+    get: (id: string): Promise<JournalPost> =>
+      req<JournalPost>(`/api/admin/cms/journal/${id}`),
+    create: (data: Partial<JournalPost>): Promise<JournalPost> =>
+      req<JournalPost>('/api/admin/cms/journal', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<JournalPost>): Promise<JournalPost> =>
+      req<JournalPost>(`/api/admin/cms/journal/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string): Promise<void> =>
+      req<void>(`/api/admin/cms/journal/${id}`, { method: 'DELETE' }),
+  },
+
+  stories: {
+    list: (): Promise<CustomerStory[]> =>
+      req<{ stories: CustomerStory[] }>('/api/admin/cms/stories').then(r => r.stories),
+    create: (data: Partial<CustomerStory>): Promise<CustomerStory> =>
+      req<CustomerStory>('/api/admin/cms/stories', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<CustomerStory>): Promise<CustomerStory> =>
+      req<CustomerStory>(`/api/admin/cms/stories/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string): Promise<void> =>
+      req<void>(`/api/admin/cms/stories/${id}`, { method: 'DELETE' }),
+  },
 };
 
 export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, OrderItem, OrderTimelineEntry, OrderPayment };

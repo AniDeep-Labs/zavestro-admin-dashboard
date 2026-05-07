@@ -72,25 +72,25 @@ export const AppConfigPage: React.FC = () => {
       {loading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
           {[1, 2, 3].map(i => (
-            <div key={i} style={{ height: 120, borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border)', opacity: 0.6, animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div key={i} style={{ height: 120, borderRadius: 8, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-light)', opacity: 0.6, animation: 'pulse 1.5s ease-in-out infinite' }} />
           ))}
         </div>
       )}
 
       {!loading && loadError && (
-        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-error, #dc3545)', background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)', marginTop: 16 }}>
+        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-error)', background: 'var(--color-bg-primary)', borderRadius: 8, border: '1px solid var(--color-border-light)', marginTop: 16 }}>
           <p style={{ marginBottom: 12, fontWeight: 600 }}>Failed to load configuration</p>
-          <p style={{ fontSize: '0.875rem', marginBottom: 16, color: 'var(--ink-2)' }}>{loadError}</p>
+          <p style={{ fontSize: '0.875rem', marginBottom: 16, color: 'var(--color-text-secondary)' }}>{loadError}</p>
           <button onClick={() => { setLoadError(''); setLoading(true); configApi.get().then(loaded => { setGroups(loaded); const init: Record<string, ConfigItem['value']> = {}; loaded.forEach(g => g.items.forEach(item => { init[item.key] = item.value; })); setValues(init); }).catch(err => setLoadError(err instanceof Error ? err.message : 'Failed')).finally(() => setLoading(false)); }}
-            style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--bg-card)', fontFamily: 'inherit', fontSize: '0.875rem' }}>
+            style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid var(--color-border)', cursor: 'pointer', background: 'var(--color-bg-primary)', fontFamily: 'inherit', fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>
             Retry
           </button>
         </div>
       )}
 
       {!loading && !loadError && groups.length === 0 && (
-        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--ink-3)', fontSize: '0.875rem' }}>
-          No configuration groups found. The backend may not have config data seeded yet.
+        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>
+          No configuration groups found. Run migration 036_seed_app_config.sql to populate defaults.
         </div>
       )}
 

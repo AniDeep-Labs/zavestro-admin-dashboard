@@ -106,16 +106,18 @@ export const CollectionEditPage: React.FC = () => {
 
   const handleSave = async () => {
     setSubmitted(true);
+    const trimmedName = name.trim();
     const cleanSlug = slug.replace(/^-+|-+$/g, '');
-    if (!name) {
+    if (!trimmedName) {
       showToast('error', 'Validation Error', 'Collection Name is required');
       return;
     }
+    if (name !== trimmedName) setName(trimmedName);
     if (cleanSlug !== slug) setSlug(cleanSlug);
     setSaving(true);
     try {
       const payload = {
-        name, slug: cleanSlug, description, status, featured,
+        name: trimmedName, slug: cleanSlug, description, status, featured,
         sortOrder: Number(sortOrder) || 1, season,
         productIds: selectedProducts.map(p => p.id),
       };
@@ -159,12 +161,12 @@ export const CollectionEditPage: React.FC = () => {
               <div className={styles.field}>
                 <label className={styles.label}>Collection Name *</label>
                 <input
-                  className={`${styles.input} ${submitted && !name ? styles.inputError : ''}`}
+                  className={`${styles.input} ${submitted && !name.trim() ? styles.inputError : ''}`}
                   value={name}
                   onChange={e => handleNameChange(e.target.value)}
                   placeholder="e.g., Wedding Season 2026"
                 />
-                {submitted && !name && <span className={styles.fieldHint}>This field is required</span>}
+                {submitted && !name.trim() && <span className={styles.fieldHint}>Collection Name is required</span>}
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Slug</label>

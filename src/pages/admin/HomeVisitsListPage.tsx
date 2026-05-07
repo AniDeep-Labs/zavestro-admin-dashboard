@@ -292,6 +292,11 @@ export const HomeVisitsListPage: React.FC = () => {
                   <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: 16 }} onClick={clearUser}>✕</button>
                 </div>
               )}
+              {modalSubmitted && !form.userId && !(form.newCustomerName && form.newCustomerPhone) && (
+                <div style={{ fontSize: 12, color: 'var(--color-error)', marginTop: 4 }}>
+                  Select an existing customer or enter a name and phone number below
+                </div>
+              )}
               {/* Walk-in / new customer path */}
               {!form.userId && debouncedQuery.length >= 2 && userResults.length === 0 && (
                 <div style={{ marginTop: 8, padding: '10px 12px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
@@ -318,7 +323,16 @@ export const HomeVisitsListPage: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className={modalStyles.field}>
                 <label className={modalStyles.fieldLabel}>Date *</label>
-                <input type="date" className={modalStyles.fieldSelect} value={form.date} onChange={e => setF('date', e.target.value)} />
+                <input
+                  type="date"
+                  className={modalStyles.fieldSelect}
+                  value={form.date}
+                  onChange={e => setF('date', e.target.value)}
+                  style={modalSubmitted && !form.date ? { borderColor: 'var(--color-error)' } : undefined}
+                />
+                {modalSubmitted && !form.date && (
+                  <div style={{ fontSize: 12, color: 'var(--color-error)', marginTop: 2 }}>Please select a date</div>
+                )}
               </div>
               <div className={modalStyles.field}>
                 <label className={modalStyles.fieldLabel}>Time *</label>
@@ -357,7 +371,16 @@ export const HomeVisitsListPage: React.FC = () => {
             </div>
             <div className={modalStyles.field}>
               <label className={modalStyles.fieldLabel}>Address Line 1 *</label>
-              <input className={modalStyles.fieldSelect} placeholder="Flat / House no., Street" value={form.line1} onChange={e => setF('line1', e.target.value)} />
+              <input
+                className={modalStyles.fieldSelect}
+                placeholder="Flat / House no., Street"
+                value={form.line1}
+                onChange={e => setF('line1', e.target.value)}
+                style={modalSubmitted && !form.line1 ? { borderColor: 'var(--color-error)' } : undefined}
+              />
+              {modalSubmitted && !form.line1 && (
+                <div style={{ fontSize: 12, color: 'var(--color-error)', marginTop: 2 }}>Address line 1 is required</div>
+              )}
             </div>
             <div className={modalStyles.field}>
               <label className={modalStyles.fieldLabel}>Address Line 2</label>
@@ -366,7 +389,16 @@ export const HomeVisitsListPage: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
               <div className={modalStyles.field}>
                 <label className={modalStyles.fieldLabel}>City *</label>
-                <input className={modalStyles.fieldSelect} placeholder="Bangalore" value={form.city} onChange={e => setF('city', e.target.value)} />
+                <input
+                  className={modalStyles.fieldSelect}
+                  placeholder="Bangalore"
+                  value={form.city}
+                  onChange={e => setF('city', e.target.value)}
+                  style={modalSubmitted && !form.city ? { borderColor: 'var(--color-error)' } : undefined}
+                />
+                {modalSubmitted && !form.city && (
+                  <div style={{ fontSize: 12, color: 'var(--color-error)', marginTop: 2 }}>City is required</div>
+                )}
               </div>
               <div className={modalStyles.field}>
                 <label className={modalStyles.fieldLabel}>State</label>

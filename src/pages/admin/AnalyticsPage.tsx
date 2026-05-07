@@ -47,6 +47,8 @@ export const AnalyticsPage: React.FC = () => {
   const [promos, setPromos] = React.useState<PromoCode[]>([]);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [togglingId, setTogglingId] = React.useState<string | null>(null);
+  const [hubsLoading, setHubsLoading] = React.useState(false);
+  const [hubsError, setHubsError] = React.useState('');
 
   // Promo form state
   const [promoCode, setPromoCode] = React.useState('');
@@ -72,7 +74,12 @@ export const AnalyticsPage: React.FC = () => {
   }, [period]);
 
   React.useEffect(() => {
-    hubsApi.list().then(r => setHubs(r.hubs)).catch(() => {});
+    setHubsLoading(true);
+    setHubsError('');
+    hubsApi.list()
+      .then(r => setHubs(r.hubs))
+      .catch((e: Error) => setHubsError(e.message || 'Failed to load hubs'))
+      .finally(() => setHubsLoading(false));
   }, []);
 
   React.useEffect(() => {
@@ -127,11 +134,13 @@ export const AnalyticsPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>{title}</h1>
-        <div className={styles.periodSelector}>
-          {['Today', 'This Week', 'This Month', 'Last 30 Days', 'This Quarter'].map(p => (
-            <button key={p} className={`${styles.periodBtn} ${period === p ? styles.periodBtnActive : ''}`} onClick={() => setPeriod(p)}>{p}</button>
-          ))}
-        </div>
+        {validSection !== 'hub-performance' && validSection !== 'promos' && validSection !== 'retention' && (
+          <div className={styles.periodSelector}>
+            {['Today', 'This Week', 'This Month', 'Last 30 Days', 'This Quarter'].map(p => (
+              <button key={p} className={`${styles.periodBtn} ${period === p ? styles.periodBtnActive : ''}`} onClick={() => setPeriod(p)}>{p}</button>
+            ))}
+          </div>
+        )}
       </div>
 
       {!isKnownSection && !!section && (
@@ -287,8 +296,12 @@ export const AnalyticsPage: React.FC = () => {
       {validSection === 'hub-performance' && (
         <div className={styles.card}>
           <h2 className={styles.cardTitle}>Hub Performance Comparison</h2>
-          {hubs.length === 0 ? (
-            <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem', padding: '16px 0' }}>No hubs configured yet. Add hubs from the Hubs section.</p>
+          {hubsLoading ? (
+            <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem', padding: '24px 0' }}>Loading hub data…</p>
+          ) : hubsError ? (
+            <p style={{ color: 'var(--color-error)', fontSize: '0.875rem', padding: '24px 0' }}>{hubsError}</p>
+          ) : hubs.length === 0 ? (
+            <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem', padding: '24px 0' }}>No hubs configured yet. Add hubs from the Hubs section.</p>
           ) : (
             <table className={styles.table}>
               <thead>

@@ -20,6 +20,7 @@ export const OrderDetailPage: React.FC = () => {
   const [overrideChecks, setOverrideChecks] = React.useState([false, false]);
   const [overriding, setOverriding] = React.useState(false);
   const [invoiceLoading, setInvoiceLoading] = React.useState(false);
+  const [invoiceGenerating, setInvoiceGenerating] = React.useState(false);
 
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -36,6 +37,20 @@ export const OrderDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const handleGenerateInvoice = async () => {
+    if (!order) return;
+    const orderId = order.uuid ?? order.id;
+    setInvoiceGenerating(true);
+    try {
+      await invoicesApi.generateForOrder(orderId);
+      showToast('success', 'Invoice queued', 'Invoice generation has been queued. It will appear on the Invoices page shortly.');
+    } catch (e) {
+      showToast('error', 'Invoice error', e instanceof Error ? e.message : undefined);
+    } finally {
+      setInvoiceGenerating(false);
+    }
+  };
+
   const handleDownloadInvoice = async () => {
     if (!order) return;
     const orderId = order.uuid ?? order.id;
@@ -43,8 +58,7 @@ export const OrderDetailPage: React.FC = () => {
     try {
       const { invoices } = await invoicesApi.list({ orderId, limit: 1 });
       if (invoices.length === 0 || invoices[0].status !== 'generated') {
-        await invoicesApi.generateForOrder(orderId);
-        showToast('info', 'Invoice queued', 'Invoice is being generated. Check the Invoices page in a few moments.');
+        showToast('info', 'No invoice ready', 'Use "Generate Invoice" first, then download once it appears on the Invoices page.');
       } else {
         const { url } = await invoicesApi.getDownloadUrl(invoices[0].id);
         window.open(url, '_blank');
@@ -199,6 +213,9 @@ export const OrderDetailPage: React.FC = () => {
             <div className={styles.actionList}>
               <button className={styles.overrideBtn} onClick={() => setShowOverrideModal(true)}>Override Status</button>
               <button className={styles.actionBtnSecondary}>Reassign Hub</button>
+              <button className={styles.actionBtnSecondary} disabled={invoiceGenerating} onClick={handleGenerateInvoice}>
+                {invoiceGenerating ? 'Queuing…' : 'Generate Invoice'}
+              </button>
               <button className={styles.actionBtnSecondary} disabled={invoiceLoading} onClick={handleDownloadInvoice}>
                 {invoiceLoading ? 'Loading…' : 'Download Invoice'}
               </button>

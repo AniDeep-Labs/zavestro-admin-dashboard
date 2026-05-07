@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, MapPin, User, Clock, Building2, FileText, UserCheck, Calendar, Ruler } from 'lucide-react';
-import { homeVisitsApi, hubStaffApi } from '../../api/adminApi';
-import type { HomeVisit, BodyMeasurement, HubStaff } from '../../api/adminApi';
+import { homeVisitsApi, hubStaffApi, hubsApi } from '../../api/adminApi';
+import type { HomeVisit, BodyMeasurement, HubStaff, Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
@@ -49,6 +49,12 @@ export const HomeVisitDetailPage: React.FC = () => {
   const [updating, setUpdating] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
+  // Hub assignment
+  const [allHubs, setAllHubs] = React.useState<Hub[]>([]);
+  const [selectedHubId, setSelectedHubId] = React.useState('');
+  const [assigningHub, setAssigningHub] = React.useState(false);
+  const [showHubPicker, setShowHubPicker] = React.useState(false);
+
   // Assign staff
   const [staffList, setStaffList] = React.useState<HubStaff[]>([]);
   const [selectedStaffId, setSelectedStaffId] = React.useState('');
@@ -71,6 +77,7 @@ export const HomeVisitDetailPage: React.FC = () => {
   useBreadcrumbTitle(visit?.customer_name ? `Visit – ${visit.customer_name}` : undefined);
 
   React.useEffect(() => {
+    hubsApi.list({ limit: 100 }).then(r => setAllHubs(r.hubs.filter(h => h.status === 'Active'))).catch(() => {});
     homeVisitsApi.get(id!)
       .then(v => {
         setVisit(v);
@@ -96,6 +103,28 @@ export const HomeVisitDetailPage: React.FC = () => {
       showToast('error', 'Update failed', e instanceof Error ? e.message : undefined);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleAssignHub = async () => {
+    if (!visit || !selectedHubId || assigningHub) return;
+    setAssigningHub(true);
+    try {
+      const updated = await homeVisitsApi.assignHub(visit.id, selectedHubId);
+      setVisit(updated);
+      setStaffList([]);
+      setSelectedStaffId('');
+      setShowHubPicker(false);
+      setSelectedHubId('');
+      // Load staff for the newly assigned hub
+      if (updated.hub_id) {
+        hubStaffApi.list(updated.hub_id).then(setStaffList).catch(() => {});
+      }
+      showToast('success', 'Hub assigned', updated.hub_name ?? undefined);
+    } catch (e) {
+      showToast('error', 'Hub assignment failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setAssigningHub(false);
     }
   };
 
@@ -278,7 +307,46 @@ export const HomeVisitDetailPage: React.FC = () => {
           <div className={styles.cardBody}>
             <div className={styles.field}>
               <span className={styles.fieldLabel}>Hub</span>
-              <span className={styles.fieldValue}>{visit.hub_name ?? '—'}</span>
+              {showHubPicker ? (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <select
+                    className={styles.fieldSelect}
+                    style={{ flex: '1 1 160px', maxWidth: 280 }}
+                    value={selectedHubId}
+                    onChange={e => setSelectedHubId(e.target.value)}
+                  >
+                    <option value="">Select hub…</option>
+                    {allHubs.map(h => (
+                      <option key={h.id} value={h.id}>{h.name} — {h.city}</option>
+                    ))}
+                  </select>
+                  <button
+                    className={styles.actionBtn}
+                    disabled={!selectedHubId || assigningHub}
+                    onClick={handleAssignHub}
+                    style={{ background: 'var(--color-primary)', color: '#fff', border: 'none' }}
+                  >
+                    {assigningHub ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    className={styles.actionBtn}
+                    onClick={() => { setShowHubPicker(false); setSelectedHubId(''); }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className={styles.fieldValue}>{visit.hub_name ?? '—'}</span>
+                  <button
+                    className={styles.actionBtn}
+                    style={{ fontSize: 11, padding: '2px 10px' }}
+                    onClick={() => setShowHubPicker(true)}
+                  >
+                    {visit.hub_id ? 'Change' : 'Assign Hub'}
+                  </button>
+                </div>
+              )}
             </div>
             <div className={styles.field}>
               <span className={styles.fieldLabel}>Staff</span>

@@ -4,7 +4,7 @@ import { promosApi } from '../../api/adminApi';
 import type { PromoCode } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
-import styles from './AnalyticsPage.module.css';
+import styles from './PromoCodesPage.module.css';
 
 function EmptyState({ message }: { message: string }) {
   return (

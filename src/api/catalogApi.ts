@@ -315,8 +315,8 @@ export const catalogApi = {
     const token = getAdminToken();
     const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-    // Step 1: get presigned upload URL
-    const urlRes = await fetch(`${BASE_URL}/api/media/upload-url`, {
+    // Step 1: get presigned upload URL (admin endpoint — uses admin JWT)
+    const urlRes = await fetch(`${BASE_URL}/api/admin/media/upload-url`, {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({ content_type: file.type }),
