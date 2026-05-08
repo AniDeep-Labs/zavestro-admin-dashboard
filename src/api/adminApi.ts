@@ -233,14 +233,24 @@ function mapHub(h: Record<string, unknown>): Hub {
   };
 }
 
-export interface HubPincode { id: string; pincode: string; created_at: string; }
+export interface HubPincode {
+  id: string;
+  pincode: string;
+  area_name: string;
+  city?: string;
+  is_active: boolean;
+  created_at: string;
+}
 
 export const hubPincodesApi = {
   list: async (hubId: string): Promise<HubPincode[]> =>
-    req<{ pincodes: HubPincode[] }>(`/api/admin/hubs/${hubId}/pincodes`).then(r => r.pincodes),
+    req<{ pincodes: HubPincode[] }>(`/api/admin/hubs/${hubId}/pincodes`).then(r => r.pincodes ?? []),
 
-  add: async (hubId: string, pincodes: string[]): Promise<{ added: HubPincode[] }> =>
+  add: async (hubId: string, pincodes: { pincode: string; area_name: string }[]): Promise<{ added: HubPincode[] }> =>
     req<{ added: HubPincode[] }>(`/api/admin/hubs/${hubId}/pincodes`, { method: 'POST', body: JSON.stringify({ pincodes }) }),
+
+  toggle: async (hubId: string, pincodeId: string, is_active: boolean): Promise<HubPincode> =>
+    req<HubPincode>(`/api/admin/system/service-pincodes/${pincodeId}`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
 
   remove: async (hubId: string, pincode: string): Promise<void> =>
     req(`/api/admin/hubs/${hubId}/pincodes/${encodeURIComponent(pincode)}`, { method: 'DELETE' }),
@@ -1022,6 +1032,144 @@ export const cmsApi = {
     delete: (id: string): Promise<void> =>
       req<void>(`/api/admin/cms/stories/${id}`, { method: 'DELETE' }),
   },
+};
+
+// ─── Garment Types & Fit Preferences ─────────────────────────────────────────
+
+export interface GarmentType {
+  id: string;
+  name: string;
+  slug: string;
+  required_measurements: string[];
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface FitPreference {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  sort_order: number;
+}
+
+export const garmentTypesApi = {
+  list: async (): Promise<GarmentType[]> =>
+    req<{ garment_types: GarmentType[] }>('/api/admin/garment-types').then(r => r.garment_types ?? []),
+};
+
+export const fitPreferencesApi = {
+  list: async (): Promise<FitPreference[]> =>
+    req<{ fit_preferences: FitPreference[] }>('/api/admin/fit-preferences').then(r => r.fit_preferences ?? []),
+};
+
+// ─── Measurement Bookings ─────────────────────────────────────────────────────
+
+export interface MeasurementBookingItem {
+  id: string;
+  booking_id: string;
+  garment_type_id: string;
+  garment_type_name?: string;
+  garment_type_slug?: string;
+  required_measurements?: string[];
+  variant_label: string | null;
+  fit_preference_id: string | null;
+  fit_preference_name?: string | null;
+  fit_notes: string | null;
+  linked_product_id: string | null;
+  measurement_status: 'pending' | 'in_progress' | 'completed' | 'skipped';
+  sort_order: number;
+  measurements?: MeasurementBookingMeasurement | null;
+}
+
+export interface MeasurementBookingMeasurement {
+  id: string;
+  booking_item_id: string;
+  taken_by_staff_id: string | null;
+  chest: number | null;
+  waist: number | null;
+  hips: number | null;
+  shoulders: number | null;
+  sleeve_length: number | null;
+  neck: number | null;
+  inseam: number | null;
+  thigh: number | null;
+  calf: number | null;
+  bicep: number | null;
+  wrist: number | null;
+  shirt_length: number | null;
+  kurta_length: number | null;
+  trouser_length: number | null;
+  notes: string | null;
+  finalized_at: string | null;
+  created_at: string;
+}
+
+export interface MeasurementBooking {
+  id: string;
+  booking_ref: string;
+  user_id: string;
+  customer_name?: string;
+  customer_phone?: string;
+  home_visit_id: string | null;
+  source_order_id: string | null;
+  assigned_staff_id: string | null;
+  assigned_staff_name?: string | null;
+  status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  scheduled_at: string | null;
+  completed_at: string | null;
+  notes: string | null;
+  items?: MeasurementBookingItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeasurementBookingsResponse {
+  bookings: MeasurementBooking[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export const measurementBookingsApi = {
+  list: async (params: { user_id?: string; status?: string; page?: number; limit?: number } = {}): Promise<MeasurementBookingsResponse> => {
+    const qs = new URLSearchParams();
+    if (params.user_id) qs.set('user_id', params.user_id);
+    if (params.status)  qs.set('status',  params.status);
+    if (params.page)    qs.set('page',    String(params.page));
+    if (params.limit)   qs.set('limit',   String(params.limit));
+    return req<MeasurementBookingsResponse>(`/api/admin/measurement-bookings?${qs}`);
+  },
+
+  get: async (id: string): Promise<MeasurementBooking> =>
+    req<MeasurementBooking>(`/api/admin/measurement-bookings/${id}`),
+
+  create: async (data: {
+    user_id: string;
+    home_visit_id?: string;
+    scheduled_at?: string;
+    notes?: string;
+    items: { garment_type_id: string; variant_label?: string; fit_preference_id?: string; fit_notes?: string }[];
+  }): Promise<MeasurementBooking> =>
+    req<MeasurementBooking>('/api/admin/measurement-bookings', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateStatus: async (id: string, status: string): Promise<MeasurementBooking> =>
+    req<MeasurementBooking>(`/api/admin/measurement-bookings/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  addItem: async (id: string, item: { garment_type_id: string; variant_label?: string; fit_preference_id?: string; fit_notes?: string }): Promise<MeasurementBookingItem> =>
+    req<MeasurementBookingItem>(`/api/admin/measurement-bookings/${id}/items`, { method: 'POST', body: JSON.stringify(item) }),
+
+  updateItem: async (id: string, itemId: string, data: Partial<Pick<MeasurementBookingItem, 'measurement_status' | 'fit_preference_id' | 'fit_notes'>>): Promise<MeasurementBookingItem> =>
+    req<MeasurementBookingItem>(`/api/admin/measurement-bookings/${id}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  saveMeasurements: async (id: string, booking_item_id: string, measurements: Record<string, number>, taken_by_staff_id?: string): Promise<MeasurementBookingMeasurement> =>
+    req<MeasurementBookingMeasurement>(`/api/admin/measurement-bookings/${id}/measurements`, { method: 'POST', body: JSON.stringify({ booking_item_id, measurements, taken_by_staff_id }) }),
+
+  assignStaff: async (id: string, staff_id: string): Promise<MeasurementBooking> =>
+    req<MeasurementBooking>(`/api/admin/measurement-bookings/${id}/assign-staff`, { method: 'POST', body: JSON.stringify({ staff_id }) }),
+
+  complete: async (id: string): Promise<MeasurementBooking> =>
+    req<MeasurementBooking>(`/api/admin/measurement-bookings/${id}/complete`, { method: 'POST' }),
 };
 
 export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, OrderItem, OrderTimelineEntry, OrderPayment };

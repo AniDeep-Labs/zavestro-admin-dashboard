@@ -57,6 +57,7 @@ export const HubDetailPage: React.FC = () => {
   const [pincodesLoaded, setPincodesLoaded] = React.useState(false);
   const [pincodesLoading, setPincodesLoading] = React.useState(false);
   const [pincodeInput, setPincodeInput] = React.useState('');
+  const [pincodeAreaInput, setPincodeAreaInput] = React.useState('');
   const [addingPincodes, setAddingPincodes] = React.useState(false);
   const [removingPincode, setRemovingPincode] = React.useState<string | null>(null);
 
@@ -126,7 +127,21 @@ export const HubDetailPage: React.FC = () => {
 
   const handleSave = async () => {
     setSubmitted(true);
-    if (!form.name || !form.city) { showToast('error', 'Name and City are required'); return; }
+    const errors: string[] = [];
+    if (!form.name?.trim()) errors.push('Hub Name');
+    if (!form.city?.trim()) errors.push('City');
+    if (!form.address?.trim()) errors.push('Address');
+    if (!form.managerName?.trim()) errors.push('Manager Name');
+    if (!form.managerPhone?.trim()) errors.push('Manager Phone');
+    if (form.managerPhone && !/^\d{10}$/.test(form.managerPhone.replace(/\s/g, ''))) {
+      showToast('error', 'Manager phone must be a 10-digit Indian mobile number'); return;
+    }
+    if (form.pincode && !/^\d{6}$/.test(form.pincode)) {
+      showToast('error', 'Hub pincode must be 6 digits'); return;
+    }
+    if (errors.length > 0) {
+      showToast('error', `Required fields missing: ${errors.join(', ')}`); return;
+    }
     setSaving(true);
     try {
       if (isNew) {
@@ -232,23 +247,24 @@ export const HubDetailPage: React.FC = () => {
           <h3 className={styles.sectionTitle}>Hub Details</h3>
           <div className={styles.formGrid}>
             {([
-              { key: 'name', label: 'Hub Name *', type: 'text' },
-              { key: 'city', label: 'City *', type: 'text' },
-              { key: 'state', label: 'State', type: 'text' },
-              { key: 'address', label: 'Address', type: 'text' },
-              { key: 'pincode', label: 'Pincode', type: 'text' },
-              { key: 'managerName', label: 'Manager Name', type: 'text' },
-              { key: 'managerPhone', label: 'Manager Phone', type: 'text' },
-            ] as Array<{ key: keyof Hub; label: string; type: string }>).map(f => (
+              { key: 'name',         label: 'Hub Name *',       type: 'text',  required: true },
+              { key: 'city',         label: 'City *',           type: 'text',  required: true },
+              { key: 'state',        label: 'State',            type: 'text',  required: false },
+              { key: 'address',      label: 'Address Line 1 *', type: 'text',  required: true },
+              { key: 'pincode',      label: 'Pincode (6-digit)', type: 'text', required: false },
+              { key: 'managerName',  label: 'Manager Name *',   type: 'text',  required: true },
+              { key: 'managerPhone', label: 'Manager Phone *',  type: 'tel',   required: true },
+            ] as Array<{ key: keyof Hub; label: string; type: string; required: boolean }>).map(f => (
               <div key={f.key} className={styles.formField}>
                 <label className={styles.metaLabel}>{f.label}</label>
                 <input
                   type={f.type}
-                  className={`${styles.fieldInput} ${submitted && (f.key === 'name' || f.key === 'city') && !form[f.key] ? styles.inputError : ''}`}
+                  className={`${styles.fieldInput} ${submitted && f.required && !form[f.key] ? styles.inputError : ''}`}
                   value={(form[f.key] as string) ?? ''}
                   onChange={e => handleFormChange(f.key, e.target.value)}
+                  placeholder={f.key === 'managerPhone' ? '10-digit mobile' : f.key === 'pincode' ? '6-digit pincode' : ''}
                 />
-                {submitted && (f.key === 'name' || f.key === 'city') && !form[f.key] && <span className={styles.fieldHint}>This field is required</span>}
+                {submitted && f.required && !form[f.key] && <span className={styles.fieldHint}>This field is required</span>}
               </div>
             ))}
             <div className={styles.formField}>
@@ -510,47 +526,94 @@ export const HubDetailPage: React.FC = () => {
               <h3 className={styles.sectionTitle}>{hub.name} — Service Pincodes</h3>
             </div>
             <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-secondary)' }}>
-              Pincodes listed here are serviceable by this hub. Orders to other pincodes will be blocked at checkout.
-              Enter multiple pincodes separated by spaces, commas, or new lines.
+              Pincodes listed here are serviceable by this hub. Each pincode can only be assigned to one hub.
             </p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-              <textarea
-                rows={3}
-                className={styles.fieldInput}
-                style={{ flex: '1 1 300px', padding: '8px 12px', resize: 'vertical', fontFamily: 'monospace', fontSize: 13 }}
-                placeholder="e.g., 110001, 110002, 400001"
-                value={pincodeInput}
-                onChange={e => setPincodeInput(e.target.value)}
-              />
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label className={styles.metaLabel}>Pincode *</label>
+                <input
+                  className={styles.fieldInput}
+                  style={{ fontFamily: 'monospace', fontSize: 13, width: 140 }}
+                  placeholder="e.g. 560034"
+                  maxLength={6}
+                  value={pincodeInput}
+                  onChange={e => setPincodeInput(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 200px' }}>
+                <label className={styles.metaLabel}>Area Name</label>
+                <input
+                  className={styles.fieldInput}
+                  style={{ fontSize: 13 }}
+                  placeholder="e.g. Koramangala"
+                  value={pincodeAreaInput}
+                  onChange={e => setPincodeAreaInput(e.target.value)}
+                />
+              </div>
               <button
                 className={styles.editBtn}
-                disabled={addingPincodes || !pincodeInput.trim()}
-                onClick={handleAddPincodes}
-                style={{ alignSelf: 'flex-start' }}
+                disabled={addingPincodes || pincodeInput.length !== 6}
+                onClick={async () => {
+                  if (pincodeInput.length !== 6) { showToast('error', 'Enter a valid 6-digit pincode'); return; }
+                  setAddingPincodes(true);
+                  try {
+                    const { added } = await hubPincodesApi.add(hub.id, [{ pincode: pincodeInput, area_name: pincodeAreaInput }]);
+                    setPincodes(prev => {
+                      const existing = new Set(prev.map(p => p.pincode));
+                      return [...prev, ...added.filter(p => !existing.has(p.pincode))].sort((a, b) => a.pincode.localeCompare(b.pincode));
+                    });
+                    setPincodeInput(''); setPincodeAreaInput('');
+                    showToast('success', `Pincode ${pincodeInput} assigned`);
+                  } catch (e) {
+                    showToast('error', 'Failed to add', e instanceof Error ? e.message : undefined);
+                  } finally { setAddingPincodes(false); }
+                }}
               >
-                {addingPincodes ? 'Adding…' : 'Add Pincodes'}
+                {addingPincodes ? 'Adding…' : '+ Assign Pincode'}
               </button>
             </div>
             {pincodesLoading ? (
               <div className={styles.empty}>Loading pincodes…</div>
             ) : pincodes.length === 0 ? (
-              <div className={styles.empty}>No pincodes added yet. This hub will not be matched for any orders until pincodes are added.</div>
+              <div className={styles.empty}>No pincodes assigned yet. This hub will not match any service area until pincodes are added.</div>
             ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {pincodes.map(p => (
-                  <div key={p.pincode} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-light)', borderRadius: 6, padding: '4px 10px', fontSize: 13, fontFamily: 'monospace' }}>
-                    <span>{p.pincode}</span>
-                    <button
-                      onClick={() => handleRemovePincode(p.pincode)}
-                      disabled={removingPincode === p.pincode}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '0 0 0 4px', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center' }}
-                      title="Remove"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <table className={styles.table}>
+                <thead>
+                  <tr><th>Pincode</th><th>Area Name</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {pincodes.map(p => (
+                    <tr key={p.pincode}>
+                      <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{p.pincode}</td>
+                      <td>{p.area_name || '—'}</td>
+                      <td>
+                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: p.is_active ? 'rgba(28,92,66,0.12)' : 'rgba(148,163,184,0.12)', color: p.is_active ? '#1C5C42' : 'var(--color-text-secondary)' }}>
+                          {p.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className={styles.editBtn}
+                          style={{ padding: '4px 10px', fontSize: 12, height: 28 }}
+                          onClick={() => hubPincodesApi.toggle(hub.id, p.id, !p.is_active)
+                            .then(() => setPincodes(prev => prev.map(x => x.id === p.id ? { ...x, is_active: !p.is_active } : x)))
+                            .catch(e => showToast('error', 'Failed', e instanceof Error ? e.message : undefined))}
+                        >
+                          {p.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          className={styles.deactivateBtn}
+                          style={{ padding: '4px 10px', fontSize: 12, height: 28 }}
+                          disabled={removingPincode === p.pincode}
+                          onClick={() => handleRemovePincode(p.pincode)}
+                        >
+                          {removingPincode === p.pincode ? '…' : 'Remove'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
