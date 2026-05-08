@@ -888,6 +888,7 @@ export const craftspeopleApi = {
 
 export interface HubStaff {
   id: string;
+  reference_id?: string;
   hub_id?: string;
   name: string;
   email?: string;
@@ -896,11 +897,17 @@ export interface HubStaff {
   joined_at?: string | null;
   is_active: boolean;
   created_at: string;
+  active_orders?: number;
+  active_bookings?: number;
+  active_visits?: number;
 }
 
 export const hubStaffApi = {
   list: async (hubId: string): Promise<HubStaff[]> =>
     req<{ staff: HubStaff[] }>(`/api/admin/hubs/${hubId}/staff`).then(r => r.staff),
+
+  workload: async (hubId: string): Promise<HubStaff[]> =>
+    req<{ staff: HubStaff[] }>(`/api/admin/hubs/${hubId}/staff/workload`).then(r => r.staff),
 
   create: async (hubId: string, data: { name: string; phone: string; role: string; email?: string; joined_at?: string }): Promise<HubStaff> =>
     req<HubStaff>(`/api/admin/hubs/${hubId}/staff`, { method: 'POST', body: JSON.stringify(data) }),
@@ -912,6 +919,9 @@ export const hubStaffApi = {
     req<HubStaff>(`/api/admin/hubs/${hubId}/staff/${staffId}/active`, {
       method: 'PATCH', body: JSON.stringify({ is_active }),
     }),
+
+  assignments: async (staffId: string): Promise<{ staff: HubStaff; assignments: { orders: unknown[]; measurement_bookings: unknown[]; home_visits: unknown[] }; counts: { orders: number; measurement_bookings: number; home_visits: number } }> =>
+    req(`/api/admin/staff/${staffId}/assignments`),
 };
 
 // ─── Customer Measurements ────────────────────────────────────────────────────
@@ -1088,11 +1098,16 @@ export const fitPreferencesApi = {
 
 export interface HubStaffGlobal {
   id: string;
+  reference_id?: string;
   name: string;
   role: string;
   phone: string;
   hub_id: string | null;
   hub_name: string | null;
+  is_active: boolean;
+  active_orders?: number;
+  active_bookings?: number;
+  active_visits?: number;
 }
 
 export const hubStaffGlobalApi = {

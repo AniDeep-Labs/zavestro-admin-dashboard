@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, MapPin, User, Clock, Building2, FileText, UserCheck, Calendar, Ruler, ClipboardList, ExternalLink, Link } from 'lucide-react';
-import { homeVisitsApi, hubStaffApi, hubsApi } from '../../api/adminApi';
-import type { HomeVisit, BodyMeasurement, HubStaff, Hub } from '../../api/adminApi';
+import { homeVisitsApi, hubsApi } from '../../api/adminApi';
+import type { HomeVisit, BodyMeasurement, Hub } from '../../api/adminApi';
+import { StaffAssignmentDropdown } from '../../components/StaffAssignmentDropdown/StaffAssignmentDropdown';
 
 // Minimal inline type for linked booking info
 interface LinkedBooking {
@@ -74,8 +75,6 @@ export const HomeVisitDetailPage: React.FC = () => {
   const [showHubPicker, setShowHubPicker] = React.useState(false);
 
   // Assign staff
-  const [staffList, setStaffList] = React.useState<HubStaff[]>([]);
-  const [selectedStaffId, setSelectedStaffId] = React.useState('');
   const [assigning, setAssigning] = React.useState(false);
 
   // Reschedule
@@ -105,9 +104,6 @@ export const HomeVisitDetailPage: React.FC = () => {
     homeVisitsApi.get(id!)
       .then(v => {
         setVisit(v);
-        if (v.hub_id) {
-          hubStaffApi.list(v.hub_id).then(setStaffList).catch(() => {});
-        }
         const dt = new Date(v.scheduled_at);
         setRescheduleDate(dt.toISOString().slice(0, 10));
         setRescheduleTime(dt.toTimeString().slice(0, 5));
@@ -143,14 +139,8 @@ export const HomeVisitDetailPage: React.FC = () => {
     try {
       const updated = await homeVisitsApi.assignHub(visit.id, selectedHubId);
       setVisit(updated);
-      setStaffList([]);
-      setSelectedStaffId('');
       setShowHubPicker(false);
       setSelectedHubId('');
-      // Load staff for the newly assigned hub
-      if (updated.hub_id) {
-        hubStaffApi.list(updated.hub_id).then(setStaffList).catch(() => {});
-      }
       showToast('success', 'Hub assigned', updated.hub_name ?? undefined);
     } catch (e) {
       showToast('error', 'Hub assignment failed', e instanceof Error ? e.message : undefined);
@@ -159,14 +149,13 @@ export const HomeVisitDetailPage: React.FC = () => {
     }
   };
 
-  const handleAssign = async () => {
-    if (!visit || !selectedStaffId || assigning) return;
+  const handleAssign = async (staffId: string | null) => {
+    if (!visit || assigning) return;
     setAssigning(true);
     try {
-      const updated = await homeVisitsApi.assign(visit.id, selectedStaffId);
+      const updated = await homeVisitsApi.assign(visit.id, staffId ?? '');
       setVisit(updated);
-      showToast('success', 'Staff assigned', updated.assigned_staff_name ?? undefined);
-      setSelectedStaffId('');
+      showToast('success', staffId ? 'Staff assigned' : 'Staff unassigned', updated.assigned_staff_name ?? undefined);
     } catch (e) {
       showToast('error', 'Assign failed', e instanceof Error ? e.message : undefined);
     } finally {
@@ -458,33 +447,14 @@ export const HomeVisitDetailPage: React.FC = () => {
       <div className={styles.card} style={{ marginTop: 12 }}>
         <div className={styles.cardHeader}><UserCheck size={15} /> Assign Staff</div>
         <div className={styles.cardBody}>
-          {staffList.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-tertiary)' }}>
-              {visit.hub_id ? 'No active staff found for this hub.' : 'No hub assigned to this visit — assign a hub first to pick staff.'}
-            </p>
-          ) : (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <select
-                className={styles.fieldSelect}
-                style={{ flex: '1 1 200px', maxWidth: 320 }}
-                value={selectedStaffId}
-                onChange={e => setSelectedStaffId(e.target.value)}
-              >
-                <option value="">Select staff member…</option>
-                {staffList.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
-                ))}
-              </select>
-              <button
-                className={styles.actionBtn}
-                disabled={!selectedStaffId || assigning}
-                onClick={handleAssign}
-                style={{ background: 'var(--color-primary)', color: '#fff', border: 'none' }}
-              >
-                {assigning ? 'Assigning…' : 'Assign'}
-              </button>
-            </div>
-          )}
+          <StaffAssignmentDropdown
+            value={visit.assigned_staff_id ?? null}
+            onChange={handleAssign}
+            hubId={visit.hub_id ?? undefined}
+            showWorkload
+            disabled={assigning}
+            placeholder={visit.hub_id ? 'Assign staff…' : 'Assign a hub first to pick staff'}
+          />
         </div>
       </div>
 

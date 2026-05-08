@@ -1,11 +1,12 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, CheckCircle, Circle, Clock, SkipForward, UserCheck, Save, ChevronDown, ChevronUp, Plus, Trash2, ExternalLink } from 'lucide-react';
-import { measurementBookingsApi, hubStaffGlobalApi, garmentTypesApi, fitPreferencesApi } from '../../api/adminApi';
-import type { MeasurementBooking, MeasurementBookingItem, HubStaffGlobal, GarmentType, FitPreference } from '../../api/adminApi';
+import { measurementBookingsApi, garmentTypesApi, fitPreferencesApi } from '../../api/adminApi';
+import type { MeasurementBooking, MeasurementBookingItem, GarmentType, FitPreference } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
+import { StaffAssignmentDropdown } from '../../components/StaffAssignmentDropdown/StaffAssignmentDropdown';
 import styles from './AppConfigPage.module.css';
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
@@ -364,10 +365,8 @@ export const MeasurementBookingDetailPage: React.FC = () => {
   const [booking, setBooking] = React.useState<MeasurementBooking | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
-  const [staffList, setStaffList] = React.useState<HubStaffGlobal[]>([]);
   const [garmentTypes, setGarmentTypes] = React.useState<GarmentType[]>([]);
   const [fitPreferences, setFitPreferences] = React.useState<FitPreference[]>([]);
-  const [selectedStaff, setSelectedStaff] = React.useState('');
   const [assigning, setAssigning] = React.useState(false);
   const [completing, setCompleting] = React.useState(false);
   const [showAddGarment, setShowAddGarment] = React.useState(false);
@@ -384,15 +383,12 @@ export const MeasurementBookingDetailPage: React.FC = () => {
     if (!id) return;
     Promise.all([
       measurementBookingsApi.get(id),
-      hubStaffGlobalApi.list(),
       garmentTypesApi.list(),
       fitPreferencesApi.list(),
     ])
-      .then(([b, staff, gts, fps]) => {
+      .then(([b, gts, fps]) => {
         setBooking(b);
-        setSelectedStaff(b.assigned_staff_id ?? '');
         setNotesForm(b.admin_notes ?? '');
-        setStaffList(staff);
         setGarmentTypes(gts);
         setFitPreferences(fps);
       })
@@ -400,13 +396,13 @@ export const MeasurementBookingDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handleAssignStaff = async () => {
+  const handleAssignStaff = async (staffId: string | null) => {
     if (!booking) return;
     setAssigning(true);
     try {
-      const updated = await measurementBookingsApi.assignStaff(booking.id, selectedStaff || null);
+      const updated = await measurementBookingsApi.assignStaff(booking.id, staffId);
       setBooking(prev => prev ? { ...prev, ...updated, assigned_staff_id: updated.assigned_staff_id, items: prev.items } : prev);
-      showToast('success', selectedStaff ? 'Staff assigned' : 'Staff unassigned');
+      showToast('success', staffId ? 'Staff assigned' : 'Staff unassigned');
     } catch (e) {
       showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
     } finally { setAssigning(false); }
@@ -464,8 +460,6 @@ export const MeasurementBookingDetailPage: React.FC = () => {
   const staffAssigned = !!booking.assigned_staff_id;
   const sc = BOOKING_STATUS_COLORS[booking.status] ?? BOOKING_STATUS_COLORS.confirmed;
   const canAddGarments = ['draft', 'confirmed', 'in_progress'].includes(booking.status);
-
-  const assignedStaffInfo = staffList.find(s => s.id === booking.assigned_staff_id);
 
   return (
     <div className={styles.page}>
@@ -590,33 +584,13 @@ export const MeasurementBookingDetailPage: React.FC = () => {
           {/* Staff Assignment */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}><UserCheck size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />Staff Assignment</h3>
-            {assignedStaffInfo && (
-              <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(28,92,66,0.07)', border: '1px solid rgba(28,92,66,0.15)' }}>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{assignedStaffInfo.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{assignedStaffInfo.role} · {assignedStaffInfo.hub_name ?? '—'}</div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{assignedStaffInfo.phone}</div>
-              </div>
-            )}
-            {staffList.length > 0 ? (
-              <>
-                <select
-                  className={styles.fieldSelect}
-                  value={selectedStaff}
-                  onChange={e => setSelectedStaff(e.target.value)}
-                  style={{ marginBottom: 8, width: '100%' }}
-                >
-                  <option value="">— Unassign —</option>
-                  {staffList.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.role}) — {s.hub_name ?? 'No hub'}</option>
-                  ))}
-                </select>
-                <button className={styles.addBtn} style={{ width: '100%', fontSize: 13 }} disabled={assigning || selectedStaff === (booking.assigned_staff_id ?? '')} onClick={handleAssignStaff}>
-                  {assigning ? 'Saving…' : 'Update Staff'}
-                </button>
-              </>
-            ) : (
-              <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>No active staff found. Create staff in the Hubs section.</div>
-            )}
+            <StaffAssignmentDropdown
+              value={booking.assigned_staff_id}
+              onChange={handleAssignStaff}
+              showWorkload
+              disabled={assigning}
+              placeholder="Assign a staff member…"
+            />
           </div>
 
           {/* Admin Notes */}

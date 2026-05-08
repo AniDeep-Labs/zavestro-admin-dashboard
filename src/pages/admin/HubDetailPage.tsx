@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Save, PowerOff, Power, Plus } from 'lucide-react';
+import { ChevronLeft, Save, PowerOff, Power, Plus, Briefcase } from 'lucide-react';
 import { hubsApi, hubStaffApi, hubPincodesApi } from '../../api/adminApi';
 import type { Hub, HubStaff, HubPincode } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -8,7 +8,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './HubDetailPage.module.css';
 
-const TABS = ['Overview', 'Staff', 'Capacity', 'Pincodes', 'Inventory'];
+const TABS = ['Overview', 'Staff', 'Workload', 'Capacity', 'Pincodes', 'Inventory'];
 
 const EMPTY_HUB: Partial<Hub> = { name: '', city: '', state: '', address: '', pincode: '', managerName: '', managerPhone: '', status: 'Active', tailorCount: 0, activeOrders: 0, capacityUsed: 0, qcPassRate: 100 };
 
@@ -52,6 +52,11 @@ export const HubDetailPage: React.FC = () => {
   const [savingCapacity, setSavingCapacity] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
 
+  // Workload state
+  const [workloadStaff, setWorkloadStaff] = React.useState<HubStaff[]>([]);
+  const [workloadLoading, setWorkloadLoading] = React.useState(false);
+  const [workloadLoaded, setWorkloadLoaded] = React.useState(false);
+
   // Pincodes state
   const [pincodes, setPincodes] = React.useState<HubPincode[]>([]);
   const [pincodesLoaded, setPincodesLoaded] = React.useState(false);
@@ -82,6 +87,15 @@ export const HubDetailPage: React.FC = () => {
       .catch(e => showToast('error', 'Failed to load staff', e instanceof Error ? e.message : undefined))
       .finally(() => setStaffLoading(false));
   }, [activeTab, id, isNew]);
+
+  React.useEffect(() => {
+    if (isNew || !id || activeTab !== 'Workload' || workloadLoaded) return;
+    setWorkloadLoading(true);
+    hubStaffApi.workload(id)
+      .then(s => { setWorkloadStaff(s); setWorkloadLoaded(true); })
+      .catch(e => showToast('error', 'Failed to load workload', e instanceof Error ? e.message : undefined))
+      .finally(() => setWorkloadLoading(false));
+  }, [activeTab, id, isNew, workloadLoaded]);
 
   React.useEffect(() => {
     if (isNew || !id || activeTab !== 'Pincodes' || pincodesLoaded) return;
@@ -462,6 +476,53 @@ export const HubDetailPage: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'Workload' && (
+        <div className={styles.tabContent}>
+          <div className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <h3 className={styles.sectionTitle}>{hub.name} — Staff Workload</h3>
+              <button className={styles.addBtn} style={{ fontSize: 12 }} onClick={() => { setWorkloadLoaded(false); }}>Refresh</button>
+            </div>
+            {workloadLoading ? (
+              <div className={styles.empty}>Loading workload…</div>
+            ) : workloadStaff.length === 0 ? (
+              <div className={styles.empty}>No active staff. Add staff in the Staff tab first.</div>
+            ) : (
+              <table className={styles.miniTable}>
+                <thead>
+                  <tr>
+                    <th>Staff</th><th>Role</th><th>Active Orders</th><th>Active Bookings</th><th>Active Visits</th><th>Total Load</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workloadStaff.map(s => {
+                    const total = (s.active_orders ?? 0) + (s.active_bookings ?? 0) + (s.active_visits ?? 0);
+                    const loadColor = total === 0 ? '#16a34a' : total <= 3 ? '#d97706' : '#dc2626';
+                    return (
+                      <tr key={s.id}>
+                        <td>
+                          <div style={{ fontWeight: 500 }}>{s.name}</div>
+                          {s.reference_id && <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--color-text-tertiary)' }}>{s.reference_id}</div>}
+                        </td>
+                        <td><span className={styles.rolePill}>{s.role.replace(/_/g, ' ')}</span></td>
+                        <td style={{ textAlign: 'center' }}>{s.active_orders ?? 0}</td>
+                        <td style={{ textAlign: 'center' }}>{s.active_bookings ?? 0}</td>
+                        <td style={{ textAlign: 'center' }}>{s.active_visits ?? 0}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600, color: loadColor }}>
+                            <Briefcase size={13} />{total}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       )}
 
