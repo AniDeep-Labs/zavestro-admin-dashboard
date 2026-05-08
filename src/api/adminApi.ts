@@ -69,12 +69,11 @@ type StatShape = { value: number; trend: string; up: boolean };
 
 export interface DashboardData {
   stats: Record<string, StatShape>;
-  hubPerformance: { name: string; orders: number; capacity: number; qcPassRate: number }[];
+  hubPerformance: { name: string; city?: string; activeOrders: number; staffCount: number; capacity: number; qcPassRate: number }[];
   alerts: { level: string; text: string; link: string }[];
   recentActivity: { icon: string; text: string; time: string }[];
   revenue: { label: string; simplified: number }[];
   ordersByStage: { stage: string; label: string; count: number; overdue: number }[];
-  waitlist: { total: number; trend: string; up: boolean };
   urgentTickets: { id: string; customer: string; subject: string; created: string }[];
   overdueOrders: { id: string; customer: string; stage: string; hub: string; created: string }[];
   sparklines: Record<string, number[]>;

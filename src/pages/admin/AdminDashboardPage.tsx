@@ -280,20 +280,37 @@ export const AdminDashboardPage: React.FC = () => {
         )}
       </div>
 
-      {/* Order Summary + Hub Performance */}
+      {/* Measurement Sessions Today + Hub Performance */}
       <div className={styles.twoCol}>
-        {/* Order Summary */}
+        {/* Measurement Sessions Today */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Order Summary</h2>
+            <h2 className={styles.cardTitle}>Today's Measurement Sessions</h2>
+            <button className={styles.cardLink} onClick={() => navigate('/admin/measurement-bookings')}>View All →</button>
           </div>
-          {data?.stats ? (
-            <div className={styles.modeAOV}>
-              <span>Total Orders</span>
-              <span><strong>{data.stats.totalOrders?.value?.toLocaleString() ?? '—'}</strong></span>
-            </div>
+          {loading ? (
+            <div className={`${styles.skeletonBlock} ${styles.skeletonPulse}`} />
           ) : (
-            <div className={`${styles.skeletonBlock} ${loading ? styles.skeletonPulse : ''}`} />
+            <div className={styles.modeAOV} style={{ flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Confirmed / In-Progress Today</span>
+                <strong style={{ fontSize: '1.5rem', color: 'var(--color-primary)' }}>
+                  {data?.stats?.pendingMeasurementSessions?.value ?? 0}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Orders awaiting measurement</span>
+                <strong>
+                  {(data?.ordersByStage ?? []).find(s => s.stage === 'awaiting_measurement')?.count ?? 0}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Orders with measurement complete</span>
+                <strong>
+                  {(data?.ordersByStage ?? []).find(s => s.stage === 'measurement_complete')?.count ?? 0}
+                </strong>
+              </div>
+            </div>
           )}
         </div>
 
