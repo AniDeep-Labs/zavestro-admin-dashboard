@@ -202,21 +202,22 @@ export const OrdersListPage: React.FC = () => {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead><tr>
-            <th>Order ID</th><th>Customer</th><th>Mode</th><th>Products</th>
+            <th>Ref</th><th>Order ID</th><th>Customer</th><th>Mode</th><th>Products</th>
             <th>Stage</th><th>Hub</th><th>Total</th><th>Date</th>
           </tr></thead>
           <tbody>
             {loading ? Array.from({length: 8}).map((_, i) => (
-              <tr key={i}>{Array.from({length: 8}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
+              <tr key={i}>{Array.from({length: 9}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
             )) : error ? (
-              <tr><td colSpan={8} className={styles.empty}>
+              <tr><td colSpan={9} className={styles.empty}>
                 {error}<br/><button className={styles.retryBtn} onClick={() => setPage(1)}>Retry</button>
               </td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={8} className={styles.empty}>No orders found.</td></tr>
+              <tr><td colSpan={9} className={styles.empty}>No orders found.</td></tr>
             ) : orders.map(o => (
               <tr key={o.id} className={`${styles.row} ${o.overdue ? styles.rowOverdue : ''}`}
                 onClick={() => navigate(`/admin/orders/${o.id}`)}>
+                <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>{o.reference_id ?? '—'}</td>
                 <td className={styles.orderId}>{o.id}</td>
                 <td>
                   <div className={styles.customerName}>{o.customer}</div>

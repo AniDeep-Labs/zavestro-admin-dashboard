@@ -109,7 +109,9 @@ export const ordersApi = {
     return {
       id: (o.order_number ?? o.id) as string,
       uuid: o.id as string,
+      reference_id: (o.reference_id ?? undefined) as string | undefined,
       customer: (o.customer_name ?? '') as string,
+      customer_ref: (o.customer_ref ?? undefined) as string | undefined,
       phone: (o.customer_phone ?? '') as string,
       email: (o.customer_email ?? '') as string,
       user_id: o.user_id as string,
@@ -117,12 +119,33 @@ export const ordersApi = {
       stage: o.stage as OrderStage,
       status: o.lifecycle_status as AdminOrder['status'],
       hub: (o.hub_name ?? '') as string,
+      hub_id: (o.hub_id ?? undefined) as string | undefined,
       total: parseFloat(String(o.total_amount ?? 0)),
       products: (data.items ?? []).map(it => it.product_name).filter(Boolean),
       created: new Date(o.created_at as string).toLocaleDateString('en-IN'),
       items: data.items ?? [],
-      timeline: data.timeline ?? [],
+      timeline: (data.timeline ?? []).map(t => ({
+        ...t,
+        event_type: (t as unknown as Record<string, unknown>).event_type as string | undefined ?? 'stage_change',
+        changed_by_email: (t as unknown as Record<string, unknown>).changed_by_email as string | null | undefined,
+        metadata: (t as unknown as Record<string, unknown>).metadata as Record<string, unknown> | null | undefined,
+      })),
       payments: data.payments ?? [],
+      craftsperson_id: (o.craftsperson_id ?? null) as string | null,
+      craftsperson_name: (o.craftsperson_name ?? null) as string | null,
+      craftsperson_role: (o.craftsperson_role ?? null) as string | null,
+      craftsperson_ref: (o.craftsperson_ref ?? null) as string | null,
+      qc_staff_id: (o.qc_staff_id ?? null) as string | null,
+      qc_staff_name: (o.qc_staff_name ?? null) as string | null,
+      qc_staff_role: (o.qc_staff_role ?? null) as string | null,
+      qc_staff_ref: (o.qc_staff_ref ?? null) as string | null,
+      linked_measurement_booking_id: (o.linked_measurement_booking_id ?? null) as string | null,
+      linked_measurement_booking_ref: (o.linked_measurement_booking_ref ?? null) as string | null,
+      linked_home_visit_id: (o.linked_home_visit_id ?? null) as string | null,
+      linked_home_visit_ref: (o.linked_home_visit_ref ?? null) as string | null,
+      estimated_delivery_date: (o.estimated_delivery_date ?? null) as string | null,
+      on_hold_reason: (o.on_hold_reason ?? null) as string | null,
+      cancellation_reason: (o.cancellation_reason ?? null) as string | null,
     };
   },
 
@@ -130,6 +153,23 @@ export const ordersApi = {
     const o = await req<Record<string, unknown>>(`/api/admin/orders/${id}/stage`, { method: 'PUT', body: JSON.stringify({ stage, reason }) });
     return { stage: o.stage as OrderStage, status: o.lifecycle_status as AdminOrder['status'] };
   },
+
+  assignCraftsperson: async (orderId: string, staffId: string | null): Promise<void> =>
+    req(`/api/admin/orders/${orderId}/assign-craftsperson`, { method: 'PUT', body: JSON.stringify({ staff_id: staffId }) }),
+
+  assignQCStaff: async (orderId: string, staffId: string | null): Promise<void> =>
+    req(`/api/admin/orders/${orderId}/assign-qc-staff`, { method: 'PUT', body: JSON.stringify({ staff_id: staffId }) }),
+
+  addTimelineNote: async (orderId: string, note: string): Promise<OrderTimelineEntry> =>
+    req<OrderTimelineEntry>(`/api/admin/orders/${orderId}/timeline`, { method: 'POST', body: JSON.stringify({ note }) }),
+
+  updateLifecycle: async (orderId: string, data: {
+    estimated_delivery_date?: string | null;
+    on_hold_reason?: string | null;
+    linked_measurement_booking_id?: string | null;
+    linked_home_visit_id?: string | null;
+  }): Promise<void> =>
+    req(`/api/admin/orders/${orderId}/lifecycle`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   create: async (data: {
     user_id: string;

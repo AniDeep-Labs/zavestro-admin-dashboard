@@ -19,6 +19,9 @@ export interface OrderTimelineEntry {
   id: string;
   to_stage: string;
   note: string | null;
+  event_type?: string;
+  changed_by_email?: string | null;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -44,6 +47,7 @@ export interface AdminOrder {
   products: string[];
   stage: OrderStage;
   hub: string;
+  hub_id?: string;
   created: string;
   total: number;
   status: LifecycleStatus;
@@ -51,6 +55,21 @@ export interface AdminOrder {
   items?: OrderItem[];
   timeline?: OrderTimelineEntry[];
   payments?: OrderPayment[];
+  craftsperson_id?: string | null;
+  craftsperson_name?: string | null;
+  craftsperson_role?: string | null;
+  craftsperson_ref?: string | null;
+  qc_staff_id?: string | null;
+  qc_staff_name?: string | null;
+  qc_staff_role?: string | null;
+  qc_staff_ref?: string | null;
+  linked_measurement_booking_id?: string | null;
+  linked_measurement_booking_ref?: string | null;
+  linked_home_visit_id?: string | null;
+  linked_home_visit_ref?: string | null;
+  estimated_delivery_date?: string | null;
+  on_hold_reason?: string | null;
+  cancellation_reason?: string | null;
 }
 
 export interface AdminUser {

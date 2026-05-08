@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Send, ChevronDown, ChevronUp, MessageCircle, StickyNote, UserCheck } from 'lucide-react';
-import { supportApi } from '../../api/adminApi';
-import type { SupportTicket, TicketMessage } from '../../api/adminApi';
+import { ChevronLeft, Send, ChevronDown, ChevronUp, MessageCircle, StickyNote, UserCheck, Search, Package } from 'lucide-react';
+import { supportApi, ordersApi } from '../../api/adminApi';
+import type { SupportTicket, TicketMessage, AdminOrder } from '../../api/adminApi';
 import { catalogApi } from '../../api/catalogApi';
 import type { AdminUser } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -33,6 +33,11 @@ export const TicketDetailPage: React.FC = () => {
   const [selectedAssignee, setSelectedAssignee] = React.useState<string>('');
   const [assigning, setAssigning] = React.useState(false);
 
+  // Order lookup
+  const [orderQuery, setOrderQuery] = React.useState('');
+  const [orderResults, setOrderResults] = React.useState<AdminOrder[]>([]);
+  const [orderSearching, setOrderSearching] = React.useState(false);
+
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
@@ -49,10 +54,26 @@ export const TicketDetailPage: React.FC = () => {
     if (!id) return;
     setLoading(true);
     supportApi.get(id)
-      .then(t => { setTicket(t); setSelectedAssignee(t.assignedTo ?? ''); })
+      .then(t => {
+        setTicket(t);
+        setSelectedAssignee(t.assignedTo ?? '');
+        if (t.phone) setOrderQuery(t.phone);
+      })
       .catch(e => showToast('error', 'Failed to load ticket', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [id]);
+
+  React.useEffect(() => {
+    if (orderQuery.trim().length < 3) { setOrderResults([]); return; }
+    const t = setTimeout(() => {
+      setOrderSearching(true);
+      ordersApi.list({ search: orderQuery.trim(), limit: 6 })
+        .then(r => setOrderResults(r.orders))
+        .catch(() => setOrderResults([]))
+        .finally(() => setOrderSearching(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [orderQuery]);
 
   const handleAssign = async () => {
     if (!ticket) return;
@@ -256,6 +277,64 @@ export const TicketDetailPage: React.FC = () => {
               {ticket.status === 'Closed' || ticket.status === 'Resolved' ? (
                 <button className={styles.assignSelfBtn} onClick={() => handleStatusChange('Open')}>Reopen Ticket</button>
               ) : null}
+            </div>
+          </div>
+
+          {/* ── Order Lookup ─────────────────────────────────────────────── */}
+          <div className={styles.card}>
+            <h3 className={styles.sectionTitle}>Order Lookup</h3>
+            <div style={{ position: 'relative', marginBottom: 10 }}>
+              <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
+              <input
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  height: 36, paddingLeft: 30, paddingRight: 10,
+                  border: '1.5px solid var(--color-border)', borderRadius: 6,
+                  background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)',
+                  fontFamily: 'inherit', fontSize: 13, outline: 'none',
+                }}
+                placeholder="ZO-##### · ZC-##### · phone…"
+                value={orderQuery}
+                onChange={e => setOrderQuery(e.target.value)}
+              />
+            </div>
+            {orderSearching && (
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 8 }}>Searching…</div>
+            )}
+            {!orderSearching && orderQuery.length >= 3 && orderResults.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>No orders found.</div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {orderResults.map(o => (
+                <div key={o.id} style={{
+                  padding: '10px 12px', border: '1px solid var(--color-border-light)',
+                  borderRadius: 6, background: 'var(--color-bg-secondary)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <Package size={12} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+                    {o.reference_id ? (
+                      <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--color-primary)' }}>{o.reference_id}</span>
+                    ) : (
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--color-text-tertiary)' }}>{o.id}</span>
+                    )}
+                    <span style={{
+                      marginLeft: 'auto', fontSize: 11, padding: '1px 7px', borderRadius: 10, fontWeight: 600,
+                      background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)',
+                    }}>
+                      {o.stage.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                    {o.customer} · ₹{o.total.toLocaleString('en-IN')} · {o.created}
+                  </div>
+                  <button
+                    className={styles.linkBtn}
+                    onClick={() => navigate(`/admin/orders/${o.uuid ?? o.id}`)}
+                  >
+                    View Order →
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
