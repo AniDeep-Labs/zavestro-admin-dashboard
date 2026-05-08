@@ -190,9 +190,9 @@ export const usersApi = {
     return mapUser(u);
   },
 
-  create: async (data: { phone: string; name?: string; email?: string }): Promise<AdminUser> => {
+  create: async (data: { phone: string; name?: string; email?: string; generate_password?: boolean }): Promise<AdminUser & { temp_password?: string }> => {
     const raw = await req<Record<string, unknown>>('/api/admin/users', { method: 'POST', body: JSON.stringify(data) });
-    return mapUser(raw);
+    return { ...mapUser(raw), temp_password: raw.temp_password as string | undefined };
   },
 
   issueCredits: async (id: string, amount: number, reason: string): Promise<void> =>
@@ -343,6 +343,11 @@ export const supportApi = {
 
   addReply: async (id: string, message: string, internal = false): Promise<void> =>
     req(`/api/admin/support/${id}/replies`, { method: 'POST', body: JSON.stringify({ body: message, internal }) }),
+
+  assign: async (id: string, assigned_to: string | null): Promise<SupportTicket> => {
+    const raw = await req<Record<string, unknown>>(`/api/admin/support/${id}/assign`, { method: 'PUT', body: JSON.stringify({ assigned_to }) });
+    return mapTicket(raw);
+  },
 };
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
@@ -737,10 +742,16 @@ export const promosApi = {
   }): Promise<PromoCode> =>
     req<PromoCode>('/api/admin/promos', { method: 'POST', body: JSON.stringify(data) }),
 
+  update: async (id: string, data: Partial<PromoCode>): Promise<PromoCode> =>
+    req<PromoCode>(`/api/admin/promos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
   toggle: async (id: string, is_active: boolean): Promise<{ id: string; code: string; is_active: boolean }> =>
     req<{ id: string; code: string; is_active: boolean }>(`/api/admin/promos/${id}/active`, {
       method: 'PATCH', body: JSON.stringify({ is_active }),
     }),
+
+  delete: async (id: string): Promise<void> =>
+    req<void>(`/api/admin/promos/${id}`, { method: 'DELETE' }),
 
   validate: async (code: string, order_amount: number): Promise<{ valid: boolean; discount?: number; reason?: string; promo?: { code: string; discount_type: string; discount_value: number } }> =>
     req<{ valid: boolean; discount?: number; reason?: string; promo?: { code: string; discount_type: string; discount_value: number } }>('/api/admin/promos/validate', {
@@ -863,9 +874,10 @@ export interface HubStaff {
   id: string;
   hub_id?: string;
   name: string;
-  email: string;
-  phone?: string;
+  email?: string;
+  phone: string;
   role: string;
+  joined_at?: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -874,12 +886,33 @@ export const hubStaffApi = {
   list: async (hubId: string): Promise<HubStaff[]> =>
     req<{ staff: HubStaff[] }>(`/api/admin/hubs/${hubId}/staff`).then(r => r.staff),
 
-  create: async (hubId: string, data: { name: string; email: string; password: string; role: string }): Promise<HubStaff> =>
+  create: async (hubId: string, data: { name: string; phone: string; role: string; email?: string; joined_at?: string }): Promise<HubStaff> =>
     req<HubStaff>(`/api/admin/hubs/${hubId}/staff`, { method: 'POST', body: JSON.stringify(data) }),
+
+  update: async (hubId: string, staffId: string, data: Partial<{ name: string; phone: string; role: string; email: string; joined_at: string; is_active: boolean }>): Promise<HubStaff> =>
+    req<HubStaff>(`/api/admin/hubs/${hubId}/staff/${staffId}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   toggleActive: async (hubId: string, staffId: string, is_active: boolean): Promise<HubStaff> =>
     req<HubStaff>(`/api/admin/hubs/${hubId}/staff/${staffId}/active`, {
       method: 'PATCH', body: JSON.stringify({ is_active }),
+    }),
+};
+
+// ─── Customer Measurements ────────────────────────────────────────────────────
+
+export interface CustomerMeasurementsData {
+  profiles: Array<{ id: string; name: string; category: string; created_at: string }>;
+  measurements: Array<BodyMeasurement & { profile_category: string }>;
+}
+
+export const customerMeasurementsApi = {
+  get: async (userId: string): Promise<CustomerMeasurementsData> =>
+    req<CustomerMeasurementsData>(`/api/admin/customers/${userId}/measurements`),
+
+  save: async (userId: string, fitProfileId: string, data: Partial<Omit<BodyMeasurement, 'id' | 'fit_profile_id' | 'measurement_method' | 'measured_at' | 'created_at'>>): Promise<BodyMeasurement> =>
+    req<BodyMeasurement>(`/api/admin/customers/${userId}/measurements`, {
+      method: 'PUT',
+      body: JSON.stringify({ fit_profile_id: fitProfileId, ...data }),
     }),
 };
 

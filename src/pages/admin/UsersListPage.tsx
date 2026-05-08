@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Download, X, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
+import { Search, Download, X, ChevronLeft, ChevronRight, UserPlus, Copy, Check } from 'lucide-react';
 import { usersApi } from '../../api/adminApi';
 import type { AdminUser } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -33,7 +33,14 @@ export const UsersListPage: React.FC = () => {
   const [newPhone, setNewPhone] = React.useState('');
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
+  const [newCity, setNewCity] = React.useState('Bangalore');
+  const [genPassword, setGenPassword] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
+  const [phoneError, setPhoneError] = React.useState('');
+
+  // Temp password reveal modal
+  const [tempPassword, setTempPassword] = React.useState('');
+  const [copied, setCopied] = React.useState(false);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -57,22 +64,37 @@ export const UsersListPage: React.FC = () => {
   };
 
   const handleCreateUser = async () => {
-    if (!newPhone.trim()) { showToast('error', 'Phone number is required'); return; }
+    const phone = newPhone.trim();
+    if (!phone) { setPhoneError('Phone number is required'); return; }
+    if (!/^\d{10}$/.test(phone)) { setPhoneError('Enter a 10-digit Indian mobile number (no country code)'); return; }
+    setPhoneError('');
     setCreating(true);
     try {
       const created = await usersApi.create({
-        phone: newPhone.trim(),
+        phone,
         name: newName.trim() || undefined,
         email: newEmail.trim() || undefined,
+        generate_password: genPassword,
       });
       setUsers(prev => [created, ...prev]);
       setTotal(t => t + 1);
       setShowCreate(false);
-      setNewPhone(''); setNewName(''); setNewEmail('');
-      showToast('success', 'User created', `${created.name || created.phone} added`);
+      setNewPhone(''); setNewName(''); setNewEmail(''); setNewCity('Bangalore'); setGenPassword(true);
+      if (created.temp_password) {
+        setTempPassword(created.temp_password);
+      } else {
+        showToast('success', 'Customer created', `${created.name || created.phone} added`);
+      }
     } catch (e) {
-      showToast('error', 'Failed to create user', e instanceof Error ? e.message : undefined);
+      showToast('error', 'Failed to create customer', e instanceof Error ? e.message : undefined);
     } finally { setCreating(false); }
+  };
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(tempPassword).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   return (
@@ -83,7 +105,7 @@ export const UsersListPage: React.FC = () => {
         <div style={{ display: 'flex', gap: 8 }}>
           <button className={styles.exportBtn} onClick={() => setShowCreate(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-green, var(--green))', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}>
-            <UserPlus size={14}/> Add User
+            <UserPlus size={14}/> Add Customer
           </button>
           <button className={styles.exportBtn} onClick={exportCSV}><Download size={14} /> Export CSV</button>
         </div>
@@ -147,33 +169,70 @@ export const UsersListPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Add Customer modal */}
       {showCreate && (
         <div className={styles.modalOverlay} onClick={() => setShowCreate(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Add User Account</h3>
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>Creates an app account. The user can log in with their phone number via OTP.</p>
+            <h3 className={styles.modalTitle}>Add Customer Account</h3>
+            <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-secondary)' }}>Creates a customer account directly. Share the generated password with the customer via phone/WhatsApp.</p>
             <div className={styles.fields}>
               <div className={styles.field}>
-                <label className={styles.fieldLabel}>Phone * (with country code)</label>
-                <input className={styles.fieldInput} placeholder="e.g., +919876543210"
-                  value={newPhone} onChange={e => setNewPhone(e.target.value)} />
+                <label className={styles.fieldLabel}>Phone * (10-digit Indian mobile)</label>
+                <input className={styles.fieldInput} placeholder="e.g., 9876543210" maxLength={10}
+                  value={newPhone} onChange={e => { setNewPhone(e.target.value.replace(/\D/g, '')); setPhoneError(''); }} />
+                {phoneError && <span style={{ color: 'var(--color-error, #ef4444)', fontSize: 12, marginTop: 4, display: 'block' }}>{phoneError}</span>}
               </div>
               <div className={styles.field}>
-                <label className={styles.fieldLabel}>Name (optional)</label>
-                <input className={styles.fieldInput} placeholder="Full name"
+                <label className={styles.fieldLabel}>Full Name (optional)</label>
+                <input className={styles.fieldInput} placeholder="Customer's full name"
                   value={newName} onChange={e => setNewName(e.target.value)} />
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Email (optional)</label>
-                <input className={styles.fieldInput} type="email" placeholder="user@example.com"
+                <input className={styles.fieldInput} type="email" placeholder="customer@example.com"
                   value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>City</label>
+                <input className={styles.fieldInput} placeholder="City"
+                  value={newCity} onChange={e => setNewCity(e.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                  <input type="checkbox" checked={genPassword} onChange={e => setGenPassword(e.target.checked)} style={{ width: 16, height: 16 }} />
+                  Generate temporary password (shown once, share manually)
+                </label>
               </div>
             </div>
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} onClick={() => setShowCreate(false)}>Cancel</button>
               <button className={styles.addBtn} disabled={creating} onClick={handleCreateUser}
                 style={{ height: 40, padding: '0 20px', borderRadius: 'var(--radius-md)', cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.7 : 1 }}>
-                {creating ? 'Creating…' : 'Create Account'}
+                {creating ? 'Creating…' : 'Create Customer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Temp password reveal modal — shown once after creation */}
+      {tempPassword && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Customer Account Created</h3>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+              Share this temporary password with the customer via phone or WhatsApp. <strong>This is shown only once and cannot be retrieved again.</strong> The customer will be asked to change it on first login.
+            </p>
+            <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
+              <code style={{ fontSize: 18, letterSpacing: 2, fontFamily: 'monospace', color: 'var(--color-text-primary)', fontWeight: 700 }}>{tempPassword}</code>
+              <button onClick={handleCopyPassword} style={{ display: 'flex', alignItems: 'center', gap: 6, background: copied ? 'var(--color-primary)' : 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: copied ? '#fff' : 'var(--color-text-secondary)', transition: 'all 0.2s' }}>
+                {copied ? <><Check size={13}/> Copied</> : <><Copy size={13}/> Copy</>}
+              </button>
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.addBtn} onClick={() => { setTempPassword(''); setCopied(false); showToast('success', 'Customer created successfully'); }}
+                style={{ height: 40, padding: '0 20px', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>
+                Done — I've noted the password
               </button>
             </div>
           </div>

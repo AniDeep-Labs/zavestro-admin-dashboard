@@ -12,7 +12,7 @@ const TABS = ['Overview', 'Staff', 'Capacity', 'Pincodes', 'Inventory'];
 
 const EMPTY_HUB: Partial<Hub> = { name: '', city: '', state: '', address: '', pincode: '', managerName: '', managerPhone: '', status: 'Active', tailorCount: 0, activeOrders: 0, capacityUsed: 0, qcPassRate: 100 };
 
-const STAFF_ROLES = ['tailor', 'qc_staff', 'dispatch'];
+const STAFF_ROLES = ['tailor', 'cutter', 'finisher', 'quality_checker', 'manager'];
 
 export const HubDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,11 +32,20 @@ export const HubDetailPage: React.FC = () => {
   const [staffLoading, setStaffLoading] = React.useState(false);
   const [showAddStaff, setShowAddStaff] = React.useState(false);
   const [staffName, setStaffName] = React.useState('');
+  const [staffPhone, setStaffPhone] = React.useState('');
   const [staffEmail, setStaffEmail] = React.useState('');
-  const [staffPassword, setStaffPassword] = React.useState('');
   const [staffRole, setStaffRole] = React.useState('tailor');
+  const [staffJoinDate, setStaffJoinDate] = React.useState('');
   const [addingStaff, setAddingStaff] = React.useState(false);
   const [togglingStaffId, setTogglingStaffId] = React.useState<string | null>(null);
+  // Edit staff modal
+  const [editingStaff, setEditingStaff] = React.useState<HubStaff | null>(null);
+  const [editName, setEditName] = React.useState('');
+  const [editPhone, setEditPhone] = React.useState('');
+  const [editEmail, setEditEmail] = React.useState('');
+  const [editRole, setEditRole] = React.useState('tailor');
+  const [editJoinDate, setEditJoinDate] = React.useState('');
+  const [savingEdit, setSavingEdit] = React.useState(false);
 
   // Capacity state
   const [dailyLimit, setDailyLimit] = React.useState(60);
@@ -135,20 +144,23 @@ export const HubDetailPage: React.FC = () => {
   };
 
   const handleAddStaff = async () => {
-    if (!staffName.trim() || !staffEmail.trim() || !staffPassword) {
-      showToast('error', 'All fields required');
+    if (!staffName.trim() || !staffPhone.trim()) {
+      showToast('error', 'Name and Phone are required');
       return;
     }
     if (!hub) return;
     setAddingStaff(true);
     try {
       const created = await hubStaffApi.create(hub.id, {
-        name: staffName.trim(), email: staffEmail.trim(),
-        password: staffPassword, role: staffRole,
+        name: staffName.trim(),
+        phone: staffPhone.trim(),
+        email: staffEmail.trim() || undefined,
+        role: staffRole,
+        joined_at: staffJoinDate || undefined,
       });
       setStaff(prev => [...prev, created]);
       setShowAddStaff(false);
-      setStaffName(''); setStaffEmail(''); setStaffPassword(''); setStaffRole('tailor');
+      setStaffName(''); setStaffPhone(''); setStaffEmail(''); setStaffRole('tailor'); setStaffJoinDate('');
       showToast('success', 'Staff added', created.name);
     } catch (e) {
       showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
@@ -159,11 +171,40 @@ export const HubDetailPage: React.FC = () => {
     if (!hub) return;
     setTogglingStaffId(member.id);
     try {
-      const updated = await hubStaffApi.toggleActive(hub.id, member.id, !member.is_active);
+      const updated = await hubStaffApi.update(hub.id, member.id, { is_active: !member.is_active });
       setStaff(prev => prev.map(s => s.id === updated.id ? updated : s));
     } catch (e) {
       showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
     } finally { setTogglingStaffId(null); }
+  };
+
+  const openEditStaff = (member: HubStaff) => {
+    setEditingStaff(member);
+    setEditName(member.name);
+    setEditPhone(member.phone);
+    setEditEmail(member.email ?? '');
+    setEditRole(member.role);
+    setEditJoinDate(member.joined_at ? member.joined_at.slice(0, 10) : '');
+  };
+
+  const handleSaveEditStaff = async () => {
+    if (!editingStaff || !hub) return;
+    if (!editName.trim() || !editPhone.trim()) { showToast('error', 'Name and Phone are required'); return; }
+    setSavingEdit(true);
+    try {
+      const updated = await hubStaffApi.update(hub.id, editingStaff.id, {
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        email: editEmail.trim() || undefined,
+        role: editRole,
+        joined_at: editJoinDate || undefined,
+      });
+      setStaff(prev => prev.map(s => s.id === updated.id ? updated : s));
+      setEditingStaff(null);
+      showToast('success', 'Staff updated');
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    } finally { setSavingEdit(false); }
   };
 
   const handleSaveCapacity = async () => {
@@ -317,20 +358,22 @@ export const HubDetailPage: React.FC = () => {
             ) : (
               <table className={styles.miniTable}>
                 <thead>
-                  <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+                  <tr><th>Name</th><th>Phone</th><th>Role</th><th>Joined</th><th>Status</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {staff.map(s => (
                     <tr key={s.id}>
                       <td>{s.name}</td>
-                      <td style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{s.email}</td>
+                      <td style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>{s.phone}</td>
                       <td><span className={styles.rolePill}>{s.role.replace(/_/g, ' ')}</span></td>
+                      <td style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{s.joined_at ? new Date(s.joined_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>
                       <td>
                         <span style={{ fontSize: 12, fontWeight: 600, color: s.is_active ? 'var(--color-primary)' : 'var(--color-text-tertiary)' }}>
                           {s.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td>
+                      <td style={{ display: 'flex', gap: 6 }}>
+                        <button className={styles.actionBtn} onClick={() => openEditStaff(s)}>Edit</button>
                         <button
                           className={styles.actionBtn}
                           disabled={togglingStaffId === s.id}
@@ -356,12 +399,12 @@ export const HubDetailPage: React.FC = () => {
                     <input className={styles.fieldInput} placeholder="Full name" value={staffName} onChange={e => setStaffName(e.target.value)} />
                   </div>
                   <div className={styles.formField}>
-                    <label className={styles.metaLabel}>Email *</label>
-                    <input className={styles.fieldInput} type="email" placeholder="staff@zavestro.in" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} />
+                    <label className={styles.metaLabel}>Phone *</label>
+                    <input className={styles.fieldInput} type="tel" placeholder="10-digit mobile" maxLength={10} value={staffPhone} onChange={e => setStaffPhone(e.target.value.replace(/\D/g, ''))} />
                   </div>
                   <div className={styles.formField}>
-                    <label className={styles.metaLabel}>Temporary Password * (min 8 chars)</label>
-                    <input className={styles.fieldInput} type="password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} />
+                    <label className={styles.metaLabel}>Email (optional)</label>
+                    <input className={styles.fieldInput} type="email" placeholder="staff@example.com" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} />
                   </div>
                   <div className={styles.formField}>
                     <label className={styles.metaLabel}>Role</label>
@@ -369,11 +412,53 @@ export const HubDetailPage: React.FC = () => {
                       {STAFF_ROLES.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
                     </select>
                   </div>
+                  <div className={styles.formField}>
+                    <label className={styles.metaLabel}>Join Date (optional)</label>
+                    <input className={styles.fieldInput} type="date" value={staffJoinDate} onChange={e => setStaffJoinDate(e.target.value)} />
+                  </div>
                 </div>
                 <div className={styles.modalActions}>
                   <button className={styles.cancelBtn} onClick={() => setShowAddStaff(false)}>Cancel</button>
                   <button className={styles.editBtn} disabled={addingStaff} onClick={handleAddStaff}>
                     {addingStaff ? 'Adding…' : 'Add Staff'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {editingStaff && (
+            <div className={styles.modalOverlay} onClick={() => setEditingStaff(null)}>
+              <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                <h3 className={styles.modalTitle}>Edit Staff Member</h3>
+                <div className={styles.fields}>
+                  <div className={styles.formField}>
+                    <label className={styles.metaLabel}>Name *</label>
+                    <input className={styles.fieldInput} value={editName} onChange={e => setEditName(e.target.value)} />
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.metaLabel}>Phone *</label>
+                    <input className={styles.fieldInput} type="tel" maxLength={10} value={editPhone} onChange={e => setEditPhone(e.target.value.replace(/\D/g, ''))} />
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.metaLabel}>Email (optional)</label>
+                    <input className={styles.fieldInput} type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.metaLabel}>Role</label>
+                    <select className={styles.fieldInput} value={editRole} onChange={e => setEditRole(e.target.value)}>
+                      {STAFF_ROLES.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
+                    </select>
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.metaLabel}>Join Date</label>
+                    <input className={styles.fieldInput} type="date" value={editJoinDate} onChange={e => setEditJoinDate(e.target.value)} />
+                  </div>
+                </div>
+                <div className={styles.modalActions}>
+                  <button className={styles.cancelBtn} onClick={() => setEditingStaff(null)}>Cancel</button>
+                  <button className={styles.editBtn} disabled={savingEdit} onClick={handleSaveEditStaff}>
+                    {savingEdit ? 'Saving…' : 'Save Changes'}
                   </button>
                 </div>
               </div>

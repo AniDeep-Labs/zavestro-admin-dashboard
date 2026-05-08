@@ -54,6 +54,7 @@ import { HomeVisitsListPage } from './pages/admin/HomeVisitsListPage';
 import { HomeVisitDetailPage } from './pages/admin/HomeVisitDetailPage';
 import { InvoicesListPage } from './pages/admin/InvoicesListPage';
 import { ServiceAreasPage } from './pages/admin/ServiceAreasPage';
+import { AdminProfilePage } from './pages/admin/AdminProfilePage';
 
 function NotFoundPage() {
   const nav = useNav404();
@@ -135,6 +136,7 @@ function App() {
             <Route path="home-visits/:id" element={<HomeVisitDetailPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
             <Route path="promo-codes" element={<PromoCodesPage />} />
+            <Route path="profile" element={<AdminProfilePage />} />
             {/* Admin 404 — renders inside the sidebar layout */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>

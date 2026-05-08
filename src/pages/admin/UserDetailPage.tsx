@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Lock, Gift, UserX, UserCheck } from 'lucide-react';
-import { usersApi, ordersApi } from '../../api/adminApi';
-import type { AdminUser, AdminOrder } from '../../api/adminApi';
+import { ChevronLeft, Lock, Gift, UserX, UserCheck, Pencil, Save, X } from 'lucide-react';
+import { usersApi, ordersApi, customerMeasurementsApi } from '../../api/adminApi';
+import type { AdminUser, AdminOrder, CustomerMeasurementsData, BodyMeasurement } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
@@ -22,6 +22,12 @@ export const UserDetailPage: React.FC = () => {
   const [creditsReason, setCreditsReason] = React.useState('');
   const [note, setNote] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [measurements, setMeasurements] = React.useState<CustomerMeasurementsData | null>(null);
+  const [measurementsLoading, setMeasurementsLoading] = React.useState(false);
+  const [selectedProfileId, setSelectedProfileId] = React.useState<string>('');
+  const [editingMeasurements, setEditingMeasurements] = React.useState(false);
+  const [measurementForm, setMeasurementForm] = React.useState<Partial<Record<keyof Omit<BodyMeasurement, 'id'|'fit_profile_id'|'measurement_method'|'measured_at'|'created_at'>, string>>>({});
+  const [savingMeasurements, setSavingMeasurements] = React.useState(false);
 
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -39,7 +45,44 @@ export const UserDetailPage: React.FC = () => {
       .then(([u, ordersResp]) => { setUser(u); setUserOrders(ordersResp.orders); })
       .catch(e => showToast('error', 'Failed to load user', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
+    setMeasurementsLoading(true);
+    customerMeasurementsApi.get(id)
+      .then(data => { setMeasurements(data); if (data.profiles.length > 0) setSelectedProfileId(data.profiles[0].id); })
+      .catch(() => {})
+      .finally(() => setMeasurementsLoading(false));
   }, [id]);
+
+  const activeMeasurement = React.useMemo(() => {
+    if (!measurements || !selectedProfileId) return null;
+    return measurements.measurements.find(m => m.fit_profile_id === selectedProfileId) ?? null;
+  }, [measurements, selectedProfileId]);
+
+  const openEditMeasurements = () => {
+    if (!activeMeasurement) { setMeasurementForm({}); }
+    else {
+      const FIELDS = ['chest','waist','hips','shoulders','sleeve_length','neck','inseam','thigh','calf','bicep','wrist','shirt_length','kurta_length','trouser_length'] as const;
+      const form: typeof measurementForm = {};
+      FIELDS.forEach(f => { const v = activeMeasurement[f]; if (v != null) form[f] = String(v); });
+      setMeasurementForm(form);
+    }
+    setEditingMeasurements(true);
+  };
+
+  const handleSaveMeasurements = async () => {
+    if (!id || !selectedProfileId) return;
+    setSavingMeasurements(true);
+    try {
+      const data: Record<string, number> = {};
+      Object.entries(measurementForm).forEach(([k, v]) => { if (v !== '' && v != null) data[k] = parseFloat(v as string); });
+      await customerMeasurementsApi.save(id, selectedProfileId, data);
+      const updated = await customerMeasurementsApi.get(id);
+      setMeasurements(updated);
+      setEditingMeasurements(false);
+      showToast('success', 'Measurements saved');
+    } catch (e) {
+      showToast('error', 'Failed to save', e instanceof Error ? e.message : undefined);
+    } finally { setSavingMeasurements(false); }
+  };
 
   const handleDeactivate = async () => {
     if (!user) return;
@@ -152,10 +195,81 @@ export const UserDetailPage: React.FC = () => {
             </table>
           </div>
 
-          {/* Fit Profiles */}
+          {/* Fit Profiles & Measurements */}
           <div className={styles.card}>
-            <h3 className={styles.sectionTitle}>Fit Profiles</h3>
-            <div className={styles.profileNote}>Read-only — admins cannot edit customer measurements. Use "View Profile" on an order to see fit data.</div>
+            <div className={styles.sectionHeader}>
+              <h3 className={styles.sectionTitle}>Fit Profiles & Measurements</h3>
+              {measurements && measurements.profiles.length > 0 && !editingMeasurements && (
+                <button className={styles.linkBtn} onClick={openEditMeasurements}><Pencil size={13}/> Edit</button>
+              )}
+              {editingMeasurements && (
+                <button className={styles.linkBtn} onClick={() => setEditingMeasurements(false)}><X size={13}/> Cancel</button>
+              )}
+            </div>
+            {measurementsLoading ? (
+              <div className={styles.profileNote}>Loading…</div>
+            ) : !measurements || measurements.profiles.length === 0 ? (
+              <div className={styles.profileNote}>No fit profiles found for this customer.</div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                  {measurements.profiles.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => { setSelectedProfileId(p.id); setEditingMeasurements(false); }}
+                      style={{
+                        padding: '4px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                        border: '1.5px solid',
+                        borderColor: selectedProfileId === p.id ? 'var(--color-primary)' : 'var(--color-border)',
+                        background: selectedProfileId === p.id ? 'var(--color-primary)' : 'transparent',
+                        color: selectedProfileId === p.id ? '#fff' : 'var(--color-text-primary)',
+                        fontFamily: 'inherit', fontWeight: 500,
+                      }}
+                    >
+                      {p.name || p.category}
+                    </button>
+                  ))}
+                </div>
+                {editingMeasurements ? (
+                  <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', marginBottom: 12 }}>
+                      {(['chest','waist','hips','shoulders','sleeve_length','neck','inseam','thigh','calf','bicep','wrist','shirt_length','kurta_length','trouser_length'] as const).map(field => (
+                        <div key={field}>
+                          <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textTransform: 'capitalize', marginBottom: 2 }}>{field.replace(/_/g, ' ')} (cm)</div>
+                          <input
+                            type="number" step="0.5" min="0"
+                            className={styles.fieldInput}
+                            style={{ height: 34, fontSize: 13 }}
+                            placeholder="—"
+                            value={measurementForm[field] ?? ''}
+                            onChange={e => setMeasurementForm(f => ({ ...f, [field]: e.target.value }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <button className={styles.saveNoteBtn} disabled={savingMeasurements} onClick={handleSaveMeasurements}>
+                      <Save size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />
+                      {savingMeasurements ? 'Saving…' : 'Save Measurements'}
+                    </button>
+                  </div>
+                ) : activeMeasurement ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
+                    {(['chest','waist','hips','shoulders','sleeve_length','neck','inseam','thigh','calf','bicep','wrist','shirt_length','kurta_length','trouser_length'] as const).map(field => {
+                      const v = activeMeasurement[field];
+                      if (v == null) return null;
+                      return (
+                        <div key={field} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 4, fontSize: 13 }}>
+                          <span style={{ color: 'var(--color-text-secondary)', textTransform: 'capitalize' }}>{field.replace(/_/g, ' ')}</span>
+                          <span style={{ fontWeight: 600 }}>{v} cm</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className={styles.profileNote}>No measurements recorded for this profile yet. Click Edit to add.</div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Credits */}

@@ -1,8 +1,10 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Send, ChevronDown, ChevronUp, MessageCircle, StickyNote } from 'lucide-react';
+import { ChevronLeft, Send, ChevronDown, ChevronUp, MessageCircle, StickyNote, UserCheck } from 'lucide-react';
 import { supportApi } from '../../api/adminApi';
 import type { SupportTicket, TicketMessage } from '../../api/adminApi';
+import { catalogApi } from '../../api/catalogApi';
+import type { AdminUser } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
@@ -27,6 +29,9 @@ export const TicketDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = React.useState<'reply' | 'notes'>('reply');
   const [internalNote, setInternalNote] = React.useState('');
   const [sending, setSending] = React.useState(false);
+  const [adminUsers, setAdminUsers] = React.useState<AdminUser[]>([]);
+  const [selectedAssignee, setSelectedAssignee] = React.useState<string>('');
+  const [assigning, setAssigning] = React.useState(false);
 
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -35,13 +40,32 @@ export const TicketDetailPage: React.FC = () => {
   useBreadcrumbTitle(ticket?.subject);
 
   React.useEffect(() => {
+    catalogApi.listAdminUsers()
+      .then(setAdminUsers)
+      .catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
     if (!id) return;
     setLoading(true);
     supportApi.get(id)
-      .then(setTicket)
+      .then(t => { setTicket(t); setSelectedAssignee(t.assignedTo ?? ''); })
       .catch(e => showToast('error', 'Failed to load ticket', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleAssign = async () => {
+    if (!ticket) return;
+    setAssigning(true);
+    try {
+      const updated = await supportApi.assign(ticket.id, selectedAssignee || null);
+      setTicket(updated);
+      setSelectedAssignee(updated.assignedTo ?? '');
+      showToast('success', selectedAssignee ? 'Ticket assigned' : 'Assignment removed');
+    } catch (e) {
+      showToast('error', 'Failed to assign', e instanceof Error ? e.message : undefined);
+    } finally { setAssigning(false); }
+  };
 
   const handleSendReply = async () => {
     if (!ticket || !reply.trim()) return;
@@ -185,9 +209,27 @@ export const TicketDetailPage: React.FC = () => {
             <div className={styles.infoGrid}>
               <div><div className={styles.metaLabel}>Created</div><div className={styles.metaValue}>{ticket.created}</div></div>
               <div><div className={styles.metaLabel}>Last Activity</div><div className={styles.metaValue}>{ticket.lastActivity}</div></div>
-              <div><div className={styles.metaLabel}>Assigned to</div>
-                <div className={styles.assignedRow}>
-                  <span className={ticket.assignedTo ? styles.metaValue : styles.unassigned}>{ticket.assignedTo || 'Unassigned'}</span>
+              <div>
+                <div className={styles.metaLabel}>Assigned to</div>
+                <div className={styles.assignedRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+                  {(() => {
+                    const current = adminUsers.find(u => u.id === ticket.assignedTo);
+                    return <span className={current ? styles.metaValue : styles.unassigned} style={{ marginBottom: 4 }}>{current ? current.name : 'Unassigned'}</span>;
+                  })()}
+                  <select
+                    className={styles.fieldSelect}
+                    value={selectedAssignee}
+                    onChange={e => setSelectedAssignee(e.target.value)}
+                  >
+                    <option value="">— Unassign —</option>
+                    {adminUsers.filter(u => u.is_active).map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                  <button className={styles.assignSelfBtn} disabled={assigning} onClick={handleAssign} style={{ marginTop: 2 }}>
+                    <UserCheck size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                    {assigning ? 'Saving…' : 'Assign'}
+                  </button>
                 </div>
               </div>
             </div>

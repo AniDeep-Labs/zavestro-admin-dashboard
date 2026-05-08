@@ -242,7 +242,12 @@ const AdminLayoutInner: React.FC = () => {
                 </span>
               )}
             </button>
-            <div className={styles.adminUser}>
+            <div
+              className={styles.adminUser}
+              onClick={() => navigate('/admin/profile')}
+              title="My Profile"
+              style={{ cursor: 'pointer' }}
+            >
               <div className={styles.avatar}>{adminInitial}</div>
               {!collapsed && (
                 <>
