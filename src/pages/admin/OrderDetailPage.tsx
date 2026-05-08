@@ -162,22 +162,38 @@ const NextStepCard: React.FC<NextStepProps> = ({
           <Clock size={18} />
         </div>
         <div className={styles.nextStepTitle}>Waiting for Measurement Visit</div>
-        <div className={styles.nextStepDesc}>
-          Measurement specialist will visit the customer and upload measurements via the ops app. Once the booking is marked complete, advance here.
-        </div>
+        {!booking ? (
+          <div className={styles.nextStepDesc} style={{ color: '#9A6B3A' }}>
+            ⚠ No measurement booking linked. Use the "Schedule Measurement Visit" step to link or create one first.
+          </div>
+        ) : (
+          <div className={styles.nextStepDesc}>
+            The measurement specialist will visit the customer's home and upload measurements via the ops app. This card will automatically advance once the booking is marked complete.
+          </div>
+        )}
         {booking && (
           <button className={styles.nextStepSecondary} onClick={() => navigate(`/admin/measurement-bookings/${booking}`)}>
-            View Measurement Booking →
+            View Booking →
           </button>
         )}
-        <div className={styles.nextStepOr}>Once measurements are uploaded:</div>
-        <button
-          className={styles.nextStepPrimary}
-          disabled={advancingStage}
-          onClick={() => onAdvance('measurement_complete', 'Measurements received and verified')}
-        >
-          {advancingStage ? 'Advancing…' : 'Mark Measurements Complete'}
-        </button>
+        {booking && (
+          <>
+            <div className={styles.nextStepOr}>If the ops app didn't auto-advance:</div>
+            <button
+              className={styles.nextStepPrimary}
+              style={{ opacity: 0.75, fontSize: '0.8rem' }}
+              disabled={advancingStage}
+              onClick={() => onAdvance('measurement_complete', 'Measurements verified manually')}
+            >
+              {advancingStage ? 'Advancing…' : 'Manually Mark Complete'}
+            </button>
+          </>
+        )}
+        {!booking && (
+          <button className={styles.nextStepSecondary} onClick={onCreateMeasurementBooking}>
+            Create Measurement Booking →
+          </button>
+        )}
       </div>
     );
   }
@@ -447,7 +463,14 @@ export const OrderDetailPage: React.FC = () => {
       showToast('success', `Advanced to ${toStage.replace(/_/g, ' ')}`);
       reload();
     } catch (e) {
-      showToast('error', 'Failed to advance', e instanceof Error ? e.message : undefined);
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('MEASUREMENT_INCOMPLETE')) {
+        showToast('error', 'Measurements not ready', 'The linked booking is not completed. Wait for the ops app upload.');
+      } else if (msg.includes('CRAFTSPERSON_REQUIRED')) {
+        showToast('error', 'Assign craftsperson first', 'A craftsperson must be assigned before starting tailoring.');
+      } else {
+        showToast('error', 'Failed to advance', msg);
+      }
     } finally {
       setAdvancingStage(false);
     }
