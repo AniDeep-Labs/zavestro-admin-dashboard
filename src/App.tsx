@@ -53,6 +53,7 @@ import { AlterationsListPage } from './pages/admin/AlterationsListPage';
 import { HomeVisitsListPage } from './pages/admin/HomeVisitsListPage';
 import { HomeVisitDetailPage } from './pages/admin/HomeVisitDetailPage';
 import { InvoicesListPage } from './pages/admin/InvoicesListPage';
+import { ServiceAreasPage } from './pages/admin/ServiceAreasPage';
 
 function NotFoundPage() {
   const nav = useNav404();
@@ -126,6 +127,7 @@ function App() {
             <Route path="system/audit-log" element={<AuditLogPage />} />
             <Route path="system/waitlist" element={<WaitlistPage />} />
             <Route path="system/admin-users" element={<AdminUsersManagePage />} />
+            <Route path="system/service-areas" element={<ServiceAreasPage />} />
             <Route path="returns" element={<ReturnsListPage />} />
             <Route path="returns/:id" element={<ReturnDetailPage />} />
             <Route path="alterations" element={<AlterationsListPage />} />

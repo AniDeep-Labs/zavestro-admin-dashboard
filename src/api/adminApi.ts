@@ -332,7 +332,12 @@ export const supportApi = {
   },
 
   update: async (id: string, data: Partial<SupportTicket>): Promise<SupportTicket> => {
-    const raw = await req<Record<string, unknown>>(`/api/admin/support/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+    const STATUS_TO_DB: Record<string, string> = { 'Open': 'open', 'In Progress': 'in_progress', 'Resolved': 'resolved', 'Closed': 'closed' };
+    const PRIORITY_TO_DB: Record<string, string> = { 'High': 'high', 'Medium': 'normal', 'Low': 'low' };
+    const body: Record<string, unknown> = { ...data };
+    if (data.status && STATUS_TO_DB[data.status]) body.status = STATUS_TO_DB[data.status];
+    if (data.priority && PRIORITY_TO_DB[data.priority]) body.priority = PRIORITY_TO_DB[data.priority];
+    const raw = await req<Record<string, unknown>>(`/api/admin/support/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
     return mapTicket(raw);
   },
 
@@ -736,6 +741,77 @@ export const promosApi = {
     req<{ id: string; code: string; is_active: boolean }>(`/api/admin/promos/${id}/active`, {
       method: 'PATCH', body: JSON.stringify({ is_active }),
     }),
+
+  validate: async (code: string, order_amount: number): Promise<{ valid: boolean; discount?: number; reason?: string; promo?: { code: string; discount_type: string; discount_value: number } }> =>
+    req<{ valid: boolean; discount?: number; reason?: string; promo?: { code: string; discount_type: string; discount_value: number } }>('/api/admin/promos/validate', {
+      method: 'POST', body: JSON.stringify({ code, order_amount }),
+    }),
+};
+
+// ─── Service Pincodes ─────────────────────────────────────────────────────────
+
+export interface ServicePincode {
+  id: string;
+  pincode: string;
+  area_name: string;
+  city: string;
+  hub_id: string | null;
+  hub_name?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServicePincodesResponse {
+  pincodes: ServicePincode[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export const serviceAreasApi = {
+  list: async (params: { search?: string; city?: string; page?: number; limit?: number } = {}): Promise<ServicePincodesResponse> => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.city)   qs.set('city',   params.city);
+    if (params.page)   qs.set('page',   String(params.page));
+    if (params.limit)  qs.set('limit',  String(params.limit));
+    return req<ServicePincodesResponse>(`/api/admin/system/service-pincodes?${qs}`).then(r => ({
+      ...r,
+      pincodes: r.pincodes ?? [],
+    }));
+  },
+
+  upsert: async (data: { pincode: string; area_name?: string; city?: string; hub_id?: string | null; is_active?: boolean }[]): Promise<{ pincodes: ServicePincode[] }> =>
+    req<{ pincodes: ServicePincode[] }>('/api/admin/system/service-pincodes', { method: 'POST', body: JSON.stringify(data) }),
+
+  update: async (id: string, data: Partial<ServicePincode>): Promise<ServicePincode> =>
+    req<ServicePincode>(`/api/admin/system/service-pincodes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  remove: async (id: string): Promise<void> =>
+    req(`/api/admin/system/service-pincodes/${id}`, { method: 'DELETE' }),
+
+  check: async (pincode: string): Promise<{ serviceable: boolean; area_name?: string; city?: string; hub?: { id: string; name: string } | null }> =>
+    req<{ serviceable: boolean; area_name?: string; city?: string; hub?: { id: string; name: string } | null }>(`/api/pincodes/check?pincode=${encodeURIComponent(pincode)}`),
+};
+
+// ─── Admin Auth Extended ──────────────────────────────────────────────────────
+
+export const adminAuthExtApi = {
+  setupSecurityQuestion: async (question: string, answer: string): Promise<void> =>
+    req('/api/admin/auth/security-question', { method: 'POST', body: JSON.stringify({ question, answer }) }),
+
+  getSecurityQuestion: async (email: string): Promise<{ question: string }> =>
+    req<{ question: string }>('/api/admin/auth/security-question/get', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  resetViaQuestion: async (email: string, answer: string, password: string): Promise<void> =>
+    req('/api/admin/auth/security-question/reset', { method: 'POST', body: JSON.stringify({ email, answer, password }) }),
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> =>
+    req('/api/admin/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
+
+  setTempPassword: async (adminUserId: string, password: string): Promise<void> =>
+    req(`/api/admin/auth/users/${adminUserId}/temp-password`, { method: 'POST', body: JSON.stringify({ password }) }),
 };
 
 // ─── Craftspeople ─────────────────────────────────────────────────────────────

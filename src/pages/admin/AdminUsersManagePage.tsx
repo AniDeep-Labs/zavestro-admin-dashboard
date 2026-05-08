@@ -1,7 +1,8 @@
 import React from 'react';
-import { RefreshCw, UserPlus } from 'lucide-react';
+import { RefreshCw, UserPlus, Key } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { AdminUser } from '../../api/catalogApi';
+import { adminAuthExtApi } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AdminUsersManagePage.module.css';
@@ -12,6 +13,11 @@ export const AdminUsersManagePage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [resetLinks, setResetLinks] = React.useState<Record<string, string>>({});
   const [resetting, setResetting] = React.useState<string | null>(null);
+
+  // Temp password modal
+  const [showTempPw, setShowTempPw] = React.useState<AdminUser | null>(null);
+  const [tempPw, setTempPw] = React.useState('');
+  const [settingTempPw, setSettingTempPw] = React.useState(false);
 
   // Create admin modal state
   const [showCreate, setShowCreate] = React.useState(false);
@@ -78,6 +84,19 @@ export const AdminUsersManagePage: React.FC = () => {
     } catch (err) {
       showToast('error', 'Failed to create', err instanceof Error ? err.message : '');
     } finally { setCreating(false); }
+  };
+
+  const handleSetTempPw = async () => {
+    if (!showTempPw) return;
+    if (!tempPw || tempPw.length < 8) { showToast('error', 'Password must be at least 8 characters'); return; }
+    setSettingTempPw(true);
+    try {
+      await adminAuthExtApi.setTempPassword(showTempPw.id, tempPw);
+      showToast('success', 'Temp password set', `${showTempPw.email} must change password on next login`);
+      setShowTempPw(null); setTempPw('');
+    } catch (err) {
+      showToast('error', 'Failed', err instanceof Error ? err.message : '');
+    } finally { setSettingTempPw(false); }
   };
 
   const pending = users.filter(u => !u.is_active);
@@ -177,6 +196,14 @@ export const AdminUsersManagePage: React.FC = () => {
                         >
                           {resetting === user.id ? '…' : 'Reset Link'}
                         </button>
+                        <button
+                          className={styles.resetBtn}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          onClick={() => { setShowTempPw(user); setTempPw(''); }}
+                          title="Set temporary password"
+                        >
+                          <Key size={13}/> Temp Pw
+                        </button>
                         {user.role !== 'super_admin' && (
                           <button
                             className={styles.deactivateBtn}
@@ -213,6 +240,31 @@ export const AdminUsersManagePage: React.FC = () => {
           </table>
         </div>
       </section>
+
+      {/* Temp Password Modal */}
+      {showTempPw && (
+        <div className={styles.modalOverlay} onClick={() => setShowTempPw(null)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Set Temporary Password</h3>
+            <p style={{ margin: '0 0 12px', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+              Setting a temp password for <strong>{showTempPw.email}</strong>. They will be required to change it on next login.
+            </p>
+            <div className={styles.fields}>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Temporary Password * (min 8 chars)</label>
+                <input className={styles.fieldInput} type="text" placeholder="Visible password"
+                  value={tempPw} onChange={e => setTempPw(e.target.value)} />
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.cancelBtn} onClick={() => setShowTempPw(null)}>Cancel</button>
+              <button className={styles.activateBtn} disabled={settingTempPw} onClick={handleSetTempPw}>
+                {settingTempPw ? 'Setting…' : 'Set Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Admin Modal */}
       {showCreate && (

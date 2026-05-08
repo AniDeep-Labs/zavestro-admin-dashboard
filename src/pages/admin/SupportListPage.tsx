@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, ChevronLeft, ChevronRight, AlertCircle, Clock, UserMinus, Inbox, Plus } from 'lucide-react';
-import { supportApi } from '../../api/adminApi';
-import type { SupportTicket } from '../../api/adminApi';
+import { supportApi, usersApi } from '../../api/adminApi';
+import type { SupportTicket, AdminUser } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './SupportListPage.module.css';
@@ -36,11 +36,22 @@ export const SupportListPage: React.FC = () => {
   const [creating, setCreating] = React.useState(false);
   const [form, setForm] = React.useState({ customerName: '', customerPhone: '', subject: '', category: 'General', priority: 'Medium', message: '' });
 
+  // Customer search in create modal
+  const [customerSearch, setCustomerSearch] = React.useState('');
+  const [customerResults, setCustomerResults] = React.useState<AdminUser[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = React.useState<AdminUser | null>(null);
+  const debouncedCustomerSearch = useDebounce(customerSearch, 350);
+
   const setF = (k: keyof typeof form, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
+
+  React.useEffect(() => {
+    if (debouncedCustomerSearch.length < 2) { setCustomerResults([]); return; }
+    usersApi.list({ search: debouncedCustomerSearch, limit: 6 }).then(r => setCustomerResults(r.users)).catch(() => {});
+  }, [debouncedCustomerSearch]);
 
   React.useEffect(() => {
     setLoading(true); setError('');
@@ -68,6 +79,7 @@ export const SupportListPage: React.FC = () => {
       setTickets(prev => [newTicket, ...prev]);
       setShowCreate(false);
       setForm({ customerName: '', customerPhone: '', subject: '', category: 'General', priority: 'Medium', message: '' });
+      setSelectedCustomer(null); setCustomerSearch('');
       showToast('success', 'Ticket created', `Ticket #${newTicket.id} created successfully.`);
     } catch (e) {
       showToast('error', 'Failed to create ticket', e instanceof Error ? e.message : 'Unknown error');
@@ -180,15 +192,37 @@ export const SupportListPage: React.FC = () => {
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>Create Support Ticket</h2>
             <div className={styles.fields}>
-              <div className={styles.fieldRow} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel}>Customer Name *</label>
-                  <input className={styles.fieldInput} value={form.customerName} onChange={e => setF('customerName', e.target.value)} placeholder="Full Name" />
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel}>Phone</label>
-                  <input className={styles.fieldInput} value={form.customerPhone} onChange={e => setF('customerPhone', e.target.value)} placeholder="+91..." />
-                </div>
+              {/* Customer: search existing or enter manually */}
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Customer</label>
+                {selectedCustomer ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', border: '1.5px solid var(--color-primary)', borderRadius: 8, background: 'var(--color-bg-primary)' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{selectedCustomer.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{selectedCustomer.phone}</div>
+                    </div>
+                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--color-text-secondary)' }} onClick={() => { setSelectedCustomer(null); setCustomerSearch(''); setF('customerName', ''); setF('customerPhone', ''); }}>Change</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div style={{ position: 'relative' }}>
+                      <input className={styles.fieldInput} placeholder="Search by name/phone…" value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} />
+                      {customerResults.length > 0 && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', maxHeight: 200, overflowY: 'auto' }}>
+                          {customerResults.map(u => (
+                            <button key={u.id} onClick={() => { setSelectedCustomer(u); setF('customerName', u.name); setF('customerPhone', u.phone); setCustomerSearch(''); setCustomerResults([]); }}
+                              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', gap: 2 }}>
+                              <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{u.name}</span>
+                              <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{u.phone}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <input className={styles.fieldInput} value={form.customerName} onChange={e => setF('customerName', e.target.value)} placeholder="Or enter name manually *" />
+                    <input className={styles.fieldInput} value={form.customerPhone} onChange={e => setF('customerPhone', e.target.value)} placeholder="Phone (optional)" style={{ gridColumn: '1 / -1' }} />
+                  </div>
+                )}
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Subject *</label>

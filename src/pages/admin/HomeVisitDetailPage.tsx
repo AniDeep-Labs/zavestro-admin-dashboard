@@ -10,21 +10,27 @@ import styles from './OrderDetailPage.module.css';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
+  pending_confirmation: 'Pending Confirmation',
   confirmed: 'Confirmed',
+  staff_assigned: 'Staff Assigned',
   ongoing: 'Ongoing',
+  measurement_taken: 'Measurement Taken',
   completed: 'Completed',
   cancelled: 'Cancelled',
 };
 
 const STATUS_CSS: Record<string, string> = {
   pending: 'stageWarning',
+  pending_confirmation: 'stageWarning',
   confirmed: 'stageBlue',
+  staff_assigned: 'stageBlue',
   ongoing: 'stageBlue',
+  measurement_taken: 'stageSuccess',
   completed: 'stageSuccess',
   cancelled: 'stageNeutral',
 };
 
-const VALID_STATUSES = ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled'];
+const VALID_STATUSES = ['pending', 'pending_confirmation', 'confirmed', 'staff_assigned', 'ongoing', 'measurement_taken', 'completed', 'cancelled'];
 
 const MEASUREMENT_FIELDS: { key: keyof BodyMeasurement; label: string }[] = [
   { key: 'chest',          label: 'Chest' },

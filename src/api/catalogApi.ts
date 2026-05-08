@@ -199,11 +199,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const catalogApi = {
   login: (email: string, password: string, rememberMe?: boolean) =>
-    request<{ success: boolean; data: { token: string; admin: { id: string; email: string; role: string } } }>(
+    request<{ success: boolean; data: { token: string; mustChangePassword?: boolean; admin: { id: string; email: string; role: string } } }>(
       '/api/admin/auth/login',
       { method: 'POST', body: JSON.stringify({ email, password, rememberMe }) }
     ).then(res => ({
       token: res.data.token,
+      mustChangePassword: res.data.mustChangePassword ?? false,
       user: res.data.admin,
     })),
 
