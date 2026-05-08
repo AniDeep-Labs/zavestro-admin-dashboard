@@ -95,7 +95,7 @@ export const PromoCodesPage: React.FC = () => {
     if (!data.code?.trim() || data.discount_value == null) { showToast('error', 'Code and value are required'); return; }
     setSavingPromo(true);
     try {
-      const created = await promosApi.create(data);
+      const created = await promosApi.create(data as Parameters<typeof promosApi.create>[0]);
       setPromos(prev => [created, ...prev]);
       setShowCreateModal(false);
       showToast('success', 'Promo created', created.code);
