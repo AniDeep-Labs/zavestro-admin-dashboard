@@ -150,7 +150,14 @@ export const UserDetailPage: React.FC = () => {
             <div className={styles.profileCard}>
               <div className={styles.avatar}>{initials}</div>
               <div className={styles.profileInfo}>
-                <div className={styles.profileName}>{user.name}</div>
+                <div className={styles.profileName}>
+                  {user.name}
+                  {user.reference_id && (
+                    <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 500, marginLeft: 8, padding: '2px 8px', background: 'var(--color-primary-faint, rgba(28,92,66,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
+                      {user.reference_id}
+                    </span>
+                  )}
+                </div>
                 <div className={styles.profileDetails}>
                   <span>{user.phone}</span>
                   <span className={styles.profileDetailRow}>

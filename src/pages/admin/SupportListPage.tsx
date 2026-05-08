@@ -161,10 +161,20 @@ export const SupportListPage: React.FC = () => {
             ) : tickets.map(t => (
               <tr key={t.id} className={`${styles.row} ${!t.assignedTo ? styles.rowUnassigned : ''}`}
                 onClick={() => navigate(`/admin/support/${t.id}`)}>
-                <td className={styles.ticketId}>{t.id}</td>
+                <td className={styles.ticketId}>
+                  {t.reference_id ? (
+                    <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{t.reference_id}</span>
+                  ) : (
+                    <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{t.id.slice(0, 8)}</span>
+                  )}
+                </td>
                 <td>
                   <div className={styles.customerName}>{t.customer}</div>
-                  <div className={styles.customerPhone}>{t.phone}</div>
+                  <div className={styles.customerPhone} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {t.customer_ref && <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{t.customer_ref}</span>}
+                    {t.customer_ref && <span>·</span>}
+                    {t.phone}
+                  </div>
                 </td>
                 <td className={styles.subject}>{t.subject}</td>
                 <td>{t.category}</td>

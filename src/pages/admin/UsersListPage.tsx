@@ -128,20 +128,21 @@ export const UsersListPage: React.FC = () => {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead><tr>
-            <th>Name</th><th>Phone</th><th>Email</th><th>City</th>
+            <th>Ref</th><th>Name</th><th>Phone</th><th>Email</th><th>City</th>
             <th>Orders</th><th>Credits</th><th>Joined</th><th>Status</th>
           </tr></thead>
           <tbody>
             {loading ? Array.from({length: 8}).map((_, i) => (
-              <tr key={i}>{Array.from({length: 8}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
+              <tr key={i}>{Array.from({length: 9}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
             )) : error ? (
-              <tr><td colSpan={8} className={styles.empty}>
+              <tr><td colSpan={9} className={styles.empty}>
                 {error}<br/><button className={styles.retryBtn} onClick={() => setPage(1)}>Retry</button>
               </td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={8} className={styles.empty}>No users found.</td></tr>
+              <tr><td colSpan={9} className={styles.empty}>No users found.</td></tr>
             ) : users.map(u => (
               <tr key={u.id} className={styles.row} onClick={() => navigate(`/admin/users/${u.id}`)}>
+                <td style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{u.reference_id ?? '—'}</td>
                 <td className={styles.userName}>{u.name || '—'}</td>
                 <td className={styles.phone}>{u.phone}</td>
                 <td className={styles.email}>{u.email || '—'}</td>

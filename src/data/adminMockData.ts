@@ -33,8 +33,10 @@ export interface OrderPayment {
 
 export interface AdminOrder {
   id: string;
+  reference_id?: string;
   uuid?: string;
   customer: string;
+  customer_ref?: string;
   phone: string;
   email?: string;
   user_id?: string;
@@ -53,6 +55,7 @@ export interface AdminOrder {
 
 export interface AdminUser {
   id: string;
+  reference_id?: string;
   name: string;
   phone: string;
   email: string;
@@ -65,6 +68,7 @@ export interface AdminUser {
 
 export interface Hub {
   id: string;
+  reference_id?: string;
   name: string;
   city: string;
   state: string;
@@ -106,7 +110,9 @@ export interface TicketMessage {
 
 export interface SupportTicket {
   id: string;
+  reference_id?: string;
   customer: string;
+  customer_ref?: string;
   phone: string;
   subject: string;
   category: string;

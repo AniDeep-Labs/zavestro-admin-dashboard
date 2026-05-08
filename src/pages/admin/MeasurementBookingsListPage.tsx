@@ -78,7 +78,7 @@ export const MeasurementBookingsListPage: React.FC = () => {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Booking Ref</th>
+                <th>Ref</th>
                 <th>Customer</th>
                 <th>Garments</th>
                 <th>Scheduled</th>
@@ -91,10 +91,17 @@ export const MeasurementBookingsListPage: React.FC = () => {
                 const sc = STATUS_COLORS[b.status] ?? STATUS_COLORS.confirmed;
                 return (
                   <tr key={b.id} className={styles.row} onClick={() => navigate(`/admin/measurement-bookings/${b.id}`)}>
-                    <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{b.booking_ref}</td>
+                    <td>
+                      <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12 }}>{b.reference_id ?? b.booking_ref}</div>
+                      {b.reference_id && <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--color-text-tertiary)' }}>{b.booking_ref}</div>}
+                    </td>
                     <td>
                       <div style={{ fontWeight: 500 }}>{b.customer_name ?? '—'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{b.customer_phone}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {b.customer_ref && <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{b.customer_ref}</span>}
+                        {b.customer_ref && <span>·</span>}
+                        {b.customer_phone}
+                      </div>
                     </td>
                     <td>{b.item_count ?? b.items?.length ?? '—'}</td>
                     <td>{b.scheduled_at ? new Date(b.scheduled_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}</td>

@@ -151,6 +151,7 @@ export interface UsersResponse { users: AdminUser[]; total: number; page: number
 function mapUser(u: Record<string, unknown>): AdminUser {
   return {
     id: u.id as string,
+    reference_id: (u.reference_id ?? undefined) as string | undefined,
     name: (u.name ?? '') as string,
     phone: (u.phone ?? '') as string,
     email: (u.email ?? '') as string,
@@ -215,6 +216,7 @@ function mapHub(h: Record<string, unknown>): Hub {
   const capacityUsed = staffCount > 0 ? Math.min(100, Math.round((activeOrders / staffCount) * 20)) : 0;
   return {
     id:           h.id as string,
+    reference_id: (h.reference_id ?? undefined) as string | undefined,
     name:         (h.name as string) ?? '',
     city:         (h.city as string) ?? '',
     state:        (h.state as string) ?? '',
@@ -306,7 +308,9 @@ function mapTicket(t: Record<string, unknown>): SupportTicket {
   };
   return {
     id: t.id as string,
+    reference_id: (t.reference_id ?? undefined) as string | undefined,
     customer: (t.customer_name ?? t.customer ?? '') as string,
+    customer_ref: (t.customer_ref ?? undefined) as string | undefined,
     phone: (t.customer_phone ?? t.phone ?? '') as string,
     subject: (t.subject ?? '') as string,
     category: (t.category ?? 'General') as string,
@@ -576,8 +580,10 @@ export const alterationsApi = {
 
 export interface HomeVisit {
   id: string;
+  reference_id?: string;
   customer_name: string;
   customer_phone: string;
+  customer_ref?: string;
   customer_id?: string;
   assigned_staff_id?: string | null;
   assigned_staff_name: string | null;
@@ -1145,11 +1151,13 @@ export interface MeasurementBookingMeasurement {
 
 export interface MeasurementBooking {
   id: string;
+  reference_id?: string;
   booking_ref: string;
   user_id: string;
   customer_name?: string;
   customer_phone?: string;
   customer_email?: string;
+  customer_ref?: string;
   home_visit_id: string | null;
   source_order_id: string | null;
   assigned_staff_id: string | null;
@@ -1250,6 +1258,26 @@ export const measurementBookingsApi = {
 export const customerMeasurementProfilesApi = {
   get: async (userId: string): Promise<{ profiles: CustomerMeasurementProfile[]; history: unknown[] }> =>
     req<{ profiles: CustomerMeasurementProfile[]; history: unknown[] }>(`/api/admin/users/${userId}/measurement-profiles`),
+};
+
+// ─── Customer Lookup ──────────────────────────────────────────────────────────
+
+export interface CustomerLookupResult {
+  id: string;
+  reference_id: string | null;
+  name: string;
+  phone: string;
+  email: string;
+  city: string;
+  order_count: number;
+  is_active: boolean;
+}
+
+export const customerLookupApi = {
+  search: async (q: string): Promise<CustomerLookupResult[]> => {
+    const result = await req<{ customers: CustomerLookupResult[] }>(`/api/admin/customers/lookup?q=${encodeURIComponent(q)}`);
+    return result?.customers ?? [];
+  },
 };
 
 export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, OrderItem, OrderTimelineEntry, OrderPayment };

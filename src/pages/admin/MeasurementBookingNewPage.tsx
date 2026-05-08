@@ -1,18 +1,12 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Plus, Trash2, User, Calendar, ClipboardList, CheckCircle } from 'lucide-react';
-import { measurementBookingsApi, garmentTypesApi, fitPreferencesApi, usersApi } from '../../api/adminApi';
-import type { GarmentType, FitPreference } from '../../api/adminApi';
+import { measurementBookingsApi, garmentTypesApi, fitPreferencesApi, customerLookupApi } from '../../api/adminApi';
+import type { GarmentType, FitPreference, CustomerLookupResult } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { CustomerQuickLookup } from '../../components/CustomerQuickLookup/CustomerQuickLookup';
 import styles from './AppConfigPage.module.css';
-
-interface CustomerResult {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-}
 
 interface GarmentRow {
   id: string;
@@ -37,10 +31,7 @@ export const MeasurementBookingNewPage: React.FC = () => {
   const [createdBooking, setCreatedBooking] = React.useState<{ booking_ref: string; id: string } | null>(null);
 
   // Step 1: Customer & Schedule
-  const [customerQuery, setCustomerQuery] = React.useState('');
-  const [customerResults, setCustomerResults] = React.useState<CustomerResult[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = React.useState<CustomerResult | null>(null);
-  const [searchingCustomer, setSearchingCustomer] = React.useState(false);
+  const [selectedCustomer, setSelectedCustomer] = React.useState<CustomerLookupResult | null>(null);
   const [scheduledDate, setScheduledDate] = React.useState(prefilledScheduledAt ? prefilledScheduledAt.split('T')[0] : '');
   const [scheduledTime, setScheduledTime] = React.useState(prefilledScheduledAt ? prefilledScheduledAt.split('T')[1]?.slice(0, 5) : '');
   const [customerNotes, setCustomerNotes] = React.useState('');
@@ -69,23 +60,10 @@ export const MeasurementBookingNewPage: React.FC = () => {
   // Pre-fill customer if user_id provided
   React.useEffect(() => {
     if (!prefilledUserId) return;
-    usersApi.get(prefilledUserId)
-      .then(u => setSelectedCustomer({ id: u.id, name: u.name, phone: u.phone ?? '', email: u.email ?? '' }))
+    customerLookupApi.search(prefilledUserId)
+      .then(results => { if (results[0]) setSelectedCustomer(results[0]); })
       .catch(() => {});
   }, [prefilledUserId]);
-
-  // Customer search with debounce
-  React.useEffect(() => {
-    if (customerQuery.length < 2) { setCustomerResults([]); return; }
-    const t = setTimeout(() => {
-      setSearchingCustomer(true);
-      usersApi.list({ search: customerQuery, limit: 8 })
-        .then(r => setCustomerResults((r.users ?? []).map((u: { id: string; name: string; phone?: string; email?: string }) => ({ id: u.id, name: u.name, phone: u.phone ?? '', email: u.email ?? '' }))))
-        .catch(() => {})
-        .finally(() => setSearchingCustomer(false));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [customerQuery]);
 
   const addGarmentRow = () => {
     setGarmentRows(prev => [...prev, { id: crypto.randomUUID(), garment_type_id: '', variant_label: '', fit_preference_id: '', fit_notes: '' }]);
@@ -183,7 +161,7 @@ export const MeasurementBookingNewPage: React.FC = () => {
             <button className={styles.addBtn} onClick={() => navigate(`/admin/measurement-bookings/${createdBooking.id}`)}>
               View Booking
             </button>
-            <button className={styles.exportBtn} onClick={() => { setCreatedBooking(null); setStep(0); setSelectedCustomer(null); setCustomerQuery(''); setScheduledDate(''); setScheduledTime(''); setCustomerNotes(''); setAdminNotes(''); setGarmentRows([{ id: crypto.randomUUID(), garment_type_id: '', variant_label: '', fit_preference_id: '', fit_notes: '' }]); }}>
+            <button className={styles.exportBtn} onClick={() => { setCreatedBooking(null); setStep(0); setSelectedCustomer(null); setScheduledDate(''); setScheduledTime(''); setCustomerNotes(''); setAdminNotes(''); setGarmentRows([{ id: crypto.randomUUID(), garment_type_id: '', variant_label: '', fit_preference_id: '', fit_notes: '' }]); }}>
               Book Another
             </button>
           </div>
@@ -236,41 +214,12 @@ export const MeasurementBookingNewPage: React.FC = () => {
 
           {/* Customer search */}
           <div style={{ marginBottom: 20 }}>
-            <label className={styles.fieldLabel}>Customer *</label>
-            {selectedCustomer ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid #1C5C42', borderRadius: 8, background: 'rgba(28,92,66,0.05)' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{selectedCustomer.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{selectedCustomer.phone} · {selectedCustomer.email}</div>
-                </div>
-                <button className={styles.exportBtn} style={{ fontSize: 11 }} onClick={() => setSelectedCustomer(null)}>Change</button>
-              </div>
-            ) : (
-              <div style={{ position: 'relative' }}>
-                <input
-                  className={styles.fieldInput}
-                  placeholder="Search by name, phone, or email…"
-                  value={customerQuery}
-                  onChange={e => setCustomerQuery(e.target.value)}
-                  style={{ width: '100%' }}
-                />
-                {(searchingCustomer || customerResults.length > 0) && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-light)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, maxHeight: 240, overflowY: 'auto' }}>
-                    {searchingCustomer && <div style={{ padding: '10px 14px', fontSize: 13, color: 'var(--color-text-tertiary)' }}>Searching…</div>}
-                    {customerResults.map(c => (
-                      <div key={c.id} style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--color-border)' }}
-                        onMouseDown={() => { setSelectedCustomer(c); setCustomerQuery(''); setCustomerResults([]); }}>
-                        <div style={{ fontWeight: 500 }}>{c.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{c.phone} · {c.email}</div>
-                      </div>
-                    ))}
-                    {!searchingCustomer && customerResults.length === 0 && customerQuery.length >= 2 && (
-                      <div style={{ padding: '10px 14px', fontSize: 13, color: 'var(--color-text-tertiary)' }}>No customers found</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            <CustomerQuickLookup
+              label="Customer *"
+              selectedCustomer={selectedCustomer}
+              onSelect={setSelectedCustomer}
+              onClear={() => setSelectedCustomer(null)}
+            />
           </div>
 
           {/* Date + Time */}
