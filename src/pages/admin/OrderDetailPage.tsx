@@ -5,8 +5,8 @@ import {
   FileText, Scissors, ShieldCheck, Ruler, AlertCircle, Clock,
   CheckCircle2, Truck, Package,
 } from 'lucide-react';
-import { ordersApi, invoicesApi, measurementBookingsApi } from '../../api/adminApi';
-import type { AdminOrder, OrderStage, OrderTimelineEntry, MeasurementBooking } from '../../api/adminApi';
+import { ordersApi, invoicesApi, measurementBookingsApi, customerMeasurementsApi } from '../../api/adminApi';
+import type { AdminOrder, OrderStage, OrderTimelineEntry, MeasurementBooking, CustomerMeasurementsData } from '../../api/adminApi';
 import { StaffAssignmentDropdown } from '../../components/StaffAssignmentDropdown/StaffAssignmentDropdown';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -72,6 +72,8 @@ interface NextStepProps {
   order: AdminOrder;
   customerBookings: MeasurementBooking[];
   bookingsLoading: boolean;
+  customerFitProfiles: CustomerMeasurementsData['profiles'];
+  profilesLoading: boolean;
   advancingStage: boolean;
   assigningCraft: boolean;
   assigningQC: boolean;
@@ -80,15 +82,18 @@ interface NextStepProps {
   onAssignCraft: (staffId: string | null) => Promise<void>;
   onAssignQC: (staffId: string | null) => Promise<void>;
   onCreateMeasurementBooking: () => void;
+  onUseFitProfile: (profileId: string) => Promise<void>;
 }
 
 const NextStepCard: React.FC<NextStepProps> = ({
   order, customerBookings, bookingsLoading,
+  customerFitProfiles, profilesLoading,
   advancingStage, assigningCraft, assigningQC,
   onLinkMeasurement, onAdvance, onAssignCraft, onAssignQC,
-  onCreateMeasurementBooking,
+  onCreateMeasurementBooking, onUseFitProfile,
 }) => {
   const [selectedBookingId, setSelectedBookingId] = React.useState('');
+  const [selectedProfileId, setSelectedProfileId] = React.useState('');
   const navigate = useNavigate();
 
   const stage = order.stage;
@@ -106,19 +111,54 @@ const NextStepCard: React.FC<NextStepProps> = ({
     );
   }
 
-  // Payment confirmed — need to schedule measurement
+  // Payment confirmed — determine measurement path
   if (stage === 'payment_confirmed') {
+    const hasSavedProfiles = !profilesLoading && customerFitProfiles.length > 0;
     return (
       <div className={styles.nextStepCard}>
         <div className={styles.nextStepIcon} style={{ background: 'rgba(201,153,94,0.12)', color: '#9A6B3A' }}>
           <Ruler size={18} />
         </div>
-        <div className={styles.nextStepTitle}>Step 1 — Schedule Measurement Visit</div>
-        <div className={styles.nextStepDesc}>
-          Link an existing measurement booking for this customer, or create a new one.
-        </div>
+        <div className={styles.nextStepTitle}>Step 1 — Measurements</div>
+
+        {profilesLoading ? (
+          <div className={styles.nextStepLoading}>Checking saved measurements…</div>
+        ) : hasSavedProfiles ? (
+          <>
+            <div className={styles.nextStepDesc} style={{ color: 'var(--color-primary)', fontWeight: 500 }}>
+              ✓ This customer has saved measurements
+            </div>
+            <div className={styles.nextStepLabel}>Select fit profile</div>
+            <select
+              className={styles.nextStepSelect}
+              value={selectedProfileId}
+              onChange={e => setSelectedProfileId(e.target.value)}
+            >
+              <option value="">Choose a profile…</option>
+              {customerFitProfiles.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — {p.category} — {new Date(p.created_at).toLocaleDateString('en-IN')}
+                </option>
+              ))}
+            </select>
+            <button
+              className={styles.nextStepPrimary}
+              disabled={!selectedProfileId || advancingStage}
+              onClick={() => onUseFitProfile(selectedProfileId)}
+            >
+              {advancingStage ? 'Applying…' : 'Use Saved Measurements →'}
+            </button>
+            <div className={styles.nextStepOr}>or schedule a new visit</div>
+          </>
+        ) : (
+          <div className={styles.nextStepDesc}>
+            No saved measurements — a home visit is required.
+          </div>
+        )}
+
+        {/* Measurement booking path */}
         {bookingsLoading ? (
-          <div className={styles.nextStepLoading}>Loading customer bookings…</div>
+          <div className={styles.nextStepLoading}>Loading bookings…</div>
         ) : customerBookings.length > 0 ? (
           <>
             <div className={styles.nextStepLabel}>Link existing booking</div>
@@ -135,20 +175,20 @@ const NextStepCard: React.FC<NextStepProps> = ({
               ))}
             </select>
             <button
-              className={styles.nextStepPrimary}
+              className={styles.nextStepSecondary}
               disabled={!selectedBookingId || advancingStage}
               onClick={() => onLinkMeasurement(selectedBookingId)}
             >
-              {advancingStage ? 'Linking…' : 'Link & Advance'}
+              {advancingStage ? 'Linking…' : 'Link Booking & Schedule Visit'}
             </button>
-            <div className={styles.nextStepOr}>or</div>
           </>
-        ) : (
-          <div className={styles.nextStepEmpty}>No existing bookings for this customer.</div>
-        )}
+        ) : null}
         <button className={styles.nextStepSecondary} onClick={onCreateMeasurementBooking}>
           Create New Measurement Booking →
         </button>
+        <div className={styles.nextStepEmpty} style={{ marginTop: 6 }}>
+          Customer can also submit self-measurements via the app to skip the home visit.
+        </div>
       </div>
     );
   }
@@ -369,6 +409,10 @@ export const OrderDetailPage: React.FC = () => {
   const [customerBookings, setCustomerBookings] = React.useState<MeasurementBooking[]>([]);
   const [bookingsLoading, setBookingsLoading] = React.useState(false);
 
+  // Customer fit profiles (for "Use Saved Measurements" path)
+  const [customerFitProfiles, setCustomerFitProfiles] = React.useState<CustomerMeasurementsData['profiles']>([]);
+  const [profilesLoading, setProfilesLoading] = React.useState(false);
+
   // Action states
   const [advancingStage, setAdvancingStage] = React.useState(false);
   const [assigningCraft, setAssigningCraft] = React.useState(false);
@@ -427,16 +471,19 @@ export const OrderDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Load customer measurement bookings when order is payment_confirmed
+  // Load customer measurement bookings + fit profiles at payment_confirmed stage
   React.useEffect(() => {
-    if (!order?.user_id) return;
-    const needsBookings = order.stage === 'payment_confirmed' || order.stage === 'payment_pending';
-    if (!needsBookings) return;
+    if (!order?.user_id || order.stage !== 'payment_confirmed') return;
     setBookingsLoading(true);
+    setProfilesLoading(true);
     measurementBookingsApi.list({ user_id: order.user_id, limit: 20 })
       .then(r => setCustomerBookings(r.bookings ?? []))
       .catch(() => setCustomerBookings([]))
       .finally(() => setBookingsLoading(false));
+    customerMeasurementsApi.get(order.user_id)
+      .then(d => setCustomerFitProfiles(d.profiles ?? []))
+      .catch(() => setCustomerFitProfiles([]))
+      .finally(() => setProfilesLoading(false));
   }, [order?.user_id, order?.stage]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -450,6 +497,21 @@ export const OrderDetailPage: React.FC = () => {
       reload();
     } catch (e) {
       showToast('error', 'Failed to link', e instanceof Error ? e.message : undefined);
+    } finally {
+      setAdvancingStage(false);
+    }
+  };
+
+  const handleUseFitProfile = async (profileId: string) => {
+    if (!order) return;
+    setAdvancingStage(true);
+    try {
+      await ordersApi.updateLifecycle(order.uuid ?? order.id, { fit_profile_id: profileId });
+      await ordersApi.advance(order.uuid ?? order.id, 'measurement_complete', 'Using saved fit profile — skipped home visit');
+      showToast('success', 'Saved measurements applied', 'Order advanced to Measurement Done');
+      reload();
+    } catch (e) {
+      showToast('error', 'Failed to apply measurements', e instanceof Error ? e.message : undefined);
     } finally {
       setAdvancingStage(false);
     }
@@ -838,6 +900,8 @@ export const OrderDetailPage: React.FC = () => {
             order={order}
             customerBookings={customerBookings}
             bookingsLoading={bookingsLoading}
+            customerFitProfiles={customerFitProfiles}
+            profilesLoading={profilesLoading}
             advancingStage={advancingStage}
             assigningCraft={assigningCraft}
             assigningQC={assigningQC}
@@ -846,6 +910,7 @@ export const OrderDetailPage: React.FC = () => {
             onAssignCraft={handleAssignCraft}
             onAssignQC={handleAssignQC}
             onCreateMeasurementBooking={() => navigate(`/admin/measurement-bookings/new?user_id=${order.user_id}&order_id=${order.uuid ?? order.id}`)}
+            onUseFitProfile={handleUseFitProfile}
           />
 
           {/* Delivery date + hold reason */}
