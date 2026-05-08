@@ -98,7 +98,34 @@ export const ordersApi = {
     if (params.userId)  qs.set('user_id', params.userId);
     if (params.page)    qs.set('page',    String(params.page));
     if (params.limit)   qs.set('limit',   String(params.limit));
-    return req<OrdersResponse>(`/api/admin/orders?${qs}`);
+    type RawRow = Record<string, unknown>;
+    type RawResp = { orders: RawRow[]; total: number; page: number; limit: number };
+    const raw = await req<RawResp>(`/api/admin/orders?${qs}`);
+    return {
+      orders: (raw.orders ?? []).map((o): AdminOrder => ({
+        id: (o.order_number ?? o.id) as string,
+        uuid: o.id as string,
+        reference_id: (o.reference_id ?? undefined) as string | undefined,
+        customer: (o.customer_name ?? '') as string,
+        phone: (o.customer_phone ?? '') as string,
+        email: undefined,
+        user_id: undefined,
+        mode: 'Simplified' as AdminOrder['mode'],
+        stage: o.stage as OrderStage,
+        status: o.lifecycle_status as AdminOrder['status'],
+        hub: (o.hub_name ?? '') as string,
+        hub_id: (o.hub_id ?? undefined) as string | undefined,
+        total: parseFloat(String(o.total_amount ?? 0)),
+        products: [],
+        created: new Date(o.created_at as string).toLocaleDateString('en-IN'),
+        items: [], timeline: [], payments: [],
+        craftsperson_id: (o.assigned_craftsperson_id ?? null) as string | null,
+        linked_measurement_booking_id: (o.linked_measurement_booking_id ?? null) as string | null,
+      })),
+      total: raw.total,
+      page: raw.page,
+      totalPages: Math.ceil(raw.total / (raw.limit || 25)),
+    };
   },
 
   get: async (id: string): Promise<AdminOrder> => {

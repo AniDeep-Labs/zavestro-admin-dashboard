@@ -29,6 +29,29 @@ const stageCss: Record<OrderStage, string> = {
   return_requested: 'stageError', returned: 'stageNeutral',
 };
 
+function getActionNeeded(o: AdminOrder): { label: string; css: string } | null {
+  switch (o.stage) {
+    case 'payment_confirmed':
+      return { label: 'Schedule Visit', css: 'actionWarning' };
+    case 'awaiting_measurement':
+      if (!o.linked_measurement_booking_id) return { label: 'Book Visit', css: 'actionError' };
+      return { label: 'Visit Booked', css: 'actionInfo' };
+    case 'measurement_complete':
+      if (!o.craftsperson_id) return { label: 'Assign Tailor', css: 'actionWarning' };
+      return null;
+    case 'fabric_sourced':
+      return { label: 'Start Tailoring', css: 'actionWarning' };
+    case 'quality_check':
+      return { label: 'QC Needed', css: 'actionWarning' };
+    case 'ready_to_dispatch':
+      return { label: 'Dispatch', css: 'actionWarning' };
+    case 'return_requested':
+      return { label: 'Handle Return', css: 'actionError' };
+    default:
+      return null;
+  }
+}
+
 function useDebounce<T>(v: T, d: number) {
   const [dv, setDv] = React.useState(v);
   React.useEffect(() => { const t = setTimeout(() => setDv(v), d); return () => clearTimeout(t); }, [v, d]);
@@ -205,18 +228,20 @@ export const OrdersListPage: React.FC = () => {
         <table className={styles.table}>
           <thead><tr>
             <th>Ref</th><th>Order ID</th><th>Customer</th><th>Mode</th><th>Products</th>
-            <th>Stage</th><th>Hub</th><th>Total</th><th>Date</th>
+            <th>Stage</th><th>Hub</th><th>Total</th><th>Date</th><th>Action Needed</th>
           </tr></thead>
           <tbody>
             {loading ? Array.from({length: 8}).map((_, i) => (
-              <tr key={i}>{Array.from({length: 9}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
+              <tr key={i}>{Array.from({length: 10}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
             )) : error ? (
-              <tr><td colSpan={9} className={styles.empty}>
+              <tr><td colSpan={10} className={styles.empty}>
                 {error}<br/><button className={styles.retryBtn} onClick={() => setPage(1)}>Retry</button>
               </td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={9} className={styles.empty}>No orders found.</td></tr>
-            ) : orders.map(o => (
+              <tr><td colSpan={10} className={styles.empty}>No orders found.</td></tr>
+            ) : orders.map(o => {
+              const action = getActionNeeded(o);
+              return (
               <tr key={o.id} className={`${styles.row} ${o.overdue ? styles.rowOverdue : ''}`}
                 onClick={() => navigate(`/admin/orders/${o.id}`)}>
                 <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>{o.reference_id ?? '—'}</td>
@@ -234,8 +259,12 @@ export const OrdersListPage: React.FC = () => {
                 <td className={styles.hub}>{o.hub}</td>
                 <td className={styles.total}>₹{o.total?.toLocaleString('en-IN')}</td>
                 <td className={styles.date}>{o.created}</td>
+                <td>
+                  {action && <span className={`${styles.actionBadge} ${styles[action.css]}`}>{action.label}</span>}
+                </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

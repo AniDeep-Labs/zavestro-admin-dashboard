@@ -121,3 +121,12 @@
 .addItemBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .itemsList { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
 .itemRow { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--color-border-light); }
+
+/* Action needed badges */
+.actionBadge { display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 11px; font-weight: var(--font-weight-semibold); white-space: nowrap; }
+.actionWarning { background: rgba(201,153,94,0.15); color: #9A6B3A; }
+.actionError { background: rgba(231,76,60,0.08); color: var(--color-error); }
+.actionInfo { background: rgba(52,152,219,0.1); color: var(--color-info); }
+[data-theme="dark"] .actionWarning { background: rgba(245,158,11,0.2); color: #FCD34D; }
+[data-theme="dark"] .actionError { background: rgba(239,68,68,0.2); color: #FCA5A5; }
+[data-theme="dark"] .actionInfo { background: rgba(59,130,246,0.2); color: #93C5FD; }
