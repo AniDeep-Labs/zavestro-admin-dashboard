@@ -1341,4 +1341,70 @@ export const customerLookupApi = {
   },
 };
 
+// ─── Consultations ────────────────────────────────────────────────────────────
+
+export interface Consultation {
+  id: string;
+  user_id: string;
+  order_id: string | null;
+  assigned_staff_id: string | null;
+  status: string;
+  scheduled_at: string | null;
+  notes: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  customer_name: string;
+  customer_phone: string;
+}
+
+export interface ConsultationSlot {
+  id: string;
+  hub_id: string | null;
+  slot_date: string;
+  time_start: string;
+  time_end: string;
+  mode: 'in_person' | 'video';
+  capacity: number;
+  booked_count: number;
+  created_at: string;
+}
+
+export const consultationsApi = {
+  list: async (params: { status?: string } = {}): Promise<{ consultations: Consultation[]; total: number }> => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    return req<{ consultations: Consultation[]; total: number }>(`/api/admin/consultations?${qs}`);
+  },
+  update: async (id: string, data: { status?: string; assigned_staff_id?: string | null }): Promise<Consultation> =>
+    req<Consultation>(`/api/admin/consultations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+};
+
+export const consultationSlotsApi = {
+  list: async (params: { hub_id?: string; date?: string } = {}): Promise<{ slots: ConsultationSlot[]; total: number }> => {
+    const qs = new URLSearchParams();
+    if (params.hub_id) qs.set('hub_id', params.hub_id);
+    if (params.date) qs.set('date', params.date);
+    return req<{ slots: ConsultationSlot[]; total: number }>(`/api/admin/consultation-slots?${qs}`);
+  },
+  create: async (data: {
+    hub_id?: string;
+    slot_date: string;
+    time_start: string;
+    time_end: string;
+    mode?: 'in_person' | 'video';
+    capacity?: number;
+  }): Promise<ConsultationSlot> =>
+    req<ConsultationSlot>('/api/admin/consultation-slots', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  delete: async (id: string): Promise<void> => {
+    await req<unknown>(`/api/admin/consultation-slots/${id}`, { method: 'DELETE' });
+  },
+};
+
 export type { AdminOrder, AdminUser, Hub, SupportTicket, TicketMessage, AuditEntry, WaitlistEntry, ConfigGroup, OrderStage, Collection, OrderItem, OrderTimelineEntry, OrderPayment };
