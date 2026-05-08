@@ -57,6 +57,8 @@ import { ServiceAreasPage } from './pages/admin/ServiceAreasPage';
 import { AdminProfilePage } from './pages/admin/AdminProfilePage';
 import { MeasurementBookingsListPage } from './pages/admin/MeasurementBookingsListPage';
 import { MeasurementBookingDetailPage } from './pages/admin/MeasurementBookingDetailPage';
+import { MeasurementBookingNewPage } from './pages/admin/MeasurementBookingNewPage';
+import { GarmentTypesPage } from './pages/admin/GarmentTypesPage';
 
 function NotFoundPage() {
   const nav = useNav404();
@@ -140,7 +142,9 @@ function App() {
             <Route path="promo-codes" element={<PromoCodesPage />} />
             <Route path="profile" element={<AdminProfilePage />} />
             <Route path="measurement-bookings" element={<MeasurementBookingsListPage />} />
+            <Route path="measurement-bookings/new" element={<MeasurementBookingNewPage />} />
             <Route path="measurement-bookings/:id" element={<MeasurementBookingDetailPage />} />
+            <Route path="system/garment-types" element={<GarmentTypesPage />} />
             {/* Admin 404 — renders inside the sidebar layout */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>

@@ -1,8 +1,18 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, MapPin, User, Clock, Building2, FileText, UserCheck, Calendar, Ruler } from 'lucide-react';
+import { ChevronLeft, MapPin, User, Clock, Building2, FileText, UserCheck, Calendar, Ruler, ClipboardList, ExternalLink, Link } from 'lucide-react';
 import { homeVisitsApi, hubStaffApi, hubsApi } from '../../api/adminApi';
 import type { HomeVisit, BodyMeasurement, HubStaff, Hub } from '../../api/adminApi';
+
+// Minimal inline type for linked booking info
+interface LinkedBooking {
+  id: string;
+  booking_ref: string;
+  status: string;
+  item_count: number;
+  completed_count: number;
+  assigned_staff_name: string | null;
+}
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
@@ -81,6 +91,9 @@ export const HomeVisitDetailPage: React.FC = () => {
   const [recordForm, setRecordForm] = React.useState<Record<string, string>>({});
   const [savingMeasurements, setSavingMeasurements] = React.useState(false);
 
+  // Linked measurement booking
+  const [linkedBooking, setLinkedBooking] = React.useState<LinkedBooking | null | undefined>(undefined);
+
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
@@ -98,6 +111,13 @@ export const HomeVisitDetailPage: React.FC = () => {
         const dt = new Date(v.scheduled_at);
         setRescheduleDate(dt.toISOString().slice(0, 10));
         setRescheduleTime(dt.toTimeString().slice(0, 5));
+        // Load linked measurement booking
+        fetch(`/api/admin/home-visits/${id}/measurement-booking`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` },
+        })
+          .then(r => r.json())
+          .then(r => setLinkedBooking(r.data ?? null))
+          .catch(() => setLinkedBooking(null));
       })
       .catch(e => showToast('error', 'Failed to load visit', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
@@ -496,6 +516,70 @@ export const HomeVisitDetailPage: React.FC = () => {
               {rescheduling ? 'Saving…' : 'Save New Time'}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Measurement Booking */}
+      <div className={styles.card} style={{ marginTop: 12 }}>
+        <div className={styles.cardHeader} style={{ justifyContent: 'space-between' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ClipboardList size={15} /> Measurement Booking</span>
+        </div>
+        <div className={styles.cardBody}>
+          {linkedBooking === undefined ? (
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-tertiary)' }}>Loading…</p>
+          ) : linkedBooking ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14 }}>{linkedBooking.booking_ref}</span>
+                <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
+                  background: linkedBooking.status === 'completed' ? 'rgba(28,92,66,0.1)' : linkedBooking.status === 'in_progress' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.1)',
+                  color: linkedBooking.status === 'completed' ? '#1C5C42' : linkedBooking.status === 'in_progress' ? '#F59E0B' : '#3B82F6',
+                }}>
+                  {linkedBooking.status.replace('_', ' ')}
+                </span>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
+                {linkedBooking.item_count} garment{linkedBooking.item_count !== 1 ? 's' : ''}
+                {linkedBooking.completed_count > 0 && ` · ${linkedBooking.completed_count} measured`}
+                {linkedBooking.assigned_staff_name && ` · Staff: ${linkedBooking.assigned_staff_name}`}
+              </div>
+              <button
+                className={styles.actionBtn}
+                style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => navigate(`/admin/measurement-bookings/${linkedBooking.id}`)}
+              >
+                <ExternalLink size={13}/> View / Start Measurements
+              </button>
+            </div>
+          ) : (
+            <div>
+              <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--color-text-tertiary)' }}>
+                No measurement booking linked to this visit.
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  className={styles.actionBtn}
+                  style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    const params = new URLSearchParams();
+                    if (visit.customer_id) params.set('user_id', visit.customer_id);
+                    if (visit.scheduled_at) params.set('scheduled_at', visit.scheduled_at.slice(0, 16));
+                    params.set('home_visit_id', visit.id);
+                    navigate(`/admin/measurement-bookings/new?${params}`);
+                  }}
+                >
+                  <ClipboardList size={13}/> Create New Booking
+                </button>
+                <button
+                  className={styles.actionBtn}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => navigate(`/admin/measurement-bookings?user_id=${visit.customer_id ?? ''}`)}
+                >
+                  <Link size={13}/> Find & Link Existing
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

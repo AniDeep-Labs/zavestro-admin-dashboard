@@ -101,6 +101,7 @@ const kpis: { label: string; key: string; format: (v: number) => string; icon: I
   { label: 'Open Tickets',     key: 'openTickets',     format: v => v.toLocaleString(),                   icon: 'Headphones',    accent: 'Red',     navPath: '/admin/support' },
   { label: 'New Customers',    key: 'newCustomers',    format: v => v.toLocaleString(),                   icon: 'UserPlus',      accent: 'Emerald', navPath: '/admin/users' },
   { label: 'Waitlist Signups', key: 'waitlistSignups', format: v => v.toLocaleString(),                   icon: 'ClipboardList', accent: 'Gold',    navPath: '/admin/system/waitlist' },
+  { label: 'Pending Sessions', key: 'pendingMeasurementSessions', format: v => v.toLocaleString(),        icon: 'ClipboardList', accent: 'Amber',   navPath: '/admin/measurement-bookings' },
 ];
 
 const ACTIVITY_ICON: Record<string, IconKey> = {

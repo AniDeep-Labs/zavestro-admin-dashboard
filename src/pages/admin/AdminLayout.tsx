@@ -62,11 +62,12 @@ const NAV: NavItem[] = [
   {
     label: 'System', icon: <Settings size={18} />, path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
     children: [
-      { label: 'App Config',    path: '/admin/system/app-config' },
-      { label: 'Audit Log',     path: '/admin/system/audit-log' },
-      { label: 'Waitlist',      path: '/admin/system/waitlist' },
-      { label: 'Admin Users',   path: '/admin/system/admin-users' },
-      { label: 'Service Areas', path: '/admin/system/service-areas' },
+      { label: 'App Config',     path: '/admin/system/app-config' },
+      { label: 'Audit Log',      path: '/admin/system/audit-log' },
+      { label: 'Waitlist',       path: '/admin/system/waitlist' },
+      { label: 'Admin Users',    path: '/admin/system/admin-users' },
+      { label: 'Service Areas',  path: '/admin/system/service-areas' },
+      { label: 'Garment Types',  path: '/admin/system/garment-types' },
     ],
   },
 ];

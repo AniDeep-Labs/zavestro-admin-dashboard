@@ -35,7 +35,7 @@ export const MeasurementBookingsListPage: React.FC = () => {
   const load = React.useCallback(() => {
     setLoading(true);
     measurementBookingsApi.list({ status: statusFilter || undefined, page, limit: LIMIT })
-      .then(r => { setBookings(r.bookings ?? []); setTotal(r.total ?? 0); })
+      .then(r => { setBookings(r?.bookings ?? []); setTotal(r?.total ?? 0); })
       .catch(e => showToast('error', 'Failed to load', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [statusFilter, page]);
@@ -96,7 +96,7 @@ export const MeasurementBookingsListPage: React.FC = () => {
                       <div style={{ fontWeight: 500 }}>{b.customer_name ?? '—'}</div>
                       <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{b.customer_phone}</div>
                     </td>
-                    <td>{b.items?.length ?? '—'}</td>
+                    <td>{b.item_count ?? b.items?.length ?? '—'}</td>
                     <td>{b.scheduled_at ? new Date(b.scheduled_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                     <td>{b.assigned_staff_name ?? <span style={{ color: 'var(--color-text-tertiary)' }}>Unassigned</span>}</td>
                     <td>
