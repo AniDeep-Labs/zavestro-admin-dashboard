@@ -249,7 +249,7 @@ export const hubPincodesApi = {
   add: async (hubId: string, pincodes: { pincode: string; area_name: string }[]): Promise<{ added: HubPincode[] }> =>
     req<{ added: HubPincode[] }>(`/api/admin/hubs/${hubId}/pincodes`, { method: 'POST', body: JSON.stringify({ pincodes }) }),
 
-  toggle: async (hubId: string, pincodeId: string, is_active: boolean): Promise<HubPincode> =>
+  toggle: async (_hubId: string, pincodeId: string, is_active: boolean): Promise<HubPincode> =>
     req<HubPincode>(`/api/admin/system/service-pincodes/${pincodeId}`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
 
   remove: async (hubId: string, pincode: string): Promise<void> =>

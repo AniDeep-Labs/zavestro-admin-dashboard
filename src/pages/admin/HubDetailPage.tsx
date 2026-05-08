@@ -92,24 +92,6 @@ export const HubDetailPage: React.FC = () => {
       .finally(() => setPincodesLoading(false));
   }, [activeTab, id, isNew, pincodesLoaded]);
 
-  const handleAddPincodes = async () => {
-    if (!hub || !pincodeInput.trim()) return;
-    const list = pincodeInput.split(/[\s,\n]+/).map(p => p.trim()).filter(p => p.length >= 4);
-    if (list.length === 0) { showToast('error', 'Enter at least one valid pincode (min 4 digits)'); return; }
-    setAddingPincodes(true);
-    try {
-      const { added } = await hubPincodesApi.add(hub.id, list);
-      setPincodes(prev => {
-        const existing = new Set(prev.map(p => p.pincode));
-        return [...prev, ...added.filter(p => !existing.has(p.pincode))].sort((a, b) => a.pincode.localeCompare(b.pincode));
-      });
-      setPincodeInput('');
-      showToast('success', `${added.length} pincode${added.length !== 1 ? 's' : ''} added`);
-    } catch (e) {
-      showToast('error', 'Failed to add pincodes', e instanceof Error ? e.message : undefined);
-    } finally { setAddingPincodes(false); }
-  };
-
   const handleRemovePincode = async (pincode: string) => {
     if (!hub) return;
     setRemovingPincode(pincode);
