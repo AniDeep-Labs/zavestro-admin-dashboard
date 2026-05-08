@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Plus, Trash2, User, Calendar, ClipboardList, CheckCircle } from 'lucide-react';
-import { measurementBookingsApi, garmentTypesApi, fitPreferencesApi, customerLookupApi } from '../../api/adminApi';
+import { measurementBookingsApi, garmentTypesApi, fitPreferencesApi, customerLookupApi, ordersApi } from '../../api/adminApi';
 import type { GarmentType, FitPreference, CustomerLookupResult } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -22,6 +22,7 @@ export const MeasurementBookingNewPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const prefilledUserId = searchParams.get('user_id') ?? '';
+  const prefilledOrderId = searchParams.get('order_id') ?? '';
   const prefilledScheduledAt = searchParams.get('scheduled_at') ?? '';
   const prefilledHomeVisitId = searchParams.get('home_visit_id') ?? '';
 
@@ -134,6 +135,16 @@ export const MeasurementBookingNewPage: React.FC = () => {
           sort_order: idx,
         })),
       });
+
+      // If launched from an order, auto-link the new booking to that order
+      if (prefilledOrderId) {
+        try {
+          await ordersApi.linkMeasurement(prefilledOrderId, result.booking.id);
+        } catch {
+          // non-fatal — booking is still created; admin can link manually
+        }
+      }
+
       setCreatedBooking({ booking_ref: result.booking.booking_ref, id: result.booking.id });
       showToast('success', `Booking ${result.booking.booking_ref} created`);
     } catch (e) {
