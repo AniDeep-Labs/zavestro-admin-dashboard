@@ -13,6 +13,7 @@ const LIMIT = 25;
 
 const stageLabels: Record<OrderStage, string> = {
   payment_pending: 'Payment Pending', payment_confirmed: 'Payment Confirmed',
+  awaiting_measurement: 'Awaiting Measurement', measurement_complete: 'Measurement Done',
   fabric_sourced: 'Fabric Sourced', in_tailoring: 'In Tailoring',
   quality_check: 'Quality Check', ready_to_dispatch: 'Ready to Dispatch',
   dispatched: 'Dispatched', delivered: 'Delivered',
@@ -21,6 +22,7 @@ const stageLabels: Record<OrderStage, string> = {
 
 const stageCss: Record<OrderStage, string> = {
   payment_pending: 'stageNeutral', payment_confirmed: 'stageBlue',
+  awaiting_measurement: 'stageWarning', measurement_complete: 'stageBlue',
   fabric_sourced: 'stageBlue', in_tailoring: 'stageWarning',
   quality_check: 'stageWarning', ready_to_dispatch: 'stageSuccess',
   dispatched: 'stageSuccess', delivered: 'stageSuccess',

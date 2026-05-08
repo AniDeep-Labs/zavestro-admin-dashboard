@@ -2,10 +2,11 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ChevronLeft, Check, MessageSquare, UserCheck, PauseCircle,
-  FileText, Scissors, ShieldCheck,
+  FileText, Scissors, ShieldCheck, Ruler, AlertCircle, Clock,
+  CheckCircle2, Truck, Package,
 } from 'lucide-react';
-import { ordersApi, invoicesApi } from '../../api/adminApi';
-import type { AdminOrder, OrderStage, OrderTimelineEntry } from '../../api/adminApi';
+import { ordersApi, invoicesApi, measurementBookingsApi } from '../../api/adminApi';
+import type { AdminOrder, OrderStage, OrderTimelineEntry, MeasurementBooking } from '../../api/adminApi';
 import { StaffAssignmentDropdown } from '../../components/StaffAssignmentDropdown/StaffAssignmentDropdown';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -15,14 +16,15 @@ import styles from './OrderDetailPage.module.css';
 // ── Stage stepper config ─────────────────────────────────────────────────────
 
 const STAGES: { key: OrderStage; label: string }[] = [
-  { key: 'payment_pending',    label: 'Payment\nPending' },
-  { key: 'payment_confirmed',  label: 'Payment\nConfirmed' },
-  { key: 'fabric_sourced',     label: 'Fabric\nSourced' },
-  { key: 'in_tailoring',       label: 'In\nTailoring' },
-  { key: 'quality_check',      label: 'Quality\nCheck' },
-  { key: 'ready_to_dispatch',  label: 'Ready to\nDispatch' },
-  { key: 'dispatched',         label: 'Dispatched' },
-  { key: 'delivered',          label: 'Delivered' },
+  { key: 'payment_pending',      label: 'Payment\nPending' },
+  { key: 'payment_confirmed',    label: 'Payment\nConfirmed' },
+  { key: 'awaiting_measurement', label: 'Awaiting\nMeasurement' },
+  { key: 'measurement_complete', label: 'Measurement\nDone' },
+  { key: 'in_tailoring',         label: 'In\nTailoring' },
+  { key: 'quality_check',        label: 'Quality\nCheck' },
+  { key: 'ready_to_dispatch',    label: 'Ready to\nDispatch' },
+  { key: 'dispatched',           label: 'Dispatched' },
+  { key: 'delivered',            label: 'Delivered' },
 ];
 
 const STAGE_IDX = Object.fromEntries(STAGES.map((s, i) => [s.key, i])) as Record<string, number>;
@@ -31,33 +33,313 @@ const STAGE_IDX = Object.fromEntries(STAGES.map((s, i) => [s.key, i])) as Record
 
 function timelineClass(eventType?: string): string {
   switch (eventType) {
-    case 'note':       return styles.timelineNote;
-    case 'assignment': return styles.timelineAssign;
-    case 'hold':       return styles.timelineHold;
-    case 'admin_override': return styles.timelineAdmin;
-    default:           return '';
+    case 'note':                return styles.timelineNote;
+    case 'assignment':          return styles.timelineAssign;
+    case 'craftsperson_assigned':
+    case 'qc_staff_assigned':   return styles.timelineAssign;
+    case 'measurement_linked':  return styles.timelineAssign;
+    case 'hold':                return styles.timelineHold;
+    case 'admin_override':      return styles.timelineAdmin;
+    default:                    return '';
   }
 }
 
 function timelineIcon(eventType?: string) {
   switch (eventType) {
-    case 'note':           return <MessageSquare size={13} />;
-    case 'assignment':     return <UserCheck size={13} />;
-    case 'hold':           return <PauseCircle size={13} />;
-    case 'admin_override': return <FileText size={13} />;
-    default:               return <Check size={13} />;
+    case 'note':                return <MessageSquare size={13} />;
+    case 'assignment':
+    case 'craftsperson_assigned':
+    case 'qc_staff_assigned':   return <UserCheck size={13} />;
+    case 'measurement_linked':  return <Ruler size={13} />;
+    case 'hold':                return <PauseCircle size={13} />;
+    case 'admin_override':      return <FileText size={13} />;
+    default:                    return <Check size={13} />;
   }
 }
 
 function timelineText(entry: OrderTimelineEntry): string {
   const et = entry.event_type ?? 'stage_change';
   if (et === 'note') return entry.note ?? 'Note added';
-  if (et === 'assignment') return entry.note ?? 'Staff assigned';
+  if (et === 'assignment' || et === 'craftsperson_assigned' || et === 'qc_staff_assigned') return entry.note ?? 'Staff assigned';
+  if (et === 'measurement_linked') return entry.note ?? 'Measurement booking linked';
   if (et === 'hold') return entry.note ? `On hold: ${entry.note}` : 'Order placed on hold';
   return `Stage → ${entry.to_stage.replace(/_/g, ' ')}${entry.note ? ` — ${entry.note}` : ''}`;
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
+// ── Next-step card ────────────────────────────────────────────────────────────
+
+interface NextStepProps {
+  order: AdminOrder;
+  customerBookings: MeasurementBooking[];
+  bookingsLoading: boolean;
+  advancingStage: boolean;
+  assigningCraft: boolean;
+  assigningQC: boolean;
+  onLinkMeasurement: (bookingId: string) => Promise<void>;
+  onAdvance: (stage: OrderStage, note?: string) => Promise<void>;
+  onAssignCraft: (staffId: string | null) => Promise<void>;
+  onAssignQC: (staffId: string | null) => Promise<void>;
+  onCreateMeasurementBooking: () => void;
+}
+
+const NextStepCard: React.FC<NextStepProps> = ({
+  order, customerBookings, bookingsLoading,
+  advancingStage, assigningCraft, assigningQC,
+  onLinkMeasurement, onAdvance, onAssignCraft, onAssignQC,
+  onCreateMeasurementBooking,
+}) => {
+  const [selectedBookingId, setSelectedBookingId] = React.useState('');
+  const navigate = useNavigate();
+
+  const stage = order.stage;
+
+  // Payment not confirmed yet
+  if (stage === 'payment_pending') {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(148,163,184,0.12)', color: 'var(--color-text-tertiary)' }}>
+          <Clock size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Awaiting Payment</div>
+        <div className={styles.nextStepDesc}>Payment has not been confirmed yet. Once confirmed, schedule a measurement visit.</div>
+      </div>
+    );
+  }
+
+  // Payment confirmed — need to schedule measurement
+  if (stage === 'payment_confirmed') {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(201,153,94,0.12)', color: '#9A6B3A' }}>
+          <Ruler size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Step 1 — Schedule Measurement Visit</div>
+        <div className={styles.nextStepDesc}>
+          Link an existing measurement booking for this customer, or create a new one.
+        </div>
+        {bookingsLoading ? (
+          <div className={styles.nextStepLoading}>Loading customer bookings…</div>
+        ) : customerBookings.length > 0 ? (
+          <>
+            <div className={styles.nextStepLabel}>Link existing booking</div>
+            <select
+              className={styles.nextStepSelect}
+              value={selectedBookingId}
+              onChange={e => setSelectedBookingId(e.target.value)}
+            >
+              <option value="">Select a booking…</option>
+              {customerBookings.map(b => (
+                <option key={b.id} value={b.id}>
+                  {b.reference_id ?? b.booking_ref} — {b.status} — {b.scheduled_at ? new Date(b.scheduled_at).toLocaleDateString('en-IN') : 'Unscheduled'}
+                </option>
+              ))}
+            </select>
+            <button
+              className={styles.nextStepPrimary}
+              disabled={!selectedBookingId || advancingStage}
+              onClick={() => onLinkMeasurement(selectedBookingId)}
+            >
+              {advancingStage ? 'Linking…' : 'Link & Advance'}
+            </button>
+            <div className={styles.nextStepOr}>or</div>
+          </>
+        ) : (
+          <div className={styles.nextStepEmpty}>No existing bookings for this customer.</div>
+        )}
+        <button className={styles.nextStepSecondary} onClick={onCreateMeasurementBooking}>
+          Create New Measurement Booking →
+        </button>
+      </div>
+    );
+  }
+
+  // Measurement visit scheduled — waiting for specialist to visit
+  if (stage === 'awaiting_measurement') {
+    const booking = order.linked_measurement_booking_id;
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--color-info)' }}>
+          <Clock size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Waiting for Measurement Visit</div>
+        <div className={styles.nextStepDesc}>
+          Measurement specialist will visit the customer and upload measurements via the ops app. Once the booking is marked complete, advance here.
+        </div>
+        {booking && (
+          <button className={styles.nextStepSecondary} onClick={() => navigate(`/admin/measurement-bookings/${booking}`)}>
+            View Measurement Booking →
+          </button>
+        )}
+        <div className={styles.nextStepOr}>Once measurements are uploaded:</div>
+        <button
+          className={styles.nextStepPrimary}
+          disabled={advancingStage}
+          onClick={() => onAdvance('measurement_complete', 'Measurements received and verified')}
+        >
+          {advancingStage ? 'Advancing…' : 'Mark Measurements Complete'}
+        </button>
+      </div>
+    );
+  }
+
+  // Measurements done — assign craftsperson
+  if (stage === 'measurement_complete') {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(28,92,66,0.08)', color: 'var(--color-primary)' }}>
+          <Scissors size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Step 2 — Assign Craftsperson</div>
+        <div className={styles.nextStepDesc}>
+          Measurements are ready. Assign a tailor or cutter to begin stitching.
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <StaffAssignmentDropdown
+            value={order.craftsperson_id ?? null}
+            onChange={onAssignCraft}
+            hubId={order.hub_id ?? undefined}
+            showWorkload
+            filterRoles={['tailor', 'cutter', 'finisher']}
+            disabled={assigningCraft}
+            placeholder="Assign craftsperson…"
+          />
+        </div>
+        {order.craftsperson_id && (
+          <button
+            className={styles.nextStepPrimary}
+            disabled={advancingStage}
+            onClick={() => onAdvance('in_tailoring', 'Garment sent to tailoring')}
+          >
+            {advancingStage ? 'Advancing…' : 'Start Tailoring →'}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // In tailoring / fabric sourced
+  if (stage === 'in_tailoring' || stage === 'fabric_sourced') {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(201,153,94,0.12)', color: '#9A6B3A' }}>
+          <Scissors size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Step 3 — In Production</div>
+        <div className={styles.nextStepDesc}>
+          {order.craftsperson_name
+            ? `Assigned to ${order.craftsperson_name}. Mark complete once stitching is done.`
+            : 'Stitching in progress. Mark complete once done.'}
+        </div>
+        <button
+          className={styles.nextStepPrimary}
+          disabled={advancingStage}
+          onClick={() => onAdvance('quality_check', 'Tailoring complete — sent to QC')}
+        >
+          {advancingStage ? 'Advancing…' : 'Tailoring Complete → QC'}
+        </button>
+      </div>
+    );
+  }
+
+  // Quality check
+  if (stage === 'quality_check') {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--color-info)' }}>
+          <ShieldCheck size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Step 4 — Quality Check</div>
+        <div className={styles.nextStepDesc}>Assign QC staff and review the garment.</div>
+        <div style={{ marginBottom: 10 }}>
+          <StaffAssignmentDropdown
+            value={order.qc_staff_id ?? null}
+            onChange={onAssignQC}
+            hubId={order.hub_id ?? undefined}
+            showWorkload
+            filterRoles={['quality_checker']}
+            disabled={assigningQC}
+            placeholder="Assign QC staff…"
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className={styles.nextStepPrimary}
+            style={{ flex: 1 }}
+            disabled={advancingStage}
+            onClick={() => onAdvance('ready_to_dispatch', 'QC passed')}
+          >
+            {advancingStage ? '…' : '✓ QC Pass'}
+          </button>
+          <button
+            className={styles.nextStepDanger}
+            style={{ flex: 1 }}
+            disabled={advancingStage}
+            onClick={() => onAdvance('in_tailoring', 'QC failed — returned to tailoring')}
+          >
+            {advancingStage ? '…' : '✗ QC Fail'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Ready to dispatch
+  if (stage === 'ready_to_dispatch') {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(28,92,66,0.08)', color: 'var(--color-primary)' }}>
+          <Package size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Step 5 — Dispatch</div>
+        <div className={styles.nextStepDesc}>Garment passed QC. Ready to hand off to courier.</div>
+        <button
+          className={styles.nextStepPrimary}
+          disabled={advancingStage}
+          onClick={() => onAdvance('dispatched', 'Order dispatched to customer')}
+        >
+          {advancingStage ? 'Advancing…' : 'Mark Dispatched →'}
+        </button>
+      </div>
+    );
+  }
+
+  // Dispatched
+  if (stage === 'dispatched') {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--color-info)' }}>
+          <Truck size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Out for Delivery</div>
+        <div className={styles.nextStepDesc}>Order is with courier. Confirm once delivered.</div>
+        <button
+          className={styles.nextStepPrimary}
+          disabled={advancingStage}
+          onClick={() => onAdvance('delivered', 'Order delivered to customer')}
+        >
+          {advancingStage ? 'Advancing…' : 'Mark Delivered ✓'}
+        </button>
+      </div>
+    );
+  }
+
+  // Delivered
+  if (stage === 'delivered') {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(28,92,66,0.08)', color: 'var(--color-primary)' }}>
+          <CheckCircle2 size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Order Complete</div>
+        <div className={styles.nextStepDesc}>This order has been delivered successfully.</div>
+      </div>
+    );
+  }
+
+  return null;
+};
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export const OrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -66,6 +348,15 @@ export const OrderDetailPage: React.FC = () => {
   const [order, setOrder] = React.useState<AdminOrder | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+
+  // Customer measurement bookings (for linking)
+  const [customerBookings, setCustomerBookings] = React.useState<MeasurementBooking[]>([]);
+  const [bookingsLoading, setBookingsLoading] = React.useState(false);
+
+  // Action states
+  const [advancingStage, setAdvancingStage] = React.useState(false);
+  const [assigningCraft, setAssigningCraft] = React.useState(false);
+  const [assigningQC, setAssigningQC] = React.useState(false);
 
   // Override modal
   const [showOverrideModal, setShowOverrideModal] = React.useState(false);
@@ -77,10 +368,6 @@ export const OrderDetailPage: React.FC = () => {
   // Invoice
   const [invoiceLoading, setInvoiceLoading] = React.useState(false);
   const [invoiceGenerating, setInvoiceGenerating] = React.useState(false);
-
-  // Staff assignment
-  const [assigningCraft, setAssigningCraft] = React.useState(false);
-  const [assigningQC, setAssigningQC] = React.useState(false);
 
   // Note entry
   const [noteText, setNoteText] = React.useState('');
@@ -102,6 +389,15 @@ export const OrderDetailPage: React.FC = () => {
 
   useBreadcrumbTitle(order ? `Order ${order.reference_id ?? order.id}` : undefined);
 
+  const reload = React.useCallback(() => {
+    if (!id) return;
+    ordersApi.get(id).then(o => {
+      setOrder(o);
+      setDeliveryDate(o.estimated_delivery_date ?? '');
+      setHoldReason(o.on_hold_reason ?? '');
+    }).catch(() => {});
+  }, [id]);
+
   React.useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -115,16 +411,78 @@ export const OrderDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const reload = () => {
-    if (!id) return;
-    ordersApi.get(id).then(o => {
-      setOrder(o);
-      setDeliveryDate(o.estimated_delivery_date ?? '');
-      setHoldReason(o.on_hold_reason ?? '');
-    }).catch(() => {});
+  // Load customer measurement bookings when order is payment_confirmed
+  React.useEffect(() => {
+    if (!order?.user_id) return;
+    const needsBookings = order.stage === 'payment_confirmed' || order.stage === 'payment_pending';
+    if (!needsBookings) return;
+    setBookingsLoading(true);
+    measurementBookingsApi.list({ user_id: order.user_id, limit: 20 })
+      .then(r => setCustomerBookings(r.bookings ?? []))
+      .catch(() => setCustomerBookings([]))
+      .finally(() => setBookingsLoading(false));
+  }, [order?.user_id, order?.stage]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const handleLinkMeasurement = async (bookingId: string) => {
+    if (!order) return;
+    setAdvancingStage(true);
+    try {
+      await ordersApi.linkMeasurement(order.uuid ?? order.id, bookingId);
+      showToast('success', 'Measurement booking linked');
+      reload();
+    } catch (e) {
+      showToast('error', 'Failed to link', e instanceof Error ? e.message : undefined);
+    } finally {
+      setAdvancingStage(false);
+    }
   };
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  const handleAdvance = async (toStage: OrderStage, note?: string) => {
+    if (!order) return;
+    setAdvancingStage(true);
+    try {
+      await ordersApi.advance(order.uuid ?? order.id, toStage, note);
+      showToast('success', `Advanced to ${toStage.replace(/_/g, ' ')}`);
+      reload();
+    } catch (e) {
+      showToast('error', 'Failed to advance', e instanceof Error ? e.message : undefined);
+    } finally {
+      setAdvancingStage(false);
+    }
+  };
+
+  const handleAssignCraft = async (staffId: string | null) => {
+    if (!order) return;
+    setAssigningCraft(true);
+    try {
+      await ordersApi.assignCraftsperson(order.uuid ?? order.id, staffId);
+      showToast('success', staffId ? 'Craftsperson assigned' : 'Craftsperson unassigned');
+      reload();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast('error', 'Assignment failed', msg?.includes('MEASUREMENT_REQUIRED')
+        ? 'Measurements must be completed before assigning a craftsperson.'
+        : msg);
+    } finally {
+      setAssigningCraft(false);
+    }
+  };
+
+  const handleAssignQC = async (staffId: string | null) => {
+    if (!order) return;
+    setAssigningQC(true);
+    try {
+      await ordersApi.assignQCStaff(order.uuid ?? order.id, staffId);
+      showToast('success', staffId ? 'QC staff assigned' : 'QC staff unassigned');
+      reload();
+    } catch (e) {
+      showToast('error', 'Assignment failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setAssigningQC(false);
+    }
+  };
 
   const handleOverride = async () => {
     if (!order || !overrideStage) return;
@@ -147,7 +505,7 @@ export const OrderDetailPage: React.FC = () => {
     setInvoiceGenerating(true);
     try {
       await invoicesApi.generateForOrder(order.uuid ?? order.id);
-      showToast('success', 'Invoice queued', 'Invoice generation queued. It will appear on the Invoices page shortly.');
+      showToast('success', 'Invoice queued');
     } catch (e) {
       showToast('error', 'Invoice error', e instanceof Error ? e.message : undefined);
     } finally {
@@ -170,36 +528,6 @@ export const OrderDetailPage: React.FC = () => {
       showToast('error', 'Invoice error', e instanceof Error ? e.message : undefined);
     } finally {
       setInvoiceLoading(false);
-    }
-  };
-
-  const handleAssignCraft = async (staffId: string | null) => {
-    if (!order) return;
-    setAssigningCraft(true);
-    try {
-      await ordersApi.assignCraftsperson(order.uuid ?? order.id, staffId);
-      setOrder(prev => prev ? { ...prev, craftsperson_id: staffId } : prev);
-      showToast('success', staffId ? 'Craftsperson assigned' : 'Craftsperson unassigned');
-      reload();
-    } catch (e) {
-      showToast('error', 'Assignment failed', e instanceof Error ? e.message : undefined);
-    } finally {
-      setAssigningCraft(false);
-    }
-  };
-
-  const handleAssignQC = async (staffId: string | null) => {
-    if (!order) return;
-    setAssigningQC(true);
-    try {
-      await ordersApi.assignQCStaff(order.uuid ?? order.id, staffId);
-      setOrder(prev => prev ? { ...prev, qc_staff_id: staffId } : prev);
-      showToast('success', staffId ? 'QC staff assigned' : 'QC staff unassigned');
-      reload();
-    } catch (e) {
-      showToast('error', 'Assignment failed', e instanceof Error ? e.message : undefined);
-    } finally {
-      setAssigningQC(false);
     }
   };
 
@@ -248,7 +576,7 @@ export const OrderDetailPage: React.FC = () => {
     }
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) return <div className={styles.page}><div className={styles.loadingMsg}>Loading order…</div></div>;
   if (!order) return <div className={styles.page}><div className={styles.loadingMsg}>Order not found.</div></div>;
@@ -262,7 +590,7 @@ export const OrderDetailPage: React.FC = () => {
         <ChevronLeft size={15} /> Back to Orders
       </button>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className={styles.card}>
         <div className={styles.orderHeader}>
           <div>
@@ -282,6 +610,11 @@ export const OrderDetailPage: React.FC = () => {
           <div className={styles.badges}>
             <span className={`${styles.pill} ${styles.pillGreen}`}>{order.mode}</span>
             <span className={`${styles.statusPill} ${styles[`status-${order.status}`]}`}>{order.status}</span>
+            {order.on_hold_reason && (
+              <span style={{ fontSize: 12, padding: '3px 9px', borderRadius: 20, background: 'rgba(201,153,94,0.15)', color: '#9A6B3A', fontWeight: 600 }}>
+                ⏸ On Hold
+              </span>
+            )}
           </div>
         </div>
         <div className={styles.customerRow}>
@@ -291,12 +624,14 @@ export const OrderDetailPage: React.FC = () => {
           {order.user_id && (
             <button className={styles.linkBtn} onClick={() => navigate(`/admin/users/${order.user_id}`)}>View Profile →</button>
           )}
+          <span className={styles.customerLabel} style={{ marginLeft: 8 }}>Hub</span>
+          <span className={styles.customerName}>{order.hub}</span>
         </div>
       </div>
 
-      {/* ── Stage stepper ───────────────────────────────────────────────────── */}
+      {/* ── Stage stepper ────────────────────────────────────────────────────── */}
       <div className={styles.card}>
-        <h3 className={styles.sectionTitle}>Order Stage</h3>
+        <h3 className={styles.sectionTitle}>Order Journey</h3>
         <div className={styles.stepper}>
           {STAGES.map((s, i) => {
             const done = i < currentIdx;
@@ -311,32 +646,16 @@ export const OrderDetailPage: React.FC = () => {
             );
           })}
         </div>
-        <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button className={styles.actionBtn} style={{ height: 36, fontSize: 13 }} onClick={() => setShowOverrideModal(true)}>
-            Override Stage
-          </button>
-          <div className={styles.statusRow} style={{ border: 'none', padding: 0, marginLeft: 4 }}>
-            <span className={styles.metaLabel} style={{ marginRight: 6 }}>Hub:</span>
-            <span className={styles.metaValue}>{order.hub}</span>
-          </div>
-          {order.on_hold_reason && (
-            <span style={{ fontSize: 12, padding: '3px 9px', borderRadius: 20, background: 'rgba(201,153,94,0.15)', color: '#9A6B3A', fontWeight: 600 }}>
-              ⏸ On Hold
-            </span>
-          )}
-        </div>
       </div>
 
       <div className={styles.twoCol}>
         <div className={styles.main}>
 
-          {/* ── Items ────────────────────────────────────────────────────────── */}
+          {/* ── Items ──────────────────────────────────────────────────────── */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Items</h3>
             <table className={styles.itemsTable}>
-              <thead>
-                <tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
-              </thead>
+              <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
               <tbody>
                 {(order.items ?? []).length > 0
                   ? (order.items ?? []).map(it => (
@@ -361,89 +680,81 @@ export const OrderDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ── Staff Assignments ─────────────────────────────────────────────── */}
+          {/* ── Measurement + Staff assignments ────────────────────────────── */}
           <div className={styles.card}>
-            <h3 className={styles.sectionTitle}>Staff Assignments</h3>
+            <h3 className={styles.sectionTitle}>Production Assignments</h3>
+
+            {/* Measurement booking */}
+            <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--color-border-light)' }}>
+              <div className={styles.assignLabel}><Ruler size={11} style={{ display: 'inline', marginRight: 4 }} />Measurement Booking</div>
+              {order.linked_measurement_booking_id ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: 'var(--color-primary)' }}>
+                    {order.linked_measurement_booking_ref ?? order.linked_measurement_booking_id.slice(0, 8)}
+                  </span>
+                  <button className={styles.linkBtn} onClick={() => navigate(`/admin/measurement-bookings/${order.linked_measurement_booking_id}`)}>
+                    View →
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <AlertCircle size={13} style={{ color: '#9A6B3A' }} />
+                  <span style={{ fontSize: 13, color: '#9A6B3A' }}>Not linked — schedule via "Next Step" card</span>
+                </div>
+              )}
+            </div>
+
+            {/* Craftsperson + QC */}
             <div className={styles.assignRow}>
               <div>
                 <div className={styles.assignLabel}><Scissors size={11} style={{ display: 'inline', marginRight: 4 }} />Craftsperson</div>
-                <StaffAssignmentDropdown
-                  value={order.craftsperson_id ?? null}
-                  onChange={handleAssignCraft}
-                  hubId={order.hub_id ?? undefined}
-                  showWorkload
-                  filterRoles={['tailor', 'cutter', 'finisher']}
-                  disabled={assigningCraft}
-                  placeholder="Assign craftsperson…"
-                />
-                {order.craftsperson_name && (
-                  <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
-                    {order.craftsperson_role} {order.craftsperson_ref && <span style={{ fontFamily: 'monospace' }}>{order.craftsperson_ref}</span>}
+                {order.stage === 'measurement_complete' || STAGE_IDX[order.stage] > STAGE_IDX['measurement_complete'] ? (
+                  <>
+                    <StaffAssignmentDropdown
+                      value={order.craftsperson_id ?? null}
+                      onChange={handleAssignCraft}
+                      hubId={order.hub_id ?? undefined}
+                      showWorkload
+                      filterRoles={['tailor', 'cutter', 'finisher']}
+                      disabled={assigningCraft}
+                    />
+                    {order.craftsperson_name && (
+                      <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
+                        {order.craftsperson_role}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)', fontStyle: 'italic' }}>
+                    Available after measurements
                   </div>
                 )}
               </div>
               <div>
                 <div className={styles.assignLabel}><ShieldCheck size={11} style={{ display: 'inline', marginRight: 4 }} />QC Staff</div>
-                <StaffAssignmentDropdown
-                  value={order.qc_staff_id ?? null}
-                  onChange={handleAssignQC}
-                  hubId={order.hub_id ?? undefined}
-                  showWorkload
-                  filterRoles={['quality_checker']}
-                  disabled={assigningQC}
-                  placeholder="Assign QC staff…"
-                />
-                {order.qc_staff_name && (
-                  <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
-                    {order.qc_staff_role} {order.qc_staff_ref && <span style={{ fontFamily: 'monospace' }}>{order.qc_staff_ref}</span>}
+                {STAGE_IDX[order.stage] >= STAGE_IDX['quality_check'] ? (
+                  <>
+                    <StaffAssignmentDropdown
+                      value={order.qc_staff_id ?? null}
+                      onChange={handleAssignQC}
+                      hubId={order.hub_id ?? undefined}
+                      showWorkload
+                      filterRoles={['quality_checker']}
+                      disabled={assigningQC}
+                    />
+                  </>
+                ) : (
+                  <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)', fontStyle: 'italic' }}>
+                    Available at QC stage
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* ── Linked Entities ───────────────────────────────────────────────── */}
+          {/* ── Activity Timeline ─────────────────────────────────────────── */}
           <div className={styles.card}>
-            <h3 className={styles.sectionTitle}>Linked Bookings</h3>
-            <div className={styles.linkedGrid}>
-              <div className={styles.linkedCard}>
-                <div className={styles.linkedType}>Measurement Booking</div>
-                {order.linked_measurement_booking_id ? (
-                  <>
-                    <div className={styles.linkedRef}>{order.linked_measurement_booking_ref ?? order.linked_measurement_booking_id.slice(0, 8)}</div>
-                    <button
-                      className={styles.linkBtn}
-                      onClick={() => navigate(`/admin/measurement-bookings/${order.linked_measurement_booking_id}`)}
-                    >
-                      View →
-                    </button>
-                  </>
-                ) : (
-                  <div className={styles.linkedNone}>Not linked</div>
-                )}
-              </div>
-              <div className={styles.linkedCard}>
-                <div className={styles.linkedType}>Home Visit</div>
-                {order.linked_home_visit_id ? (
-                  <>
-                    <div className={styles.linkedRef}>{order.linked_home_visit_ref ?? order.linked_home_visit_id.slice(0, 8)}</div>
-                    <button
-                      className={styles.linkBtn}
-                      onClick={() => navigate(`/admin/home-visits/${order.linked_home_visit_id}`)}
-                    >
-                      View →
-                    </button>
-                  </>
-                ) : (
-                  <div className={styles.linkedNone}>Not linked</div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Activity Timeline ─────────────────────────────────────────────── */}
-          <div className={styles.card}>
-            <h3 className={styles.sectionTitle}>Order Journey</h3>
+            <h3 className={styles.sectionTitle}>Activity Log</h3>
             <div className={styles.timeline}>
               {(order.timeline ?? []).length > 0
                 ? (order.timeline ?? []).map((entry, i) => (
@@ -460,13 +771,13 @@ export const OrderDetailPage: React.FC = () => {
                     </div>
                   </div>
                 ))
-                : <div style={{ color: 'var(--color-text-tertiary)', fontSize: 13 }}>No stage transitions yet.</div>
+                : <div style={{ color: 'var(--color-text-tertiary)', fontSize: 13 }}>No activity yet.</div>
               }
             </div>
             <div className={styles.noteForm}>
               <input
                 className={styles.noteInput}
-                placeholder="Add a note to the timeline…"
+                placeholder="Add a note…"
                 value={noteText}
                 onChange={e => setNoteText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddNote(); } }}
@@ -477,7 +788,7 @@ export const OrderDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ── Payment ───────────────────────────────────────────────────────── */}
+          {/* ── Payment ───────────────────────────────────────────────────── */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Payment</h3>
             {(order.payments ?? []).length === 0 ? (
@@ -496,28 +807,34 @@ export const OrderDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
+        {/* ── Sidebar ────────────────────────────────────────────────────────── */}
         <div className={styles.sidebar}>
 
-          {/* Delivery Date */}
+          {/* NEXT STEP — the primary action card */}
+          <NextStepCard
+            order={order}
+            customerBookings={customerBookings}
+            bookingsLoading={bookingsLoading}
+            advancingStage={advancingStage}
+            assigningCraft={assigningCraft}
+            assigningQC={assigningQC}
+            onLinkMeasurement={handleLinkMeasurement}
+            onAdvance={handleAdvance}
+            onAssignCraft={handleAssignCraft}
+            onAssignQC={handleAssignQC}
+            onCreateMeasurementBooking={() => navigate(`/admin/measurement-bookings/new?user_id=${order.user_id}&order_id=${order.uuid ?? order.id}`)}
+          />
+
+          {/* Delivery date + hold reason */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Delivery</h3>
             <div style={{ marginBottom: 10 }}>
               <div className={styles.metaLabel}>Est. Delivery Date</div>
               {editingDelivery ? (
                 <div className={styles.inlineEdit}>
-                  <input
-                    type="date"
-                    className={styles.inlineInput}
-                    value={deliveryDate}
-                    onChange={e => setDeliveryDate(e.target.value)}
-                  />
-                  <button className={styles.inlineSave} disabled={savingDelivery} onClick={handleSaveDelivery}>
-                    {savingDelivery ? '…' : 'Save'}
-                  </button>
-                  <button className={styles.actionBtnSecondary} style={{ height: 34, padding: '0 10px', fontSize: 12 }} onClick={() => { setEditingDelivery(false); setDeliveryDate(order.estimated_delivery_date ?? ''); }}>
-                    Cancel
-                  </button>
+                  <input type="date" className={styles.inlineInput} value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} />
+                  <button className={styles.inlineSave} disabled={savingDelivery} onClick={handleSaveDelivery}>{savingDelivery ? '…' : 'Save'}</button>
+                  <button className={styles.actionBtnSecondary} style={{ height: 34, padding: '0 10px', fontSize: 12 }} onClick={() => { setEditingDelivery(false); setDeliveryDate(order.estimated_delivery_date ?? ''); }}>Cancel</button>
                 </div>
               ) : (
                 <div className={styles.inlineEdit}>
@@ -530,38 +847,26 @@ export const OrderDetailPage: React.FC = () => {
               <div className={styles.metaLabel}>On Hold Reason</div>
               {editingHold ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <textarea
-                    className={styles.fieldTextarea}
-                    rows={2}
-                    placeholder="Reason for hold (leave empty to clear)…"
-                    value={holdReason}
-                    onChange={e => setHoldReason(e.target.value)}
-                  />
+                  <textarea className={styles.fieldTextarea} rows={2} placeholder="Leave empty to clear hold…" value={holdReason} onChange={e => setHoldReason(e.target.value)} />
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button className={styles.inlineSave} disabled={savingHold} onClick={handleSaveHold}>
-                      {savingHold ? '…' : 'Save'}
-                    </button>
-                    <button className={styles.actionBtnSecondary} style={{ height: 34, padding: '0 10px', fontSize: 12 }} onClick={() => { setEditingHold(false); setHoldReason(order.on_hold_reason ?? ''); }}>
-                      Cancel
-                    </button>
+                    <button className={styles.inlineSave} disabled={savingHold} onClick={handleSaveHold}>{savingHold ? '…' : 'Save'}</button>
+                    <button className={styles.actionBtnSecondary} style={{ height: 34, padding: '0 10px', fontSize: 12 }} onClick={() => { setEditingHold(false); setHoldReason(order.on_hold_reason ?? ''); }}>Cancel</button>
                   </div>
                 </div>
               ) : (
                 <div className={styles.inlineEdit}>
-                  <span className={styles.metaValue} style={{ color: order.on_hold_reason ? '#9A6B3A' : 'var(--color-text-tertiary)', fontSize: 13 }}>
-                    {order.on_hold_reason ?? 'Not on hold'}
-                  </span>
+                  <span className={styles.metaValue} style={{ color: order.on_hold_reason ? '#9A6B3A' : 'var(--color-text-tertiary)', fontSize: 13 }}>{order.on_hold_reason ?? 'Not on hold'}</span>
                   <button className={styles.linkBtn} onClick={() => setEditingHold(true)}>Edit</button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Admin Actions */}
+          {/* Admin actions */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Admin Actions</h3>
             <div className={styles.actionList}>
-              <button className={styles.overrideBtn} onClick={() => setShowOverrideModal(true)}>Override Status</button>
+              <button className={styles.overrideBtn} onClick={() => setShowOverrideModal(true)}>Override Stage</button>
               <button className={styles.actionBtnSecondary} disabled={invoiceGenerating} onClick={handleGenerateInvoice}>
                 {invoiceGenerating ? 'Queuing…' : 'Generate Invoice'}
               </button>
@@ -572,7 +877,6 @@ export const OrderDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Cancellation reason */}
           {order.cancellation_reason && (
             <div className={styles.card}>
               <h3 className={styles.sectionTitle} style={{ color: 'var(--color-error)' }}>Cancellation</h3>
@@ -582,20 +886,20 @@ export const OrderDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Override modal ──────────────────────────────────────────────────── */}
+      {/* ── Override modal ────────────────────────────────────────────────────── */}
       {showOverrideModal && (
         <div className={styles.modalOverlay} onClick={() => setShowOverrideModal(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Override Order Status</h3>
+            <h3 className={styles.modalTitle}>Override Order Stage</h3>
             <div className={styles.warningBanner}>
-              ⚠ Manual overrides bypass normal validation. They are logged in the audit trail with your admin ID.
+              ⚠ Manual overrides bypass normal validation. They are logged in the audit trail.
             </div>
             <div className={styles.currentStatus}>
-              <span>Current Stage: <strong>{order.stage}</strong></span>
+              <span>Current Stage: <strong>{order.stage.replace(/_/g, ' ')}</strong></span>
               <span>Lifecycle: <strong>{order.status}</strong></span>
             </div>
             <div className={styles.field}>
-              <label className={styles.fieldLabel}>Override to (Stage)</label>
+              <label className={styles.fieldLabel}>Override to</label>
               <select className={styles.fieldSelect} value={overrideStage} onChange={e => setOverrideStage(e.target.value)}>
                 <option value="">Select stage…</option>
                 {STAGES.map(s => (
@@ -604,7 +908,7 @@ export const OrderDetailPage: React.FC = () => {
               </select>
             </div>
             <div className={styles.field}>
-              <label className={styles.fieldLabel}>Reason (required, min 20 chars)</label>
+              <label className={styles.fieldLabel}>Reason (min 20 chars)</label>
               <textarea
                 className={styles.fieldTextarea}
                 placeholder="e.g., Courier confirmed delivery but webhook failed to update status."
@@ -614,17 +918,11 @@ export const OrderDetailPage: React.FC = () => {
               />
             </div>
             <div className={styles.checkList}>
-              {['I understand this action will be logged with my admin account', `I have verified this is the correct order (${order.id})`].map((label, i) => (
+              {['I understand this action will be logged', `I have verified this is the correct order (${order.id})`].map((label, i) => (
                 <label key={i} className={styles.checkItem}>
-                  <input
-                    type="checkbox"
-                    checked={overrideChecks[i]}
-                    onChange={e => {
-                      const next = [...overrideChecks];
-                      next[i] = e.target.checked;
-                      setOverrideChecks(next);
-                    }}
-                  />
+                  <input type="checkbox" checked={overrideChecks[i]} onChange={e => {
+                    const next = [...overrideChecks]; next[i] = e.target.checked; setOverrideChecks(next);
+                  }} />
                   {label}
                 </label>
               ))}

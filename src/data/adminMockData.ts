@@ -4,9 +4,11 @@ export type AdminRole = 'admin' | 'admin_ops' | 'admin_finance' | 'admin_catalog
 export type OrderMode = 'Simplified';
 export type LifecycleStatus = 'pending' | 'active' | 'completed' | 'cancelled';
 export type OrderStage =
-  | 'payment_pending' | 'payment_confirmed' | 'fabric_sourced'
-  | 'in_tailoring' | 'quality_check' | 'ready_to_dispatch'
-  | 'dispatched' | 'delivered' | 'return_requested' | 'returned';
+  | 'payment_pending' | 'payment_confirmed'
+  | 'awaiting_measurement' | 'measurement_complete'
+  | 'fabric_sourced' | 'in_tailoring' | 'quality_check'
+  | 'ready_to_dispatch' | 'dispatched' | 'delivered'
+  | 'return_requested' | 'returned';
 
 export interface OrderItem {
   id: string;

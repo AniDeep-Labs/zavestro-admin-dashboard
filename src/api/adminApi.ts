@@ -171,6 +171,12 @@ export const ordersApi = {
   }): Promise<void> =>
     req(`/api/admin/orders/${orderId}/lifecycle`, { method: 'PATCH', body: JSON.stringify(data) }),
 
+  linkMeasurement: async (orderId: string, measurementBookingId: string): Promise<void> =>
+    req(`/api/admin/orders/${orderId}/link-measurement`, { method: 'PUT', body: JSON.stringify({ measurement_booking_id: measurementBookingId }) }),
+
+  advance: async (orderId: string, toStage: OrderStage, note?: string): Promise<void> =>
+    req(`/api/admin/orders/${orderId}/advance`, { method: 'PUT', body: JSON.stringify({ to_stage: toStage, note }) }),
+
   create: async (data: {
     user_id: string;
     hub_id: string;
