@@ -1,6 +1,6 @@
 /* ===== ROOT VARIABLES - LIGHT MODE (DEFAULT) ===== */
 :root {
-  /* PRIMARY GREEN — matches zavestro.app --green */
+  /* PRIMARY GREEN — matches zavestro.in --green */
   --color-primary: #1C5C42;
   --color-primary-light: #3D7A5C;
   --color-primary-lighter: #C0D9C8;
@@ -8,7 +8,7 @@
   --color-primary-darker: #164D37;
   --color-primary-extra-light: #EAF3EE;
 
-  /* SECONDARY GOLD — matches zavestro.app --gold */
+  /* SECONDARY GOLD — matches zavestro.in --gold */
   --color-secondary: #C9995E;
   --color-secondary-light: #DBC094;
   --color-secondary-lighter: #F9F2E7;
@@ -22,7 +22,7 @@
   --color-accent-lighter: #FFFEF9;
   --color-accent-dark: #E8D4C0;
 
-  /* LIGHT MODE BACKGROUNDS — matches zavestro.app */
+  /* LIGHT MODE BACKGROUNDS — matches zavestro.in */
   --color-bg-primary: #FFFFFF;
   --color-bg-secondary: #FAF9F6;
   --color-bg-tertiary: #F3F0E8;
@@ -30,13 +30,13 @@
   --color-bg-hover: #F9F2E7;
   --color-app-bg: #FAF9F6;
 
-  /* LIGHT MODE TEXT — matches zavestro.app --ink scale */
+  /* LIGHT MODE TEXT — matches zavestro.in --ink scale */
   --color-text-primary: #1A1714;
   --color-text-secondary: #57534A;
   --color-text-tertiary: #9A9188;
   --color-text-muted: #B8B0A6;
 
-  /* LIGHT MODE BORDERS — matches zavestro.app --border */
+  /* LIGHT MODE BORDERS — matches zavestro.in --border */
   --color-border: #E4E0D6;
   --color-border-light: #EDEAE0;
   --color-border-emerald: rgba(28, 92, 66, 0.15);
@@ -75,9 +75,9 @@
   --shadow-emerald: 0 4px 12px rgba(28, 92, 66, 0.15);
   --shadow-gold: 0 4px 12px rgba(201, 153, 94, 0.15);
 
-  /* TYPOGRAPHY — matches zavestro.app */
-  --font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  /* TYPOGRAPHY */
+  --font-family: 'Onest', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Onest', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-family-mono: 'Courier New', 'Courier', monospace;
 
   --font-size-xs: 11px;
@@ -132,7 +132,7 @@
 
 /* ===== DARK MODE (data-theme="dark") ===== */
 [data-theme="dark"] {
-  /* DARK BACKGROUNDS — matches zavestro.app dark scale */
+  /* DARK BACKGROUNDS — matches zavestro.in dark scale */
   --color-bg-primary: #1C1A17;
   --color-bg-secondary: #181614;
   --color-bg-tertiary: #0F0D0B;
@@ -152,7 +152,7 @@
   --color-border-emerald: rgba(82, 184, 130, 0.2);
   --color-border-gold: rgba(219, 192, 148, 0.15);
 
-  /* DARK PRIMARY — matches zavestro.app --green-inv */
+  /* DARK PRIMARY — matches zavestro.in --green-inv */
   --color-primary: #52B882;
   --color-primary-light: #7ECFA0;
   --color-primary-lighter: #C0D9C8;
@@ -160,7 +160,7 @@
   --color-primary-darker: #3D8F62;
   --color-primary-extra-light: #091A11;
 
-  /* DARK SECONDARY — matches zavestro.app --gold-inv */
+  /* DARK SECONDARY — matches zavestro.in --gold-inv */
   --color-secondary: #DBC094;
   --color-secondary-light: #E8D4B0;
   --color-secondary-lighter: #F4EDE3;

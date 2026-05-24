@@ -47,6 +47,7 @@ import { AdminResetPasswordPage } from './pages/admin/AdminResetPasswordPage';
 import { AdminUsersManagePage } from './pages/admin/AdminUsersManagePage';
 import { CollectionsListPage } from './pages/admin/CollectionsListPage';
 import { CollectionEditPage } from './pages/admin/CollectionEditPage';
+import { BannersPage } from './pages/admin/BannersPage';
 import { ReturnsListPage } from './pages/admin/ReturnsListPage';
 import { ReturnDetailPage } from './pages/admin/ReturnDetailPage';
 import { AlterationsListPage } from './pages/admin/AlterationsListPage';
@@ -122,6 +123,7 @@ function App() {
             <Route path="catalog/products/:id" element={<ProductEditPage />} />
             <Route path="catalog/collections" element={<CollectionsListPage />} />
             <Route path="catalog/collections/:id" element={<CollectionEditPage />} />
+            <Route path="catalog/banners" element={<BannersPage />} />
             <Route path="content/:section" element={<ContentPage />} />
             <Route path="content" element={<ContentPage />} />
             <Route path="analytics/:section" element={<AnalyticsPage />} />

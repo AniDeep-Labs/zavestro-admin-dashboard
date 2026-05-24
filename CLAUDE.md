@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Zavestro is a custom tailoring marketplace frontend connecting customers, designers, and tailors. Built with React 19 + TypeScript + Vite 8. No backend — all data is mocked.
+Zavestro is a made-to-order clothing brand (not a marketplace). This is the internal **admin dashboard** used by hub managers and ops staff to manage orders, customers, hubs, and catalog. Built with React 19 + TypeScript + Vite 8. No backend integration yet — all data is mocked.
 
 ## Commands
 
@@ -22,7 +22,7 @@ npm run preview   # Preview production build
 - **Vite 8** with Oxc-based React transform
 - **React Router v7** — all routes in `src/App.tsx`
 - **CSS Modules** + CSS custom properties (design tokens) — no CSS-in-JS, no Tailwind
-- **Poppins** font via Google Fonts CDN
+- **Onest** font via Google Fonts CDN (weights 400, 500, 600, 700)
 
 ### Design System (`src/styles/`)
 - `variables.css` — All tokens: colors, spacing, typography, shadows, radii, z-index, transitions, breakpoints

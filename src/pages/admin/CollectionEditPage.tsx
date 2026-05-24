@@ -33,6 +33,10 @@ export const CollectionEditPage: React.FC = () => {
   const [featured, setFeatured] = React.useState(false);
   const [sortOrder, setSortOrder] = React.useState('');
   const [season, setSeason] = React.useState('');
+  const [type, setType] = React.useState<'standard' | 'new_arrivals' | 'occasion' | 'featured'>('standard');
+  const [subtitle, setSubtitle] = React.useState('');
+  const [bgColor1, setBgColor1] = React.useState('#1C5C42');
+  const [bgColor2, setBgColor2] = React.useState('#0D3D2C');
   const [productSearch, setProductSearch] = React.useState('');
   const [selectedProducts, setSelectedProducts] = React.useState<{id: string; name: string}[]>([]);
   const [searchResults, setSearchResults] = React.useState<ApiProduct[]>([]);
@@ -58,6 +62,10 @@ export const CollectionEditPage: React.FC = () => {
         setStatus(col.status);
         setSortOrder(String(col.sortOrder));
         setSeason(col.season);
+        setType((col.type ?? 'standard') as 'standard' | 'new_arrivals' | 'occasion' | 'featured');
+        setSubtitle(col.subtitle ?? '');
+        setBgColor1(col.bg_color_1 || '#1C5C42');
+        setBgColor2(col.bg_color_2 || '#0D3D2C');
         const pids = col.productIds ?? [];
         setSelectedProducts(pids.map(id => ({ id, name: '' })));
         if (pids.length > 0) {
@@ -95,14 +103,30 @@ export const CollectionEditPage: React.FC = () => {
     setSlugTouched(true);
   };
 
-  const addProduct = (p: ApiProduct) => {
+  const addProduct = async (p: ApiProduct) => {
     setSelectedProducts(prev => [...prev, { id: p.id, name: p.name }]);
     setProductSearch('');
     setSearchResults([]);
+    if (!isNew) {
+      try {
+        await collectionsApi.addProduct(id!, p.id);
+      } catch {
+        showToast('error', 'Failed to add product');
+        setSelectedProducts(prev => prev.filter(sp => sp.id !== p.id));
+      }
+    }
   };
 
-  const removeProduct = (pid: string) =>
+  const removeProduct = async (pid: string) => {
     setSelectedProducts(prev => prev.filter(p => p.id !== pid));
+    if (!isNew) {
+      try {
+        await collectionsApi.removeProduct(id!, pid);
+      } catch {
+        showToast('error', 'Failed to remove product');
+      }
+    }
+  };
 
   const handleSave = async () => {
     setSubmitted(true);
@@ -117,15 +141,20 @@ export const CollectionEditPage: React.FC = () => {
     setSaving(true);
     try {
       const payload = {
-        name: trimmedName, slug: cleanSlug, description, status, featured,
-        sortOrder: Number(sortOrder) || 1, season,
-        productIds: selectedProducts.map(p => p.id),
+        name: trimmedName, slug: cleanSlug, description, status,
+        is_featured: featured,
+        sort_order: Number(sortOrder) || 0, season,
+        type, subtitle: subtitle.trim() || undefined,
+        bg_color_1: bgColor1, bg_color_2: bgColor2,
       };
       if (isNew) {
-        await collectionsApi.create(payload);
+        const created = await collectionsApi.create(payload as never);
+        for (const p of selectedProducts) {
+          await collectionsApi.addProduct(created.id, p.id).catch(() => {});
+        }
         showToast('success', 'Collection created', name);
       } else {
-        await collectionsApi.update(id!, payload);
+        await collectionsApi.update(id!, payload as never);
         showToast('success', 'Collection saved', name);
       }
       setTimeout(() => navigate('/admin/catalog/collections'), 600);
@@ -191,7 +220,48 @@ export const CollectionEditPage: React.FC = () => {
                     <option>Archived</option>
                   </select>
                 </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>Collection Type</label>
+                  <select className={styles.select} value={type} onChange={e => setType(e.target.value as typeof type)}>
+                    <option value="standard">Standard</option>
+                    <option value="new_arrivals">New Arrivals</option>
+                    <option value="occasion">Occasion</option>
+                    <option value="featured">Featured</option>
+                  </select>
+                </div>
               </div>
+              <div className={styles.field}>
+                <label className={styles.label}>Subtitle <span style={{ fontWeight: 400, color: 'var(--color-text-secondary)' }}>(shown on home screen cards)</span></label>
+                <input
+                  className={styles.input}
+                  value={subtitle}
+                  onChange={e => setSubtitle(e.target.value)}
+                  placeholder="e.g., Perfect for special moments"
+                />
+              </div>
+              <div className={styles.fieldRow}>
+                <div className={styles.field}>
+                  <label className={styles.label}>Card Gradient — Color 1</label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input type="color" value={bgColor1} onChange={e => setBgColor1(e.target.value)} style={{ width: 40, height: 36, border: 'none', cursor: 'pointer', borderRadius: 4 }} />
+                    <input className={styles.input} value={bgColor1} onChange={e => setBgColor1(e.target.value)} placeholder="#1C5C42" style={{ flex: 1 }} />
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>Card Gradient — Color 2</label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input type="color" value={bgColor2} onChange={e => setBgColor2(e.target.value)} style={{ width: 40, height: 36, border: 'none', cursor: 'pointer', borderRadius: 4 }} />
+                    <input className={styles.input} value={bgColor2} onChange={e => setBgColor2(e.target.value)} placeholder="#0D3D2C" style={{ flex: 1 }} />
+                  </div>
+                </div>
+              </div>
+              {(type === 'occasion' || type === 'new_arrivals' || type === 'featured') && (
+                <div style={{ background: `linear-gradient(135deg, ${bgColor1}, ${bgColor2})`, borderRadius: 10, padding: '14px 18px', color: '#fff' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.75 }}>Preview</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>{name || 'Collection Name'}</div>
+                  {subtitle && <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>{subtitle}</div>}
+                </div>
+              )}
               <div className={styles.field}>
                 <label className={styles.label}>Description</label>
                 <textarea

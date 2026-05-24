@@ -176,6 +176,10 @@ export interface Collection {
   hasBanner: boolean;
   season: string;
   updated: string;
+  type?: 'standard' | 'new_arrivals' | 'occasion' | 'featured';
+  subtitle?: string;
+  bg_color_1?: string;
+  bg_color_2?: string;
 }
 
 

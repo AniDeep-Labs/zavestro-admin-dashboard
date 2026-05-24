@@ -31,6 +31,7 @@ const NAV: NavItem[] = [
     children: [
       { label: 'Products',            path: '/admin/catalog/products' },
       { label: 'Collections',         path: '/admin/catalog/collections' },
+      { label: 'Hero Banners',        path: '/admin/catalog/banners' },
     ],
   },
   {

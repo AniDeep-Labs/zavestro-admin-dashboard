@@ -85,6 +85,7 @@ export const CollectionsListPage: React.FC = () => {
             <tr>
               <th></th>
               <th>Collection Name</th>
+              <th>Type</th>
               <th>Products</th>
               <th>Status</th>
               <th>Sort</th>
@@ -97,20 +98,20 @@ export const CollectionsListPage: React.FC = () => {
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 8 }).map((__, j) => (
+                  {Array.from({ length: 9 }).map((__, j) => (
                     <td key={j}><div className={styles.skeleton} /></td>
                   ))}
                 </tr>
               ))
             ) : error ? (
               <tr>
-                <td colSpan={8} className={styles.empty}>
+                <td colSpan={9} className={styles.empty}>
                   <div>{error}</div>
                   <button className={styles.retryBtn} onClick={() => { setError(''); }}>Retry</button>
                 </td>
               </tr>
             ) : collections.length === 0 ? (
-              <tr><td colSpan={8} className={styles.empty}>No collections found.</td></tr>
+              <tr><td colSpan={9} className={styles.empty}>No collections found.</td></tr>
             ) : (
               collections.map(col => (
                 <tr key={col.id} className={styles.row} onClick={() => navigate(`/admin/catalog/collections/${col.id}`)} style={{ cursor: 'pointer' }}>
@@ -120,6 +121,15 @@ export const CollectionsListPage: React.FC = () => {
                       {col.name}
                     </button>
                     <div className={styles.slug}>/{col.slug}</div>
+                  </td>
+                  <td>
+                    <span style={{
+                      display: 'inline-block', padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                      background: col.type === 'new_arrivals' ? '#e6f3ee' : col.type === 'occasion' ? '#f3e6f0' : col.type === 'featured' ? '#fef3e6' : 'var(--color-bg-secondary)',
+                      color: col.type === 'new_arrivals' ? '#1C5C42' : col.type === 'occasion' ? '#7a1c5c' : col.type === 'featured' ? '#9a5c00' : 'var(--color-text-secondary)',
+                    }}>
+                      {col.type ?? 'standard'}
+                    </span>
                   </td>
                   <td className={styles.count}>{col.products}</td>
                   <td>

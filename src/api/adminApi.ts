@@ -519,6 +519,10 @@ function mapCollection(c: Record<string, unknown>): Collection {
     updated: c.updated_at
       ? new Date(c.updated_at as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
       : '—',
+    type: ((c.type as string) ?? 'standard') as Collection['type'],
+    subtitle: (c.subtitle as string) ?? '',
+    bg_color_1: (c.bg_color_1 as string) ?? '',
+    bg_color_2: (c.bg_color_2 as string) ?? '',
   };
 }
 
@@ -557,6 +561,51 @@ export const collectionsApi = {
 
   archive: async (id: string): Promise<void> =>
     req(`/api/admin/catalog/collections/${id}/archive`, { method: 'POST' }),
+
+  addProduct: async (collectionId: string, productId: string, sortOrder = 0): Promise<void> =>
+    req(`/api/admin/catalog/collections/${collectionId}/products`, {
+      method: 'POST',
+      body: JSON.stringify({ product_id: productId, sort_order: sortOrder }),
+    }),
+
+  removeProduct: async (collectionId: string, productId: string): Promise<void> =>
+    req(`/api/admin/catalog/collections/${collectionId}/products/${productId}`, { method: 'DELETE' }),
+};
+
+// ─── Banners ──────────────────────────────────────────────────────────────────
+
+export interface Banner {
+  id: string;
+  title: string;
+  subtitle: string;
+  tag: string;
+  image_key: string;
+  cta_text: string;
+  cta_link: string;
+  bg_color_1: string;
+  bg_color_2: string;
+  sort_order: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type BannerPayload = Partial<Omit<Banner, 'id' | 'created_at' | 'updated_at'>>;
+
+export const bannersApi = {
+  list: (): Promise<Banner[]> =>
+    req<Banner[]>('/api/admin/catalog/banners'),
+
+  create: (data: BannerPayload): Promise<Banner> =>
+    req<Banner>('/api/admin/catalog/banners', { method: 'POST', body: JSON.stringify(data) }),
+
+  update: (id: string, data: BannerPayload): Promise<Banner> =>
+    req<Banner>(`/api/admin/catalog/banners/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  delete: (id: string): Promise<void> =>
+    req(`/api/admin/catalog/banners/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Returns ──────────────────────────────────────────────────────────────────
