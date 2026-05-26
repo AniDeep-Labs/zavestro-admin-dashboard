@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, Pencil, Trash2, GripVertical, Eye, EyeOff } from 'lucide-react';
-import { bannersApi } from '../../api/adminApi';
+import { bannersApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { Banner, BannerPayload } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -27,9 +27,26 @@ function BannerForm({
   const [bgColor1, setBgColor1]   = React.useState(initial.bg_color_1 ?? '#1C5C42');
   const [bgColor2, setBgColor2]   = React.useState(initial.bg_color_2 ?? '#0D3D2C');
   const [sortOrder, setSortOrder] = React.useState(String(initial.sort_order ?? 0));
-  const [isActive, setIsActive]   = React.useState(initial.is_active ?? true);
-  const [startsAt, setStartsAt]   = React.useState(initial.starts_at ? initial.starts_at.slice(0, 10) : '');
-  const [endsAt, setEndsAt]       = React.useState(initial.ends_at ? initial.ends_at.slice(0, 10) : '');
+  const [isActive, setIsActive]         = React.useState(initial.is_active ?? true);
+  const [startsAt, setStartsAt]         = React.useState(initial.starts_at ? initial.starts_at.slice(0, 10) : '');
+  const [endsAt, setEndsAt]             = React.useState(initial.ends_at ? initial.ends_at.slice(0, 10) : '');
+  const [imageKey, setImageKey]         = React.useState(initial.image_key ?? '');
+  const [imageUploading, setImageUploading] = React.useState(false);
+  const [imageError, setImageError]     = React.useState('');
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImageFile = async (file: File) => {
+    setImageError('');
+    setImageUploading(true);
+    try {
+      const key = await uploadToR2(file, 'banners');
+      setImageKey(key);
+    } catch {
+      setImageError('Upload failed. Please try again.');
+    } finally {
+      setImageUploading(false);
+    }
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +54,7 @@ function BannerForm({
       title: title.trim(),
       subtitle: subtitle.trim() || undefined,
       tag: tag.trim() || undefined,
+      image_key: imageKey || undefined,
       cta_text: ctaText.trim(),
       cta_link: ctaLink.trim(),
       bg_color_1: bgColor1,
@@ -89,6 +107,33 @@ function BannerForm({
           </div>
         </div>
       </div>
+      {/* Image upload */}
+      <div>
+        <label style={labelStyle}>Banner Image (optional)</label>
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(f); e.target.value = ''; }} />
+        {imageKey ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {R2_PUBLIC_URL && (
+              <img src={`${R2_PUBLIC_URL}/${imageKey}`} alt="Banner"
+                style={{ width: 80, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--color-border)' }} />
+            )}
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', flex: 1, wordBreak: 'break-all' }}>{imageKey}</span>
+            <button type="button" onClick={() => setImageKey('')}
+              style={{ fontSize: 12, color: 'var(--color-error)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              Remove
+            </button>
+          </div>
+        ) : (
+          <button type="button" disabled={imageUploading} onClick={() => fileRef.current?.click()}
+            style={{ ...inputStyle, background: 'var(--color-bg-secondary)', cursor: 'pointer', color: 'var(--color-text-secondary)', textAlign: 'left' }}>
+            {imageUploading ? 'Uploading…' : 'Choose image…'}
+          </button>
+        )}
+        {imageError && <span style={{ ...hintStyle, color: 'var(--color-error)' }}>{imageError}</span>}
+        <span style={hintStyle}>Shown on the app banner card (optional — gradient used if no image)</span>
+      </div>
+
       {/* Preview */}
       <div style={{ borderRadius: 12, padding: '20px 24px', background: `linear-gradient(135deg, ${bgColor1}, ${bgColor2})`, color: '#fff', minHeight: 90 }}>
         {tag && <span style={{ fontSize: 11, background: 'rgba(255,255,255,0.18)', padding: '3px 10px', borderRadius: 100 }}>{tag}</span>}
@@ -157,7 +202,7 @@ export const BannersPage: React.FC = () => {
       if (modal === 'new') {
         await bannersApi.create(data);
         showToast('success', 'Banner created');
-      } else if (modal && modal !== 'new') {
+      } else if (modal) {
         await bannersApi.update(modal.id, data);
         showToast('success', 'Banner updated');
       }
@@ -237,11 +282,15 @@ export const BannersPage: React.FC = () => {
                   </td>
                   <td>
                     <div style={{
-                      width: 100, height: 52, borderRadius: 8,
+                      width: 100, height: 52, borderRadius: 8, overflow: 'hidden', position: 'relative',
                       background: `linear-gradient(135deg, ${b.bg_color_1 || '#1C5C42'}, ${b.bg_color_2 || '#0D3D2C'})`,
                       display: 'flex', alignItems: 'flex-end', padding: '6px 8px',
                     }}>
-                      <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, whiteSpace: 'pre-line', lineHeight: 1.2 }}>
+                      {b.image_key && R2_PUBLIC_URL && (
+                        <img src={`${R2_PUBLIC_URL}/${b.image_key}`} alt=""
+                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
+                      )}
+                      <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, whiteSpace: 'pre-line', lineHeight: 1.2, position: 'relative' }}>
                         {b.title}
                       </span>
                     </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Image } from 'lucide-react';
-import { collectionsApi } from '../../api/adminApi';
+import { collectionsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -40,6 +40,8 @@ export const CollectionEditPage: React.FC = () => {
   const [productSearch, setProductSearch] = React.useState('');
   const [selectedProducts, setSelectedProducts] = React.useState<{id: string; name: string}[]>([]);
   const [searchResults, setSearchResults] = React.useState<ApiProduct[]>([]);
+  const [coverImageKey, setCoverImageKey] = React.useState('');
+  const [imageUploading, setImageUploading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [loadError, setLoadError] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -66,6 +68,7 @@ export const CollectionEditPage: React.FC = () => {
         setSubtitle(col.subtitle ?? '');
         setBgColor1(col.bg_color_1 || '#1C5C42');
         setBgColor2(col.bg_color_2 || '#0D3D2C');
+        setCoverImageKey(col.cover_image ?? '');
         const pids = col.productIds ?? [];
         setSelectedProducts(pids.map(id => ({ id, name: '' })));
         if (pids.length > 0) {
@@ -146,6 +149,7 @@ export const CollectionEditPage: React.FC = () => {
         sort_order: Number(sortOrder) || 0, season,
         type, subtitle: subtitle.trim() || undefined,
         bg_color_1: bgColor1, bg_color_2: bgColor2,
+        cover_image: coverImageKey || undefined,
       };
       if (isNew) {
         const created = await collectionsApi.create(payload as never);
@@ -295,12 +299,44 @@ export const CollectionEditPage: React.FC = () => {
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Banner Image</label>
-                <div className={styles.uploadArea}>
-                  <span className={styles.uploadIcon}><Image size={22}/></span>
-                  <span className={styles.uploadText}>Upload banner (1200 × 400px recommended)</span>
-                  <button className={styles.uploadBtn} type="button" onClick={() => bannerInputRef.current?.click()}>Choose File</button>
-                  <input ref={bannerInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={() => showToast('info', 'Banner image upload coming soon')} />
-                </div>
+                <input ref={bannerInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={async e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    e.target.value = '';
+                    setImageUploading(true);
+                    try {
+                      const key = await uploadToR2(file, 'collections');
+                      setCoverImageKey(key);
+                      showToast('success', 'Image uploaded');
+                    } catch {
+                      showToast('error', 'Upload failed', 'Please try again');
+                    } finally {
+                      setImageUploading(false);
+                    }
+                  }} />
+                {coverImageKey ? (
+                  <div className={styles.uploadArea} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: '10px 14px' }}>
+                    {R2_PUBLIC_URL && (
+                      <img src={`${R2_PUBLIC_URL}/${coverImageKey}`} alt="Cover"
+                        style={{ width: 80, height: 44, objectFit: 'cover', borderRadius: 6, flexShrink: 0, border: '1px solid var(--color-border)' }} />
+                    )}
+                    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', flex: 1, wordBreak: 'break-all' }}>{coverImageKey}</span>
+                    <button type="button" onClick={() => setCoverImageKey('')}
+                      style={{ fontSize: 12, color: 'var(--color-error)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.uploadArea}>
+                    <span className={styles.uploadIcon}><Image size={22}/></span>
+                    <span className={styles.uploadText}>Upload banner (1200 × 400px recommended)</span>
+                    <button className={styles.uploadBtn} type="button" disabled={imageUploading}
+                      onClick={() => bannerInputRef.current?.click()}>
+                      {imageUploading ? 'Uploading…' : 'Choose File'}
+                    </button>
+                  </div>
+                )}
               </div>
               <div className={styles.toggleRow}>
                 <label className={styles.toggleLabel}>

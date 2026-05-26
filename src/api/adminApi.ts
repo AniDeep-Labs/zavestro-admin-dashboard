@@ -7,6 +7,7 @@ import type {
 } from '../data/adminMockData';
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://api.zavestro.in';
+export const R2_PUBLIC_URL = (import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '';
 const USER_KEY = 'zavestro_admin_user';
 
 // ─── User info helpers ────────────────────────────────────────────────────────
@@ -503,7 +504,7 @@ export const auditApi = {
 
 // ─── Collections ─────────────────────────────────────────────────────────────
 
-export interface CollectionDetail extends Collection { productIds?: string[]; description?: string; }
+export interface CollectionDetail extends Collection { productIds?: string[]; description?: string; cover_image?: string | null; }
 export interface CollectionsResponse { collections: Collection[]; total: number; }
 
 function mapCollection(c: Record<string, unknown>): Collection {
@@ -532,6 +533,7 @@ function mapCollectionDetail(c: Record<string, unknown>): CollectionDetail {
     ...mapCollection(c),
     description: (c.description as string) ?? '',
     productIds: prods.map(p => p.id),
+    cover_image: (c.cover_image as string | null | undefined) ?? null,
   };
 }
 
@@ -606,6 +608,61 @@ export const bannersApi = {
 
   delete: (id: string): Promise<void> =>
     req(`/api/admin/catalog/banners/${id}`, { method: 'DELETE' }),
+};
+
+// ─── R2 upload utility ────────────────────────────────────────────────────────
+
+export async function uploadToR2(file: File, folder = 'uploads'): Promise<string> {
+  const { upload_url, object_key } = await req<{ upload_url: string; object_key: string }>(
+    '/api/media/upload-url',
+    {
+      method: 'POST',
+      body: JSON.stringify({ content_type: file.type || 'image/jpeg', file_size: file.size, folder }),
+    },
+  );
+  const putRes = await fetch(upload_url, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'image/jpeg' },
+    body: file,
+  });
+  if (!putRes.ok) throw new Error(`Upload failed (HTTP ${putRes.status})`);
+  return object_key;
+}
+
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+export interface AdminReview {
+  id: string;
+  user_id: string;
+  user_name: string;
+  order_id: string;
+  product_id: string;
+  product_name: string;
+  rating: number;
+  comment: string | null;
+  photo_keys: string[];
+  is_approved: boolean;
+  reviewed_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PendingReviewsResponse {
+  reviews: AdminReview[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export const reviewsApi = {
+  listPending: (page = 1, limit = 25): Promise<PendingReviewsResponse> =>
+    req<PendingReviewsResponse>(`/api/reviews/pending?page=${page}&limit=${limit}`),
+
+  moderate: (id: string, approve: boolean): Promise<void> =>
+    req<void>(`/api/reviews/${id}/moderate`, {
+      method: 'POST',
+      body: JSON.stringify({ approve }),
+    }),
 };
 
 // ─── Returns ──────────────────────────────────────────────────────────────────
@@ -1370,6 +1427,23 @@ export const customerMeasurementProfilesApi = {
     req<{ profiles: CustomerMeasurementProfile[]; history: unknown[] }>(`/api/admin/users/${userId}/measurement-profiles`),
 };
 
+// ─── Fit Profiles (self-input / quiz) ─────────────────────────────────────────
+
+export interface AdminFitProfile {
+  id: string;
+  label: string;
+  for_name: string;
+  source: 'self_input' | 'home_visit' | string;
+  is_default: boolean;
+  measurements: Record<string, number | null>;
+  created_at: string;
+}
+
+export const fitProfilesAdminApi = {
+  list: async (userId: string): Promise<AdminFitProfile[]> =>
+    req<AdminFitProfile[]>(`/api/admin/users/${userId}/fit-profiles`),
+};
+
 // ─── Customer Lookup ──────────────────────────────────────────────────────────
 
 export interface CustomerLookupResult {
@@ -1387,6 +1461,29 @@ export const customerLookupApi = {
   search: async (q: string): Promise<CustomerLookupResult[]> => {
     const result = await req<{ customers: CustomerLookupResult[] }>(`/api/admin/customers/lookup?q=${encodeURIComponent(q)}`);
     return result?.customers ?? [];
+  },
+};
+
+export interface ProductCategory {
+  id: string;
+  name: string;
+  slug: string;
+  mode: string | null;
+  is_active: boolean;
+  image_url: string | null;
+}
+
+export const categoriesAdminApi = {
+  list: async (): Promise<ProductCategory[]> => {
+    const result = await req<{ data: ProductCategory[] }>('/api/catalog/admin/categories');
+    return result?.data ?? [];
+  },
+  updateImage: async (id: string, imageKey: string | null): Promise<ProductCategory> => {
+    const result = await req<{ data: ProductCategory }>(`/api/catalog/admin/categories/${id}/image`, {
+      method: 'PATCH',
+      body: JSON.stringify({ image_key: imageKey }),
+    });
+    return result.data;
   },
 };
 

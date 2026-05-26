@@ -48,6 +48,7 @@ import { AdminUsersManagePage } from './pages/admin/AdminUsersManagePage';
 import { CollectionsListPage } from './pages/admin/CollectionsListPage';
 import { CollectionEditPage } from './pages/admin/CollectionEditPage';
 import { BannersPage } from './pages/admin/BannersPage';
+import { CategoriesPage } from './pages/admin/CategoriesPage';
 import { ReturnsListPage } from './pages/admin/ReturnsListPage';
 import { ReturnDetailPage } from './pages/admin/ReturnDetailPage';
 import { AlterationsListPage } from './pages/admin/AlterationsListPage';
@@ -60,6 +61,7 @@ import { MeasurementBookingsListPage } from './pages/admin/MeasurementBookingsLi
 import { MeasurementBookingDetailPage } from './pages/admin/MeasurementBookingDetailPage';
 import { MeasurementBookingNewPage } from './pages/admin/MeasurementBookingNewPage';
 import { GarmentTypesPage } from './pages/admin/GarmentTypesPage';
+import { ReviewsListPage } from './pages/admin/ReviewsListPage';
 
 function NotFoundPage() {
   const nav = useNav404();
@@ -124,6 +126,7 @@ function App() {
             <Route path="catalog/collections" element={<CollectionsListPage />} />
             <Route path="catalog/collections/:id" element={<CollectionEditPage />} />
             <Route path="catalog/banners" element={<BannersPage />} />
+            <Route path="catalog/categories" element={<CategoriesPage />} />
             <Route path="content/:section" element={<ContentPage />} />
             <Route path="content" element={<ContentPage />} />
             <Route path="analytics/:section" element={<AnalyticsPage />} />
@@ -147,6 +150,7 @@ function App() {
             <Route path="measurement-bookings/new" element={<MeasurementBookingNewPage />} />
             <Route path="measurement-bookings/:id" element={<MeasurementBookingDetailPage />} />
             <Route path="system/garment-types" element={<GarmentTypesPage />} />
+            <Route path="reviews" element={<ReviewsListPage />} />
             {/* Admin 404 — renders inside the sidebar layout */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>
