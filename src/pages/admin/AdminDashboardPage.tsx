@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dashboardApi } from '../../api/adminApi';
+import { dashboardApi, hasCapability } from '../../api/adminApi';
 import type { DashboardData } from '../../api/adminApi';
 import { clearAdminToken } from '../../api/catalogApi';
 import styles from './AdminDashboardPage.module.css';
@@ -93,16 +93,23 @@ const PERIOD_MAP: Record<string, string> = {
 
 type Accent = 'Emerald' | 'Amber' | 'Red' | 'Gold';
 
-const kpis: { label: string; key: string; format: (v: number) => string; icon: IconKey; accent: Accent; navPath: string }[] = [
-  { label: 'Total Orders',     key: 'totalOrders',     format: v => v.toLocaleString(),                   icon: 'Package',       accent: 'Emerald', navPath: '/admin/orders' },
-  { label: 'Active Orders',    key: 'activeOrders',    format: v => v.toLocaleString(),                   icon: 'Activity',      accent: 'Emerald', navPath: '/admin/orders' },
-  { label: 'GMV',              key: 'gmv',             format: v => '₹' + (v / 100000).toFixed(1) + 'L', icon: 'IndianRupee',   accent: 'Emerald', navPath: '/admin/analytics/revenue' },
-  { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders' },
-  { label: 'Open Tickets',     key: 'openTickets',     format: v => v.toLocaleString(),                   icon: 'Headphones',    accent: 'Red',     navPath: '/admin/support' },
-  { label: 'New Customers',    key: 'newCustomers',    format: v => v.toLocaleString(),                   icon: 'UserPlus',      accent: 'Emerald', navPath: '/admin/users' },
-  { label: 'Waitlist Signups', key: 'waitlistSignups', format: v => v.toLocaleString(),                   icon: 'ClipboardList', accent: 'Gold',    navPath: '/admin/system/waitlist' },
-  { label: 'Pending Sessions', key: 'pendingMeasurementSessions', format: v => v.toLocaleString(),        icon: 'ClipboardList', accent: 'Amber',   navPath: '/admin/measurement-bookings' },
+// `cap` gates each KPI to the roles that should see it (undefined = everyone).
+const kpis: { label: string; key: string; format: (v: number) => string; icon: IconKey; accent: Accent; navPath: string; cap?: string }[] = [
+  { label: 'Total Orders',     key: 'totalOrders',     format: v => v.toLocaleString(),                   icon: 'Package',       accent: 'Emerald', navPath: '/admin/orders', cap: 'orders:read' },
+  { label: 'Active Orders',    key: 'activeOrders',    format: v => v.toLocaleString(),                   icon: 'Activity',      accent: 'Emerald', navPath: '/admin/orders', cap: 'orders:read' },
+  { label: 'GMV',              key: 'gmv',             format: v => '₹' + (v / 100000).toFixed(1) + 'L', icon: 'IndianRupee',   accent: 'Emerald', navPath: '/admin/analytics/revenue', cap: 'reports:read' },
+  { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders', cap: 'orders:read' },
+  { label: 'Open Tickets',     key: 'openTickets',     format: v => v.toLocaleString(),                   icon: 'Headphones',    accent: 'Red',     navPath: '/admin/support', cap: 'customers:write' },
+  { label: 'New Customers',    key: 'newCustomers',    format: v => v.toLocaleString(),                   icon: 'UserPlus',      accent: 'Emerald', navPath: '/admin/users', cap: 'customers:read' },
+  { label: 'Waitlist Signups', key: 'waitlistSignups', format: v => v.toLocaleString(),                   icon: 'ClipboardList', accent: 'Gold',    navPath: '/admin/system/waitlist', cap: 'system:manage' },
+  { label: 'Pending Sessions', key: 'pendingMeasurementSessions', format: v => v.toLocaleString(),        icon: 'ClipboardList', accent: 'Amber',   navPath: '/admin/measurement-bookings', cap: 'orders:write' },
 ];
+
+// Each dashboard card section → the capability that should see it.
+const CARD_CAP = {
+  pipeline: 'orders:read', sessions: 'orders:write', hubPerf: 'reports:read',
+  support: 'customers:write', revenue: 'reports:read',
+} as const;
 
 const ACTIVITY_ICON: Record<string, IconKey> = {
   '📦': 'Package', '🏷️': 'Tag', '💳': 'CreditCard',
@@ -183,9 +190,9 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Grid */}
+      {/* KPI Grid — each card gated to roles with the capability */}
       <div className={styles.kpiGrid}>
-        {kpis.map(kpi => {
+        {kpis.filter(k => !k.cap || hasCapability(k.cap)).map(kpi => {
           const stat = data?.stats[kpi.key];
           const sparks = data?.sparklines?.[kpi.key] ?? [40, 55, 48, 62, 70, 58, 75];
           const isUp = stat ? stat.up : true;
@@ -231,6 +238,7 @@ export const AdminDashboardPage: React.FC = () => {
       </div>
 
       {/* Order Stage Pipeline */}
+      {hasCapability(CARD_CAP.pipeline) && (
       <div className={styles.card}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>Order Pipeline</h2>
@@ -279,10 +287,12 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* Measurement Sessions Today + Hub Performance */}
       <div className={styles.twoCol}>
         {/* Measurement Sessions Today */}
+        {hasCapability(CARD_CAP.sessions) && (
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Today's Measurement Sessions</h2>
@@ -313,8 +323,10 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           )}
         </div>
+        )}
 
         {/* Hub Performance */}
+        {hasCapability(CARD_CAP.hubPerf) && (
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Hub Performance</h2>
@@ -350,11 +362,13 @@ export const AdminDashboardPage: React.FC = () => {
               : <div className={styles.emptyState}>No hub data</div>
           )}
         </div>
+        )}
       </div>
 
       {/* Urgent Tickets + Alerts */}
       <div className={styles.twoCol}>
         {/* High-priority tickets */}
+        {hasCapability(CARD_CAP.support) && (
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Urgent Support Tickets</h2>
@@ -378,6 +392,7 @@ export const AdminDashboardPage: React.FC = () => {
             <div className={styles.emptyState}>No urgent tickets — all clear!</div>
           )}
         </div>
+        )}
 
         {/* Alerts */}
         <div className={styles.card}>
@@ -408,6 +423,7 @@ export const AdminDashboardPage: React.FC = () => {
       </div>
 
       {/* Revenue chart */}
+      {hasCapability(CARD_CAP.revenue) && (
       <div className={styles.card}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>Revenue Trend — {period}</h2>
@@ -447,6 +463,7 @@ export const AdminDashboardPage: React.FC = () => {
           <span className={styles.legendSimplified}>■ Revenue</span>
         </div>
       </div>
+      )}
 
       {/* Recent Activity */}
       <div className={styles.card}>

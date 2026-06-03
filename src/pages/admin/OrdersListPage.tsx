@@ -7,6 +7,7 @@ import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct, ApiVariant } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './OrdersListPage.module.css';
 
 const LIMIT = 25;
@@ -77,6 +78,7 @@ export const OrdersListPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  const [exporting, setExporting] = React.useState(false);
   const debouncedSearch = useDebounce(search, 350);
 
   // Create Order modal state
@@ -184,13 +186,46 @@ export const OrdersListPage: React.FC = () => {
     } finally { setCreating(false); }
   };
 
-  const exportCSV = () => {
-    const rows = [['Order ID','Customer','Mode','Stage','Hub','Total','Created'],
-      ...orders.map(o => [o.id, o.customer, o.mode, stageLabels[o.stage], o.hub, `₹${o.total}`, o.created])];
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = `orders-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  // Exports ALL orders matching the current filters (not just the current page),
+  // via the shared CSV util (proper escaping + Excel BOM).
+  const exportCSV = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const all: AdminOrder[] = [];
+      for (let p = 1; p <= 500; p++) {
+        const r = await ordersApi.list({
+          search: debouncedSearch || undefined,
+          stage: (stageFilter as OrderStage) || undefined,
+          mode: modeFilter || undefined,
+          page: p,
+          limit: 100,
+        });
+        all.push(...r.orders);
+        if (p >= r.totalPages || r.orders.length === 0) break;
+      }
+      downloadCsv<AdminOrder>(
+        datedFilename('orders'),
+        [
+          { header: 'Order ID', value: o => o.reference_id || o.id },
+          { header: 'Customer', value: o => o.customer },
+          { header: 'Phone', value: o => o.phone },
+          { header: 'Email', value: o => o.email ?? '' },
+          { header: 'Mode', value: o => o.mode },
+          { header: 'Stage', value: o => stageLabels[o.stage] ?? o.stage },
+          { header: 'Status', value: o => o.status },
+          { header: 'Hub', value: o => o.hub },
+          { header: 'Total (INR)', value: o => o.total },
+          { header: 'Created', value: o => o.created },
+        ],
+        all,
+      );
+      showToast('success', 'Export ready', `${all.length} order${all.length === 1 ? '' : 's'} exported.`);
+    } catch {
+      showToast('error', 'Export failed', 'Could not export orders. Please try again.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -199,7 +234,7 @@ export const OrdersListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Orders</h1>
         <div className={styles.headerActions}>
-          <button className={styles.exportBtn} onClick={exportCSV}><Download size={14} /> Export CSV</button>
+          <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
           <button className={styles.exportBtn} onClick={openCreate}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green)', color: '#fff', border: 'none' }}>
             <Plus size={14}/> Create Order

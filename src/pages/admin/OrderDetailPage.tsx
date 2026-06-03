@@ -11,6 +11,7 @@ import { StaffAssignmentDropdown } from '../../components/StaffAssignmentDropdow
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
+import { Can } from '../../components/Can/Can';
 import styles from './OrderDetailPage.module.css';
 
 // ── Stage stepper config ─────────────────────────────────────────────────────
@@ -895,7 +896,9 @@ export const OrderDetailPage: React.FC = () => {
         {/* ── Sidebar ────────────────────────────────────────────────────────── */}
         <div className={styles.sidebar}>
 
-          {/* NEXT STEP — the primary action card */}
+          {/* NEXT STEP — the primary action card (ops/support only; read-only
+              roles like finance/catalog see the order but not stage actions) */}
+          <Can cap="orders:write">
           <NextStepCard
             order={order}
             customerBookings={customerBookings}
@@ -912,6 +915,7 @@ export const OrderDetailPage: React.FC = () => {
             onCreateMeasurementBooking={() => navigate(`/admin/measurement-bookings/new?user_id=${order.user_id}&order_id=${order.uuid ?? order.id}`)}
             onUseFitProfile={handleUseFitProfile}
           />
+          </Can>
 
           {/* Delivery date + hold reason */}
           <div className={styles.card}>

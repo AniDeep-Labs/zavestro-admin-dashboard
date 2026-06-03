@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { catalogApi, setAdminToken, hasAdminToken } from '../../api/catalogApi';
-import { setAdminUser, adminAuthExtApi } from '../../api/adminApi';
+import { setAdminUser, setAdminCapabilities, adminAuthExtApi } from '../../api/adminApi';
 import styles from './AdminLoginPage.module.css';
 import regStyles from './AdminRegisterPage.module.css';
 
@@ -53,6 +53,8 @@ export const AdminLoginPage: React.FC = () => {
       const res = await catalogApi.login(email, password, rememberMe);
       setAdminToken(res.token);
       setAdminUser({ email: res.user?.email ?? email, role: res.user?.role ?? 'admin' });
+      // Fetch capabilities so the sidebar/routes gate by role (non-fatal).
+      try { const me = await adminAuthExtApi.me(); setAdminCapabilities(me.capabilities ?? []); } catch { /* AdminLayout retries on mount */ }
       if (res.mustChangePassword) {
         setForceToken(res.token);
         setForceEmail(res.user?.email ?? email);

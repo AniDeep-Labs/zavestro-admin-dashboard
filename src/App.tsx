@@ -1,67 +1,62 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate as useNav404 } from 'react-router-dom';
-import { OrderProvider } from './context/OrderContext';
-import { CustomerLayout } from './pages/customer/CustomerLayout';
-import { HomePage } from './pages/customer/HomePage';
-import { FabricCatalogPage } from './pages/customer/FabricCatalogPage';
-import { OwnFabricPage } from './pages/customer/OwnFabricPage';
-import { DesignCatalogPage } from './pages/customer/DesignCatalogPage';
-import { DesignDetailPage } from './pages/customer/DesignDetailPage';
-import { MeasurementPage } from './pages/customer/MeasurementPage';
-import { SelfMeasurePage } from './pages/customer/SelfMeasurePage';
-import { TailorSelectionPage } from './pages/customer/TailorSelectionPage';
-import { OrderSummaryPage } from './pages/customer/OrderSummaryPage';
-import { OrderConfirmationPage } from './pages/customer/OrderConfirmationPage';
-import { OrderTrackingPage } from './pages/customer/OrderTrackingPage';
-import { DesignerLayout } from './pages/designer/DesignerLayout';
-import { DesignerOnboardingPage } from './pages/designer/DesignerOnboardingPage';
-import { DesignerDashboardPage } from './pages/designer/DesignerDashboardPage';
-import { DesignUploadDetailsPage } from './pages/designer/DesignUploadDetailsPage';
-import { DesignUploadFabricPage } from './pages/designer/DesignUploadFabricPage';
-import { DesignUploadMeasurementsPage } from './pages/designer/DesignUploadMeasurementsPage';
-import { DesignUploadPricingPage } from './pages/designer/DesignUploadPricingPage';
-import { MyDesignsPage } from './pages/designer/MyDesignsPage';
-import { DesignAnalyticsPage } from './pages/designer/DesignAnalyticsPage';
-import { EarningsPayoutsPage } from './pages/designer/EarningsPayoutsPage';
-import { DesignerProfilePage } from './pages/designer/DesignerProfilePage';
+import { lazy, type ComponentType } from 'react';
+// Eager: the entry/auth pages + the layout shell (always needed on first paint).
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
-import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
-import { OrdersListPage } from './pages/admin/OrdersListPage';
-import { OrderDetailPage } from './pages/admin/OrderDetailPage';
-import { UsersListPage } from './pages/admin/UsersListPage';
-import { UserDetailPage } from './pages/admin/UserDetailPage';
-import { HubsListPage } from './pages/admin/HubsListPage';
-import { HubDetailPage } from './pages/admin/HubDetailPage';
-import { ProductsListPage } from './pages/admin/ProductsListPage';
-import { ProductEditPage } from './pages/admin/ProductEditPage';
-import { ContentPage } from './pages/admin/ContentPage';
-import { AnalyticsPage } from './pages/admin/AnalyticsPage';
-import { SupportListPage } from './pages/admin/SupportListPage';
-import { TicketDetailPage } from './pages/admin/TicketDetailPage';
-import { PromoCodesPage } from './pages/admin/PromoCodesPage';
-import { AppConfigPage } from './pages/admin/AppConfigPage';
-import { AuditLogPage } from './pages/admin/AuditLogPage';
-import { WaitlistPage } from './pages/admin/WaitlistPage';
 import { AdminRegisterPage } from './pages/admin/AdminRegisterPage';
 import { AdminResetPasswordPage } from './pages/admin/AdminResetPasswordPage';
-import { AdminUsersManagePage } from './pages/admin/AdminUsersManagePage';
-import { CollectionsListPage } from './pages/admin/CollectionsListPage';
-import { CollectionEditPage } from './pages/admin/CollectionEditPage';
-import { BannersPage } from './pages/admin/BannersPage';
-import { CategoriesPage } from './pages/admin/CategoriesPage';
-import { ReturnsListPage } from './pages/admin/ReturnsListPage';
-import { ReturnDetailPage } from './pages/admin/ReturnDetailPage';
-import { AlterationsListPage } from './pages/admin/AlterationsListPage';
-import { HomeVisitsListPage } from './pages/admin/HomeVisitsListPage';
-import { HomeVisitDetailPage } from './pages/admin/HomeVisitDetailPage';
-import { InvoicesListPage } from './pages/admin/InvoicesListPage';
-import { ServiceAreasPage } from './pages/admin/ServiceAreasPage';
-import { AdminProfilePage } from './pages/admin/AdminProfilePage';
-import { MeasurementBookingsListPage } from './pages/admin/MeasurementBookingsListPage';
-import { MeasurementBookingDetailPage } from './pages/admin/MeasurementBookingDetailPage';
-import { MeasurementBookingNewPage } from './pages/admin/MeasurementBookingNewPage';
-import { GarmentTypesPage } from './pages/admin/GarmentTypesPage';
-import { ReviewsListPage } from './pages/admin/ReviewsListPage';
+
+// G23 — route pages are lazy-loaded so each becomes its own chunk instead of
+// one ~1.3 MB bundle. These modules use NAMED exports, so map to the { default }
+// shape React.lazy expects. The <Suspense> boundary lives in AdminLayout (around
+// its <Outlet/>), so the sidebar stays put while a page chunk loads.
+function lazyPage<M extends Record<string, ComponentType<object>>>(
+  loader: () => Promise<M>,
+  name: keyof M,
+) {
+  return lazy(async () => ({ default: (await loader())[name] }));
+}
+
+const AdminDashboardPage = lazyPage(() => import('./pages/admin/AdminDashboardPage'), 'AdminDashboardPage');
+const OrdersListPage = lazyPage(() => import('./pages/admin/OrdersListPage'), 'OrdersListPage');
+const OrderDetailPage = lazyPage(() => import('./pages/admin/OrderDetailPage'), 'OrderDetailPage');
+const UsersListPage = lazyPage(() => import('./pages/admin/UsersListPage'), 'UsersListPage');
+const UserDetailPage = lazyPage(() => import('./pages/admin/UserDetailPage'), 'UserDetailPage');
+const HubsListPage = lazyPage(() => import('./pages/admin/HubsListPage'), 'HubsListPage');
+const HubDetailPage = lazyPage(() => import('./pages/admin/HubDetailPage'), 'HubDetailPage');
+const ProductsListPage = lazyPage(() => import('./pages/admin/ProductsListPage'), 'ProductsListPage');
+const ProductEditPage = lazyPage(() => import('./pages/admin/ProductEditPage'), 'ProductEditPage');
+const ContentPage = lazyPage(() => import('./pages/admin/ContentPage'), 'ContentPage');
+const AnalyticsPage = lazyPage(() => import('./pages/admin/AnalyticsPage'), 'AnalyticsPage');
+const SupportListPage = lazyPage(() => import('./pages/admin/SupportListPage'), 'SupportListPage');
+const TicketDetailPage = lazyPage(() => import('./pages/admin/TicketDetailPage'), 'TicketDetailPage');
+const PromoCodesPage = lazyPage(() => import('./pages/admin/PromoCodesPage'), 'PromoCodesPage');
+const AppConfigPage = lazyPage(() => import('./pages/admin/AppConfigPage'), 'AppConfigPage');
+const AuditLogPage = lazyPage(() => import('./pages/admin/AuditLogPage'), 'AuditLogPage');
+const WaitlistPage = lazyPage(() => import('./pages/admin/WaitlistPage'), 'WaitlistPage');
+const AdminUsersManagePage = lazyPage(() => import('./pages/admin/AdminUsersManagePage'), 'AdminUsersManagePage');
+const CollectionsListPage = lazyPage(() => import('./pages/admin/CollectionsListPage'), 'CollectionsListPage');
+const CollectionEditPage = lazyPage(() => import('./pages/admin/CollectionEditPage'), 'CollectionEditPage');
+const BannersPage = lazyPage(() => import('./pages/admin/BannersPage'), 'BannersPage');
+const CategoriesPage = lazyPage(() => import('./pages/admin/CategoriesPage'), 'CategoriesPage');
+const HomeSectionsPage = lazyPage(() => import('./pages/admin/HomeSectionsPage'), 'HomeSectionsPage');
+const ReturnsListPage = lazyPage(() => import('./pages/admin/ReturnsListPage'), 'ReturnsListPage');
+const ReturnDetailPage = lazyPage(() => import('./pages/admin/ReturnDetailPage'), 'ReturnDetailPage');
+const AlterationsListPage = lazyPage(() => import('./pages/admin/AlterationsListPage'), 'AlterationsListPage');
+const HomeVisitsListPage = lazyPage(() => import('./pages/admin/HomeVisitsListPage'), 'HomeVisitsListPage');
+const HomeVisitDetailPage = lazyPage(() => import('./pages/admin/HomeVisitDetailPage'), 'HomeVisitDetailPage');
+const InvoicesListPage = lazyPage(() => import('./pages/admin/InvoicesListPage'), 'InvoicesListPage');
+const CodReconciliationPage = lazyPage(() => import('./pages/admin/CodReconciliationPage'), 'CodReconciliationPage');
+const ConsultationsPage = lazyPage(() => import('./pages/admin/ConsultationsPage'), 'ConsultationsPage');
+const NotificationBlastPage = lazyPage(() => import('./pages/admin/NotificationBlastPage'), 'NotificationBlastPage');
+const PincodeWaitlistPage = lazyPage(() => import('./pages/admin/PincodeWaitlistPage'), 'PincodeWaitlistPage');
+const ServiceAreasPage = lazyPage(() => import('./pages/admin/ServiceAreasPage'), 'ServiceAreasPage');
+const AdminProfilePage = lazyPage(() => import('./pages/admin/AdminProfilePage'), 'AdminProfilePage');
+const MeasurementBookingsListPage = lazyPage(() => import('./pages/admin/MeasurementBookingsListPage'), 'MeasurementBookingsListPage');
+const MeasurementBookingDetailPage = lazyPage(() => import('./pages/admin/MeasurementBookingDetailPage'), 'MeasurementBookingDetailPage');
+const MeasurementBookingNewPage = lazyPage(() => import('./pages/admin/MeasurementBookingNewPage'), 'MeasurementBookingNewPage');
+const GarmentTypesPage = lazyPage(() => import('./pages/admin/GarmentTypesPage'), 'GarmentTypesPage');
+const ReviewsListPage = lazyPage(() => import('./pages/admin/ReviewsListPage'), 'ReviewsListPage');
 
 function NotFoundPage() {
   const nav = useNav404();
@@ -89,24 +84,10 @@ function NotFoundPage() {
 function App() {
   return (
     <BrowserRouter>
-      <OrderProvider>
         <Routes>
-          {/* Customer Routes */}
+          {/* Root + legacy paths redirect to the admin panel */}
           <Route path="/" element={<Navigate to="/admin/login" replace />} />
           <Route path="/login" element={<Navigate to="/admin/login" replace />} />
-          <Route element={<CustomerLayout />}>
-            <Route path="/home" element={<HomePage />} />
-            <Route path="/fabrics" element={<FabricCatalogPage />} />
-            <Route path="/own-fabric" element={<OwnFabricPage />} />
-            <Route path="/designs" element={<DesignCatalogPage />} />
-            <Route path="/designs/:id" element={<DesignDetailPage />} />
-            <Route path="/measurements" element={<MeasurementPage />} />
-            <Route path="/measurements/self" element={<SelfMeasurePage />} />
-            <Route path="/tailors" element={<TailorSelectionPage />} />
-            <Route path="/order-summary" element={<OrderSummaryPage />} />
-            <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
-            <Route path="/orders/:id" element={<OrderTrackingPage />} />
-          </Route>
 
           {/* Admin Routes */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -127,6 +108,7 @@ function App() {
             <Route path="catalog/collections/:id" element={<CollectionEditPage />} />
             <Route path="catalog/banners" element={<BannersPage />} />
             <Route path="catalog/categories" element={<CategoriesPage />} />
+            <Route path="catalog/home-layout" element={<HomeSectionsPage />} />
             <Route path="content/:section" element={<ContentPage />} />
             <Route path="content" element={<ContentPage />} />
             <Route path="analytics/:section" element={<AnalyticsPage />} />
@@ -144,6 +126,10 @@ function App() {
             <Route path="home-visits" element={<HomeVisitsListPage />} />
             <Route path="home-visits/:id" element={<HomeVisitDetailPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
+            <Route path="finance/cod-reconciliation" element={<CodReconciliationPage />} />
+            <Route path="consultations" element={<ConsultationsPage />} />
+            <Route path="notifications" element={<NotificationBlastPage />} />
+            <Route path="pincode-waitlist" element={<PincodeWaitlistPage />} />
             <Route path="promo-codes" element={<PromoCodesPage />} />
             <Route path="profile" element={<AdminProfilePage />} />
             <Route path="measurement-bookings" element={<MeasurementBookingsListPage />} />
@@ -155,24 +141,9 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Route>
 
-          {/* Designer Routes */}
-          <Route path="/designer/onboarding" element={<DesignerOnboardingPage />} />
-          <Route element={<DesignerLayout />}>
-            <Route path="/designer/dashboard" element={<DesignerDashboardPage />} />
-            <Route path="/designer/upload/details" element={<DesignUploadDetailsPage />} />
-            <Route path="/designer/upload/fabric" element={<DesignUploadFabricPage />} />
-            <Route path="/designer/upload/measurements" element={<DesignUploadMeasurementsPage />} />
-            <Route path="/designer/upload/pricing" element={<DesignUploadPricingPage />} />
-            <Route path="/designer/designs" element={<MyDesignsPage />} />
-            <Route path="/designer/analytics" element={<DesignAnalyticsPage />} />
-            <Route path="/designer/earnings" element={<EarningsPayoutsPage />} />
-            <Route path="/designer/profile" element={<DesignerProfilePage />} />
-          </Route>
-
           {/* Global 404 */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </OrderProvider>
     </BrowserRouter>
   );
 }

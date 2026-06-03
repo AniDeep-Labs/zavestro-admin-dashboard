@@ -22,6 +22,21 @@ export function getAdminUser(): { email: string; role: string } | null {
 
 export function clearAdminUser() {
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(CAPS_KEY);
+}
+
+// ─── Capabilities (role-based UI gating) ──────────────────────────────────────
+const CAPS_KEY = 'zavestro_admin_caps';
+
+export function setAdminCapabilities(caps: string[]) {
+  localStorage.setItem(CAPS_KEY, JSON.stringify(caps ?? []));
+}
+export function getAdminCapabilities(): string[] {
+  try { return JSON.parse(localStorage.getItem(CAPS_KEY) || '[]'); } catch { return []; }
+}
+/** True if the signed-in admin's role grants the capability. */
+export function hasCapability(cap: string): boolean {
+  return getAdminCapabilities().includes(cap);
 }
 
 // ─── Core fetch ───────────────────────────────────────────────────────────────
@@ -610,6 +625,29 @@ export const bannersApi = {
     req(`/api/admin/catalog/banners/${id}`, { method: 'DELETE' }),
 };
 
+// ─── Home sections (server-driven homepage layout) ────────────────────────────
+export type HomeSection = {
+  id: string;
+  type: 'hero' | 'occasions' | 'new_arrivals' | 'collection' | 'categories';
+  title: string | null;
+  collection_slug: string | null;
+  item_limit: number;
+  sort_order: number;
+  is_active: boolean;
+};
+export type HomeSectionPayload = Partial<Omit<HomeSection, 'id'>>;
+
+export const homeSectionsApi = {
+  list: (): Promise<HomeSection[]> =>
+    req<HomeSection[]>('/api/admin/catalog/home-sections'),
+  create: (data: HomeSectionPayload): Promise<HomeSection> =>
+    req<HomeSection>('/api/admin/catalog/home-sections', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: HomeSectionPayload): Promise<HomeSection> =>
+    req<HomeSection>(`/api/admin/catalog/home-sections/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: string): Promise<void> =>
+    req(`/api/admin/catalog/home-sections/${id}`, { method: 'DELETE' }),
+};
+
 // ─── R2 upload utility ────────────────────────────────────────────────────────
 
 export async function uploadToR2(file: File, folder = 'uploads'): Promise<string> {
@@ -874,6 +912,143 @@ export const invoicesApi = {
     req<{ invoice_id: string; message: string }>(`/api/admin/orders/${orderId}/invoice`, { method: 'POST' }),
 };
 
+// ─── COD Finance Reconciliation ─────────────────────────────────────────────────
+
+export interface CodDeposit {
+  id: string;
+  hub_id: string;
+  hub_name: string;
+  staff_name: string;
+  order_count: number;
+  total_amount: number;
+  confirmed_at: string | null;
+  confirmed_by_name: string | null;
+  created_at: string;
+}
+
+export interface CodReconciliationParams {
+  hub_id?: string;
+  start_date?: string;
+  end_date?: string;
+  status?: 'pending' | 'confirmed';
+}
+
+function codReconciliationQs(params: CodReconciliationParams): URLSearchParams {
+  const qs = new URLSearchParams();
+  if (params.hub_id)     qs.set('hub_id',     params.hub_id);
+  if (params.start_date) qs.set('start_date', params.start_date);
+  if (params.end_date)   qs.set('end_date',   params.end_date);
+  if (params.status)     qs.set('status',     params.status);
+  return qs;
+}
+
+export const codReconciliationApi = {
+  list: async (params: CodReconciliationParams = {}): Promise<CodDeposit[]> =>
+    req<CodDeposit[]>(`/api/admin/finance/cod-reconciliation?${codReconciliationQs(params)}`),
+
+  // Streams a CSV file from the server and triggers a browser download.
+  downloadCsv: async (params: CodReconciliationParams = {}): Promise<void> => {
+    const qs = codReconciliationQs(params);
+    qs.set('format', 'csv');
+    const token = getAdminToken();
+    const res = await fetch(`${BASE}/api/admin/finance/cod-reconciliation?${qs}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`Export failed (${res.status})`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cod-reconciliation.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+// ─── Consultations (premium custom) ─────────────────────────────────────────────
+
+export interface Consultation {
+  id: string;
+  user_id: string;
+  order_id: string | null;
+  assigned_staff_id: string | null;
+  status: string;
+  scheduled_at: string | null;
+  notes: string | null;
+  completed_at: string | null;
+  customer_name: string;
+  customer_phone: string;
+  created_at: string;
+}
+
+export interface ConsultationSlot {
+  id: string;
+  hub_id: string | null;
+  slot_date: string;
+  time_start: string;
+  time_end: string;
+  mode: 'in_person' | 'video';
+  capacity: number;
+  booked_count: number;
+  created_at: string;
+}
+
+export const consultationsApi = {
+  list: async (status?: string): Promise<Consultation[]> => {
+    const q = status && status !== 'All' ? `?status=${encodeURIComponent(status)}` : '';
+    return req<{ consultations: Consultation[]; total: number }>(`/api/admin/consultations${q}`).then(r => r.consultations);
+  },
+  update: async (id: string, body: { status?: string; assigned_staff_id?: string }): Promise<Consultation> =>
+    req<Consultation>(`/api/admin/consultations/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  listSlots: async (params: { hub_id?: string; date?: string } = {}): Promise<ConsultationSlot[]> => {
+    const qs = new URLSearchParams();
+    if (params.hub_id) qs.set('hub_id', params.hub_id);
+    if (params.date)   qs.set('date',   params.date);
+    return req<{ slots: ConsultationSlot[]; total: number }>(`/api/admin/consultation-slots?${qs}`).then(r => r.slots);
+  },
+  createSlot: async (body: { hub_id?: string; slot_date: string; time_start: string; time_end: string; mode: string; capacity: number }): Promise<ConsultationSlot> =>
+    req<ConsultationSlot>(`/api/admin/consultation-slots`, { method: 'POST', body: JSON.stringify(body) }),
+  deleteSlot: async (id: string): Promise<void> =>
+    req(`/api/admin/consultation-slots/${id}`, { method: 'DELETE' }),
+};
+
+// ─── Notification Blast ──────────────────────────────────────────────────────────
+
+export interface BlastPayload {
+  subject: string;
+  headline: string;
+  body: string;
+  pushBody?: string;
+  ctaText?: string;
+  ctaUrl?: string;
+  segment: 'all' | 'opted_in';
+}
+
+export const notificationsAdminApi = {
+  blast: async (payload: BlastPayload): Promise<{ users_targeted: number }> =>
+    req<{ users_targeted: number }>(`/api/admin/notifications/blast`, { method: 'POST', body: JSON.stringify(payload) }),
+};
+
+// ─── Pincode Demand (waitlist for unserved pincodes) ─────────────────────────────
+
+export interface PincodeDemand {
+  pincode: string;
+  total_waiting: number;
+  notified: number;
+  is_served: boolean | null;
+  area_name: string | null;
+  city: string | null;
+  first_signup_at: string;
+}
+
+export const pincodeWaitlistApi = {
+  list: async (): Promise<PincodeDemand[]> =>
+    req<{ waitlist: PincodeDemand[] }>(`/api/admin/system/pincode-waitlist`).then(r => r.waitlist),
+};
+
 // ─── Promo Codes ──────────────────────────────────────────────────────────────
 
 export interface PromoCode {
@@ -977,6 +1152,10 @@ export const serviceAreasApi = {
 // ─── Admin Auth Extended ──────────────────────────────────────────────────────
 
 export const adminAuthExtApi = {
+  /** Current admin identity + capabilities (drives role-based UI gating). */
+  me: async (): Promise<{ id: string; role: string; hubId?: string | null; capabilities: string[] }> =>
+    req('/api/admin/auth/me'),
+
   setupSecurityQuestion: async (question: string, answer: string): Promise<void> =>
     req('/api/admin/auth/security-question', { method: 'POST', body: JSON.stringify({ question, answer }) }),
 

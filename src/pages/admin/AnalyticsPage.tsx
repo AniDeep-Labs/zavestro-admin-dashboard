@@ -5,6 +5,7 @@ import { analyticsApi, hubsApi, promosApi, fitAnalyticsApi } from '../../api/adm
 import type { AnalyticsData, Hub, PromoCode, FitAnalyticsData } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './AnalyticsPage.module.css';
 
 type Section = 'revenue' | 'orders' | 'fit-scores' | 'hub-performance' | 'retention' | 'promos';
@@ -93,6 +94,18 @@ export const AnalyticsPage: React.FC = () => {
   const validSection: Section = isKnownSection ? (section as Section) : 'revenue';
   const title = isKnownSection ? SECTION_TITLES[validSection] : 'Analytics';
 
+  const exportRevenue = () => {
+    if (!analyticsData) return;
+    downloadCsv<{ label: string; simplified: number }>(
+      datedFilename('revenue'),
+      [
+        { header: 'Period', value: r => r.label },
+        { header: 'Revenue (INR)', value: r => r.simplified },
+      ],
+      analyticsData.revenue,
+    );
+  };
+
   const ordersKpi = analyticsData?.kpis.find(k => k.label === 'Orders');
   const gmvKpi    = analyticsData?.kpis.find(k => k.label === 'GMV');
   const custKpi   = analyticsData?.kpis.find(k => k.label === 'Customers');
@@ -172,7 +185,7 @@ export const AnalyticsPage: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <h2 className={styles.cardTitle}>Revenue Trend</h2>
-              <button className={styles.exportBtn}><Download size={14}/> Export CSV</button>
+              <button className={styles.exportBtn} onClick={exportRevenue} disabled={!analyticsData}><Download size={14}/> Export CSV</button>
             </div>
             {analyticsData && analyticsData.revenue.some(r => r.simplified > 0) ? (
               <div className={styles.chart}>
