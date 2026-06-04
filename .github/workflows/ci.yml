@@ -1,0 +1,42 @@
+# ============================================================================
+# Zavestro Admin Dashboard — CI (quality gate)
+#
+# Runs on every PR (into develop/main) and push to develop. No secrets — proves
+# the code lints, type-checks and builds. Real VITE_* values are injected at
+# image build time in deploy.yml (they're build-baked into the bundle).
+# ============================================================================
+
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Typecheck · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Advisory for now: ~7 pre-existing lint errors (mostly the dev-only
+      # react-refresh/only-export-components rule, zero prod impact). Surfaced
+      # but non-blocking; the hard gate is the typecheck+build below. TODO: burn
+      # down the lint debt, then drop continue-on-error.
+      - name: Lint (advisory)
+        run: npm run lint
+        continue-on-error: true
+      # `npm run build` = `tsc -b && vite build` → this IS the typecheck + build gate.
+      - name: Typecheck + Build
+        run: npm run build

@@ -1,0 +1,26 @@
+# ============================================================================
+# Zavestro Admin Dashboard — Production Docker Compose (runs on the droplet)
+#
+# Static SPA image (env-baked at build). No runtime .env needed — everything is
+# already in the bundle. The droplet's outer nginx terminates TLS and routes
+# admin.zavestro.in → localhost:3002.
+# ============================================================================
+
+services:
+  admin:
+    image: ${IMAGE:-ghcr.io/anideep-labs/zavestro-admin-dashboard:latest}
+    container_name: zavestro-admin
+    restart: always
+    ports:
+      - '3002:80'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/']
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
