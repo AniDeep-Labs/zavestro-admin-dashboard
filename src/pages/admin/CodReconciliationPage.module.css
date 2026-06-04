@@ -1,0 +1,48 @@
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.summaryCard {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+.summaryLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-bottom: 6px;
+}
+.summaryValue {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+}
+.summarySub {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+.pendingAccent { color: #B45309; }
+.dateInput {
+  height: 38px;
+  padding: 0 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  outline: none;
+}
+.depositId {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+@media (max-width: 900px) {
+  .summary { grid-template-columns: repeat(2, 1fr); }
+}

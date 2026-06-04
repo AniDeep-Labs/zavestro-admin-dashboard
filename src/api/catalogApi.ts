@@ -78,10 +78,12 @@ export interface AdminUser {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'super_admin';
+  role: string;
   is_active: boolean;
   last_login_at: string | null;
   created_at: string;
+  hub_id?: string | null;
+  hub_name?: string | null;
 }
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
@@ -380,10 +382,17 @@ export const catalogApi = {
       body: JSON.stringify({ token, password }),
     }).then(res => res.data),
 
-  createAdmin: (data: { name: string; email: string; password: string; role?: 'admin' | 'super_admin' }): Promise<AdminUser> =>
+  createAdmin: (data: { name: string; email: string; password: string; role?: string; hubId?: string | null }): Promise<AdminUser> =>
     request<{ success: boolean; data: AdminUser }>('/api/admin/auth/create-admin', {
       method: 'POST',
       body: JSON.stringify(data),
+    }).then(res => res.data),
+
+  // Assign/clear a hub for an admin → hub-scopes them (super_admin only, server-enforced).
+  setAdminHub: (adminId: string, hubId: string | null): Promise<AdminUser> =>
+    request<{ success: boolean; data: AdminUser }>(`/api/admin/auth/users/${adminId}/hub`, {
+      method: 'PATCH',
+      body: JSON.stringify({ hub_id: hubId }),
     }).then(res => res.data),
 
   generateResetLink: (adminId: string): Promise<{ token: string }> =>

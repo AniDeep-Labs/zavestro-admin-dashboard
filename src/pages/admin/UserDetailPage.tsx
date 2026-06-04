@@ -6,6 +6,7 @@ import type { AdminUser, AdminOrder, AdminFitProfile } from '../../api/adminApi'
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
+import { Can } from '../../components/Can/Can';
 import styles from './UserDetailPage.module.css';
 
 export const UserDetailPage: React.FC = () => {
@@ -250,6 +251,7 @@ export const UserDetailPage: React.FC = () => {
 
         {/* Right: actions */}
         <div className={styles.sidebar}>
+          <Can cap="customers:write">
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Account Actions</h3>
             <div className={styles.actionList}>
@@ -268,6 +270,7 @@ export const UserDetailPage: React.FC = () => {
               value={note} onChange={e => setNote(e.target.value)} />
             <button className={styles.saveNoteBtn} disabled={!note.trim()} onClick={handleSaveNote}>Save Note</button>
           </div>
+          </Can>
 
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Support Tickets</h3>

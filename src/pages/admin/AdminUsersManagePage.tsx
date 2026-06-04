@@ -2,10 +2,22 @@ import React from 'react';
 import { RefreshCw, UserPlus, Key } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { AdminUser } from '../../api/catalogApi';
-import { adminAuthExtApi } from '../../api/adminApi';
+import { adminAuthExtApi, hubsApi } from '../../api/adminApi';
+import type { Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AdminUsersManagePage.module.css';
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  catalog_manager: 'Catalog / Content',
+  merchandiser: 'Merchandiser',
+  pricing_manager: 'Pricing',
+  support: 'Operations & Support',
+  finance: 'Finance',
+  analyst: 'Analyst',
+};
 
 export const AdminUsersManagePage: React.FC = () => {
   const [users, setUsers] = React.useState<AdminUser[]>([]);
@@ -24,8 +36,15 @@ export const AdminUsersManagePage: React.FC = () => {
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');
-  const [newRole, setNewRole] = React.useState<'admin' | 'super_admin'>('admin');
+  type AdminRole = 'super_admin' | 'catalog_manager' | 'support' | 'finance';
+  const [newRole, setNewRole] = React.useState<AdminRole>('catalog_manager');
+  const [newHubId, setNewHubId] = React.useState('');
   const [creating, setCreating] = React.useState(false);
+
+  // Hubs for the hub-scoping selectors
+  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  const [hubSaving, setHubSaving] = React.useState<string | null>(null);
+  React.useEffect(() => { hubsApi.list().then(r => setHubs(r.hubs)).catch(() => { /* optional */ }); }, []);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, message?: string) =>
@@ -76,10 +95,12 @@ export const AdminUsersManagePage: React.FC = () => {
     }
     setCreating(true);
     try {
-      const created = await catalogApi.createAdmin({ name: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole });
+      // super_admin must stay global (no hub); others may be hub-scoped.
+      const hubId = newRole === 'super_admin' ? null : (newHubId || null);
+      const created = await catalogApi.createAdmin({ name: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole, hubId });
       setUsers(prev => [...prev, created]);
       setShowCreate(false);
-      setNewName(''); setNewEmail(''); setNewPassword(''); setNewRole('admin');
+      setNewName(''); setNewEmail(''); setNewPassword(''); setNewRole('catalog_manager'); setNewHubId('');
       showToast('success', 'Admin created', created.email);
     } catch (err) {
       showToast('error', 'Failed to create', err instanceof Error ? err.message : '');
@@ -97,6 +118,17 @@ export const AdminUsersManagePage: React.FC = () => {
     } catch (err) {
       showToast('error', 'Failed', err instanceof Error ? err.message : '');
     } finally { setSettingTempPw(false); }
+  };
+
+  const handleSetHub = async (user: AdminUser, hubId: string) => {
+    setHubSaving(user.id);
+    try {
+      const updated = await catalogApi.setAdminHub(user.id, hubId || null);
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, hub_id: updated.hub_id ?? null, hub_name: hubs.find(h => h.id === updated.hub_id)?.name ?? null } : u));
+      showToast('success', hubId ? 'Hub assigned — admin is now hub-scoped' : 'Hub cleared — admin is global');
+    } catch (err) {
+      showToast('error', 'Failed', err instanceof Error ? err.message : '');
+    } finally { setHubSaving(null); }
   };
 
   const pending = users.filter(u => !u.is_active);
@@ -157,6 +189,7 @@ export const AdminUsersManagePage: React.FC = () => {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Role</th>
+                <th>Hub Scope</th>
                 <th>Last Login</th>
                 <th>Actions</th>
               </tr>
@@ -165,13 +198,13 @@ export const AdminUsersManagePage: React.FC = () => {
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 5 }).map((__, j) => (
+                    {Array.from({ length: 6 }).map((__, j) => (
                       <td key={j}><div className={styles.skeleton} /></td>
                     ))}
                   </tr>
                 ))
               ) : active.length === 0 ? (
-                <tr><td colSpan={5} className={styles.empty}>No active admins.</td></tr>
+                <tr><td colSpan={6} className={styles.empty}>No active admins.</td></tr>
               ) : (
                 active.map(user => (
                   <tr key={user.id}>
@@ -179,8 +212,24 @@ export const AdminUsersManagePage: React.FC = () => {
                     <td className={styles.userEmail}>{user.email}</td>
                     <td>
                       <span className={`${styles.rolePill} ${user.role === 'super_admin' ? styles.roleSuperAdmin : styles.roleAdmin}`}>
-                        {user.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                        {ROLE_LABELS[user.role] ?? user.role}
                       </span>
+                    </td>
+                    <td>
+                      {user.role === 'super_admin' ? (
+                        <span className={styles.meta}>All hubs</span>
+                      ) : (
+                        <select
+                          className={styles.fieldInput}
+                          style={{ height: 32, padding: '0 8px', minWidth: 130 }}
+                          value={user.hub_id ?? ''}
+                          disabled={hubSaving === user.id}
+                          onChange={e => handleSetHub(user, e.target.value)}
+                        >
+                          <option value="">All hubs (global)</option>
+                          {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                        </select>
+                      )}
                     </td>
                     <td className={styles.meta}>
                       {user.last_login_at
@@ -289,11 +338,25 @@ export const AdminUsersManagePage: React.FC = () => {
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Role</label>
-                <select className={styles.fieldInput} value={newRole} onChange={e => setNewRole(e.target.value as 'admin' | 'super_admin')}>
-                  <option value="admin">Admin</option>
+                <select className={styles.fieldInput} value={newRole} onChange={e => setNewRole(e.target.value as AdminRole)}>
+                  <option value="catalog_manager">Catalog / Content Manager</option>
+                  <option value="support">Operations &amp; Support</option>
+                  <option value="finance">Finance</option>
                   <option value="super_admin">Super Admin</option>
                 </select>
               </div>
+              {newRole !== 'super_admin' && (
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Hub Scope</label>
+                  <select className={styles.fieldInput} value={newHubId} onChange={e => setNewHubId(e.target.value)}>
+                    <option value="">All hubs (global)</option>
+                    {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                  </select>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
+                    Assign a hub to restrict this admin to that hub's orders, returns, invoices, staff & dashboard.
+                  </span>
+                </div>
+              )}
             </div>
             <div className={styles.modalActions}>
               <button className={styles.cancelBtn} onClick={() => setShowCreate(false)}>Cancel</button>

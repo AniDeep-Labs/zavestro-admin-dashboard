@@ -1,15 +1,17 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingBag, Users, Building2, Tag, FileText,
   BarChart3, Headphones, Settings, ChevronDown, ChevronRight,
   PanelLeftClose, PanelLeftOpen, Sun, Moon, LogOut, Bell,
-  RotateCcw, Scissors, Home, Receipt, Ticket, Ruler, Star,
+  RotateCcw, Scissors, Home, Receipt, Ticket, Ruler, Star, Wallet,
+  CalendarClock, Megaphone, MapPin,
 } from 'lucide-react';
 import { toggleTheme, getCurrentTheme } from '../../utils/theme';
 import { hasAdminToken } from '../../api/catalogApi';
-import { adminAuth, getAdminUser } from '../../api/adminApi';
+import { adminAuth, getAdminUser, getAdminCapabilities, setAdminCapabilities, adminAuthExtApi } from '../../api/adminApi';
 import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
+import { Spinner } from '../../components/Spinner';
 import { BreadcrumbProvider, useBreadcrumb } from '../../contexts/BreadcrumbContext';
 import styles from './AdminLayout.module.css';
 
@@ -33,6 +35,7 @@ const NAV: NavItem[] = [
       { label: 'Collections',         path: '/admin/catalog/collections' },
       { label: 'Hero Banners',        path: '/admin/catalog/banners' },
       { label: 'Categories',          path: '/admin/catalog/categories' },
+      { label: 'Home Layout',         path: '/admin/catalog/home-layout' },
     ],
   },
   {
@@ -60,8 +63,12 @@ const NAV: NavItem[] = [
   { label: 'Alterations', icon: <Scissors size={18} />,    path: '/admin/alterations',  roles: ['admin', 'admin_ops'] },
   { label: 'Reviews',     icon: <Star size={18} />,        path: '/admin/reviews',       roles: ['admin', 'admin_ops'] },
   { label: 'Home Visits', icon: <Home size={18} />,        path: '/admin/home-visits',           roles: ['admin', 'admin_ops'] },
+  { label: 'Consultations', icon: <CalendarClock size={18} />, path: '/admin/consultations',     roles: ['admin', 'admin_ops'] },
   { label: 'Measurements', icon: <Ruler size={18} />,     path: '/admin/measurement-bookings',  roles: ['admin', 'admin_ops'] },
   { label: 'Invoices',    icon: <Receipt size={18} />,     path: '/admin/invoices',              roles: ['admin', 'admin_finance'] },
+  { label: 'COD Reconciliation', icon: <Wallet size={18} />, path: '/admin/finance/cod-reconciliation', roles: ['admin', 'admin_finance'] },
+  { label: 'Notification Blast', icon: <Megaphone size={18} />, path: '/admin/notifications',     roles: ['admin', 'admin_marketing'] },
+  { label: 'Pincode Demand', icon: <MapPin size={18} />,    path: '/admin/pincode-waitlist',      roles: ['admin', 'admin_finance'] },
   {
     label: 'System', icon: <Settings size={18} />, path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
     children: [
@@ -74,6 +81,31 @@ const NAV: NavItem[] = [
     ],
   },
 ];
+
+// Capability required to see each top-level nav section (super_admin holds all).
+// Drives the role-based sidebar — see backend src/admin/auth/permissions.ts.
+const NAV_CAP: Record<string, string | undefined> = {
+  'Dashboard':    undefined,            // everyone signed in
+  'Orders':       'orders:read',
+  'Users':        'customers:read',
+  'Hubs':         'system:manage',
+  'Catalog':      'catalog:write',
+  'Content':      'cms:write',
+  'Analytics':    'reports:read',
+  'Promo Codes':  'pricing:write',
+  'Support':      'customers:write',
+  'Returns':      'orders:write',
+  'Alterations':  'orders:write',
+  'Reviews':      'reviews:moderate',
+  'Home Visits':  'orders:write',
+  'Measurements': 'orders:write',
+  'Invoices':     'refunds:approve',
+  'COD Reconciliation': 'refunds:approve',
+  'Consultations': 'orders:write',
+  'Notification Blast': 'cms:write',
+  'Pincode Demand': 'reports:read',
+  'System':       'system:manage',
+};
 
 // Inner component rendered inside BreadcrumbProvider so useBreadcrumb() reads
 // the correct context value (entity titles set by detail pages).
@@ -90,6 +122,27 @@ const AdminLayoutInner: React.FC = () => {
   const adminEmail = adminUser?.email ?? 'admin@zavestro.in';
   const adminRole = adminUser?.role ?? 'admin';
   const adminInitial = adminEmail[0].toUpperCase();
+
+  // Capabilities drive which nav sections show. Refresh from the server on mount
+  // (covers page reloads + admins who logged in before this feature existed).
+  const [caps, setCaps] = React.useState<string[]>(getAdminCapabilities());
+  React.useEffect(() => {
+    let alive = true;
+    adminAuthExtApi.me()
+      .then(me => { if (alive) { setAdminCapabilities(me.capabilities ?? []); setCaps(me.capabilities ?? []); } })
+      .catch(() => { /* keep cached caps */ });
+    return () => { alive = false; };
+  }, []);
+
+  const canSee = (label: string) => { const c = NAV_CAP[label]; return !c || caps.includes(c); };
+  const visibleNav = NAV.filter(item => canSee(item.label));
+
+  // Route guard: block the content area if the current path needs a capability the
+  // role lacks (deep-link protection). Only enforce once caps are known (non-empty)
+  // so a still-loading session isn't bounced. Backend also 403s the APIs.
+  const currentNav = NAV.find(n => location.pathname === n.path || location.pathname.startsWith(n.path + '/'));
+  const requiredCap = currentNav ? NAV_CAP[currentNav.label] : undefined;
+  const accessDenied = !!requiredCap && caps.length > 0 && !caps.includes(requiredCap);
 
   const handleLogout = async () => {
     await adminAuth.logout();
@@ -121,7 +174,7 @@ const AdminLayoutInner: React.FC = () => {
           </div>
 
           <nav className={styles.nav}>
-            {NAV.map(item => {
+            {visibleNav.map(item => {
               const active = isActive(item.path);
               const expanded = expandedSections.includes(item.label);
 
@@ -277,7 +330,30 @@ const AdminLayoutInner: React.FC = () => {
         {/* Page content */}
         <main className={styles.content}>
           <ErrorBoundary>
-              <Outlet />
+            {accessDenied ? (
+              <div style={{ padding: '4rem 2rem', textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+                <h2 style={{ margin: '0 0 8px', fontSize: 20 }}>No access to this section</h2>
+                <p style={{ color: 'var(--text-muted, #888)', fontSize: 14, marginBottom: 20 }}>
+                  Your role doesn’t have permission for this page. Contact a Super Admin if you need access.
+                </p>
+                <button className={styles.navItem} style={{ display: 'inline-flex', width: 'auto', padding: '8px 18px' }}
+                  onClick={() => navigate('/admin/dashboard')}>
+                  Go to Dashboard
+                </button>
+              </div>
+            ) : (
+              // Suspense catches lazy route-chunk loads (G23); sidebar stays put.
+              <Suspense
+                fallback={
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '64px' }}>
+                    <Spinner />
+                  </div>
+                }
+              >
+                <Outlet />
+              </Suspense>
+            )}
           </ErrorBoundary>
         </main>
       </div>

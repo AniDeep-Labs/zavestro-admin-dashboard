@@ -5,6 +5,7 @@ import { usersApi } from '../../api/adminApi';
 import type { AdminUser } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './UsersListPage.module.css';
 
 const LIMIT = 25;
@@ -26,6 +27,7 @@ export const UsersListPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  const [exporting, setExporting] = React.useState(false);
   const debouncedSearch = useDebounce(search, 350);
 
   // Create user modal
@@ -54,13 +56,43 @@ export const UsersListPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [debouncedSearch, statusFilter, page]);
 
-  const exportCSV = () => {
-    const rows = [['ID','Name','Phone','Email','City','Orders','Credits','Joined','Status'],
-      ...users.map(u => [u.id, u.name, u.phone, u.email, u.city, u.orders, u.credits, u.joined, u.status])];
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = `users-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  // Exports ALL users matching the current filters (not just the current page).
+  const exportCSV = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const all: AdminUser[] = [];
+      for (let p = 1; p <= 500; p++) {
+        const r = await usersApi.list({
+          search: debouncedSearch || undefined,
+          status: statusFilter || undefined,
+          page: p,
+          limit: 100,
+        });
+        all.push(...r.users);
+        if (p >= r.totalPages || r.users.length === 0) break;
+      }
+      downloadCsv<AdminUser>(
+        datedFilename('users'),
+        [
+          { header: 'ID', value: u => u.reference_id || u.id },
+          { header: 'Name', value: u => u.name },
+          { header: 'Phone', value: u => u.phone },
+          { header: 'Email', value: u => u.email },
+          { header: 'City', value: u => u.city },
+          { header: 'Orders', value: u => u.orders },
+          { header: 'Credits', value: u => u.credits },
+          { header: 'Joined', value: u => u.joined },
+          { header: 'Status', value: u => u.status },
+        ],
+        all,
+      );
+      showToast('success', 'Export ready', `${all.length} customer${all.length === 1 ? '' : 's'} exported.`);
+    } catch {
+      showToast('error', 'Export failed', 'Could not export customers. Please try again.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleCreateUser = async () => {
@@ -107,7 +139,7 @@ export const UsersListPage: React.FC = () => {
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-green, var(--green))', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}>
             <UserPlus size={14}/> Add Customer
           </button>
-          <button className={styles.exportBtn} onClick={exportCSV}><Download size={14} /> Export CSV</button>
+          <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
         </div>
       </div>
 
