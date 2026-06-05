@@ -31,9 +31,14 @@ function BannerForm({
   const [startsAt, setStartsAt]         = React.useState(initial.starts_at ? initial.starts_at.slice(0, 10) : '');
   const [endsAt, setEndsAt]             = React.useState(initial.ends_at ? initial.ends_at.slice(0, 10) : '');
   const [imageKey, setImageKey]         = React.useState(initial.image_key ?? '');
+  const [imageOnly, setImageOnly]       = React.useState(initial.image_only ?? false);
   const [imageUploading, setImageUploading] = React.useState(false);
   const [imageError, setImageError]     = React.useState('');
   const fileRef = React.useRef<HTMLInputElement>(null);
+
+  const previewUrl = imageKey
+    ? (imageKey.startsWith('http') ? imageKey : `${R2_PUBLIC_URL}/${imageKey}`)
+    : '';
 
   const handleImageFile = async (file: File) => {
     setImageError('');
@@ -63,11 +68,42 @@ function BannerForm({
       is_active: isActive,
       starts_at: startsAt ? new Date(startsAt).toISOString() : undefined,
       ends_at:   endsAt   ? new Date(endsAt).toISOString()   : undefined,
+      image_only: imageOnly,
     });
   };
 
   return (
     <form onSubmit={submit} className={styles.fields} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Live preview — mirrors how the storefront hero renders this banner */}
+      <div>
+        <label style={labelStyle}>Preview</label>
+        <div style={{
+          position: 'relative', width: '100%', aspectRatio: '16 / 7', borderRadius: 12, overflow: 'hidden',
+          background: `linear-gradient(135deg, ${bgColor1}, ${bgColor2})`, border: '1px solid var(--color-border-light)',
+        }}>
+          {previewUrl && (
+            <img src={previewUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          )}
+          {previewUrl && !imageOnly && (
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.12) 100%)' }} />
+          )}
+          {!imageOnly && (
+            <div style={{ position: 'absolute', inset: 0, padding: '18px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'center', color: '#fff', gap: 6 }}>
+              {tag && <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.9 }}>{tag}</span>}
+              <span style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.05, whiteSpace: 'pre-line', textShadow: '0 1px 8px rgba(0,0,0,0.4)' }}>{(title || 'Headline').replace(/\\n/g, '\n')}</span>
+              {subtitle && <span style={{ fontSize: 13, opacity: 0.95, maxWidth: '70%', textShadow: '0 1px 6px rgba(0,0,0,0.4)' }}>{subtitle}</span>}
+              <span style={{ marginTop: 8, alignSelf: 'flex-start', background: '#fff', color: '#111', fontSize: 12, fontWeight: 700, padding: '7px 14px', borderRadius: 999 }}>{ctaText || 'Shop Now'}</span>
+            </div>
+          )}
+          {imageOnly && !previewUrl && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', opacity: 0.8, fontSize: 13 }}>Upload an image — image-only banner</div>
+          )}
+        </div>
+      </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+        <input type="checkbox" checked={imageOnly} onChange={e => setImageOnly(e.target.checked)} />
+        Image-only (hide text, CTA &amp; overlay — show just the uploaded image)
+      </label>
       <div>
         <label style={labelStyle}>Headline *</label>
         <input value={title} onChange={e => setTitle(e.target.value)} required style={inputStyle} placeholder="e.g. Made to\nMeasure." />
