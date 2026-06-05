@@ -217,14 +217,23 @@ export const ProductEditPage: React.FC = () => {
   const validate = () => {
     if (!name.trim()) return false;
     if (!basePrice || isNaN(Number(basePrice)) || Number(basePrice) <= 0) return false;
+    if (Number(basePrice) > 1_000_000) return false;
     if (!categoryId) return false;
+    if (Number(deliveryMin) && Number(deliveryMax) && Number(deliveryMax) < Number(deliveryMin)) {
+      return false;
+    }
     return true;
   };
 
   const handleSave = async (targetStatus?: 'active' | 'draft') => {
     setSubmitted(true);
-    if (!validate()) { showToast('warning', 'Please fill in all required fields'); return; }
+    if (!validate()) { showToast('warning', 'Please fix the highlighted fields before saving'); return; }
     const saveStatus = targetStatus ?? status;
+    // A live (Active) product must be purchasable — block publishing with no variant.
+    if (saveStatus === 'active' && variants.length === 0) {
+      showToast('warning', 'Add at least one variant before publishing (or Save as Draft)');
+      return;
+    }
     setSaving(true);
     setStatus(saveStatus);
 
@@ -388,6 +397,7 @@ export const ProductEditPage: React.FC = () => {
                   placeholder="e.g., 1299"
                 />
                 {submitted && (!basePrice || isNaN(Number(basePrice)) || Number(basePrice) <= 0) && <span className={styles.fieldHint}>Enter a valid base price</span>}
+                {submitted && Number(basePrice) > 1_000_000 && <span className={styles.fieldHint}>Base price is unrealistically high</span>}
               </div>
 
               <div className={styles.field}>
@@ -531,6 +541,9 @@ export const ProductEditPage: React.FC = () => {
                   />
                 </div>
               </div>
+              {submitted && Number(deliveryMin) && Number(deliveryMax) && Number(deliveryMax) < Number(deliveryMin) ? (
+                <span className={styles.fieldHint}>Max delivery days must be ≥ min delivery days</span>
+              ) : null}
               <label className={styles.checkRow}>
                 <input
                   type="checkbox"

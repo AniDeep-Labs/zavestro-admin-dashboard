@@ -159,6 +159,10 @@ export const HubDetailPage: React.FC = () => {
       showToast('error', 'Name and Phone are required');
       return;
     }
+    if (!/^\d{10}$/.test(staffPhone.replace(/\s/g, ''))) {
+      showToast('error', 'Phone must be a 10-digit mobile number');
+      return;
+    }
     if (!hub) return;
     setAddingStaff(true);
     try {
@@ -201,6 +205,7 @@ export const HubDetailPage: React.FC = () => {
   const handleSaveEditStaff = async () => {
     if (!editingStaff || !hub) return;
     if (!editName.trim() || !editPhone.trim()) { showToast('error', 'Name and Phone are required'); return; }
+    if (!/^\d{10}$/.test(editPhone.replace(/\s/g, ''))) { showToast('error', 'Phone must be a 10-digit mobile number'); return; }
     setSavingEdit(true);
     try {
       const updated = await hubStaffApi.update(hub.id, editingStaff.id, {
@@ -595,9 +600,9 @@ export const HubDetailPage: React.FC = () => {
               </div>
               <button
                 className={styles.editBtn}
-                disabled={addingPincodes || pincodeInput.length !== 6}
+                disabled={addingPincodes || !/^[1-9]\d{5}$/.test(pincodeInput)}
                 onClick={async () => {
-                  if (pincodeInput.length !== 6) { showToast('error', 'Enter a valid 6-digit pincode'); return; }
+                  if (!/^[1-9]\d{5}$/.test(pincodeInput)) { showToast('error', 'Enter a valid 6-digit pincode'); return; }
                   setAddingPincodes(true);
                   try {
                     const { added } = await hubPincodesApi.add(hub.id, [{ pincode: pincodeInput, area_name: pincodeAreaInput }]);
