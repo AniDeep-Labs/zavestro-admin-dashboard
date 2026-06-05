@@ -605,6 +605,7 @@ export interface Banner {
   is_active: boolean;
   starts_at: string | null;
   ends_at: string | null;
+  image_only: boolean;
   created_at: string;
   updated_at: string;
 }
