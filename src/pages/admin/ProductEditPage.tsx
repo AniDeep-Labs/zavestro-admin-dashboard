@@ -50,6 +50,14 @@ export const ProductEditPage: React.FC = () => {
   const [deliveryMax, setDeliveryMax] = React.useState('10');
   const [isMadeToOrder, setIsMadeToOrder] = React.useState(true);
   const [status, setStatus] = React.useState<'active' | 'draft' | 'archived'>('draft');
+  // Product details / specs shown on the PDP (Fabric, Wash Care, Fit, …). Stored
+  // as flexible key-value attributes; starter rows guide common fields.
+  const [attrs, setAttrs] = React.useState<{ label: string; value: string }[]>([
+    { label: 'Fabric', value: '' },
+    { label: 'Wash Care', value: '' },
+    { label: 'Fit', value: '' },
+    { label: 'Composition', value: '' },
+  ]);
 
   useBreadcrumbTitle(name || (isNew ? 'New Product' : undefined));
 
@@ -111,6 +119,9 @@ export const ProductEditPage: React.FC = () => {
         setIsMadeToOrder(p.is_made_to_order ?? true);
         setStatus(p.status ?? 'draft');
         setExistingImages(p.images ?? []);
+        if (p.attributes && p.attributes.length > 0) {
+          setAttrs(p.attributes.map(a => ({ label: a.display_label || a.key, value: a.value })));
+        }
         const loadedVariants = (p.variants ?? []).map((v: ApiVariant) => ({
           id: v.id,
           sku: v.sku,
@@ -284,6 +295,23 @@ export const ProductEditPage: React.FC = () => {
         }
       }
 
+      // Save product details (attributes) — Fabric / Wash Care / Fit / etc.
+      const cleanAttrs = attrs
+        .filter(a => a.label.trim() && a.value.trim())
+        .map((a, i) => ({
+          key: a.label.trim(),
+          value: a.value.trim(),
+          display_label: a.label.trim(),
+          sort_order: i,
+        }));
+      if (cleanAttrs.length > 0) {
+        try {
+          await catalogApi.setAttributes(productId, cleanAttrs);
+        } catch {
+          showToast('warning', 'Failed to save product details');
+        }
+      }
+
       const msg = saveStatus === 'draft' ? 'Product saved as Draft' : isNew ? 'Product created' : 'Product updated';
       navigate('/admin/catalog/products', { state: { toast: { type: 'success', title: msg } } });
     } catch (err) {
@@ -434,6 +462,46 @@ export const ProductEditPage: React.FC = () => {
                   placeholder="Detailed product description…"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Product Details (attributes shown on the PDP) */}
+          <div className={styles.card}>
+            <h3 className={styles.sectionTitle}>Product Details</h3>
+            <div className={styles.fields}>
+              {attrs.map((a, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                  <div className={styles.field} style={{ flex: '0 0 35%' }}>
+                    {i === 0 && <label className={styles.label}>Label</label>}
+                    <input
+                      className={styles.input}
+                      value={a.label}
+                      placeholder="e.g. Wash Care"
+                      onChange={e => setAttrs(prev => prev.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
+                    />
+                  </div>
+                  <div className={styles.field} style={{ flex: 1 }}>
+                    {i === 0 && <label className={styles.label}>Value</label>}
+                    <input
+                      className={styles.input}
+                      value={a.value}
+                      placeholder="e.g. Machine wash cold, tumble dry low"
+                      onChange={e => setAttrs(prev => prev.map((x, j) => j === i ? { ...x, value: e.target.value } : x))}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Remove detail"
+                    onClick={() => setAttrs(prev => prev.filter((_, j) => j !== i))}
+                    style={{ height: 38, padding: '0 10px', border: '1px solid #E4E0D6', borderRadius: 8, background: '#fff', cursor: 'pointer', color: '#D75B5B' }}
+                  >✕</button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setAttrs(prev => [...prev, { label: '', value: '' }])}
+                style={{ alignSelf: 'flex-start', marginTop: 4, padding: '6px 12px', border: '1px dashed #C9995E', borderRadius: 8, background: 'transparent', color: '#1C5C42', cursor: 'pointer', fontWeight: 600 }}
+              >+ Add detail</button>
             </div>
           </div>
 

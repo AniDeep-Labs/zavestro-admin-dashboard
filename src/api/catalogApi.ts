@@ -25,6 +25,13 @@ export interface ApiMedia {
   is_primary: boolean;
 }
 
+export interface ApiAttribute {
+  key: string;
+  value: string;
+  display_label?: string;
+  sort_order?: number;
+}
+
 export interface ApiProduct {
   id: string;
   name: string;
@@ -35,6 +42,7 @@ export interface ApiProduct {
   category: ApiCategory;
   tags: string[];
   images: ApiMedia[];
+  attributes: ApiAttribute[];
   delivery_days_min: number;
   delivery_days_max: number;
   is_made_to_order: boolean;
@@ -155,6 +163,12 @@ function mapProduct(p: Record<string, unknown>): ApiProduct {
         : { id: '', name: '—' },
     tags: (p.tags ?? []) as string[],
     images: mediaArr.map(mapMedia),
+    attributes: ((p.attributes ?? []) as Record<string, unknown>[]).map((a) => ({
+      key: a.key as string,
+      value: a.value as string,
+      display_label: a.display_label as string | undefined,
+      sort_order: a.sort_order as number | undefined,
+    })),
     delivery_days_min: (p.delivery_days_min ?? 7) as number,
     delivery_days_max: (p.delivery_days_max ?? 10) as number,
     is_made_to_order: (p.is_made_to_order ?? true) as boolean,
@@ -346,7 +360,7 @@ export const catalogApi = {
   deleteMedia: (mediaId: string): Promise<void> =>
     request<void>(`/api/catalog/admin/media/${mediaId}`, { method: 'DELETE' }),
 
-  setAttributes: (productId: string, attributes: Record<string, unknown>): Promise<void> =>
+  setAttributes: (productId: string, attributes: ApiAttribute[]): Promise<void> =>
     request<void>(`/api/catalog/admin/products/${productId}/attributes`, {
       method: 'PUT',
       body: JSON.stringify({ attributes }),
