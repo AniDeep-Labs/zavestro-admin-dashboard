@@ -3,9 +3,9 @@ import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingBag, Users, Building2, Tag, FileText,
   BarChart3, Headphones, Settings, ChevronDown, ChevronRight,
-  PanelLeftClose, PanelLeftOpen, Sun, Moon, LogOut, Bell,
+  PanelLeftClose, PanelLeftOpen, Sun, Moon, LogOut,
   RotateCcw, Scissors, Home, Receipt, Ticket, Ruler, Star, Wallet,
-  CalendarClock, Megaphone, MapPin,
+  Megaphone, MapPin,
 } from 'lucide-react';
 import { toggleTheme, getCurrentTheme } from '../../utils/theme';
 import { hasAdminToken } from '../../api/catalogApi';
@@ -63,7 +63,7 @@ const NAV: NavItem[] = [
   { label: 'Alterations', icon: <Scissors size={18} />,    path: '/admin/alterations',  roles: ['admin', 'admin_ops'] },
   { label: 'Reviews',     icon: <Star size={18} />,        path: '/admin/reviews',       roles: ['admin', 'admin_ops'] },
   { label: 'Home Visits', icon: <Home size={18} />,        path: '/admin/home-visits',           roles: ['admin', 'admin_ops'] },
-  { label: 'Consultations', icon: <CalendarClock size={18} />, path: '/admin/consultations',     roles: ['admin', 'admin_ops'] },
+  // Consultations belonged to the scrapped Premium Custom flow — hidden from nav (route still exists).
   { label: 'Measurements', icon: <Ruler size={18} />,     path: '/admin/measurement-bookings',  roles: ['admin', 'admin_ops'] },
   { label: 'Invoices',    icon: <Receipt size={18} />,     path: '/admin/invoices',              roles: ['admin', 'admin_finance'] },
   { label: 'COD Reconciliation', icon: <Wallet size={18} />, path: '/admin/finance/cod-reconciliation', roles: ['admin', 'admin_finance'] },
@@ -116,7 +116,6 @@ const AdminLayoutInner: React.FC = () => {
   const [theme, setTheme] = React.useState(getCurrentTheme());
   const [collapsed, setCollapsed] = React.useState(false);
   const [expandedSections, setExpandedSections] = React.useState<string[]>(['Catalog', 'Content', 'Analytics', 'System', 'Consultations']);
-  const [showNotifTooltip, setShowNotifTooltip] = React.useState(false);
 
   const adminUser = getAdminUser();
   const adminEmail = adminUser?.email ?? 'admin@zavestro.in';
@@ -278,28 +277,8 @@ const AdminLayoutInner: React.FC = () => {
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <button
-              className={styles.iconBtn}
-              aria-label="Notifications"
-              style={{ position: 'relative' }}
-              onClick={() => {
-                setShowNotifTooltip(true);
-                setTimeout(() => setShowNotifTooltip(false), 2200);
-              }}
-            >
-              <Bell size={18} />
-              {showNotifTooltip && (
-                <span style={{
-                  position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                  background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-light)',
-                  borderRadius: 6, padding: '6px 12px', fontSize: 12,
-                  color: 'var(--color-text-secondary)', whiteSpace: 'nowrap',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.12)', zIndex: 200,
-                }}>
-                  Notifications coming soon
-                </span>
-              )}
-            </button>
+            {/* Notification bell removed — there is no admin notification feed yet, and a
+                dead "coming soon" control is worse than none. Re-add when a real feed exists. */}
             <div
               className={styles.adminUser}
               onClick={() => navigate('/admin/profile')}

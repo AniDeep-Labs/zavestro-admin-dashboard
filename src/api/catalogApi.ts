@@ -41,6 +41,7 @@ export interface ApiProduct {
   base_price: number;
   category: ApiCategory;
   tags: string[];
+  imageUrl?: string;   // composed cover image (from the list card response)
   images: ApiMedia[];
   attributes: ApiAttribute[];
   delivery_days_min: number;
@@ -162,6 +163,11 @@ function mapProduct(p: Record<string, unknown>): ApiProduct {
         ? { id: categoryId, name: categoryName, slug: '' }
         : { id: '', name: '—' },
     tags: (p.tags ?? []) as string[],
+    imageUrl:
+      (p.image_url as string) ||
+      (mediaArr.length ? mapMedia(mediaArr[0]).url : '') ||
+      (p.primary_image_key ? `https://media.zavestro.in/${p.primary_image_key as string}` : '') ||
+      undefined,
     images: mediaArr.map(mapMedia),
     attributes: ((p.attributes ?? []) as Record<string, unknown>[]).map((a) => ({
       key: a.key as string,

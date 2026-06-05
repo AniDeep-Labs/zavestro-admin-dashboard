@@ -11,6 +11,10 @@ import styles from './ProductEditPage.module.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// Product images: 3–5 per product (enforced on the form; min checked at publish).
+const MIN_IMAGES = 3;
+const MAX_IMAGES = 5;
+
 interface VariantDraft {
   id?: string;       // set if already saved to API
   sku: string;
@@ -145,7 +149,18 @@ export const ProductEditPage: React.FC = () => {
   const addFiles = (files: FileList | File[]) => {
     const valid = Array.from(files).filter(f => f.type.startsWith('image/'));
     if (!valid.length) return;
-    const newPending: PendingImage[] = valid.map(file => ({
+    // Enforce the 3–5 image rule: cap total at MAX_IMAGES.
+    const current = existingImages.length + pendingImages.length;
+    const room = MAX_IMAGES - current;
+    if (room <= 0) {
+      showToast('warning', `Maximum ${MAX_IMAGES} images per product`);
+      return;
+    }
+    const toAdd = valid.slice(0, room);
+    if (valid.length > room) {
+      showToast('warning', `Only ${room} more image(s) allowed (max ${MAX_IMAGES})`);
+    }
+    const newPending: PendingImage[] = toAdd.map(file => ({
       key: `${file.name}-${Date.now()}-${Math.random()}`,
       file,
       preview: URL.createObjectURL(file),
@@ -229,10 +244,17 @@ export const ProductEditPage: React.FC = () => {
     setSubmitted(true);
     if (!validate()) { showToast('warning', 'Please fix the highlighted fields before saving'); return; }
     const saveStatus = targetStatus ?? status;
-    // A live (Active) product must be purchasable — block publishing with no variant.
-    if (saveStatus === 'active' && variants.length === 0) {
-      showToast('warning', 'Add at least one variant before publishing (or Save as Draft)');
-      return;
+    // A live (Active) product must be purchasable + presentable.
+    if (saveStatus === 'active') {
+      if (variants.length === 0) {
+        showToast('warning', 'Add at least one variant before publishing (or Save as Draft)');
+        return;
+      }
+      const imgCount = existingImages.length + pendingImages.length;
+      if (imgCount < MIN_IMAGES) {
+        showToast('warning', `Add at least ${MIN_IMAGES} images before publishing (${MIN_IMAGES}–${MAX_IMAGES})`);
+        return;
+      }
     }
     setSaving(true);
     setStatus(saveStatus);
@@ -601,8 +623,16 @@ export const ProductEditPage: React.FC = () => {
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>
               Images
-              <span className={styles.imageCount}>{allImages.length}</span>
+              <span
+                className={styles.imageCount}
+                style={allImages.length < MIN_IMAGES ? { color: 'var(--color-danger, #d9534f)' } : undefined}
+              >
+                {allImages.length}/{MAX_IMAGES}
+              </span>
             </h3>
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: '0 0 8px' }}>
+              {MIN_IMAGES}–{MAX_IMAGES} images required to publish.
+            </p>
 
             {/* Drop zone */}
             <div
