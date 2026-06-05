@@ -203,7 +203,22 @@ export const ProductsListPage: React.FC = () => {
                   className={styles.row}
                   onClick={() => navigate(`/admin/catalog/products/${product.id}`)}
                 >
-                  <td className={styles.productName}>{product.name}</td>
+                  <td className={styles.productName}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                      {product.imageUrl ? (
+                        <img
+                          src={product.imageUrl}
+                          alt=""
+                          loading="lazy"
+                          style={{ width: 40, height: 52, objectFit: 'cover', borderRadius: 6, flexShrink: 0, background: 'var(--color-bg-secondary)' }}
+                          onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }}
+                        />
+                      ) : (
+                        <span style={{ width: 40, height: 52, borderRadius: 6, flexShrink: 0, background: 'var(--color-bg-secondary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: 'var(--color-text-secondary)' }}>👕</span>
+                      )}
+                      <span>{product.name}</span>
+                    </span>
+                  </td>
                   <td>
                     <span className={`${styles.pill} ${styles.pillGreen}`}>
                       {modeLabel(product.mode)}

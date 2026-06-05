@@ -57,14 +57,17 @@ function PromoForm({
           value={maxUses} onChange={e => setMaxUses(e.target.value)} type="number" min="1" />
       </div>
       <div className={styles.field}>
-        <label className={styles.fieldLabel}>Expiry Date</label>
-        <input type="date" className={styles.fieldInput}
+        <label className={styles.fieldLabel}>Expiry Date *</label>
+        <input type="date" className={styles.fieldInput} required
+          min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
           value={expiry} onChange={e => setExpiry(e.target.value)} />
+        {!expiry && <span style={{ fontSize: 12, color: 'var(--color-danger, #d9534f)' }}>An expiry date is required.</span>}
       </div>
       <div className={styles.modalActions}>
         <button className={styles.cancelModalBtn} onClick={onCancel}>Cancel</button>
-        <button className={styles.saveModalBtn} disabled={saving}
-          onClick={() => onSave({ code: code.trim().toUpperCase(), discount_type: type, discount_value: parseFloat(value), min_order_amount: minOrder ? parseFloat(minOrder) : 0, max_uses: maxUses ? parseInt(maxUses) : undefined, valid_until: expiry ? new Date(expiry).toISOString() : undefined })}>
+        <button className={styles.saveModalBtn}
+          disabled={saving || !code.trim() || !value || !expiry}
+          onClick={() => onSave({ code: code.trim().toUpperCase(), discount_type: type, discount_value: parseFloat(value), min_order_amount: minOrder ? parseFloat(minOrder) : 0, max_uses: maxUses ? parseInt(maxUses) : undefined, valid_until: new Date(expiry).toISOString() })}>
           {saving ? 'Saving…' : initial.id ? 'Save Changes' : 'Create'}
         </button>
       </div>
