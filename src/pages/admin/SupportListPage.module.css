@@ -34,12 +34,12 @@
 .pillGreen { background: var(--color-bg-section); color: var(--color-primary); }
 .pillGold { background: var(--color-secondary-extra-light); color: var(--color-secondary-darker); }
 .statusPill { display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
-.statusActive { background: rgba(28,92,66,0.1); color: #1C5C42; }
+.statusActive { background: rgba(31, 107, 79,0.1); color: #1F6B4F; }
 .statusDraft { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); }
 .statusArchived { background: rgba(231,76,60,0.08); color: var(--color-error); }
 .statusDeactivated { background: rgba(231,76,60,0.08); color: var(--color-error); }
 .statusExpired { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); }
-[data-theme="dark"] .statusActive { background: rgba(82,184,130,0.2); color: #52B882; }
+[data-theme="dark"] .statusActive { background: rgba(78, 168, 122,0.2); color: #4EA87A; }
 [data-theme="dark"] .statusDraft { background: rgba(156,163,175,0.2); color: #D1D5DB; }
 [data-theme="dark"] .statusArchived { background: rgba(239,68,68,0.2); color: #FCA5A5; }
 .actionBtn { background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 4px 10px; font-family: var(--font-family); font-size: 12px; cursor: pointer; color: var(--color-text-secondary); transition: all var(--transition-fast); }
@@ -75,7 +75,7 @@
 
 .kpiRow { display: flex; gap: 12px; flex-wrap: wrap; }
 .kpi { background: var(--color-bg-primary); border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); padding: 14px 18px; display: flex; flex-direction: column; gap: 2px; min-width: 100px; }
-.kpiValue { font-family: var(--font-display); font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
+.kpiValue { font-family: var(--font-family); font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
 .kpiLabel { font-size: 12px; color: var(--color-text-tertiary); }
 .kpiDanger .kpiValue { color: var(--color-error); }
 .customerName { font-weight: var(--font-weight-medium); }
@@ -90,11 +90,11 @@
 [data-theme="dark"] .priorityMedium { background: rgba(245,158,11,0.2); color: #FCD34D; }
 .statusOpen { background: rgba(52,152,219,0.1); color: var(--color-info); display: inline-block; padding: 2px 8px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
 .statusInProgress { background: rgba(201,153,94,0.15); color: #9A6B3A; display: inline-block; padding: 2px 8px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
-.statusResolved { background: rgba(28,92,66,0.1); color: #1C5C42; display: inline-block; padding: 2px 8px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
+.statusResolved { background: rgba(31, 107, 79,0.1); color: #1F6B4F; display: inline-block; padding: 2px 8px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
 .statusClosed { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); display: inline-block; padding: 2px 8px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
 [data-theme="dark"] .statusOpen { background: rgba(59,130,246,0.2); color: #93C5FD; }
 [data-theme="dark"] .statusInProgress { background: rgba(245,158,11,0.2); color: #FCD34D; }
-[data-theme="dark"] .statusResolved { background: rgba(82,184,130,0.2); color: #52B882; }
+[data-theme="dark"] .statusResolved { background: rgba(78, 168, 122,0.2); color: #4EA87A; }
 .unassigned { color: var(--color-warning); font-weight: var(--font-weight-semibold); }
 .time { font-size: 12px; color: var(--color-text-tertiary); white-space: nowrap; }
 .rowUnread { border-left: 3px solid var(--color-primary); }
@@ -113,7 +113,7 @@
 .kpiIconYellow { background: rgba(245,158,11,0.12); color: var(--color-warning); }
 .kpiIconOrange { background: rgba(234,88,12,0.1); color: #EA580C; }
 [data-theme="dark"] .kpiIconOrange { color: var(--color-secondary); }
-.kpiVal { font-family: var(--font-display); font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
+.kpiVal { font-family: var(--font-family); font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
 .kpiLabel { font-size: 12px; color: var(--color-text-tertiary); }
 .kpiRed { color: var(--color-error) !important; }
 .kpiYellow { color: var(--color-warning) !important; }

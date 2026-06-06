@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { returnsApi } from '../../api/adminApi';
 import type { ReturnRequest } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilSearch, UilTimes } from "@iconscout/react-unicons";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending', approved: 'Approved', rejected: 'Rejected', under_review: 'Under Review',
@@ -61,7 +61,7 @@ export const ReturnsListPage: React.FC = () => {
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input className={styles.searchInput} placeholder="Search order or customer…"
             value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
@@ -69,7 +69,7 @@ export const ReturnsListPage: React.FC = () => {
           <option value="">All Statuses</option>
           {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}><X size={14}/> Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}><UilTimes size={14}/> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -129,9 +129,9 @@ export const ReturnsListPage: React.FC = () => {
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} return${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><UilAngleLeft size={15}/> Prev</button>
           <span className={styles.pageIndicator}>Page {page} of {Math.max(1, Math.ceil(total / 25))}</span>
-          <button className={styles.pageBtn} disabled={returns.length < 25 || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
+          <button className={styles.pageBtn} disabled={returns.length < 25 || loading} onClick={() => setPage(p => p + 1)}>Next <UilAngleRight size={15}/></button>
         </div>
       </div>
     </div>

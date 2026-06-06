@@ -1,12 +1,12 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { TrendingUp, TrendingDown, Plus, Download, BarChart2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { analyticsApi, hubsApi, promosApi, fitAnalyticsApi } from '../../api/adminApi';
 import type { AnalyticsData, Hub, PromoCode, FitAnalyticsData } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './AnalyticsPage.module.css';
+import { UilChartBar, UilChartDown, UilChartGrowth, UilImport, UilPlus, UilToggleOff, UilToggleOn } from "@iconscout/react-unicons";
 
 type Section = 'revenue' | 'orders' | 'fit-scores' | 'hub-performance' | 'retention' | 'promos';
 
@@ -32,7 +32,7 @@ function fmtMoney(val: number): string {
 function EmptyState({ message }: { message: string }) {
   return (
     <div className={styles.card} style={{ textAlign: 'center', padding: '48px 24px' }}>
-      <BarChart2 size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+      <UilChartBar size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
       <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>{message}</p>
     </div>
   );
@@ -175,7 +175,7 @@ export const AnalyticsPage: React.FC = () => {
                 <div className={styles.kpiValue}>{k.value}</div>
                 {k.trend && (
                   <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>
-                    {k.up ? <TrendingUp size={12}/> : <TrendingDown size={12}/>} {k.trend}
+                    {k.up ? <UilChartGrowth size={12}/> : <UilChartDown size={12}/>} {k.trend}
                   </div>
                 )}
               </div>
@@ -185,7 +185,7 @@ export const AnalyticsPage: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <h2 className={styles.cardTitle}>Revenue Trend</h2>
-              <button className={styles.exportBtn} onClick={exportRevenue} disabled={!analyticsData}><Download size={14}/> Export CSV</button>
+              <button className={styles.exportBtn} onClick={exportRevenue} disabled={!analyticsData}><UilImport size={14}/> Export CSV</button>
             </div>
             {analyticsData && analyticsData.revenue.some(r => r.simplified > 0) ? (
               <div className={styles.chart}>
@@ -230,7 +230,7 @@ export const AnalyticsPage: React.FC = () => {
                 <div className={styles.kpiValue}>{k.value}</div>
                 {k.trend && (
                   <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>
-                    {k.up ? <TrendingUp size={12}/> : <TrendingDown size={12}/>} {k.trend}
+                    {k.up ? <UilChartGrowth size={12}/> : <UilChartDown size={12}/>} {k.trend}
                   </div>
                 )}
               </div>
@@ -348,7 +348,7 @@ export const AnalyticsPage: React.FC = () => {
         <>
           <div className={styles.pageHeader} style={{ marginTop: 0 }}>
             <div />
-            <button className={styles.addBtn} onClick={() => setShowPromoModal(true)}><Plus size={15}/> Create Promo Code</button>
+            <button className={styles.addBtn} onClick={() => setShowPromoModal(true)}><UilPlus size={15}/> Create Promo Code</button>
           </div>
 
           {promos.length === 0 ? (
@@ -380,7 +380,7 @@ export const AnalyticsPage: React.FC = () => {
                           onClick={() => handleTogglePromo(p)}
                           title={p.is_active ? 'Deactivate' : 'Activate'}
                         >
-                          {p.is_active ? <ToggleRight size={16}/> : <ToggleLeft size={16}/>}
+                          {p.is_active ? <UilToggleOn size={16}/> : <UilToggleOff size={16}/>}
                           {p.is_active ? ' Deactivate' : ' Activate'}
                         </button>
                       </td>

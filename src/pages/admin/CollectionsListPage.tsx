@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, Plus, GripVertical, Image } from 'lucide-react';
 import { collectionsApi } from '../../api/adminApi';
 import type { Collection } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './CollectionsListPage.module.css';
+import { UilDraggabledots, UilImage, UilPlus, UilSearch, UilTimes } from "@iconscout/react-unicons";
 
 export const CollectionsListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -54,13 +54,13 @@ export const CollectionsListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Collections</h1>
         <button className={styles.addBtn} onClick={() => navigate('/admin/catalog/collections/new')}>
-          <Plus size={15}/> Create Collection
+          <UilPlus size={15}/> Create Collection
         </button>
       </div>
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input
             className={styles.searchInput}
             placeholder="Search collections…"
@@ -75,7 +75,7 @@ export const CollectionsListPage: React.FC = () => {
           <option>Archived</option>
         </select>
         <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter('All'); }}>
-          <X size={14}/> Clear
+          <UilTimes size={14}/> Clear
         </button>
       </div>
 
@@ -115,7 +115,7 @@ export const CollectionsListPage: React.FC = () => {
             ) : (
               collections.map(col => (
                 <tr key={col.id} className={styles.row} onClick={() => navigate(`/admin/catalog/collections/${col.id}`)} style={{ cursor: 'pointer' }}>
-                  <td className={styles.dragHandle} onClick={e => e.stopPropagation()}><GripVertical size={14}/></td>
+                  <td className={styles.dragHandle} onClick={e => e.stopPropagation()}><UilDraggabledots size={14}/></td>
                   <td>
                     <button className={styles.nameLink} onClick={e => { e.stopPropagation(); navigate(`/admin/catalog/collections/${col.id}`); }}>
                       {col.name}
@@ -126,7 +126,7 @@ export const CollectionsListPage: React.FC = () => {
                     <span style={{
                       display: 'inline-block', padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 600,
                       background: col.type === 'new_arrivals' ? '#e6f3ee' : col.type === 'occasion' ? '#f3e6f0' : col.type === 'featured' ? '#fef3e6' : 'var(--color-bg-secondary)',
-                      color: col.type === 'new_arrivals' ? '#1C5C42' : col.type === 'occasion' ? '#7a1c5c' : col.type === 'featured' ? '#9a5c00' : 'var(--color-text-secondary)',
+                      color: col.type === 'new_arrivals' ? '#1F6B4F' : col.type === 'occasion' ? '#7a1c5c' : col.type === 'featured' ? '#9a5c00' : 'var(--color-text-secondary)',
                     }}>
                       {col.type ?? 'standard'}
                     </span>
@@ -140,7 +140,7 @@ export const CollectionsListPage: React.FC = () => {
                   <td className={styles.sortOrder}>#{col.sortOrder}</td>
                   <td>
                     {col.hasBanner
-                      ? <div className={styles.bannerThumb}><Image size={14}/></div>
+                      ? <div className={styles.bannerThumb}><UilImage size={14}/></div>
                       : <span className={styles.noBanner}>—</span>}
                   </td>
                   <td className={styles.date}>{col.updated}</td>

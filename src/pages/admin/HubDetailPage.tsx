@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Save, PowerOff, Power, Plus, Briefcase } from 'lucide-react';
 import { hubsApi, hubStaffApi, hubPincodesApi } from '../../api/adminApi';
 import type { Hub, HubStaff, HubPincode } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './HubDetailPage.module.css';
+import { UilAngleLeft, UilBriefcaseAlt, UilPlus, UilPower, UilSave } from "@iconscout/react-unicons";
 
 const TABS = ['Overview', 'Staff', 'Workload', 'Capacity', 'Pincodes', 'Inventory'];
 
@@ -242,7 +242,7 @@ export const HubDetailPage: React.FC = () => {
     return (
       <div className={styles.page}>
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-        <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><ChevronLeft size={15}/> Back to Hubs</button>
+        <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><UilAngleLeft size={15}/> Back to Hubs</button>
         <h1 className={styles.hubName} style={{ marginBottom: 0 }}>New Hub</h1>
         <div className={styles.card}>
           <h3 className={styles.sectionTitle}>Hub Details</h3>
@@ -284,13 +284,13 @@ export const HubDetailPage: React.FC = () => {
     );
   }
 
-  if (!hub) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><ChevronLeft size={15}/> Back</button><div>Hub not found.</div></div>;
+  if (!hub) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><UilAngleLeft size={15}/> Back</button><div>Hub not found.</div></div>;
 
   /* ── EDIT / DETAIL MODE ── */
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><ChevronLeft size={15}/> Back to Hubs</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><UilAngleLeft size={15}/> Back to Hubs</button>
 
       <div className={styles.hubHeader}>
         <div>
@@ -298,7 +298,7 @@ export const HubDetailPage: React.FC = () => {
           <div className={styles.hubSub}>{[hub.city, hub.state].filter(Boolean).join(', ')}</div>
         </div>
         <div className={styles.hubActions}>
-          <button className={styles.editBtn} disabled={saving} onClick={handleSave}><Save size={14}/> {saving ? 'Saving…' : 'Save Changes'}</button>
+          <button className={styles.editBtn} disabled={saving} onClick={handleSave}><UilSave size={14}/> {saving ? 'Saving…' : 'Save Changes'}</button>
           <button className={styles.deactivateBtn} onClick={async () => {
             try {
               const updated = await hubsApi.update(hub.id, { status: hub.status === 'Active' ? 'Inactive' : 'Active' });
@@ -306,7 +306,7 @@ export const HubDetailPage: React.FC = () => {
               showToast('success', `Hub ${updated.status.toLowerCase()}`);
             } catch (e) { showToast('error', 'Failed', e instanceof Error ? e.message : undefined); }
           }}>
-            {hub.status === 'Active' ? <><PowerOff size={14}/> Deactivate Hub</> : <><Power size={14}/> Activate Hub</>}
+            {hub.status === 'Active' ? <><UilPower size={14}/> Deactivate Hub</> : <><UilPower size={14}/> Activate Hub</>}
           </button>
         </div>
       </div>
@@ -366,7 +366,7 @@ export const HubDetailPage: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>{hub.name} — Staff</h3>
-              <button className={styles.addBtn} onClick={() => setShowAddStaff(true)}><Plus size={14}/> Add Staff Member</button>
+              <button className={styles.addBtn} onClick={() => setShowAddStaff(true)}><UilPlus size={14}/> Add Staff Member</button>
             </div>
             {staffLoading ? (
               <div className={styles.empty}>Loading staff…</div>
@@ -518,7 +518,7 @@ export const HubDetailPage: React.FC = () => {
                         <td style={{ textAlign: 'center' }}>{s.active_visits ?? 0}</td>
                         <td style={{ textAlign: 'center' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600, color: loadColor }}>
-                            <Briefcase size={13} />{total}
+                            <UilBriefcaseAlt size={13} />{total}
                           </span>
                         </td>
                       </tr>
@@ -635,7 +635,7 @@ export const HubDetailPage: React.FC = () => {
                       <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{p.pincode}</td>
                       <td>{p.area_name || '—'}</td>
                       <td>
-                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: p.is_active ? 'rgba(28,92,66,0.12)' : 'rgba(148,163,184,0.12)', color: p.is_active ? '#1C5C42' : 'var(--color-text-secondary)' }}>
+                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: p.is_active ? 'rgba(31, 107, 79,0.12)' : 'rgba(148,163,184,0.12)', color: p.is_active ? '#1F6B4F' : 'var(--color-text-secondary)' }}>
                           {p.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>

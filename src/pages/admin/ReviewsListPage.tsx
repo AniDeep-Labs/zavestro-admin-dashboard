@@ -1,10 +1,10 @@
 import React from 'react';
-import { Search, X, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { reviewsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { AdminReview } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilSearch, UilStar, UilTimes } from "@iconscout/react-unicons";
 
 const LIMIT = 25;
 
@@ -12,11 +12,11 @@ function StarRating({ rating }: { rating: number }) {
   return (
     <span style={{ display: 'inline-flex', gap: 2, verticalAlign: 'middle' }}>
       {Array.from({ length: 5 }).map((_, i) => (
-        <Star
+        <UilStar
           key={i}
           size={13}
-          fill={i < rating ? 'var(--color-gold, #C9995E)' : 'none'}
-          stroke={i < rating ? 'var(--color-gold, #C9995E)' : 'var(--color-text-muted, #9A9188)'}
+          fill={i < rating ? 'var(--color-gold, #D4A574)' : 'none'}
+          stroke={i < rating ? 'var(--color-gold, #D4A574)' : 'var(--color-text-muted, #9A9188)'}
         />
       ))}
     </span>
@@ -77,7 +77,7 @@ export const ReviewsListPage: React.FC = () => {
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input
             className={styles.searchInput}
             placeholder="Search customer or product…"
@@ -86,7 +86,7 @@ export const ReviewsListPage: React.FC = () => {
           />
         </div>
         <button className={styles.clearBtn} onClick={() => { setSearch(''); setPage(1); }}>
-          <X size={14} /> Clear
+          <UilTimes size={14} /> Clear
         </button>
       </div>
 
@@ -162,7 +162,7 @@ export const ReviewsListPage: React.FC = () => {
                       className={styles.actionBtn}
                       disabled={actionId === r.id}
                       onClick={() => handleModerate(r.id, true)}
-                      style={{ marginRight: 4, background: 'var(--green, #1C5C42)', color: '#fff', border: 'none' }}
+                      style={{ marginRight: 4, background: 'var(--green, #1F6B4F)', color: '#fff', border: 'none' }}
                     >
                       {actionId === r.id ? '…' : 'Approve'}
                     </button>
@@ -188,11 +188,11 @@ export const ReviewsListPage: React.FC = () => {
         </span>
         <div className={styles.pageButtons}>
           <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}>
-            <ChevronLeft size={15} /> Prev
+            <UilAngleLeft size={15} /> Prev
           </button>
           <span className={styles.pageIndicator}>Page {page} of {Math.max(1, Math.ceil(total / LIMIT))}</span>
           <button className={styles.pageBtn} disabled={reviews.length < LIMIT || loading} onClick={() => setPage(p => p + 1)}>
-            Next <ChevronRight size={15} />
+            Next <UilAngleRight size={15} />
           </button>
         </div>
       </div>

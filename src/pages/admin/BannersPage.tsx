@@ -1,10 +1,10 @@
 import React from 'react';
-import { Plus, Pencil, Trash2, GripVertical, Eye, EyeOff } from 'lucide-react';
 import { bannersApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { Banner, BannerPayload } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './PromoCodesPage.module.css';
+import { UilDraggabledots, UilEye, UilEyeSlash, UilPen, UilPlus, UilTrashAlt } from "@iconscout/react-unicons";
 
 // ─── Banner form ──────────────────────────────────────────────────────────────
 
@@ -24,7 +24,7 @@ function BannerForm({
   const [tag, setTag]             = React.useState(initial.tag ?? '');
   const [ctaText, setCtaText]     = React.useState(initial.cta_text ?? 'Shop Now');
   const [ctaLink, setCtaLink]     = React.useState(initial.cta_link ?? '/categories');
-  const [bgColor1, setBgColor1]   = React.useState(initial.bg_color_1 ?? '#1C5C42');
+  const [bgColor1, setBgColor1]   = React.useState(initial.bg_color_1 ?? '#1F6B4F');
   const [bgColor2, setBgColor2]   = React.useState(initial.bg_color_2 ?? '#0D3D2C');
   const [sortOrder, setSortOrder] = React.useState(String(initial.sort_order ?? 0));
   const [isActive, setIsActive]         = React.useState(initial.is_active ?? true);
@@ -281,7 +281,7 @@ export const BannersPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Hero Banners</h1>
         <button className={styles.addBtn} onClick={() => setModal('new')}>
-          <Plus size={16} /> Add Banner
+          <UilPlus size={16} /> Add Banner
         </button>
       </div>
 
@@ -313,13 +313,13 @@ export const BannersPage: React.FC = () => {
               {banners.map((b) => (
                 <tr key={b.id}>
                   <td style={{ color: 'var(--color-text-tertiary)', width: 32 }}>
-                    <GripVertical size={14} />
+                    <UilDraggabledots size={14} />
                     <span style={{ display: 'block', fontSize: 11 }}>{b.sort_order}</span>
                   </td>
                   <td>
                     <div style={{
                       width: 100, height: 52, borderRadius: 8, overflow: 'hidden', position: 'relative',
-                      background: `linear-gradient(135deg, ${b.bg_color_1 || '#1C5C42'}, ${b.bg_color_2 || '#0D3D2C'})`,
+                      background: `linear-gradient(135deg, ${b.bg_color_1 || '#1F6B4F'}, ${b.bg_color_2 || '#0D3D2C'})`,
                       display: 'flex', alignItems: 'flex-end', padding: '6px 8px',
                     }}>
                       {b.image_key && R2_PUBLIC_URL && (
@@ -346,17 +346,17 @@ export const BannersPage: React.FC = () => {
                   </td>
                   <td>
                     <button onClick={() => handleToggle(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: b.is_active ? 'var(--color-success)' : 'var(--color-text-tertiary)' }}>
-                      {b.is_active ? <Eye size={16} /> : <EyeOff size={16} />}
+                      {b.is_active ? <UilEye size={16} /> : <UilEyeSlash size={16} />}
                       <span style={{ fontSize: 12, marginLeft: 4 }}>{b.is_active ? 'Active' : 'Hidden'}</span>
                     </button>
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => setModal(b)} style={iconBtnStyle} title="Edit">
-                        <Pencil size={14} />
+                        <UilPen size={14} />
                       </button>
                       <button onClick={() => handleDelete(b.id)} disabled={deleting === b.id} style={{ ...iconBtnStyle, color: 'var(--color-error)' }} title="Delete">
-                        <Trash2 size={14} />
+                        <UilTrashAlt size={14} />
                       </button>
                     </div>
                   </td>

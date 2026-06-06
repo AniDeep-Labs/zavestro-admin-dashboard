@@ -166,7 +166,7 @@
 
 .input:focus, .select:focus, .textarea:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(28, 92, 66, 0.08);
+  box-shadow: 0 0 0 3px rgba(31, 107, 79, 0.08);
 }
 
 .inputError {
@@ -519,9 +519,9 @@
   cursor: pointer;
   transition: all var(--transition-fast);
 }
-.availOn { background: rgba(28,92,66,0.1); color: #1C5C42; }
+.availOn { background: rgba(31, 107, 79,0.1); color: #1F6B4F; }
 .availOff { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); }
-[data-theme="dark"] .availOn { background: rgba(82,184,130,0.2); color: #52B882; }
+[data-theme="dark"] .availOn { background: rgba(78, 168, 122,0.2); color: #4EA87A; }
 [data-theme="dark"] .availOff { background: rgba(156,163,175,0.2); color: #D1D5DB; }
 
 .availCheck { cursor: pointer; }

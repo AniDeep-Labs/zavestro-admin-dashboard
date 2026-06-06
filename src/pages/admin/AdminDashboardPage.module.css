@@ -167,7 +167,7 @@
 [data-theme="dark"] .kpiIconGold    { background: rgba(224, 207, 169, 0.1); }
 
 .kpiValue {
-  font-family: var(--font-display);
+  font-family: var(--font-family);
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);

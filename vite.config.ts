@@ -32,7 +32,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://api.zavestro.in',
+        // Defaults to prod; set VITE_API_PROXY=http://localhost:8080 to develop
+        // against the local Docker backend without touching this file.
+        target: process.env.VITE_API_PROXY || 'https://api.zavestro.in',
         changeOrigin: true,
         secure: true,
         configure: (proxy) => {

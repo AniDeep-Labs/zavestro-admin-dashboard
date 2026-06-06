@@ -1,10 +1,10 @@
 import React from 'react';
-import { Search, X, Download, RefreshCw, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { invoicesApi } from '../../api/adminApi';
 import type { Invoice } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilImport, UilPlus, UilRefresh, UilSearch, UilTimes } from "@iconscout/react-unicons";
 
 const STATUS_CSS: Record<string, string> = {
   generated: 'stageSuccess', pending_generation: 'stageWarning', failed: 'stageError',
@@ -78,13 +78,13 @@ export const InvoicesListPage: React.FC = () => {
           className={styles.addBtn} 
           onClick={() => showToast('info', 'Coming Soon', 'Manual invoice generation will be available soon. Invoices are currently auto-generated from orders.')}
         >
-          <Plus size={15} /> Generate Invoice
+          <UilPlus size={15} /> Generate Invoice
         </button>
       </div>
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input className={styles.searchInput} placeholder="Search by Order ID…"
             value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
@@ -94,7 +94,7 @@ export const InvoicesListPage: React.FC = () => {
           <option value="pending_generation">Pending Generation</option>
           <option value="failed">Failed</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}><X size={14}/> Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}><UilTimes size={14}/> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -122,7 +122,7 @@ export const InvoicesListPage: React.FC = () => {
                       onClick={() => handleDownload(inv)}
                       title="Download PDF"
                     >
-                      <Download size={13}/>
+                      <UilImport size={13}/>
                     </button>
                     <button
                       className={styles.actionBtn}
@@ -130,7 +130,7 @@ export const InvoicesListPage: React.FC = () => {
                       onClick={() => handleRegenerate(inv)}
                       title="Regenerate"
                     >
-                      <RefreshCw size={13}/>
+                      <UilRefresh size={13}/>
                     </button>
                   </div>
                 </td>
@@ -143,9 +143,9 @@ export const InvoicesListPage: React.FC = () => {
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} invoice${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><UilAngleLeft size={15}/> Prev</button>
           <span className={styles.pageIndicator}>Page {page} of {Math.max(1, Math.ceil(total / 25))}</span>
-          <button className={styles.pageBtn} disabled={invoices.length < 25 || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
+          <button className={styles.pageBtn} disabled={invoices.length < 25 || loading} onClick={() => setPage(p => p + 1)}>Next <UilAngleRight size={15}/></button>
         </div>
       </div>
     </div>

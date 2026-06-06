@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus, Trash2, User, Calendar, ClipboardList, CheckCircle } from 'lucide-react';
 import { measurementBookingsApi, garmentTypesApi, fitPreferencesApi, customerLookupApi, ordersApi } from '../../api/adminApi';
 import type { GarmentType, FitPreference, CustomerLookupResult } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { CustomerQuickLookup } from '../../components/CustomerQuickLookup/CustomerQuickLookup';
 import styles from './AppConfigPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilCalendarAlt, UilCheckCircle, UilClipboardNotes, UilPlus, UilTrashAlt, UilUser } from "@iconscout/react-unicons";
 
 interface GarmentRow {
   id: string;
@@ -160,7 +160,7 @@ export const MeasurementBookingNewPage: React.FC = () => {
       <div className={styles.page}>
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
         <div className={styles.card} style={{ maxWidth: 480, margin: '80px auto', textAlign: 'center', padding: 40 }}>
-          <CheckCircle size={48} style={{ color: '#1C5C42', margin: '0 auto 16px' }} />
+          <UilCheckCircle size={48} style={{ color: '#1F6B4F', margin: '0 auto 16px' }} />
           <h2 style={{ margin: '0 0 8px', fontSize: '1.25rem' }}>Booking Confirmed</h2>
           <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 8px' }}>
             Booking reference: <strong style={{ fontFamily: 'monospace' }}>{createdBooking.booking_ref}</strong>
@@ -187,7 +187,7 @@ export const MeasurementBookingNewPage: React.FC = () => {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <button className={styles.backBtn} onClick={() => navigate('/admin/measurement-bookings')}>
-          <ChevronLeft size={15} /> Back
+          <UilAngleLeft size={15} /> Back
         </button>
         <h1 className={styles.title} style={{ margin: 0 }}>New Measurement Booking</h1>
       </div>
@@ -195,7 +195,7 @@ export const MeasurementBookingNewPage: React.FC = () => {
       {/* Step progress */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--color-border-light)' }}>
         {STEPS.map((label, i) => {
-          const icons = [<User size={14} key="u"/>, <ClipboardList size={14} key="c"/>, <CheckCircle size={14} key="ch"/>];
+          const icons = [<UilUser size={14} key="u"/>, <UilClipboardNotes size={14} key="c"/>, <UilCheckCircle size={14} key="ch"/>];
           const active = i === step;
           const done = i < step;
           return (
@@ -203,15 +203,15 @@ export const MeasurementBookingNewPage: React.FC = () => {
               key={i}
               style={{
                 flex: 1, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8,
-                background: active ? 'var(--color-primary)' : done ? 'rgba(28,92,66,0.08)' : 'var(--color-bg-secondary)',
-                color: active ? '#fff' : done ? '#1C5C42' : 'var(--color-text-tertiary)',
+                background: active ? 'var(--color-primary)' : done ? 'rgba(31, 107, 79,0.08)' : 'var(--color-bg-secondary)',
+                color: active ? '#fff' : done ? '#1F6B4F' : 'var(--color-text-tertiary)',
                 borderRight: i < STEPS.length - 1 ? '1px solid var(--color-border-light)' : 'none',
                 fontSize: 13, fontWeight: active ? 600 : 400,
                 cursor: done ? 'pointer' : 'default',
               }}
               onClick={() => { if (done) setStep(i); }}
             >
-              {done ? <CheckCircle size={14} /> : icons[i]}
+              {done ? <UilCheckCircle size={14} /> : icons[i]}
               <span>{label}</span>
             </div>
           );
@@ -268,7 +268,7 @@ export const MeasurementBookingNewPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <h2 className={styles.sectionTitle} style={{ margin: 0 }}>Garments to Measure</h2>
             <button className={styles.addBtn} style={{ fontSize: 12 }} onClick={addGarmentRow}>
-              <Plus size={13} /> Add Garment
+              <UilPlus size={13} /> Add Garment
             </button>
           </div>
 
@@ -279,7 +279,7 @@ export const MeasurementBookingNewPage: React.FC = () => {
                 <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>Garment</span>
                 {garmentRows.length > 1 && (
                   <button className={styles.exportBtn} style={{ height: 28, padding: '0 10px', fontSize: 11 }} onClick={() => removeGarmentRow(row.id)}>
-                    <Trash2 size={12} />
+                    <UilTrashAlt size={12} />
                   </button>
                 )}
               </div>
@@ -353,7 +353,7 @@ export const MeasurementBookingNewPage: React.FC = () => {
           ))}
 
           <button className={styles.exportBtn} style={{ width: '100%', marginTop: 4 }} onClick={addGarmentRow}>
-            <Plus size={13} /> Add Another Garment
+            <UilPlus size={13} /> Add Another Garment
           </button>
         </div>
       )}
@@ -399,7 +399,7 @@ export const MeasurementBookingNewPage: React.FC = () => {
                     <span>{row.variant_label}</span>
                     {row.fit_notes && <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontStyle: 'italic', marginLeft: 8 }}>"{row.fit_notes}"</span>}
                   </div>
-                  <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: 'rgba(28,92,66,0.1)', color: '#1C5C42' }}>
+                  <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: 'rgba(31, 107, 79,0.1)', color: '#1F6B4F' }}>
                     {fp?.name ?? '?'}
                   </span>
                 </div>
@@ -417,15 +417,15 @@ export const MeasurementBookingNewPage: React.FC = () => {
       {/* Navigation */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
         <button className={styles.exportBtn} disabled={step === 0} onClick={() => setStep(s => s - 1)}>
-          <ChevronLeft size={14} /> Back
+          <UilAngleLeft size={14} /> Back
         </button>
         {step < STEPS.length - 1 ? (
           <button className={styles.addBtn} onClick={handleNext}>
-            Next <ChevronRight size={14} />
+            Next <UilAngleRight size={14} />
           </button>
         ) : (
-          <button className={styles.addBtn} style={{ background: '#1C5C42' }} disabled={saving} onClick={handleSubmit}>
-            <Calendar size={14} /> {saving ? 'Creating…' : 'Confirm Booking'}
+          <button className={styles.addBtn} style={{ background: '#1F6B4F' }} disabled={saving} onClick={handleSubmit}>
+            <UilCalendarAlt size={14} /> {saving ? 'Creating…' : 'Confirm Booking'}
           </button>
         )}
       </div>

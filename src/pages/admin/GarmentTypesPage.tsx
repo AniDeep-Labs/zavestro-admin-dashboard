@@ -1,10 +1,10 @@
 import React from 'react';
-import { Plus, Edit2, Eye, EyeOff, ChevronDown, ChevronUp, Save, X } from 'lucide-react';
 import { garmentTypesApi } from '../../api/adminApi';
 import type { GarmentType } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AppConfigPage.module.css';
+import { UilAngleDown, UilAngleUp, UilEditAlt, UilEye, UilEyeSlash, UilPlus, UilSave, UilTimes } from "@iconscout/react-unicons";
 
 const FIELD_OPTIONS = [
   'shoulder','chest','waist','hip','sleeve_length','neck',
@@ -150,10 +150,10 @@ export const GarmentTypesPage: React.FC = () => {
           return (
             <label key={`${idPrefix}-${f}`} style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
-              borderRadius: 16, border: `1px solid ${checked ? '#1C5C42' : 'var(--color-border-light)'}`,
-              background: checked ? 'rgba(28,92,66,0.1)' : 'var(--color-bg-primary)',
+              borderRadius: 16, border: `1px solid ${checked ? '#1F6B4F' : 'var(--color-border-light)'}`,
+              background: checked ? 'rgba(31, 107, 79,0.1)' : 'var(--color-bg-primary)',
               cursor: 'pointer', fontSize: 12, fontWeight: checked ? 600 : 400,
-              color: checked ? '#1C5C42' : 'var(--color-text-secondary)',
+              color: checked ? '#1F6B4F' : 'var(--color-text-secondary)',
             }}>
               <input
                 type="checkbox"
@@ -203,7 +203,7 @@ export const GarmentTypesPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Garment Types</h1>
         <button className={styles.addBtn} onClick={() => setShowNewForm(v => !v)}>
-          <Plus size={15} /> Add Garment Type
+          <UilPlus size={15} /> Add Garment Type
         </button>
       </div>
 
@@ -235,8 +235,8 @@ export const GarmentTypesPage: React.FC = () => {
           </div>
           {renderFieldEditor(newState, (s) => setNewState({ ...s, slug: newState.slug }), 'new')}
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-            <button className={styles.addBtn} disabled={creatingNew} onClick={handleCreateNew}><Save size={13} /> {creatingNew ? 'Creating…' : 'Create'}</button>
-            <button className={styles.exportBtn} onClick={() => setShowNewForm(false)}><X size={13} /> Cancel</button>
+            <button className={styles.addBtn} disabled={creatingNew} onClick={handleCreateNew}><UilSave size={13} /> {creatingNew ? 'Creating…' : 'Create'}</button>
+            <button className={styles.exportBtn} onClick={() => setShowNewForm(false)}><UilTimes size={13} /> Cancel</button>
           </div>
         </div>
       )}
@@ -277,15 +277,15 @@ export const GarmentTypesPage: React.FC = () => {
                   <div style={{ display: 'flex', gap: 6 }}>
                     {!isEditing && (
                       <button className={styles.exportBtn} style={{ height: 28, padding: '0 10px', fontSize: 11 }} onClick={() => startEdit(gt)}>
-                        <Edit2 size={12} /> Edit
+                        <UilEditAlt size={12} /> Edit
                       </button>
                     )}
                     <button className={styles.exportBtn} style={{ height: 28, padding: '0 10px', fontSize: 11 }} onClick={() => handleToggleActive(gt)}>
-                      {gt.is_active ? <EyeOff size={12} /> : <Eye size={12} />}
+                      {gt.is_active ? <UilEyeSlash size={12} /> : <UilEye size={12} />}
                       {gt.is_active ? 'Deactivate' : 'Activate'}
                     </button>
                     <button className={styles.exportBtn} style={{ height: 28, padding: '0 10px', fontSize: 11 }} onClick={() => setExpandedId(v => v === gt.id ? null : gt.id)}>
-                      {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      {isExpanded ? <UilAngleUp size={12} /> : <UilAngleDown size={12} />}
                     </button>
                   </div>
                 </div>
@@ -311,8 +311,8 @@ export const GarmentTypesPage: React.FC = () => {
                         </div>
                         {renderFieldEditor(editState, (s) => setEditState(s), `edit-${gt.id}`)}
                         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                          <button className={styles.addBtn} disabled={saving} onClick={() => handleSave(gt.id)}><Save size={13} /> {saving ? 'Saving…' : 'Save'}</button>
-                          <button className={styles.exportBtn} onClick={cancelEdit}><X size={13} /> Cancel</button>
+                          <button className={styles.addBtn} disabled={saving} onClick={() => handleSave(gt.id)}><UilSave size={13} /> {saving ? 'Saving…' : 'Save'}</button>
+                          <button className={styles.exportBtn} onClick={cancelEdit}><UilTimes size={13} /> Cancel</button>
                         </div>
                       </>
                     ) : (
@@ -320,7 +320,7 @@ export const GarmentTypesPage: React.FC = () => {
                         <div className={styles.fieldLabel} style={{ marginBottom: 6 }}>Fields & Labels</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {gt.required_measurements.map(f => (
-                            <span key={f} style={{ padding: '3px 10px', borderRadius: 12, fontSize: 12, background: 'rgba(28,92,66,0.08)', color: '#1C5C42', fontWeight: 500 }}>
+                            <span key={f} style={{ padding: '3px 10px', borderRadius: 12, fontSize: 12, background: 'rgba(31, 107, 79,0.08)', color: '#1F6B4F', fontWeight: 500 }}>
                               {gt.measurement_labels?.[f] ?? f.replace(/_/g, ' ')}
                             </span>
                           ))}

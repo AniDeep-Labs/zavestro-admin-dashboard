@@ -1,5 +1,4 @@
 import React from 'react';
-import { RefreshCw, UserPlus, Key } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { AdminUser } from '../../api/catalogApi';
 import { adminAuthExtApi, hubsApi } from '../../api/adminApi';
@@ -7,6 +6,7 @@ import type { Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AdminUsersManagePage.module.css';
+import { UilKeySkeletonAlt, UilRefresh, UilUserPlus } from "@iconscout/react-unicons";
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin',
@@ -142,10 +142,10 @@ export const AdminUsersManagePage: React.FC = () => {
         <h1 className={styles.title}>Admin Users</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
-            <UserPlus size={14}/> Create Admin
+            <UilUserPlus size={14}/> Create Admin
           </button>
           <button className={styles.refreshBtn} onClick={load} disabled={loading}>
-            <RefreshCw size={14}/> {loading ? 'Loading…' : 'Refresh'}
+            <UilRefresh size={14}/> {loading ? 'Loading…' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -251,7 +251,7 @@ export const AdminUsersManagePage: React.FC = () => {
                           onClick={() => { setShowTempPw(user); setTempPw(''); }}
                           title="Set temporary password"
                         >
-                          <Key size={13}/> Temp Pw
+                          <UilKeySkeletonAlt size={13}/> Temp Pw
                         </button>
                         {user.role !== 'super_admin' && (
                           <button

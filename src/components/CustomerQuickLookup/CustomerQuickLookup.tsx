@@ -1,7 +1,7 @@
 import React from 'react';
-import { Search, User, Phone, MapPin, ShoppingBag, X } from 'lucide-react';
 import { customerLookupApi } from '../../api/adminApi';
 import type { CustomerLookupResult } from '../../api/adminApi';
+import { UilMapMarker, UilPhone, UilSearch, UilShoppingBag, UilTimes, UilUser } from "@iconscout/react-unicons";
 
 interface Props {
   onSelect: (customer: CustomerLookupResult) => void;
@@ -69,22 +69,22 @@ export const CustomerQuickLookup: React.FC<Props> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{selectedCustomer.name || '—'}</span>
             {selectedCustomer.reference_id && (
-              <span style={{ fontFamily: 'monospace', fontSize: 11, padding: '1px 6px', background: 'var(--color-primary-faint, rgba(28,92,66,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
+              <span style={{ fontFamily: 'monospace', fontSize: 11, padding: '1px 6px', background: 'var(--color-primary-faint, rgba(31, 107, 79,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
                 {selectedCustomer.reference_id}
               </span>
             )}
           </div>
           <div style={{ display: 'flex', gap: 12, marginTop: 3, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Phone size={11} />{selectedCustomer.phone}
+              <UilPhone size={11} />{selectedCustomer.phone}
             </span>
             {selectedCustomer.city && (
               <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <MapPin size={11} />{selectedCustomer.city}
+                <UilMapMarker size={11} />{selectedCustomer.city}
               </span>
             )}
             <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <ShoppingBag size={11} />{selectedCustomer.order_count} order{selectedCustomer.order_count !== 1 ? 's' : ''}
+              <UilShoppingBag size={11} />{selectedCustomer.order_count} order{selectedCustomer.order_count !== 1 ? 's' : ''}
             </span>
           </div>
         </div>
@@ -95,7 +95,7 @@ export const CustomerQuickLookup: React.FC<Props> = ({
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: 4, borderRadius: 4 }}
             title="Change customer"
           >
-            <X size={15} />
+            <UilTimes size={15} />
           </button>
         )}
       </div>
@@ -110,7 +110,7 @@ export const CustomerQuickLookup: React.FC<Props> = ({
         </label>
       )}
       <div style={{ position: 'relative' }}>
-        <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
+        <UilSearch size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
         <input
           type="text"
           value={query}
@@ -154,10 +154,10 @@ export const CustomerQuickLookup: React.FC<Props> = ({
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <User size={13} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+                <UilUser size={13} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
                 <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{c.name || <em style={{ color: 'var(--color-text-tertiary)' }}>No name</em>}</span>
                 {c.reference_id && (
-                  <span style={{ fontFamily: 'monospace', fontSize: 11, padding: '1px 6px', background: 'var(--color-primary-faint, rgba(28,92,66,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: 11, padding: '1px 6px', background: 'var(--color-primary-faint, rgba(31, 107, 79,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
                     {c.reference_id}
                   </span>
                 )}

@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Send, ChevronDown, ChevronUp, MessageCircle, StickyNote, UserCheck, Search, Package } from 'lucide-react';
 import { supportApi, ordersApi } from '../../api/adminApi';
 import type { SupportTicket, TicketMessage, AdminOrder } from '../../api/adminApi';
 import { catalogApi } from '../../api/catalogApi';
@@ -9,6 +8,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './TicketDetailPage.module.css';
+import { UilAngleDown, UilAngleLeft, UilAngleUp, UilBox, UilCommentAlt, UilMessage, UilNotes, UilSearch, UilUserCheck } from "@iconscout/react-unicons";
 
 const TEMPLATES = [
   'Thank you for reaching out to Zavestro support.',
@@ -128,12 +128,12 @@ export const TicketDetailPage: React.FC = () => {
   };
 
   if (loading) return <div className={styles.page}><div>Loading ticket…</div></div>;
-  if (!ticket) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/support')}><ChevronLeft size={15}/> Back</button><div>Ticket not found.</div></div>;
+  if (!ticket) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/support')}><UilAngleLeft size={15}/> Back</button><div>Ticket not found.</div></div>;
 
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/support')}><ChevronLeft size={15}/> Back to Tickets</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/support')}><UilAngleLeft size={15}/> Back to Tickets</button>
 
       <div className={styles.twoCol}>
         {/* Left: chat */}
@@ -170,13 +170,13 @@ export const TicketDetailPage: React.FC = () => {
             {/* Reply box */}
             <div className={styles.replyBox}>
               <div className={styles.replyTabs}>
-                <button className={`${styles.replyTab} ${activeTab === 'reply' ? styles.replyTabActive : ''}`} onClick={() => setActiveTab('reply')}><MessageCircle size={13}/> Reply</button>
-                <button className={`${styles.replyTab} ${activeTab === 'notes' ? styles.replyTabActive : ''}`} onClick={() => setActiveTab('notes')}><StickyNote size={13}/> Internal Notes</button>
+                <button className={`${styles.replyTab} ${activeTab === 'reply' ? styles.replyTabActive : ''}`} onClick={() => setActiveTab('reply')}><UilCommentAlt size={13}/> Reply</button>
+                <button className={`${styles.replyTab} ${activeTab === 'notes' ? styles.replyTabActive : ''}`} onClick={() => setActiveTab('notes')}><UilNotes size={13}/> Internal Notes</button>
               </div>
               {activeTab === 'reply' ? (
                 <>
                   <div className={styles.templateRow}>
-                    <button className={styles.templateBtn} onClick={() => setShowTemplates(s => !s)}>Use Template {showTemplates ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}</button>
+                    <button className={styles.templateBtn} onClick={() => setShowTemplates(s => !s)}>Use Template {showTemplates ? <UilAngleUp size={12}/> : <UilAngleDown size={12}/>}</button>
                     {showTemplates && (
                       <div className={styles.templateDropdown}>
                         {TEMPLATES.map((t, i) => (
@@ -198,7 +198,7 @@ export const TicketDetailPage: React.FC = () => {
                       Also change status to: Resolved
                     </label>
                     <button className={styles.sendBtn} disabled={!reply.trim() || sending} onClick={handleSendReply}>
-                      <Send size={14}/> {sending ? 'Sending…' : 'Send Reply'}
+                      <UilMessage size={14}/> {sending ? 'Sending…' : 'Send Reply'}
                     </button>
                   </div>
                 </>
@@ -248,7 +248,7 @@ export const TicketDetailPage: React.FC = () => {
                     ))}
                   </select>
                   <button className={styles.assignSelfBtn} disabled={assigning} onClick={handleAssign} style={{ marginTop: 2 }}>
-                    <UserCheck size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                    <UilUserCheck size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
                     {assigning ? 'Saving…' : 'Assign'}
                   </button>
                 </div>
@@ -284,7 +284,7 @@ export const TicketDetailPage: React.FC = () => {
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Order Lookup</h3>
             <div style={{ position: 'relative', marginBottom: 10 }}>
-              <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
+              <UilSearch size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
               <input
                 style={{
                   width: '100%', boxSizing: 'border-box',
@@ -311,7 +311,7 @@ export const TicketDetailPage: React.FC = () => {
                   borderRadius: 6, background: 'var(--color-bg-secondary)',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <Package size={12} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+                    <UilBox size={12} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
                     {o.reference_id ? (
                       <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--color-primary)' }}>{o.reference_id}</span>
                     ) : (

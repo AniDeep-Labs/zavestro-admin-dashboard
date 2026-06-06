@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, CheckCircle, Circle, Clock, SkipForward, UserCheck, Save, ChevronDown, ChevronUp, Plus, Trash2, ExternalLink } from 'lucide-react';
 import { measurementBookingsApi, garmentTypesApi, fitPreferencesApi } from '../../api/adminApi';
 import type { MeasurementBooking, MeasurementBookingItem, GarmentType, FitPreference } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -8,16 +7,17 @@ import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import { StaffAssignmentDropdown } from '../../components/StaffAssignmentDropdown/StaffAssignmentDropdown';
 import styles from './AppConfigPage.module.css';
+import { UilAngleDown, UilAngleLeft, UilAngleUp, UilCheckCircle, UilCircle, UilClock, UilExternalLinkAlt, UilPlus, UilSave, UilStepForward, UilTrashAlt, UilUserCheck } from "@iconscout/react-unicons";
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
-  pending:     <Circle size={14} style={{ color: 'var(--color-text-tertiary)' }} />,
-  in_progress: <Clock size={14} style={{ color: '#F59E0B' }} />,
-  completed:   <CheckCircle size={14} style={{ color: '#1C5C42' }} />,
-  skipped:     <SkipForward size={14} style={{ color: 'var(--color-text-tertiary)' }} />,
+  pending:     <UilCircle size={14} style={{ color: 'var(--color-text-tertiary)' }} />,
+  in_progress: <UilClock size={14} style={{ color: '#F59E0B' }} />,
+  completed:   <UilCheckCircle size={14} style={{ color: '#1F6B4F' }} />,
+  skipped:     <UilStepForward size={14} style={{ color: 'var(--color-text-tertiary)' }} />,
 };
 
 const FIT_COLORS: Record<string, { bg: string; color: string }> = {
-  slim:    { bg: 'rgba(28,92,66,0.12)',   color: '#1C5C42' },
+  slim:    { bg: 'rgba(31, 107, 79,0.12)',   color: '#1F6B4F' },
   regular: { bg: 'rgba(59,130,246,0.12)', color: '#3B82F6' },
   loose:   { bg: 'rgba(212,167,116,0.15)',color: '#b07c35' },
   custom:  { bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' },
@@ -27,7 +27,7 @@ const BOOKING_STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   draft:       { bg: 'rgba(148,163,184,0.15)', color: '#64748B' },
   confirmed:   { bg: 'rgba(59,130,246,0.12)',  color: '#3B82F6' },
   in_progress: { bg: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
-  completed:   { bg: 'rgba(28,92,66,0.12)',    color: '#1C5C42' },
+  completed:   { bg: 'rgba(31, 107, 79,0.12)',    color: '#1F6B4F' },
   cancelled:   { bg: 'rgba(239,68,68,0.1)',    color: '#EF4444' },
 };
 
@@ -160,10 +160,10 @@ function GarmentCard({
           </span>
         )}
         <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-          background: item.measurement_status === 'completed' ? 'rgba(28,92,66,0.12)' :
+          background: item.measurement_status === 'completed' ? 'rgba(31, 107, 79,0.12)' :
                       item.measurement_status === 'skipped'   ? 'rgba(148,163,184,0.1)' :
                       item.measurement_status === 'in_progress' ? 'rgba(245,158,11,0.12)' : 'rgba(148,163,184,0.1)',
-          color: item.measurement_status === 'completed' ? '#1C5C42' :
+          color: item.measurement_status === 'completed' ? '#1F6B4F' :
                  item.measurement_status === 'skipped'   ? 'var(--color-text-tertiary)' :
                  item.measurement_status === 'in_progress' ? '#F59E0B' : 'var(--color-text-tertiary)',
         }}>
@@ -185,7 +185,7 @@ function GarmentCard({
             );
           })}
           {isFinalized && (
-            <div style={{ gridColumn: '1 / -1', marginTop: 4, fontSize: 11, color: '#1C5C42', fontWeight: 600 }}>
+            <div style={{ gridColumn: '1 / -1', marginTop: 4, fontSize: 11, color: '#1F6B4F', fontWeight: 600 }}>
               ✓ Finalized {item.finalized_at ? new Date(item.finalized_at).toLocaleDateString('en-IN') : ''} · Profile updated
             </div>
           )}
@@ -203,28 +203,28 @@ function GarmentCard({
               title={!staffId ? 'Assign staff before taking measurements' : undefined}
               onClick={() => { setExpanded(e => !e); }}
             >
-              {expanded ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
+              {expanded ? <UilAngleUp size={12}/> : <UilAngleDown size={12}/>}
               {expanded ? 'Cancel' : hasMeasurements ? 'Edit' : 'Start'}
             </button>
           )}
           {hasMeasurements && !isFinalized && item.measurement_status === 'in_progress' && (
             <button
               className={styles.addBtn}
-              style={{ fontSize: 12, height: 30, padding: '0 12px', background: '#1C5C42' }}
+              style={{ fontSize: 12, height: 30, padding: '0 12px', background: '#1F6B4F' }}
               disabled={finalizing}
               onClick={handleFinalize}
             >
-              <CheckCircle size={12}/> {finalizing ? 'Finalizing…' : 'Finalize'}
+              <UilCheckCircle size={12}/> {finalizing ? 'Finalizing…' : 'Finalize'}
             </button>
           )}
           {item.measurement_status === 'pending' && !hasMeasurements && (
             <button className={styles.exportBtn} style={{ fontSize: 12, height: 30 }} disabled={saving} onClick={handleSkip}>
-              <SkipForward size={12}/> Skip
+              <UilStepForward size={12}/> Skip
             </button>
           )}
           {!hasMeasurements && (
             <button className={styles.exportBtn} style={{ fontSize: 12, height: 30, marginLeft: 'auto' }} disabled={deleting} onClick={handleDelete}>
-              <Trash2 size={12}/> Remove
+              <UilTrashAlt size={12}/> Remove
             </button>
           )}
         </div>
@@ -267,7 +267,7 @@ function GarmentCard({
             />
           </div>
           <button className={styles.addBtn} style={{ fontSize: 13 }} disabled={saving} onClick={handleSave}>
-            <Save size={13}/> {saving ? 'Saving…' : 'Save Measurements'}
+            <UilSave size={13}/> {saving ? 'Saving…' : 'Save Measurements'}
           </button>
         </div>
       )}
@@ -315,7 +315,7 @@ function AddGarmentForm({
   };
 
   return (
-    <div style={{ border: '1px dashed var(--color-primary)', borderRadius: 10, padding: 16, background: 'rgba(28,92,66,0.03)', marginTop: 10 }}>
+    <div style={{ border: '1px dashed var(--color-primary)', borderRadius: 10, padding: 16, background: 'rgba(31, 107, 79,0.03)', marginTop: 10 }}>
       <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: 12 }}>Add Garment to Session</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px', marginBottom: 10 }}>
         <div>
@@ -349,7 +349,7 @@ function AddGarmentForm({
       )}
       <div style={{ display: 'flex', gap: 8 }}>
         <button className={styles.addBtn} style={{ fontSize: 12 }} disabled={saving} onClick={handleAdd}>
-          <Plus size={12}/> {saving ? 'Adding…' : 'Add to Session'}
+          <UilPlus size={12}/> {saving ? 'Adding…' : 'Add to Session'}
         </button>
         <button className={styles.exportBtn} style={{ fontSize: 12 }} onClick={onCancel}>Cancel</button>
       </div>
@@ -448,7 +448,7 @@ export const MeasurementBookingDetailPage: React.FC = () => {
   if (loading) return <div className={styles.page}><div style={{ textAlign: 'center', padding: 32 }}>Loading…</div></div>;
   if (!booking) return (
     <div className={styles.page}>
-      <button className={styles.backBtn} onClick={() => navigate('/admin/measurement-bookings')}><ChevronLeft size={15}/> Back</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/measurement-bookings')}><UilAngleLeft size={15}/> Back</button>
       <div style={{ textAlign: 'center', padding: 32, color: 'var(--color-text-tertiary)' }}>Booking not found.</div>
     </div>
   );
@@ -464,7 +464,7 @@ export const MeasurementBookingDetailPage: React.FC = () => {
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/measurement-bookings')}><ChevronLeft size={15}/> Back to Bookings</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/measurement-bookings')}><UilAngleLeft size={15}/> Back to Bookings</button>
 
       {/* Header */}
       <div className={styles.pageHeader}>
@@ -482,8 +482,8 @@ export const MeasurementBookingDetailPage: React.FC = () => {
           </div>
         </div>
         {allDone && booking.status !== 'completed' && (
-          <button className={styles.addBtn} style={{ background: '#1C5C42' }} disabled={completing} onClick={handleComplete}>
-            <CheckCircle size={14}/> {completing ? 'Completing…' : `Complete Session (${completedCount} done, ${skippedCount} skipped)`}
+          <button className={styles.addBtn} style={{ background: '#1F6B4F' }} disabled={completing} onClick={handleComplete}>
+            <UilCheckCircle size={14}/> {completing ? 'Completing…' : `Complete Session (${completedCount} done, ${skippedCount} skipped)`}
           </button>
         )}
       </div>
@@ -533,7 +533,7 @@ export const MeasurementBookingDetailPage: React.FC = () => {
                   style={{ width: '100%', marginTop: 8 }}
                   onClick={() => setShowAddGarment(true)}
                 >
-                  <Plus size={13}/> Add Another Garment to This Session
+                  <UilPlus size={13}/> Add Another Garment to This Session
                 </button>
               )
             )}
@@ -556,7 +556,7 @@ export const MeasurementBookingDetailPage: React.FC = () => {
                 <div>
                   <div className={styles.metaLabel}>Linked Home Visit</div>
                   <button className={styles.linkBtn} style={{ display: 'flex', alignItems: 'center', gap: 4 }} onClick={() => navigate(`/admin/home-visits/${booking.home_visit_id}`)}>
-                    <ExternalLink size={12}/> View Home Visit
+                    <UilExternalLinkAlt size={12}/> View Home Visit
                   </button>
                 </div>
               )}
@@ -564,7 +564,7 @@ export const MeasurementBookingDetailPage: React.FC = () => {
                 <div>
                   <div className={styles.metaLabel}>Source Order</div>
                   <button className={styles.linkBtn} style={{ display: 'flex', alignItems: 'center', gap: 4 }} onClick={() => navigate(`/admin/orders/${booking.source_order_id}`)}>
-                    <ExternalLink size={12}/> View Order
+                    <UilExternalLinkAlt size={12}/> View Order
                   </button>
                 </div>
               )}
@@ -583,7 +583,7 @@ export const MeasurementBookingDetailPage: React.FC = () => {
 
           {/* Staff Assignment */}
           <div className={styles.card}>
-            <h3 className={styles.sectionTitle}><UserCheck size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />Staff Assignment</h3>
+            <h3 className={styles.sectionTitle}><UilUserCheck size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />Staff Assignment</h3>
             <StaffAssignmentDropdown
               value={booking.assigned_staff_id}
               onChange={handleAssignStaff}
@@ -605,7 +605,7 @@ export const MeasurementBookingDetailPage: React.FC = () => {
               <>
                 <textarea className={styles.fieldInput} rows={3} style={{ width: '100%', fontSize: 12, resize: 'vertical' }} value={notesForm} onChange={e => setNotesForm(e.target.value)} placeholder="Internal notes for the ops team…" />
                 <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                  <button className={styles.addBtn} style={{ fontSize: 12 }} onClick={handleSaveNotes}><Save size={12}/> Save</button>
+                  <button className={styles.addBtn} style={{ fontSize: 12 }} onClick={handleSaveNotes}><UilSave size={12}/> Save</button>
                   <button className={styles.exportBtn} style={{ fontSize: 12 }} onClick={() => { setEditingNotes(false); setNotesForm(booking.admin_notes ?? ''); }}>Cancel</button>
                 </div>
               </>

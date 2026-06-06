@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { catalogApi, setAdminToken, hasAdminToken } from '../../api/catalogApi';
 import { setAdminUser, setAdminCapabilities, adminAuthExtApi } from '../../api/adminApi';
 import styles from './AdminLoginPage.module.css';
 import regStyles from './AdminRegisterPage.module.css';
+import { UilArrowLeft, UilArrowRight, UilEye, UilEyeSlash, UilSpinner } from "@iconscout/react-unicons";
 
 type View = 'login' | 'forgot' | 'security-q' | 'change-password';
 
@@ -148,7 +148,7 @@ export const AdminLoginPage: React.FC = () => {
                   placeholder="Enter your password" autoComplete="current-password" disabled={loading}
                 />
                 <button type="button" className={styles.showBtn} onClick={() => setShowPassword(s => !s)} aria-label={showPassword ? 'Hide' : 'Show'}>
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <UilEyeSlash size={16} /> : <UilEye size={16} />}
                 </button>
               </div>
               {submitted && !password && <span className={styles.fieldHint}>Password is required</span>}
@@ -159,8 +159,8 @@ export const AdminLoginPage: React.FC = () => {
             </label>
             {error && <div className={styles.error} role="alert">{error}</div>}
             <button type="submit" className={styles.submitBtn} disabled={loading}>
-              {loading ? <Loader2 size={16} className={styles.spinnerIcon} /> : null}
-              {loading ? 'Signing in…' : <><span>Sign In</span><ArrowRight size={16} /></>}
+              {loading ? <UilSpinner size={16} className={styles.spinnerIcon} /> : null}
+              {loading ? 'Signing in…' : <><span>Sign In</span><UilArrowRight size={16} /></>}
             </button>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
               <button type="button" className={styles.forgotBtn} onClick={() => setView('security-q')}>
@@ -205,7 +205,7 @@ export const AdminLoginPage: React.FC = () => {
             <p className={styles.forgotDesc}>
               Contact a super admin to generate a reset link for your account.
             </p>
-            <button className={styles.backBtn} onClick={resetToLogin}><ArrowLeft size={16} /> Back to Login</button>
+            <button className={styles.backBtn} onClick={resetToLogin}><UilArrowLeft size={16} /> Back to Login</button>
           </div>
         )}
 
@@ -228,7 +228,7 @@ export const AdminLoginPage: React.FC = () => {
                 </div>
                 {sqError && <div className={styles.error}>{sqError}</div>}
                 <div className={styles.forgotActions}>
-                  <button type="button" className={styles.backBtn} onClick={resetToLogin}><ArrowLeft size={16} /> Back</button>
+                  <button type="button" className={styles.backBtn} onClick={resetToLogin}><UilArrowLeft size={16} /> Back</button>
                   <button type="submit" className={styles.submitBtn} disabled={sqLoading}>
                     {sqLoading ? 'Loading…' : 'Next'}
                   </button>
@@ -246,7 +246,7 @@ export const AdminLoginPage: React.FC = () => {
                 </div>
                 {sqError && <div className={styles.error}>{sqError}</div>}
                 <div className={styles.forgotActions}>
-                  <button type="button" className={styles.backBtn} onClick={() => { setSqStep('email'); setSqError(''); }}><ArrowLeft size={16} /> Back</button>
+                  <button type="button" className={styles.backBtn} onClick={() => { setSqStep('email'); setSqError(''); }}><UilArrowLeft size={16} /> Back</button>
                   <button type="submit" className={styles.submitBtn} disabled={sqLoading}>
                     {sqLoading ? 'Resetting…' : 'Reset Password'}
                   </button>

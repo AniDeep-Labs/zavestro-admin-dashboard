@@ -1,10 +1,10 @@
 import React from 'react';
-import { RefreshCw, MapPin } from 'lucide-react';
 import { pincodeWaitlistApi } from '../../api/adminApi';
 import type { PincodeDemand } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import { UilMapMarker, UilRefresh } from "@iconscout/react-unicons";
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -36,7 +36,7 @@ export const PincodeWaitlistPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Pincode Demand</h1>
-        <button className={styles.clearBtn} onClick={load} title="Refresh"><RefreshCw size={14} /> Refresh</button>
+        <button className={styles.clearBtn} onClick={load} title="Refresh"><UilRefresh size={14} /> Refresh</button>
       </div>
 
       <div className={styles.filterBar}>
@@ -60,7 +60,7 @@ export const PincodeWaitlistPage: React.FC = () => {
               <tr><td colSpan={7} className={styles.empty}>No pincode demand recorded yet.</td></tr>
             ) : visible.map(r => (
               <tr key={r.pincode} className={styles.row}>
-                <td className={styles.orderId}><MapPin size={12} style={{ verticalAlign: -1, marginRight: 4 }} />{r.pincode}</td>
+                <td className={styles.orderId}><UilMapMarker size={12} style={{ verticalAlign: -1, marginRight: 4 }} />{r.pincode}</td>
                 <td>{r.area_name ?? '—'}</td>
                 <td>{r.city ?? '—'}</td>
                 <td className={styles.total}>{r.total_waiting}</td>

@@ -1,10 +1,10 @@
 import React from 'react';
-import { Upload, X } from 'lucide-react';
 import { categoriesAdminApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { ProductCategory } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AppConfigPage.module.css';
+import { UilTimes, UilUpload } from "@iconscout/react-unicons";
 
 const MODE_LABEL: Record<string, string> = {
   simplified:     'Simplified',
@@ -113,7 +113,7 @@ export const CategoriesPage: React.FC = () => {
                       {cat.mode && (
                         <span style={{
                           fontSize: 11, padding: '1px 7px', borderRadius: 8,
-                          background: 'rgba(28,92,66,0.1)', color: '#1C5C42', fontWeight: 500,
+                          background: 'rgba(31, 107, 79,0.1)', color: '#1F6B4F', fontWeight: 500,
                         }}>
                           {MODE_LABEL[cat.mode] ?? cat.mode}
                         </span>
@@ -151,7 +151,7 @@ export const CategoriesPage: React.FC = () => {
                       disabled={isUploading}
                       onClick={() => fileRef.current?.click()}
                     >
-                      <Upload size={13} />
+                      <UilUpload size={13} />
                       {isUploading ? 'Uploading…' : imageUrl ? 'Replace' : 'Upload'}
                     </button>
                     {imageUrl && (
@@ -161,7 +161,7 @@ export const CategoriesPage: React.FC = () => {
                         disabled={isUploading}
                         onClick={() => handleRemove(cat)}
                       >
-                        <X size={13} /> Remove
+                        <UilTimes size={13} /> Remove
                       </button>
                     )}
                   </div>

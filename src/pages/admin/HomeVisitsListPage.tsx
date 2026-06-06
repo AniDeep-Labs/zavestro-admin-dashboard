@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { homeVisitsApi, hubsApi } from '../../api/adminApi';
 import type { HomeVisit, Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
 import modalStyles from './OrderDetailPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilPlus, UilTimes } from "@iconscout/react-unicons";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [dv, setDv] = React.useState(value);
@@ -195,7 +195,7 @@ export const HomeVisitsListPage: React.FC = () => {
             setShowCreate(true);
           }}
         >
-          <Plus size={15} /> Create Visit
+          <UilPlus size={15} /> Create Visit
         </button>
       </div>
 
@@ -210,7 +210,7 @@ export const HomeVisitsListPage: React.FC = () => {
         </select>
         <input type="date" className={styles.filterSelect} value={dateFilter} onChange={e => { setDateFilter(e.target.value); setPage(1); }} />
         <button className={styles.clearBtn} onClick={setToday}>Today</button>
-        <button className={styles.clearBtn} onClick={clearFilters}><X size={14}/> Clear</button>
+        <button className={styles.clearBtn} onClick={clearFilters}><UilTimes size={14}/> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -252,9 +252,9 @@ export const HomeVisitsListPage: React.FC = () => {
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} visit${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><UilAngleLeft size={15}/> Prev</button>
           <span className={styles.pageIndicator}>Page {page} of {Math.max(1, Math.ceil(total / 25))}</span>
-          <button className={styles.pageBtn} disabled={visits.length < 25 || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
+          <button className={styles.pageBtn} disabled={visits.length < 25 || loading} onClick={() => setPage(p => p + 1)}>Next <UilAngleRight size={15}/></button>
         </div>
       </div>
 

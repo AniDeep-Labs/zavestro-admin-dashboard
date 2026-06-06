@@ -70,7 +70,7 @@ function NotFoundPage() {
       <button
         onClick={() => nav('/admin/dashboard')}
         style={{
-          padding: '10px 24px', background: 'var(--color-primary, #1C5C42)', color: '#fff',
+          padding: '10px 24px', background: 'var(--color-primary, #1F6B4F)', color: '#fff',
           border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem',
           fontFamily: 'inherit', fontWeight: 500,
         }}

@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Image } from 'lucide-react';
 import { collectionsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct } from '../../api/catalogApi';
@@ -8,6 +7,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './CollectionEditPage.module.css';
+import { UilAngleLeft, UilImage } from "@iconscout/react-unicons";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [dv, setDv] = React.useState(value);
@@ -35,7 +35,7 @@ export const CollectionEditPage: React.FC = () => {
   const [season, setSeason] = React.useState('');
   const [type, setType] = React.useState<'standard' | 'new_arrivals' | 'occasion' | 'featured'>('standard');
   const [subtitle, setSubtitle] = React.useState('');
-  const [bgColor1, setBgColor1] = React.useState('#1C5C42');
+  const [bgColor1, setBgColor1] = React.useState('#1F6B4F');
   const [bgColor2, setBgColor2] = React.useState('#0D3D2C');
   const [productSearch, setProductSearch] = React.useState('');
   const [selectedProducts, setSelectedProducts] = React.useState<{id: string; name: string}[]>([]);
@@ -66,7 +66,7 @@ export const CollectionEditPage: React.FC = () => {
         setSeason(col.season);
         setType((col.type ?? 'standard') as 'standard' | 'new_arrivals' | 'occasion' | 'featured');
         setSubtitle(col.subtitle ?? '');
-        setBgColor1(col.bg_color_1 || '#1C5C42');
+        setBgColor1(col.bg_color_1 || '#1F6B4F');
         setBgColor2(col.bg_color_2 || '#0D3D2C');
         setCoverImageKey(col.cover_image ?? '');
         const pids = col.productIds ?? [];
@@ -172,7 +172,7 @@ export const CollectionEditPage: React.FC = () => {
   if (loadError) {
     return (
       <div className={styles.page}>
-        <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/collections')}><ChevronLeft size={15}/> Back to Collections</button>
+        <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/collections')}><UilAngleLeft size={15}/> Back to Collections</button>
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-error)' }}>{loadError}</div>
       </div>
     );
@@ -182,7 +182,7 @@ export const CollectionEditPage: React.FC = () => {
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/collections')}>
-        <ChevronLeft size={15}/> Back to Collections
+        <UilAngleLeft size={15}/> Back to Collections
       </button>
       <h1 className={styles.title}>{isNew ? 'Create Collection' : `Edit: ${name}`}</h1>
 
@@ -248,7 +248,7 @@ export const CollectionEditPage: React.FC = () => {
                   <label className={styles.label}>Card Gradient — Color 1</label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="color" value={bgColor1} onChange={e => setBgColor1(e.target.value)} style={{ width: 40, height: 36, border: 'none', cursor: 'pointer', borderRadius: 4 }} />
-                    <input className={styles.input} value={bgColor1} onChange={e => setBgColor1(e.target.value)} placeholder="#1C5C42" style={{ flex: 1 }} />
+                    <input className={styles.input} value={bgColor1} onChange={e => setBgColor1(e.target.value)} placeholder="#1F6B4F" style={{ flex: 1 }} />
                   </div>
                 </div>
                 <div className={styles.field}>
@@ -329,7 +329,7 @@ export const CollectionEditPage: React.FC = () => {
                   </div>
                 ) : (
                   <div className={styles.uploadArea}>
-                    <span className={styles.uploadIcon}><Image size={22}/></span>
+                    <span className={styles.uploadIcon}><UilImage size={22}/></span>
                     <span className={styles.uploadText}>Upload banner (1200 × 400px recommended)</span>
                     <button className={styles.uploadBtn} type="button" disabled={imageUploading}
                       onClick={() => bannerInputRef.current?.click()}>

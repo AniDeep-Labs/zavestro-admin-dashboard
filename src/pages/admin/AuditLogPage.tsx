@@ -1,8 +1,8 @@
 import React from 'react';
-import { Search, X, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
 import { auditApi } from '../../api/adminApi';
 import type { AuditEntry } from '../../api/adminApi';
 import styles from './AuditLogPage.module.css';
+import { UilAngleDown, UilAngleLeft, UilAngleRight, UilAngleUp, UilImport, UilSearch, UilTimes } from "@iconscout/react-unicons";
 
 const LIMIT = 50;
 
@@ -62,7 +62,7 @@ export const AuditLogPage: React.FC = () => {
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input
             className={styles.searchInput}
             placeholder="Search by action, entity ID, or admin email…"
@@ -77,8 +77,8 @@ export const AuditLogPage: React.FC = () => {
         >
           {ACTION_TYPES.map(a => <option key={a}>{a}</option>)}
         </select>
-        <button className={styles.clearBtn} onClick={clearFilters}><X size={14} /> Clear</button>
-        <button className={styles.exportBtn}><Download size={14} /> Export CSV</button>
+        <button className={styles.clearBtn} onClick={clearFilters}><UilTimes size={14} /> Clear</button>
+        <button className={styles.exportBtn}><UilImport size={14} /> Export CSV</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -124,7 +124,7 @@ export const AuditLogPage: React.FC = () => {
                     </td>
                     <td className={styles.ip}>{entry.ip}</td>
                     <td>
-                      <button className={styles.expandBtn}>{expandedId === entry.id ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</button>
+                      <button className={styles.expandBtn}>{expandedId === entry.id ? <UilAngleUp size={14}/> : <UilAngleDown size={14}/>}</button>
                     </td>
                   </tr>
                   {expandedId === entry.id && (
@@ -154,7 +154,7 @@ export const AuditLogPage: React.FC = () => {
             disabled={page <= 1 || loading}
             onClick={() => setPage(p => p - 1)}
           >
-            <ChevronLeft size={15}/> Prev
+            <UilAngleLeft size={15}/> Prev
           </button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
           <button
@@ -162,7 +162,7 @@ export const AuditLogPage: React.FC = () => {
             disabled={page >= totalPages || loading}
             onClick={() => setPage(p => p + 1)}
           >
-            Next <ChevronRight size={15}/>
+            Next <UilAngleRight size={15}/>
           </button>
         </div>
       </div>

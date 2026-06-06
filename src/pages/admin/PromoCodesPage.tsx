@@ -1,10 +1,10 @@
 import React from 'react';
-import { Plus, ToggleLeft, ToggleRight, BarChart2, Copy, Check, Pencil, Trash2 } from 'lucide-react';
 import { promosApi } from '../../api/adminApi';
 import type { PromoCode } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './PromoCodesPage.module.css';
+import { UilChartBar, UilCheck, UilCopy, UilPen, UilPlus, UilToggleOff, UilToggleOn, UilTrashAlt } from "@iconscout/react-unicons";
 
 function isExpired(p: PromoCode) {
   return !!p.valid_until && new Date(p.valid_until) < new Date();
@@ -155,14 +155,14 @@ export const PromoCodesPage: React.FC = () => {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Promo Codes</h1>
-        <button className={styles.addBtn} onClick={() => setShowCreateModal(true)}><Plus size={15}/> Create Promo Code</button>
+        <button className={styles.addBtn} onClick={() => setShowCreateModal(true)}><UilPlus size={15}/> Create Promo Code</button>
       </div>
 
       {loading ? (
         <div className={styles.card} style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-tertiary)' }}>Loading…</div>
       ) : promos.length === 0 ? (
         <div className={styles.card} style={{ textAlign: 'center', padding: '48px 24px' }}>
-          <BarChart2 size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+          <UilChartBar size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
           <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>No promo codes yet. Create your first one above.</p>
         </div>
       ) : (
@@ -199,14 +199,14 @@ export const PromoCodesPage: React.FC = () => {
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <button className={styles.exportBtn} onClick={() => handleCopy(p)} title="Copy code">
-                          {copiedId === p.id ? <Check size={14}/> : <Copy size={14}/>}
+                          {copiedId === p.id ? <UilCheck size={14}/> : <UilCopy size={14}/>}
                         </button>
-                        <button className={styles.exportBtn} onClick={() => setEditingPromo(p)} title="Edit"><Pencil size={14}/></button>
+                        <button className={styles.exportBtn} onClick={() => setEditingPromo(p)} title="Edit"><UilPen size={14}/></button>
                         <button className={styles.exportBtn} disabled={togglingId === p.id} onClick={() => handleToggle(p)} title={p.is_active ? 'Deactivate' : 'Activate'}>
-                          {p.is_active ? <ToggleRight size={14}/> : <ToggleLeft size={14}/>}
+                          {p.is_active ? <UilToggleOn size={14}/> : <UilToggleOff size={14}/>}
                         </button>
                         <button className={styles.exportBtn} disabled={deletingId === p.id} onClick={() => handleDelete(p)} title="Delete" style={{ color: 'var(--color-error, #ef4444)' }}>
-                          <Trash2 size={14}/>
+                          <UilTrashAlt size={14}/>
                         </button>
                       </div>
                     </td>

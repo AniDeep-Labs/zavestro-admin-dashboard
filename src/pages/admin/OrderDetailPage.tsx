@@ -1,10 +1,5 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  ChevronLeft, Check, MessageSquare, UserCheck, PauseCircle,
-  FileText, Scissors, ShieldCheck, Ruler, AlertCircle, Clock,
-  CheckCircle2, Truck, Package,
-} from 'lucide-react';
 import { ordersApi, invoicesApi, measurementBookingsApi, customerMeasurementsApi } from '../../api/adminApi';
 import type { AdminOrder, OrderStage, OrderTimelineEntry, MeasurementBooking, CustomerMeasurementsData } from '../../api/adminApi';
 import { StaffAssignmentDropdown } from '../../components/StaffAssignmentDropdown/StaffAssignmentDropdown';
@@ -13,6 +8,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import { Can } from '../../components/Can/Can';
 import styles from './OrderDetailPage.module.css';
+import { UilAngleLeft, UilBox, UilCheck, UilCheckCircle, UilClock, UilCommentDots, UilExclamationCircle, UilFileAlt, UilPauseCircle, UilProcess, UilRuler, UilShieldCheck, UilTruck, UilUserCheck } from "@iconscout/react-unicons";
 
 // ── Stage stepper config ─────────────────────────────────────────────────────
 
@@ -47,14 +43,14 @@ function timelineClass(eventType?: string): string {
 
 function timelineIcon(eventType?: string) {
   switch (eventType) {
-    case 'note':                return <MessageSquare size={13} />;
+    case 'note':                return <UilCommentDots size={13} />;
     case 'assignment':
     case 'craftsperson_assigned':
-    case 'qc_staff_assigned':   return <UserCheck size={13} />;
-    case 'measurement_linked':  return <Ruler size={13} />;
-    case 'hold':                return <PauseCircle size={13} />;
-    case 'admin_override':      return <FileText size={13} />;
-    default:                    return <Check size={13} />;
+    case 'qc_staff_assigned':   return <UilUserCheck size={13} />;
+    case 'measurement_linked':  return <UilRuler size={13} />;
+    case 'hold':                return <UilPauseCircle size={13} />;
+    case 'admin_override':      return <UilFileAlt size={13} />;
+    default:                    return <UilCheck size={13} />;
   }
 }
 
@@ -104,7 +100,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
     return (
       <div className={styles.nextStepCard}>
         <div className={styles.nextStepIcon} style={{ background: 'rgba(148,163,184,0.12)', color: 'var(--color-text-tertiary)' }}>
-          <Clock size={18} />
+          <UilClock size={18} />
         </div>
         <div className={styles.nextStepTitle}>Awaiting Payment</div>
         <div className={styles.nextStepDesc}>Payment has not been confirmed yet. Once confirmed, schedule a measurement visit.</div>
@@ -118,7 +114,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
     return (
       <div className={styles.nextStepCard}>
         <div className={styles.nextStepIcon} style={{ background: 'rgba(201,153,94,0.12)', color: '#9A6B3A' }}>
-          <Ruler size={18} />
+          <UilRuler size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 1 — Measurements</div>
 
@@ -200,7 +196,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
     return (
       <div className={styles.nextStepCard}>
         <div className={styles.nextStepIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--color-info)' }}>
-          <Clock size={18} />
+          <UilClock size={18} />
         </div>
         <div className={styles.nextStepTitle}>Waiting for Measurement Visit</div>
         {!booking ? (
@@ -243,8 +239,8 @@ const NextStepCard: React.FC<NextStepProps> = ({
   if (stage === 'measurement_complete') {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(28,92,66,0.08)', color: 'var(--color-primary)' }}>
-          <Scissors size={18} />
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(31, 107, 79,0.08)', color: 'var(--color-primary)' }}>
+          <UilProcess size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 2 — Assign Craftsperson</div>
         <div className={styles.nextStepDesc}>
@@ -279,7 +275,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
     return (
       <div className={styles.nextStepCard}>
         <div className={styles.nextStepIcon} style={{ background: 'rgba(201,153,94,0.12)', color: '#9A6B3A' }}>
-          <Scissors size={18} />
+          <UilProcess size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 3 — In Production</div>
         <div className={styles.nextStepDesc}>
@@ -303,7 +299,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
     return (
       <div className={styles.nextStepCard}>
         <div className={styles.nextStepIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--color-info)' }}>
-          <ShieldCheck size={18} />
+          <UilShieldCheck size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 4 — Quality Check</div>
         <div className={styles.nextStepDesc}>Assign QC staff and review the garment.</div>
@@ -344,8 +340,8 @@ const NextStepCard: React.FC<NextStepProps> = ({
   if (stage === 'ready_to_dispatch') {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(28,92,66,0.08)', color: 'var(--color-primary)' }}>
-          <Package size={18} />
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(31, 107, 79,0.08)', color: 'var(--color-primary)' }}>
+          <UilBox size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 5 — Dispatch</div>
         <div className={styles.nextStepDesc}>Garment passed QC. Ready to hand off to courier.</div>
@@ -365,7 +361,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
     return (
       <div className={styles.nextStepCard}>
         <div className={styles.nextStepIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--color-info)' }}>
-          <Truck size={18} />
+          <UilTruck size={18} />
         </div>
         <div className={styles.nextStepTitle}>Out for Delivery</div>
         <div className={styles.nextStepDesc}>Order is with courier. Confirm once delivered.</div>
@@ -384,8 +380,8 @@ const NextStepCard: React.FC<NextStepProps> = ({
   if (stage === 'delivered') {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(28,92,66,0.08)', color: 'var(--color-primary)' }}>
-          <CheckCircle2 size={18} />
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(31, 107, 79,0.08)', color: 'var(--color-primary)' }}>
+          <UilCheckCircle size={18} />
         </div>
         <div className={styles.nextStepTitle}>Order Complete</div>
         <div className={styles.nextStepDesc}>This order has been delivered successfully.</div>
@@ -673,7 +669,7 @@ export const OrderDetailPage: React.FC = () => {
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <button className={styles.backBtn} onClick={() => navigate('/admin/orders')}>
-        <ChevronLeft size={15} /> Back to Orders
+        <UilAngleLeft size={15} /> Back to Orders
       </button>
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
@@ -725,7 +721,7 @@ export const OrderDetailPage: React.FC = () => {
             return (
               <div key={s.key} className={`${styles.stepperItem} ${done ? styles.stepDone : ''} ${current ? styles.stepCurrent : ''}`}>
                 <div className={styles.stepCircle}>
-                  {done ? <Check size={13} /> : <span>{i + 1}</span>}
+                  {done ? <UilCheck size={13} /> : <span>{i + 1}</span>}
                 </div>
                 <div className={styles.stepLabel}>{s.label}</div>
               </div>
@@ -772,7 +768,7 @@ export const OrderDetailPage: React.FC = () => {
 
             {/* Measurement booking */}
             <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--color-border-light)' }}>
-              <div className={styles.assignLabel}><Ruler size={11} style={{ display: 'inline', marginRight: 4 }} />Measurement Booking</div>
+              <div className={styles.assignLabel}><UilRuler size={11} style={{ display: 'inline', marginRight: 4 }} />Measurement Booking</div>
               {order.linked_measurement_booking_id ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: 'var(--color-primary)' }}>
@@ -784,7 +780,7 @@ export const OrderDetailPage: React.FC = () => {
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <AlertCircle size={13} style={{ color: '#9A6B3A' }} />
+                  <UilExclamationCircle size={13} style={{ color: '#9A6B3A' }} />
                   <span style={{ fontSize: 13, color: '#9A6B3A' }}>Not linked — schedule via "Next Step" card</span>
                 </div>
               )}
@@ -793,7 +789,7 @@ export const OrderDetailPage: React.FC = () => {
             {/* Craftsperson + QC */}
             <div className={styles.assignRow}>
               <div>
-                <div className={styles.assignLabel}><Scissors size={11} style={{ display: 'inline', marginRight: 4 }} />Craftsperson</div>
+                <div className={styles.assignLabel}><UilProcess size={11} style={{ display: 'inline', marginRight: 4 }} />Craftsperson</div>
                 {order.stage === 'measurement_complete' || STAGE_IDX[order.stage] > STAGE_IDX['measurement_complete'] ? (
                   <>
                     <StaffAssignmentDropdown
@@ -817,7 +813,7 @@ export const OrderDetailPage: React.FC = () => {
                 )}
               </div>
               <div>
-                <div className={styles.assignLabel}><ShieldCheck size={11} style={{ display: 'inline', marginRight: 4 }} />QC Staff</div>
+                <div className={styles.assignLabel}><UilShieldCheck size={11} style={{ display: 'inline', marginRight: 4 }} />QC Staff</div>
                 {STAGE_IDX[order.stage] >= STAGE_IDX['quality_check'] ? (
                   <>
                     <StaffAssignmentDropdown

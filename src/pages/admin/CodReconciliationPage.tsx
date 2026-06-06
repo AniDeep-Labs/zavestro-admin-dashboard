@@ -1,5 +1,4 @@
 import React from 'react';
-import { Download, X, RefreshCw } from 'lucide-react';
 import { codReconciliationApi, hubsApi } from '../../api/adminApi';
 import type { CodDeposit, CodReconciliationParams } from '../../api/adminApi';
 import type { Hub } from '../../api/adminApi';
@@ -7,6 +6,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
 import s from './CodReconciliationPage.module.css';
+import { UilImport, UilRefresh, UilTimes } from "@iconscout/react-unicons";
 
 const fmtINR = (n: number) =>
   `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -75,7 +75,7 @@ export const CodReconciliationPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>COD Reconciliation</h1>
         <button className={styles.exportBtn} onClick={handleExport} disabled={exporting || deposits.length === 0}>
-          <Download size={15} /> {exporting ? 'Exporting…' : 'Export CSV'}
+          <UilImport size={15} /> {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
 
@@ -111,8 +111,8 @@ export const CodReconciliationPage: React.FC = () => {
           <option value="pending">Pending</option>
           <option value="confirmed">Confirmed</option>
         </select>
-        <button className={styles.clearBtn} onClick={clearFilters}><X size={14} /> Clear</button>
-        <button className={styles.clearBtn} onClick={load} title="Refresh"><RefreshCw size={14} /> Refresh</button>
+        <button className={styles.clearBtn} onClick={clearFilters}><UilTimes size={14} /> Clear</button>
+        <button className={styles.clearBtn} onClick={load} title="Refresh"><UilRefresh size={14} /> Refresh</button>
       </div>
 
       <div className={styles.tableWrap}>

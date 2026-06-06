@@ -1,9 +1,9 @@
 import React from 'react';
-import { Plus, Trash2, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
 import { homeSectionsApi } from '../../api/adminApi';
 import type { HomeSection, HomeSectionPayload } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { UilArrowDown, UilArrowUp, UilPlus, UilRefresh, UilTrashAlt } from "@iconscout/react-unicons";
 
 const TYPES: HomeSection['type'][] = ['hero', 'occasions', 'new_arrivals', 'collection', 'categories'];
 const TYPE_LABEL: Record<HomeSection['type'], string> = {
@@ -75,8 +75,8 @@ export const HomeSectionsPage: React.FC = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={load} style={btnGhost}><RefreshCw size={15} /> Refresh</button>
-          <button onClick={() => setShowCreate(true)} style={btnPrimary}><Plus size={15} /> Add section</button>
+          <button onClick={load} style={btnGhost}><UilRefresh size={15} /> Refresh</button>
+          <button onClick={() => setShowCreate(true)} style={btnPrimary}><UilPlus size={15} /> Add section</button>
         </div>
       </div>
 
@@ -95,8 +95,8 @@ export const HomeSectionsPage: React.FC = () => {
               <tr key={s.id}>
                 <td style={cell}>
                   <span style={{ marginRight: 8 }}>{s.sort_order}</span>
-                  <button style={iconBtn} disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp size={14} /></button>
-                  <button style={iconBtn} disabled={i === sections.length - 1} onClick={() => move(i, 1)}><ArrowDown size={14} /></button>
+                  <button style={iconBtn} disabled={i === 0} onClick={() => move(i, -1)}><UilArrowUp size={14} /></button>
+                  <button style={iconBtn} disabled={i === sections.length - 1} onClick={() => move(i, 1)}><UilArrowDown size={14} /></button>
                 </td>
                 <td style={cell}>{TYPE_LABEL[s.type] ?? s.type}</td>
                 <td style={cell}>
@@ -112,7 +112,7 @@ export const HomeSectionsPage: React.FC = () => {
                     <input type="checkbox" checked={s.is_active} onChange={e => patch(s.id, { is_active: e.target.checked })} /> {s.is_active ? 'On' : 'Off'}
                   </label>
                 </td>
-                <td style={cell}><button style={iconBtn} onClick={() => remove(s.id)}><Trash2 size={15} /></button></td>
+                <td style={cell}><button style={iconBtn} onClick={() => remove(s.id)}><UilTrashAlt size={15} /></button></td>
               </tr>
             ))}
           </tbody>

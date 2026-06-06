@@ -1,10 +1,10 @@
 import React from 'react';
-import { Search, X, Download, Bell, Send, Trash2 } from 'lucide-react';
 import { waitlistApi } from '../../api/adminApi';
 import type { WaitlistEntry } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './WaitlistPage.module.css';
+import { UilBell, UilImport, UilMessage, UilSearch, UilTimes, UilTrashAlt } from "@iconscout/react-unicons";
 
 function useDebounce<T>(v: T, d: number) {
   const [dv, setDv] = React.useState(v);
@@ -71,8 +71,8 @@ export const WaitlistPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Waitlist</h1>
         <div className={styles.headerActions}>
-          <button className={styles.exportBtn}><Download size={14}/> Export CSV</button>
-          <button className={styles.notifyBtn} onClick={() => setShowNotifyModal(true)}><Bell size={14}/> Notify Waitlist</button>
+          <button className={styles.exportBtn}><UilImport size={14}/> Export CSV</button>
+          <button className={styles.notifyBtn} onClick={() => setShowNotifyModal(true)}><UilBell size={14}/> Notify Waitlist</button>
         </div>
       </div>
 
@@ -92,10 +92,10 @@ export const WaitlistPage: React.FC = () => {
       {/* Filter */}
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input className={styles.searchInput} placeholder="Search by name, email, or city…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <button className={styles.clearBtn} onClick={() => setSearch('')}><X size={14}/> Clear</button>
+        <button className={styles.clearBtn} onClick={() => setSearch('')}><UilTimes size={14}/> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -116,7 +116,7 @@ export const WaitlistPage: React.FC = () => {
                   <td className={styles.date}>{entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : (entry.signedUp ?? '—')}</td>
                   <td><span className={styles.sourcePill}>{entry.source}</span></td>
                   <td>
-                    <button className={styles.removeBtn} onClick={() => handleRemove(entry)}><Trash2 size={13}/> Remove</button>
+                    <button className={styles.removeBtn} onClick={() => handleRemove(entry)}><UilTrashAlt size={13}/> Remove</button>
                   </td>
                 </tr>
               ))
@@ -166,7 +166,7 @@ export const WaitlistPage: React.FC = () => {
                 disabled={sending || !notifyMessage || (notifyChannel !== 'SMS only' && !notifySubject)}
                 onClick={handleSendNotification}
               >
-                <Send size={14}/> Send Notification
+                <UilMessage size={14}/> Send Notification
               </button>
             </div>
           </div>

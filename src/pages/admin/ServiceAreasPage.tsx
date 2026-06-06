@@ -1,10 +1,10 @@
 import React from 'react';
-import { Plus, Trash2, ToggleLeft, ToggleRight, Search } from 'lucide-react';
 import { serviceAreasApi, hubsApi } from '../../api/adminApi';
 import type { ServicePincode, Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './PromoCodesPage.module.css';
+import { UilPlus, UilSearch, UilToggleOff, UilToggleOn, UilTrashAlt } from "@iconscout/react-unicons";
 
 function EmptyState({ message }: { message: string }) {
   return (
@@ -114,12 +114,12 @@ export const ServiceAreasPage: React.FC = () => {
             {total} pincode{total !== 1 ? 's' : ''} configured
           </p>
         </div>
-        <button className={styles.addBtn} onClick={() => setShowModal(true)}><Plus size={15}/> Add Pincodes</button>
+        <button className={styles.addBtn} onClick={() => setShowModal(true)}><UilPlus size={15}/> Add Pincodes</button>
       </div>
 
       {/* Search bar */}
       <div style={{ position: 'relative', maxWidth: 360 }}>
-        <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
+        <UilSearch size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
         <input
           className={styles.fieldInput}
           style={{ paddingLeft: 32 }}
@@ -167,7 +167,7 @@ export const ServiceAreasPage: React.FC = () => {
                         title={p.is_active ? 'Deactivate' : 'Activate'}
                         style={{ padding: '0 10px', height: 32, fontSize: 12 }}
                       >
-                        {p.is_active ? <ToggleRight size={14}/> : <ToggleLeft size={14}/>}
+                        {p.is_active ? <UilToggleOn size={14}/> : <UilToggleOff size={14}/>}
                       </button>
                       <button
                         className={styles.exportBtn}
@@ -176,7 +176,7 @@ export const ServiceAreasPage: React.FC = () => {
                         title="Delete"
                         style={{ padding: '0 10px', height: 32, fontSize: 12, color: 'var(--color-error)' }}
                       >
-                        <Trash2 size={14}/>
+                        <UilTrashAlt size={14}/>
                       </button>
                     </div>
                   </td>

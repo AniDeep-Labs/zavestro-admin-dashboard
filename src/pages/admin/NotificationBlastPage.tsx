@@ -1,10 +1,10 @@
 import React from 'react';
-import { Send, AlertTriangle } from 'lucide-react';
 import { notificationsAdminApi } from '../../api/adminApi';
 import type { BlastPayload } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import { UilExclamationTriangle, UilMessage } from "@iconscout/react-unicons";
 
 export const NotificationBlastPage: React.FC = () => {
   const [form, setForm] = React.useState<BlastPayload>({
@@ -81,7 +81,7 @@ export const NotificationBlastPage: React.FC = () => {
         </div>
         <div className={styles.modalActions} style={{ marginTop: 18 }}>
           <button className={styles.createBtn} disabled={!valid} onClick={() => setConfirming(true)}>
-            <Send size={14} /> Review & Send
+            <UilMessage size={14} /> Review & Send
           </button>
         </div>
       </div>
@@ -89,7 +89,7 @@ export const NotificationBlastPage: React.FC = () => {
       {confirming && (
         <div className={styles.modalOverlay} onClick={() => !sending && setConfirming(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalTitle}><AlertTriangle size={16} style={{ verticalAlign: -2, marginRight: 6, color: '#B45309' }} />Send this blast?</div>
+            <div className={styles.modalTitle}><UilExclamationTriangle size={16} style={{ verticalAlign: -2, marginRight: 6, color: '#B45309' }} />Send this blast?</div>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, lineHeight: 1.5 }}>
               This will queue <strong>{form.segment === 'all' ? 'all active customers' : 'all opted-in customers'}</strong> to receive
               “<strong>{form.headline}</strong>” via in-app inbox, email, and push. This cannot be recalled once sent.

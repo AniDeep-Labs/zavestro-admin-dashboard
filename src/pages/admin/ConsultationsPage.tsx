@@ -1,10 +1,10 @@
 import React from 'react';
-import { RefreshCw, Plus, Trash2, CalendarClock } from 'lucide-react';
 import { consultationsApi } from '../../api/adminApi';
 import type { Consultation, ConsultationSlot } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import { UilPlus, UilRefresh, UilSchedule, UilTrashAlt } from "@iconscout/react-unicons";
 
 const STATUSES = ['requested', 'scheduled', 'completed', 'cancelled', 'no_show'];
 const STATUS_CSS: Record<string, string> = {
@@ -30,7 +30,7 @@ export const ConsultationsPage: React.FC = () => {
       </div>
       <div className={styles.filterBar}>
         <button className={tab === 'bookings' ? styles.createBtn : styles.clearBtn} onClick={() => setTab('bookings')}>Bookings</button>
-        <button className={tab === 'slots' ? styles.createBtn : styles.clearBtn} onClick={() => setTab('slots')}><CalendarClock size={14} /> Slots</button>
+        <button className={tab === 'slots' ? styles.createBtn : styles.clearBtn} onClick={() => setTab('slots')}><UilSchedule size={14} /> Slots</button>
       </div>
       {tab === 'bookings' ? <BookingsTab showToast={showToast} /> : <SlotsTab showToast={showToast} />}
     </div>
@@ -71,7 +71,7 @@ const BookingsTab: React.FC<{ showToast: (t: ToastData['type'], a: string, b?: s
           <option value="All">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
         </select>
-        <button className={styles.clearBtn} onClick={load} title="Refresh"><RefreshCw size={14} /> Refresh</button>
+        <button className={styles.clearBtn} onClick={load} title="Refresh"><UilRefresh size={14} /> Refresh</button>
       </div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
@@ -148,8 +148,8 @@ const SlotsTab: React.FC<{ showToast: (t: ToastData['type'], a: string, b?: stri
   return (
     <>
       <div className={styles.filterBar}>
-        <button className={styles.createBtn} onClick={() => setCreating(true)}><Plus size={14} /> New Slot</button>
-        <button className={styles.clearBtn} onClick={load} title="Refresh"><RefreshCw size={14} /> Refresh</button>
+        <button className={styles.createBtn} onClick={() => setCreating(true)}><UilPlus size={14} /> New Slot</button>
+        <button className={styles.clearBtn} onClick={load} title="Refresh"><UilRefresh size={14} /> Refresh</button>
       </div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
@@ -168,7 +168,7 @@ const SlotsTab: React.FC<{ showToast: (t: ToastData['type'], a: string, b?: stri
                 <td className={styles.total}>{s.booked_count}</td>
                 <td onClick={e => e.stopPropagation()}>
                   <button className={styles.actionBtn} disabled={busyId === s.id || s.booked_count > 0} onClick={() => remove(s)} title={s.booked_count > 0 ? 'Has bookings' : 'Delete'}>
-                    <Trash2 size={13} />
+                    <UilTrashAlt size={13} />
                   </button>
                 </td>
               </tr>

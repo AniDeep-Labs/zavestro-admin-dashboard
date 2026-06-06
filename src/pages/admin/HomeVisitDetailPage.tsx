@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, MapPin, User, Clock, Building2, FileText, UserCheck, Calendar, Ruler, ClipboardList, ExternalLink, Link } from 'lucide-react';
 import { homeVisitsApi, hubsApi } from '../../api/adminApi';
 import type { HomeVisit, BodyMeasurement, Hub } from '../../api/adminApi';
 import { StaffAssignmentDropdown } from '../../components/StaffAssignmentDropdown/StaffAssignmentDropdown';
@@ -18,6 +17,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './OrderDetailPage.module.css';
+import { UilAngleLeft, UilBuilding, UilCalendarAlt, UilClipboardNotes, UilClock, UilExternalLinkAlt, UilFileAlt, UilLinkAlt, UilMapMarker, UilRuler, UilUser, UilUserCheck } from "@iconscout/react-unicons";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
@@ -230,7 +230,7 @@ export const HomeVisitDetailPage: React.FC = () => {
     return (
       <div className={styles.page}>
         <button className={styles.backBtn} onClick={() => navigate('/admin/home-visits')}>
-          <ChevronLeft size={15} /> Back to Home Visits
+          <UilAngleLeft size={15} /> Back to Home Visits
         </button>
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-error)' }}>Visit not found.</div>
       </div>
@@ -244,7 +244,7 @@ export const HomeVisitDetailPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <button className={styles.backBtn} onClick={() => navigate('/admin/home-visits')}>
-        <ChevronLeft size={15} /> Back to Home Visits
+        <UilAngleLeft size={15} /> Back to Home Visits
       </button>
 
       <div className={styles.headerRow}>
@@ -262,7 +262,7 @@ export const HomeVisitDetailPage: React.FC = () => {
       <div className={styles.grid}>
         {/* Customer Info */}
         <div className={styles.card}>
-          <div className={styles.cardHeader}><User size={15} /> Customer</div>
+          <div className={styles.cardHeader}><UilUser size={15} /> Customer</div>
           <div className={styles.cardBody}>
             <div className={styles.field}>
               <span className={styles.fieldLabel}>Name</span>
@@ -285,7 +285,7 @@ export const HomeVisitDetailPage: React.FC = () => {
 
         {/* Schedule */}
         <div className={styles.card}>
-          <div className={styles.cardHeader}><Clock size={15} /> Schedule</div>
+          <div className={styles.cardHeader}><UilClock size={15} /> Schedule</div>
           <div className={styles.cardBody}>
             <div className={styles.field}>
               <span className={styles.fieldLabel}>Date</span>
@@ -312,7 +312,7 @@ export const HomeVisitDetailPage: React.FC = () => {
 
         {/* Address */}
         <div className={styles.card}>
-          <div className={styles.cardHeader}><MapPin size={15} /> Visit Address</div>
+          <div className={styles.cardHeader}><UilMapMarker size={15} /> Visit Address</div>
           <div className={styles.cardBody}>
             {visit.address_name && (
               <div className={styles.field}>
@@ -349,7 +349,7 @@ export const HomeVisitDetailPage: React.FC = () => {
 
         {/* Assignment */}
         <div className={styles.card}>
-          <div className={styles.cardHeader}><Building2 size={15} /> Assignment</div>
+          <div className={styles.cardHeader}><UilBuilding size={15} /> Assignment</div>
           <div className={styles.cardBody}>
             <div className={styles.field}>
               <span className={styles.fieldLabel}>Hub</span>
@@ -412,7 +412,7 @@ export const HomeVisitDetailPage: React.FC = () => {
         {/* Notes */}
         {visit.notes && (
           <div className={styles.card} style={{ gridColumn: '1 / -1' }}>
-            <div className={styles.cardHeader}><FileText size={15} /> Notes</div>
+            <div className={styles.cardHeader}><UilFileAlt size={15} /> Notes</div>
             <div className={styles.cardBody}>
               <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--color-text-secondary)' }}>{visit.notes}</p>
             </div>
@@ -445,7 +445,7 @@ export const HomeVisitDetailPage: React.FC = () => {
 
       {/* Assign Staff */}
       <div className={styles.card} style={{ marginTop: 12 }}>
-        <div className={styles.cardHeader}><UserCheck size={15} /> Assign Staff</div>
+        <div className={styles.cardHeader}><UilUserCheck size={15} /> Assign Staff</div>
         <div className={styles.cardBody}>
           <StaffAssignmentDropdown
             value={visit.assigned_staff_id ?? null}
@@ -460,7 +460,7 @@ export const HomeVisitDetailPage: React.FC = () => {
 
       {/* Reschedule */}
       <div className={styles.card} style={{ marginTop: 12 }}>
-        <div className={styles.cardHeader}><Calendar size={15} /> Reschedule Visit</div>
+        <div className={styles.cardHeader}><UilCalendarAlt size={15} /> Reschedule Visit</div>
         <div className={styles.cardBody}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <input
@@ -492,7 +492,7 @@ export const HomeVisitDetailPage: React.FC = () => {
       {/* Measurement Booking */}
       <div className={styles.card} style={{ marginTop: 12 }}>
         <div className={styles.cardHeader} style={{ justifyContent: 'space-between' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ClipboardList size={15} /> Measurement Booking</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><UilClipboardNotes size={15} /> Measurement Booking</span>
         </div>
         <div className={styles.cardBody}>
           {linkedBooking === undefined ? (
@@ -502,8 +502,8 @@ export const HomeVisitDetailPage: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14 }}>{linkedBooking.booking_ref}</span>
                 <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-                  background: linkedBooking.status === 'completed' ? 'rgba(28,92,66,0.1)' : linkedBooking.status === 'in_progress' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.1)',
-                  color: linkedBooking.status === 'completed' ? '#1C5C42' : linkedBooking.status === 'in_progress' ? '#F59E0B' : '#3B82F6',
+                  background: linkedBooking.status === 'completed' ? 'rgba(31, 107, 79,0.1)' : linkedBooking.status === 'in_progress' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.1)',
+                  color: linkedBooking.status === 'completed' ? '#1F6B4F' : linkedBooking.status === 'in_progress' ? '#F59E0B' : '#3B82F6',
                 }}>
                   {linkedBooking.status.replace('_', ' ')}
                 </span>
@@ -518,7 +518,7 @@ export const HomeVisitDetailPage: React.FC = () => {
                 style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: 6 }}
                 onClick={() => navigate(`/admin/measurement-bookings/${linkedBooking.id}`)}
               >
-                <ExternalLink size={13}/> View / Start Measurements
+                <UilExternalLinkAlt size={13}/> View / Start Measurements
               </button>
             </div>
           ) : (
@@ -538,14 +538,14 @@ export const HomeVisitDetailPage: React.FC = () => {
                     navigate(`/admin/measurement-bookings/new?${params}`);
                   }}
                 >
-                  <ClipboardList size={13}/> Create New Booking
+                  <UilClipboardNotes size={13}/> Create New Booking
                 </button>
                 <button
                   className={styles.actionBtn}
                   style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                   onClick={() => navigate(`/admin/measurement-bookings?user_id=${visit.customer_id ?? ''}`)}
                 >
-                  <Link size={13}/> Find & Link Existing
+                  <UilLinkAlt size={13}/> Find & Link Existing
                 </button>
               </div>
             </div>
@@ -556,7 +556,7 @@ export const HomeVisitDetailPage: React.FC = () => {
       {/* Measurements */}
       <div className={styles.card} style={{ marginTop: 12 }}>
         <div className={styles.cardHeader} style={{ justifyContent: 'space-between' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Ruler size={15} /> Measurements</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><UilRuler size={15} /> Measurements</span>
           <div style={{ display: 'flex', gap: 6 }}>
             {!measurementsLoaded && (
               <button className={styles.actionBtn} onClick={handleLoadMeasurements} disabled={loadingMeasurements}>

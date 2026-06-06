@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, X, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct, ApiCategory } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ProductsListPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilPlus, UilSearch, UilTimes } from "@iconscout/react-unicons";
 
 const LIMIT = 20;
 
@@ -112,13 +112,13 @@ export const ProductsListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Products</h1>
         <button className={styles.addBtn} onClick={() => navigate('/admin/catalog/products/new')}>
-          <Plus size={15}/> Add Product
+          <UilPlus size={15}/> Add Product
         </button>
       </div>
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input
             type="text"
             className={styles.searchInput}
@@ -155,7 +155,7 @@ export const ProductsListPage: React.FC = () => {
           <option value="draft">Draft</option>
           <option value="archived">Archived</option>
         </select>
-        <button className={styles.clearBtn} onClick={clearFilters}><X size={14}/> Clear</button>
+        <button className={styles.clearBtn} onClick={clearFilters}><UilTimes size={14}/> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -283,7 +283,7 @@ export const ProductsListPage: React.FC = () => {
             disabled={page <= 1 || loading}
             onClick={() => setPage(p => p - 1)}
           >
-            <ChevronLeft size={15}/> Prev
+            <UilAngleLeft size={15}/> Prev
           </button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
           <button
@@ -291,7 +291,7 @@ export const ProductsListPage: React.FC = () => {
             disabled={page >= totalPages || loading}
             onClick={() => setPage(p => p + 1)}
           >
-            Next <ChevronRight size={15}/>
+            Next <UilAngleRight size={15}/>
           </button>
         </div>
       </div>

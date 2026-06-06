@@ -1,12 +1,5 @@
 import React, { Suspense } from 'react';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import {
-  LayoutDashboard, ShoppingBag, Users, Building2, Tag, FileText,
-  BarChart3, Headphones, Settings, ChevronDown, ChevronRight,
-  PanelLeftClose, PanelLeftOpen, Sun, Moon, LogOut,
-  RotateCcw, Scissors, Home, Receipt, Ticket, Ruler, Star, Wallet,
-  Megaphone, MapPin,
-} from 'lucide-react';
 import { toggleTheme, getCurrentTheme } from '../../utils/theme';
 import { hasAdminToken } from '../../api/catalogApi';
 import { adminAuth, getAdminUser, getAdminCapabilities, setAdminCapabilities, adminAuthExtApi } from '../../api/adminApi';
@@ -14,6 +7,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import { Spinner } from '../../components/Spinner';
 import { BreadcrumbProvider, useBreadcrumb } from '../../contexts/BreadcrumbContext';
 import styles from './AdminLayout.module.css';
+import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBuilding, UilChartBar, UilDashboard, UilEstate, UilFileAlt, UilHeadphones, UilHistory, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
 
 interface NavItem {
   label: string;
@@ -24,12 +18,12 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { label: 'Dashboard',  icon: <LayoutDashboard size={18} />, path: '/admin/dashboard', roles: ['admin', 'admin_finance', 'admin_ops'] },
-  { label: 'Orders',     icon: <ShoppingBag size={18} />,     path: '/admin/orders',    roles: ['admin', 'admin_support'] },
-  { label: 'Users',      icon: <Users size={18} />,           path: '/admin/users',     roles: ['admin', 'admin_support'] },
-  { label: 'Hubs',       icon: <Building2 size={18} />,       path: '/admin/hubs',      roles: ['admin', 'admin_ops'] },
+  { label: 'Dashboard',  icon: <UilDashboard size={18} />, path: '/admin/dashboard', roles: ['admin', 'admin_finance', 'admin_ops'] },
+  { label: 'Orders',     icon: <UilShoppingBag size={18} />,     path: '/admin/orders',    roles: ['admin', 'admin_support'] },
+  { label: 'Users',      icon: <UilUsersAlt size={18} />,           path: '/admin/users',     roles: ['admin', 'admin_support'] },
+  { label: 'Hubs',       icon: <UilBuilding size={18} />,       path: '/admin/hubs',      roles: ['admin', 'admin_ops'] },
   {
-    label: 'Catalog', icon: <Tag size={18} />, path: '/admin/catalog', roles: ['admin', 'admin_catalog'],
+    label: 'Catalog', icon: <UilTag size={18} />, path: '/admin/catalog', roles: ['admin', 'admin_catalog'],
     children: [
       { label: 'Products',            path: '/admin/catalog/products' },
       { label: 'Collections',         path: '/admin/catalog/collections' },
@@ -39,7 +33,7 @@ const NAV: NavItem[] = [
     ],
   },
   {
-    label: 'Content', icon: <FileText size={18} />, path: '/admin/content', roles: ['admin', 'admin_catalog'],
+    label: 'Content', icon: <UilFileAlt size={18} />, path: '/admin/content', roles: ['admin', 'admin_catalog'],
     children: [
       { label: 'Lookbook',       path: '/admin/content/lookbook' },
       { label: 'Craftspeople',   path: '/admin/content/craftspeople' },
@@ -48,7 +42,7 @@ const NAV: NavItem[] = [
     ],
   },
   {
-    label: 'Analytics', icon: <BarChart3 size={18} />, path: '/admin/analytics', roles: ['admin', 'admin_finance'],
+    label: 'Analytics', icon: <UilChartBar size={18} />, path: '/admin/analytics', roles: ['admin', 'admin_finance'],
     children: [
       { label: 'Revenue',          path: '/admin/analytics/revenue' },
       { label: 'Orders',           path: '/admin/analytics/orders' },
@@ -57,20 +51,20 @@ const NAV: NavItem[] = [
       { label: 'Retention',        path: '/admin/analytics/retention' },
     ],
   },
-  { label: 'Promo Codes', icon: <Ticket size={18} />, path: '/admin/promo-codes', roles: ['admin', 'admin_marketing'] },
-  { label: 'Support',     icon: <Headphones size={18} />,  path: '/admin/support',      roles: ['admin', 'admin_support'] },
-  { label: 'Returns',     icon: <RotateCcw size={18} />,   path: '/admin/returns',      roles: ['admin', 'admin_ops'] },
-  { label: 'Alterations', icon: <Scissors size={18} />,    path: '/admin/alterations',  roles: ['admin', 'admin_ops'] },
-  { label: 'Reviews',     icon: <Star size={18} />,        path: '/admin/reviews',       roles: ['admin', 'admin_ops'] },
-  { label: 'Home Visits', icon: <Home size={18} />,        path: '/admin/home-visits',           roles: ['admin', 'admin_ops'] },
+  { label: 'Promo Codes', icon: <UilTicket size={18} />, path: '/admin/promo-codes', roles: ['admin', 'admin_marketing'] },
+  { label: 'Support',     icon: <UilHeadphones size={18} />,  path: '/admin/support',      roles: ['admin', 'admin_support'] },
+  { label: 'Returns',     icon: <UilHistory size={18} />,   path: '/admin/returns',      roles: ['admin', 'admin_ops'] },
+  { label: 'Alterations', icon: <UilProcess size={18} />,    path: '/admin/alterations',  roles: ['admin', 'admin_ops'] },
+  { label: 'Reviews',     icon: <UilStar size={18} />,        path: '/admin/reviews',       roles: ['admin', 'admin_ops'] },
+  { label: 'Home Visits', icon: <UilEstate size={18} />,        path: '/admin/home-visits',           roles: ['admin', 'admin_ops'] },
   // Consultations belonged to the scrapped Premium Custom flow — hidden from nav (route still exists).
-  { label: 'Measurements', icon: <Ruler size={18} />,     path: '/admin/measurement-bookings',  roles: ['admin', 'admin_ops'] },
-  { label: 'Invoices',    icon: <Receipt size={18} />,     path: '/admin/invoices',              roles: ['admin', 'admin_finance'] },
-  { label: 'COD Reconciliation', icon: <Wallet size={18} />, path: '/admin/finance/cod-reconciliation', roles: ['admin', 'admin_finance'] },
-  { label: 'Notification Blast', icon: <Megaphone size={18} />, path: '/admin/notifications',     roles: ['admin', 'admin_marketing'] },
-  { label: 'Pincode Demand', icon: <MapPin size={18} />,    path: '/admin/pincode-waitlist',      roles: ['admin', 'admin_finance'] },
+  { label: 'Measurements', icon: <UilRuler size={18} />,     path: '/admin/measurement-bookings',  roles: ['admin', 'admin_ops'] },
+  { label: 'Invoices',    icon: <UilReceipt size={18} />,     path: '/admin/invoices',              roles: ['admin', 'admin_finance'] },
+  { label: 'COD Reconciliation', icon: <UilWallet size={18} />, path: '/admin/finance/cod-reconciliation', roles: ['admin', 'admin_finance'] },
+  { label: 'Notification Blast', icon: <UilMegaphone size={18} />, path: '/admin/notifications',     roles: ['admin', 'admin_marketing'] },
+  { label: 'Pincode Demand', icon: <UilMapMarker size={18} />,    path: '/admin/pincode-waitlist',      roles: ['admin', 'admin_finance'] },
   {
-    label: 'System', icon: <Settings size={18} />, path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
+    label: 'System', icon: <UilSetting size={18} />, path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
     children: [
       { label: 'App Config',     path: '/admin/system/app-config' },
       { label: 'Audit Log',      path: '/admin/system/audit-log' },
@@ -190,7 +184,7 @@ const AdminLayoutInner: React.FC = () => {
                         <>
                           <span className={styles.navLabel}>{item.label}</span>
                           <span className={styles.navChevron}>
-                            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            {expanded ? <UilAngleDown size={14} /> : <UilAngleRight size={14} />}
                           </span>
                         </>
                       )}
@@ -233,7 +227,7 @@ const AdminLayoutInner: React.FC = () => {
           onClick={() => setCollapsed(c => !c)}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          {collapsed ? <UilAngleDoubleRight size={16} /> : <UilAngleDoubleLeft size={16} />}
         </button>
       </aside>
 
@@ -275,7 +269,7 @@ const AdminLayoutInner: React.FC = () => {
               onClick={() => { toggleTheme(); setTheme(getCurrentTheme()); }}
               aria-label="Toggle theme"
             >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              {theme === 'dark' ? <UilSun size={18} /> : <UilMoon size={18} />}
             </button>
             {/* Notification bell removed — there is no admin notification feed yet, and a
                 dead "coming soon" control is worse than none. Re-add when a real feed exists. */}
@@ -301,7 +295,7 @@ const AdminLayoutInner: React.FC = () => {
               aria-label="Log out"
               title="Log out"
             >
-              <LogOut size={18} />
+              <UilSignout size={18} />
             </button>
           </div>
         </header>

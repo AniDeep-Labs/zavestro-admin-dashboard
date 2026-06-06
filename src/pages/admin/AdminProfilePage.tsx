@@ -1,11 +1,11 @@
 import React from 'react';
-import { Shield, Key, HelpCircle, Eye, EyeOff } from 'lucide-react';
 import { adminAuthExtApi, getAdminUser } from '../../api/adminApi';
 import { catalogApi } from '../../api/catalogApi';
 import type { AdminUser } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AppConfigPage.module.css';
+import { UilEye, UilEyeSlash, UilKeySkeletonAlt, UilQuestionCircle, UilShield } from "@iconscout/react-unicons";
 
 const SECURITY_QUESTIONS = [
   "What was the name of your first pet?",
@@ -84,7 +84,7 @@ export const AdminProfilePage: React.FC = () => {
         <div className={styles.main}>
           {/* Change Password */}
           <div className={styles.card}>
-            <h3 className={styles.sectionTitle}><Key size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />Change Password</h3>
+            <h3 className={styles.sectionTitle}><UilKeySkeletonAlt size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />Change Password</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label className={styles.fieldLabel}>Current Password</label>
@@ -101,7 +101,7 @@ export const AdminProfilePage: React.FC = () => {
                     onClick={() => setShowCurrentPw(s => !s)}
                     style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: 0, display: 'flex' }}
                   >
-                    {showCurrentPw ? <EyeOff size={16}/> : <Eye size={16}/>}
+                    {showCurrentPw ? <UilEyeSlash size={16}/> : <UilEye size={16}/>}
                   </button>
                 </div>
               </div>
@@ -120,7 +120,7 @@ export const AdminProfilePage: React.FC = () => {
                     onClick={() => setShowNewPw(s => !s)}
                     style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: 0, display: 'flex' }}
                   >
-                    {showNewPw ? <EyeOff size={16}/> : <Eye size={16}/>}
+                    {showNewPw ? <UilEyeSlash size={16}/> : <UilEye size={16}/>}
                   </button>
                 </div>
               </div>
@@ -149,7 +149,7 @@ export const AdminProfilePage: React.FC = () => {
 
           {/* Security Question */}
           <div className={styles.card}>
-            <h3 className={styles.sectionTitle}><HelpCircle size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />Security Question</h3>
+            <h3 className={styles.sectionTitle}><UilQuestionCircle size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />Security Question</h3>
             <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 0, marginBottom: 14 }}>
               Used for account recovery if you forget your password.
             </p>
@@ -191,7 +191,7 @@ export const AdminProfilePage: React.FC = () => {
         {/* Sidebar: account info */}
         <div className={styles.sidebar}>
           <div className={styles.card}>
-            <h3 className={styles.sectionTitle}><Shield size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />Account Info</h3>
+            <h3 className={styles.sectionTitle}><UilShield size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />Account Info</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <div className={styles.metaLabel}>Name</div>

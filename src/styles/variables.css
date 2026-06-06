@@ -1,53 +1,68 @@
-/* ===== ROOT VARIABLES - LIGHT MODE (DEFAULT) ===== */
+/* ===== ROOT VARIABLES - LIGHT MODE (DEFAULT) =====
+   Palette aligned to the Zavestro web app + Flutter app (zavestro-web/app/globals.css):
+   emerald #1F6B4F · gold #D4A574 · scaffold #F6F4F0 · warm-white cards · stone neutrals.
+   Display font = Cormorant Garamond (brand serif); body/UI = Onest. */
 :root {
-  /* PRIMARY GREEN — matches zavestro.in --green */
-  --color-primary: #1C5C42;
-  --color-primary-light: #3D7A5C;
-  --color-primary-lighter: #C0D9C8;
-  --color-primary-dark: #103D2B;
-  --color-primary-darker: #164D37;
-  --color-primary-extra-light: #EAF3EE;
+  /* PRIMARY GREEN — web --color-emerald #1F6B4F */
+  --color-primary: #1F6B4F;
+  --color-primary-light: #2A8B5B;        /* web --color-emerald-hover */
+  --color-primary-lighter: #C7E3D2;
+  --color-primary-dark: #16523C;
+  --color-primary-darker: #0F3D2C;
+  --color-primary-extra-light: #E8F5E9;  /* web --color-emerald-light */
 
-  /* SECONDARY GOLD — matches zavestro.in --gold */
-  --color-secondary: #C9995E;
-  --color-secondary-light: #DBC094;
-  --color-secondary-lighter: #F9F2E7;
-  --color-secondary-dark: #B08040;
-  --color-secondary-darker: #8F6830;
-  --color-secondary-extra-light: #FBF8F4;
+  /* SECONDARY GOLD — web --color-gold #D4A574 */
+  --color-secondary: #D4A574;
+  --color-secondary-light: #E0BB93;
+  --color-secondary-lighter: #F7EEE0;
+  --color-secondary-dark: #BE8E5A;
+  --color-secondary-darker: #9E7340;
+  --color-secondary-extra-light: #FBF6EF;
 
-  /* ACCENT CREAM */
+  /* ACCENT CREAM — web --color-cream / --color-warm-white */
   --color-accent: #F5DEB3;
   --color-accent-light: #FAF5ED;
   --color-accent-lighter: #FFFEF9;
   --color-accent-dark: #E8D4C0;
 
-  /* LIGHT MODE BACKGROUNDS — matches zavestro.in */
-  --color-bg-primary: #FFFFFF;
-  --color-bg-secondary: #FAF9F6;
-  --color-bg-tertiary: #F3F0E8;
-  --color-bg-section: #EAF3EE;
-  --color-bg-hover: #F9F2E7;
-  --color-app-bg: #FAF9F6;
+  /* LIGHT MODE BACKGROUNDS — web scaffold + warm-white surfaces */
+  --color-bg-primary: #FFFEF9;     /* web --color-warm-white — cards/surfaces/inputs */
+  --color-bg-secondary: #F3F0E8;   /* alt section bg */
+  --color-bg-tertiary: #EDE9E1;
+  --color-bg-section: #E8F5E9;     /* green tint sections / green pills */
+  --color-bg-hover: #F1EEE8;
+  --color-app-bg: #F6F4F0;         /* web --color-scaffold — page background */
 
-  /* LIGHT MODE TEXT — matches zavestro.in --ink scale */
-  --color-text-primary: #1A1714;
-  --color-text-secondary: #57534A;
-  --color-text-tertiary: #9A9188;
-  --color-text-muted: #B8B0A6;
+  /* LIGHT MODE TEXT — web --color-text scale */
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #6B6560;  /* web --color-text-2 */
+  --color-text-tertiary: #78716C;   /* web --color-neutral-500 */
+  --color-text-muted: #A8A29E;      /* web --color-neutral-400 */
 
-  /* LIGHT MODE BORDERS — matches zavestro.in --border */
-  --color-border: #E4E0D6;
-  --color-border-light: #EDEAE0;
-  --color-border-emerald: rgba(28, 92, 66, 0.15);
-  --color-border-gold: rgba(201, 153, 94, 0.15);
+  /* LIGHT MODE BORDERS — web --color-border */
+  --color-border: #EEEBE6;
+  --color-border-light: #F0EDE8;    /* web --color-border-inner */
+  --color-border-emerald: rgba(31, 107, 79, 0.15);
+  --color-border-gold: rgba(212, 165, 116, 0.18);
 
-  /* STATUS COLORS */
-  --color-success: #2ECC71;
-  --color-error: #E74C3C;
-  --color-warning: #F39C12;
-  --color-info: #3498DB;
-  --color-disabled: #BDBDBD;
+  /* STONE NEUTRAL SCALE — web --color-neutral-* */
+  --color-neutral-50:  #FAFAFA;
+  --color-neutral-100: #F5F5F4;
+  --color-neutral-200: #E7E5E4;
+  --color-neutral-300: #D6D3D1;
+  --color-neutral-400: #A8A29E;
+  --color-neutral-500: #78716C;
+  --color-neutral-600: #57534E;
+  --color-neutral-700: #44403C;
+  --color-neutral-800: #292524;
+  --color-neutral-900: #1C1917;
+
+  /* STATUS COLORS — web --color-success/error/warning/info */
+  --color-success: #2A9B5B;
+  --color-error: #D75B5B;
+  --color-warning: #E4952A;
+  --color-info: #4B8DC8;
+  --color-disabled: #A8A59F;
 
   /* SPACING SCALE */
   --spacing-xs: 0.25rem;  /* 4px */
@@ -59,25 +74,30 @@
   --spacing-3xl: 4rem;    /* 64px */
   --spacing-4xl: 6rem;    /* 96px */
 
-  /* BORDER RADIUS */
+  /* BORDER RADIUS — web uses 12–16px on cards */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-2xl: 20px;
   --radius-full: 9999px;
+  --radius-card: 16px;   /* web product/section card radius */
 
-  /* SHADOWS */
-  --shadow-sm: 0 2px 8px rgba(26, 23, 20, 0.06);
-  --shadow-md: 0 4px 12px rgba(26, 23, 20, 0.10);
-  --shadow-lg: 0 8px 32px rgba(26, 23, 20, 0.13);
-  --shadow-xl: 0 12px 40px rgba(26, 23, 20, 0.18);
-  --shadow-emerald: 0 4px 12px rgba(28, 92, 66, 0.15);
-  --shadow-gold: 0 4px 12px rgba(201, 153, 94, 0.15);
+  /* SHADOWS — web's soft, low-spread elevation */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.13);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.16);
+  --shadow-emerald: 0 4px 12px rgba(31, 107, 79, 0.15);
+  --shadow-gold: 0 4px 12px rgba(212, 165, 116, 0.15);
 
-  /* TYPOGRAPHY */
+  /* TYPOGRAPHY — matches the web/app: Onest for ALL body + headings/titles;
+     Cormorant Garamond (--font-wordmark) is used ONLY for the brand wordmark/logo,
+     exactly like zavestro-web (headings there are Onest sans, logo is the serif). */
   --font-family: 'Onest', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Onest', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-wordmark: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-display-serif: var(--font-wordmark);
   --font-family-mono: 'Courier New', 'Courier', monospace;
 
   --font-size-xs: 11px;
@@ -124,15 +144,30 @@
   --z-modal: 400;
   --z-tooltip: 500;
 
+  /* WEB-NAME ALIASES — let zavestro-web-style markup work verbatim in admin */
+  --color-emerald:        var(--color-primary);
+  --color-emerald-hover:  var(--color-primary-light);
+  --color-emerald-light:  var(--color-primary-extra-light);
+  --color-gold:           var(--color-secondary);
+  --color-cream:          var(--color-accent);
+  --color-warm-white:     #FFFEF9;
+  --color-scaffold:       var(--color-app-bg);
+  --color-text-2:         var(--color-text-secondary);
+  --color-text-label:     var(--color-text-secondary);
+  --color-card-bg:        var(--color-bg-primary);
+  --color-card-border:    var(--color-border);
+  --color-card-shadow:        var(--shadow-md);
+  --color-card-shadow-hover:  var(--shadow-lg);
+
   /* LEGACY ALIASES — for old-format page CSS modules */
-  --color-text: #1A1714;
-  --color-bg-card: #FFFFFF;
+  --color-text: #1A1A1A;
+  --color-bg-card: #FFFEF9;
   --color-bg-2: #F3F0E8;
 }
 
 /* ===== DARK MODE (data-theme="dark") ===== */
 [data-theme="dark"] {
-  /* DARK BACKGROUNDS — matches zavestro.in dark scale */
+  /* DARK BACKGROUNDS — matches web dark scale */
   --color-bg-primary: #1C1A17;
   --color-bg-secondary: #181614;
   --color-bg-tertiary: #0F0D0B;
@@ -149,22 +184,34 @@
   /* DARK BORDERS */
   --color-border: #2A2722;
   --color-border-light: #332E28;
-  --color-border-emerald: rgba(82, 184, 130, 0.2);
+  --color-border-emerald: rgba(78, 168, 122, 0.2);
   --color-border-gold: rgba(219, 192, 148, 0.15);
 
-  /* DARK PRIMARY — matches zavestro.in --green-inv */
-  --color-primary: #52B882;
-  --color-primary-light: #7ECFA0;
+  /* DARK NEUTRAL SCALE (inverted) */
+  --color-neutral-50:  #1C1917;
+  --color-neutral-100: #292524;
+  --color-neutral-200: #44403C;
+  --color-neutral-300: #57534E;
+  --color-neutral-400: #78716C;
+  --color-neutral-500: #A8A29E;
+  --color-neutral-600: #D6D3D1;
+  --color-neutral-700: #E7E5E4;
+  --color-neutral-800: #F5F5F4;
+  --color-neutral-900: #FAFAFA;
+
+  /* DARK PRIMARY — web --color-emerald dark #4EA87A */
+  --color-primary: #4EA87A;
+  --color-primary-light: #6FC299;
   --color-primary-lighter: #C0D9C8;
   --color-primary-dark: #4EA87A;
   --color-primary-darker: #3D8F62;
   --color-primary-extra-light: #091A11;
 
-  /* DARK SECONDARY — matches zavestro.in --gold-inv */
+  /* DARK SECONDARY — web --color-gold dark #DBC094 */
   --color-secondary: #DBC094;
   --color-secondary-light: #E8D4B0;
   --color-secondary-lighter: #F4EDE3;
-  --color-secondary-dark: #C9995E;
+  --color-secondary-dark: #D4A574;
   --color-secondary-darker: #A88B6A;
   --color-secondary-extra-light: #2A2018;
 
@@ -177,8 +224,11 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.55);
   --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.65);
-  --shadow-emerald: 0 4px 12px rgba(82, 184, 130, 0.15);
+  --shadow-emerald: 0 4px 12px rgba(78, 168, 122, 0.15);
   --shadow-gold: 0 4px 12px rgba(219, 192, 148, 0.15);
+
+  /* WEB-NAME ALIASES — dark warm-white surface */
+  --color-warm-white: #1C1A17;
 
   /* LEGACY ALIASES — dark mode overrides */
   --color-text: #EDE9E2;

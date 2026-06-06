@@ -21,8 +21,15 @@ body {
 }
 
 /* ===== TYPOGRAPHY ===== */
-h1, h2, h3, h4, h5, h6 {
+/* Cormorant Garamond (brand serif) on the large display headings; small
+   subheadings drop back to Onest so dense dashboard text stays crisp. */
+h1, h2, h3 {
   font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+h4, h5, h6 {
+  font-family: var(--font-family);
 }
 
 h1 {
@@ -148,7 +155,7 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(28, 92, 66, 0.1);
+  box-shadow: 0 0 0 3px rgba(31, 107, 79, 0.1);
 }
 
 input[type="text"]:disabled,

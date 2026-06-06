@@ -32,12 +32,12 @@
 .pillGreen { background: var(--color-bg-section); color: var(--color-primary); }
 .pillGold { background: var(--color-secondary-extra-light); color: var(--color-secondary-darker); }
 .statusPill { display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
-.statusActive { background: rgba(28,92,66,0.1); color: #1C5C42; }
+.statusActive { background: rgba(31, 107, 79,0.1); color: #1F6B4F; }
 .statusDraft { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); }
 .statusArchived { background: rgba(231,76,60,0.08); color: var(--color-error); }
 .statusDeactivated { background: rgba(231,76,60,0.08); color: var(--color-error); }
 .statusExpired { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); }
-[data-theme="dark"] .statusActive { background: rgba(82,184,130,0.2); color: #52B882; }
+[data-theme="dark"] .statusActive { background: rgba(78, 168, 122,0.2); color: #4EA87A; }
 [data-theme="dark"] .statusDraft { background: rgba(156,163,175,0.2); color: #D1D5DB; }
 [data-theme="dark"] .statusArchived { background: rgba(239,68,68,0.2); color: #FCA5A5; }
 .actionBtn { background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 4px 10px; font-family: var(--font-family); font-size: 12px; cursor: pointer; color: var(--color-text-secondary); transition: all var(--transition-fast); }
@@ -79,16 +79,16 @@
 .hubName { font-family: var(--font-display); font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
 .hubLocation { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
 .statusBadge { display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); white-space: nowrap; }
-.statusActive { background: rgba(28,92,66,0.1); color: #1C5C42; }
+.statusActive { background: rgba(31, 107, 79,0.1); color: #1F6B4F; }
 .statusInactive { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); }
 .statusCapacity { background: rgba(201,153,94,0.15); color: #9A6B3A; }
 .statusCritical { background: rgba(231,76,60,0.08); color: var(--color-error); }
-[data-theme="dark"] .statusActive { background: rgba(82,184,130,0.2); color: #52B882; }
+[data-theme="dark"] .statusActive { background: rgba(78, 168, 122,0.2); color: #4EA87A; }
 [data-theme="dark"] .statusCapacity { background: rgba(245,158,11,0.2); color: #FCD34D; }
 [data-theme="dark"] .statusCritical { background: rgba(239,68,68,0.2); color: #FCA5A5; }
 .kpiRow { display: flex; gap: 8px; }
 .kpi { flex: 1; text-align: center; padding: 10px 4px; background: var(--color-bg-secondary); border-radius: var(--radius-md); }
-.kpiValue { font-family: var(--font-display); font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text-primary); display: block; }
+.kpiValue { font-family: var(--font-family); font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text-primary); display: block; }
 .kpiLabel { font-size: 11px; color: var(--color-text-tertiary); display: block; margin-top: 2px; }
 .kpiDanger { color: var(--color-error) !important; }
 .kpiWarning { color: var(--color-warning) !important; }
@@ -101,7 +101,7 @@
 .hubStats { display: flex; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); overflow: hidden; }
 .stat { flex: 1; text-align: center; padding: 10px 4px; background: var(--color-bg-secondary); }
 .stat + .stat { border-left: 1px solid var(--color-border-light); }
-.statVal { font-family: var(--font-display); font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
+.statVal { font-family: var(--font-family); font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
 .statLabel { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
 .capacityRow { display: flex; align-items: center; gap: 8px; }
 .capacityLabel { font-size: 12px; color: var(--color-text-tertiary); white-space: nowrap; flex-shrink: 0; }

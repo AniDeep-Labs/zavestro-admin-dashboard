@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ChevronLeft, ChevronRight, AlertCircle, Clock, UserMinus, Inbox, Plus } from 'lucide-react';
 import { supportApi, usersApi } from '../../api/adminApi';
 import type { SupportTicket, AdminUser } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './SupportListPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilClock, UilExclamationCircle, UilInbox, UilPlus, UilSearch, UilTimes, UilUserMinus } from "@iconscout/react-unicons";
 
 const LIMIT = 25;
 
@@ -99,28 +99,28 @@ export const SupportListPage: React.FC = () => {
         <h1 className={styles.title}>Support Tickets</h1>
         <button className={styles.addBtn ?? styles.exportBtn} onClick={() => setShowCreate(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--green)', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}>
-          <Plus size={14}/> Create Ticket
+          <UilPlus size={14}/> Create Ticket
         </button>
       </div>
 
       <div className={styles.kpiRow}>
         <div className={styles.kpiCard}>
-          <div className={`${styles.kpiIconBox} ${styles.kpiIconNeutral}`}><Inbox size={16}/></div>
+          <div className={`${styles.kpiIconBox} ${styles.kpiIconNeutral}`}><UilInbox size={16}/></div>
           <div className={styles.kpiVal}>{total}</div>
           <div className={styles.kpiLabel}>Total</div>
         </div>
         <div className={styles.kpiCard}>
-          <div className={`${styles.kpiIconBox} ${styles.kpiIconRed}`}><AlertCircle size={16}/></div>
+          <div className={`${styles.kpiIconBox} ${styles.kpiIconRed}`}><UilExclamationCircle size={16}/></div>
           <div className={`${styles.kpiVal} ${styles.kpiRed}`}>{open}</div>
           <div className={styles.kpiLabel}>Open</div>
         </div>
         <div className={styles.kpiCard}>
-          <div className={`${styles.kpiIconBox} ${styles.kpiIconYellow}`}><Clock size={16}/></div>
+          <div className={`${styles.kpiIconBox} ${styles.kpiIconYellow}`}><UilClock size={16}/></div>
           <div className={`${styles.kpiVal} ${styles.kpiYellow}`}>{inProgress}</div>
           <div className={styles.kpiLabel}>In Progress</div>
         </div>
         <div className={styles.kpiCard}>
-          <div className={`${styles.kpiIconBox} ${styles.kpiIconOrange}`}><UserMinus size={16}/></div>
+          <div className={`${styles.kpiIconBox} ${styles.kpiIconOrange}`}><UilUserMinus size={16}/></div>
           <div className={`${styles.kpiVal} ${styles.kpiOrange}`}>{unassigned}</div>
           <div className={styles.kpiLabel}>Unassigned</div>
         </div>
@@ -128,7 +128,7 @@ export const SupportListPage: React.FC = () => {
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input className={styles.searchInput} placeholder="Search ticket ID or customer…"
             value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
@@ -140,7 +140,7 @@ export const SupportListPage: React.FC = () => {
           <option value="">All Priority</option>
           <option>High</option><option>Medium</option><option>Low</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPriorityFilter(''); setPage(1); }}><X size={14} /> Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPriorityFilter(''); setPage(1); }}><UilTimes size={14} /> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -191,9 +191,9 @@ export const SupportListPage: React.FC = () => {
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} ticket${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><UilAngleLeft size={15}/> Prev</button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
-          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
+          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <UilAngleRight size={15}/></button>
         </div>
       </div>
 

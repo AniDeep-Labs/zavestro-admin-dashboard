@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
 import { returnsApi } from '../../api/adminApi';
 import type { ReturnRequest } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './OrdersListPage.module.css';
+import { UilAngleLeft } from "@iconscout/react-unicons";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending', approved: 'Approved', rejected: 'Rejected', under_review: 'Under Review',
@@ -56,7 +56,7 @@ export const ReturnDetailPage: React.FC = () => {
   if (loading) return <div className={styles.page}><div>Loading return…</div></div>;
   if (!ret) return (
     <div className={styles.page}>
-      <button className={styles.backBtn} onClick={() => navigate('/admin/returns')}><ChevronLeft size={15}/> Back</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/returns')}><UilAngleLeft size={15}/> Back</button>
       <div>Return not found.</div>
     </div>
   );
@@ -66,7 +66,7 @@ export const ReturnDetailPage: React.FC = () => {
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/returns')}><ChevronLeft size={15}/> Back to Returns</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/returns')}><UilAngleLeft size={15}/> Back to Returns</button>
 
       <div className={styles.twoCol}>
         <div className={styles.main}>

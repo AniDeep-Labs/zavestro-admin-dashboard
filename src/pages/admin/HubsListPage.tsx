@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Plus } from 'lucide-react';
 import { hubsApi } from '../../api/adminApi';
 import type { Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './HubsListPage.module.css';
+import { UilPlus, UilTimes } from "@iconscout/react-unicons";
 
 function useDebounce<T>(v: T, d: number) {
   const [dv, setDv] = React.useState(v);
@@ -46,7 +46,7 @@ export const HubsListPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Stitching Hubs</h1>
-        <button className={styles.addBtn} onClick={() => navigate('/admin/hubs/new')}><Plus size={15}/> Add Hub</button>
+        <button className={styles.addBtn} onClick={() => navigate('/admin/hubs/new')}><UilPlus size={15}/> Add Hub</button>
       </div>
 
       <div className={styles.filterBar}>
@@ -57,7 +57,7 @@ export const HubsListPage: React.FC = () => {
           <option>Active</option><option>Inactive</option>
           <option>At Capacity</option><option>Critical</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); }}><X size={14}/> Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); }}><UilTimes size={14}/> Clear</button>
       </div>
 
       {error && !loading && (
@@ -79,7 +79,7 @@ export const HubsListPage: React.FC = () => {
                   <div className={styles.hubName}>
                     {hub.name}
                     {hub.reference_id && (
-                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 500, marginLeft: 8, padding: '1px 6px', background: 'var(--color-primary-faint, rgba(28,92,66,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 500, marginLeft: 8, padding: '1px 6px', background: 'var(--color-primary-faint, rgba(31, 107, 79,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
                         {hub.reference_id}
                       </span>
                     )}

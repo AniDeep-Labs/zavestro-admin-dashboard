@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Lock, Gift, UserX, UserCheck } from 'lucide-react';
 import { usersApi, ordersApi, fitProfilesAdminApi } from '../../api/adminApi';
 import type { AdminUser, AdminOrder, AdminFitProfile } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -8,6 +7,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import { Can } from '../../components/Can/Can';
 import styles from './UserDetailPage.module.css';
+import { UilAngleLeft, UilGift, UilLock, UilUserCheck, UilUserTimes } from "@iconscout/react-unicons";
 
 export const UserDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -105,14 +105,14 @@ export const UserDetailPage: React.FC = () => {
   };
 
   if (loading) return <div className={styles.page}><div className={styles.backBtn}>Loading…</div></div>;
-  if (!user) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/users')}><ChevronLeft size={15}/> Back</button><div>User not found.</div></div>;
+  if (!user) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/users')}><UilAngleLeft size={15}/> Back</button><div>User not found.</div></div>;
 
   const initials = user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/users')}><ChevronLeft size={15}/> Back to Users</button>
+      <button className={styles.backBtn} onClick={() => navigate('/admin/users')}><UilAngleLeft size={15}/> Back to Users</button>
 
       <div className={styles.twoCol}>
         {/* Left: profile */}
@@ -124,7 +124,7 @@ export const UserDetailPage: React.FC = () => {
                 <div className={styles.profileName}>
                   {user.name}
                   {user.reference_id && (
-                    <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 500, marginLeft: 8, padding: '2px 8px', background: 'var(--color-primary-faint, rgba(28,92,66,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 500, marginLeft: 8, padding: '2px 8px', background: 'var(--color-primary-faint, rgba(31, 107, 79,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
                       {user.reference_id}
                     </span>
                   )}
@@ -205,7 +205,7 @@ export const UserDetailPage: React.FC = () => {
                 {activeProfile && (
                   <>
                     <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: 'var(--color-primary-faint, rgba(28,92,66,0.08))', color: 'var(--color-primary)', fontWeight: 500 }}>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: 'var(--color-primary-faint, rgba(31, 107, 79,0.08))', color: 'var(--color-primary)', fontWeight: 500 }}>
                         {activeProfile.source === 'home_visit' ? 'Agent Visit' : 'Self Input'}
                       </span>
                       {activeProfile.is_default && (
@@ -255,11 +255,11 @@ export const UserDetailPage: React.FC = () => {
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Account Actions</h3>
             <div className={styles.actionList}>
-              <button className={styles.creditsBtn} onClick={() => setShowCreditsModal(true)}><Gift size={14}/> Issue Credits</button>
+              <button className={styles.creditsBtn} onClick={() => setShowCreditsModal(true)}><UilGift size={14}/> Issue Credits</button>
               {user.status === 'Active' ? (
-                <button className={styles.deactivateBtn} onClick={() => setShowDeactivateModal(true)}><UserX size={14}/> Deactivate Account</button>
+                <button className={styles.deactivateBtn} onClick={() => setShowDeactivateModal(true)}><UilUserTimes size={14}/> Deactivate Account</button>
               ) : (
-                <button className={styles.reactivateBtn} onClick={handleReactivate}><UserCheck size={14}/> Reactivate Account</button>
+                <button className={styles.reactivateBtn} onClick={handleReactivate}><UilUserCheck size={14}/> Reactivate Account</button>
               )}
             </div>
           </div>
@@ -286,7 +286,7 @@ export const UserDetailPage: React.FC = () => {
       {showDeactivateModal && (
         <div className={styles.modalOverlay} onClick={() => setShowDeactivateModal(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalIcon}><Lock size={22}/></div>
+            <div className={styles.modalIcon}><UilLock size={22}/></div>
             <h3 className={styles.modalTitle}>Deactivate {user.name}'s account?</h3>
             <p className={styles.modalWarning}>
               This customer will not be able to log in or place new orders. Existing orders will NOT be cancelled.

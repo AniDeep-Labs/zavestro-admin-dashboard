@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Download, X, ChevronLeft, ChevronRight, UserPlus, Copy, Check } from 'lucide-react';
 import { usersApi } from '../../api/adminApi';
 import type { AdminUser } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './UsersListPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilCheck, UilCopy, UilImport, UilSearch, UilTimes, UilUserPlus } from "@iconscout/react-unicons";
 
 const LIMIT = 25;
 
@@ -137,15 +137,15 @@ export const UsersListPage: React.FC = () => {
         <div style={{ display: 'flex', gap: 8 }}>
           <button className={styles.exportBtn} onClick={() => setShowCreate(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-green, var(--green))', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}>
-            <UserPlus size={14}/> Add Customer
+            <UilUserPlus size={14}/> Add Customer
           </button>
-          <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
+          <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><UilImport size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
         </div>
       </div>
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input className={styles.searchInput} placeholder="Search by name, phone, or email…"
             value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
@@ -154,7 +154,7 @@ export const UsersListPage: React.FC = () => {
           <option value="Active">Active</option>
           <option value="Deactivated">Deactivated</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}><X size={14} /> Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}><UilTimes size={14} /> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -196,9 +196,9 @@ export const UsersListPage: React.FC = () => {
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} user${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><UilAngleLeft size={15}/> Prev</button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
-          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
+          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <UilAngleRight size={15}/></button>
         </div>
       </div>
 
@@ -259,7 +259,7 @@ export const UsersListPage: React.FC = () => {
             <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
               <code style={{ fontSize: 18, letterSpacing: 2, fontFamily: 'monospace', color: 'var(--color-text-primary)', fontWeight: 700 }}>{tempPassword}</code>
               <button onClick={handleCopyPassword} style={{ display: 'flex', alignItems: 'center', gap: 6, background: copied ? 'var(--color-primary)' : 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: copied ? '#fff' : 'var(--color-text-secondary)', transition: 'all 0.2s' }}>
-                {copied ? <><Check size={13}/> Copied</> : <><Copy size={13}/> Copy</>}
+                {copied ? <><UilCheck size={13}/> Copied</> : <><UilCopy size={13}/> Copy</>}
               </button>
             </div>
             <div className={styles.modalActions}>

@@ -1,11 +1,11 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { Search, X, Edit2, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { craftspeopleApi, cmsApi } from '../../api/adminApi';
 import type { Craftsperson, LookbookItem, JournalPost, CustomerStory } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ContentPage.module.css';
+import { UilEditAlt, UilEye, UilEyeSlash, UilPlus, UilSearch, UilTimes, UilTrashAlt } from "@iconscout/react-unicons";
 
 type Section = 'lookbook' | 'craftspeople' | 'stories' | 'journal';
 
@@ -286,13 +286,13 @@ export const ContentPage: React.FC = () => {
         <h1 className={styles.title}>{TITLES[validSection]}</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           {validSection === 'lookbook' && (
-            <button className={styles.addBtn} onClick={() => openLookbook('new')}><Plus size={14}/> Add Item</button>
+            <button className={styles.addBtn} onClick={() => openLookbook('new')}><UilPlus size={14}/> Add Item</button>
           )}
           {validSection === 'stories' && (
-            <button className={styles.addBtn} onClick={() => openStory('new')}><Plus size={14}/> Add Story</button>
+            <button className={styles.addBtn} onClick={() => openStory('new')}><UilPlus size={14}/> Add Story</button>
           )}
           {validSection === 'journal' && (
-            <button className={styles.addBtn} onClick={() => openPost('new')}><Plus size={14}/> New Post</button>
+            <button className={styles.addBtn} onClick={() => openPost('new')}><UilPlus size={14}/> New Post</button>
           )}
         </div>
       </div>
@@ -300,10 +300,10 @@ export const ContentPage: React.FC = () => {
       {/* Search bar */}
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input className={styles.searchInput} placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        {search && <button className={styles.clearBtn} onClick={() => setSearch('')}><X size={14}/> Clear</button>}
+        {search && <button className={styles.clearBtn} onClick={() => setSearch('')}><UilTimes size={14}/> Clear</button>}
       </div>
 
       {/* ── Lookbook ─────────────────────────────────────────────────────── */}
@@ -332,10 +332,10 @@ export const ContentPage: React.FC = () => {
                   <td>
                     <div className={styles.actions}>
                       <button className={styles.actionBtn} onClick={() => handleToggleLookbook(item)} title={item.published ? 'Unpublish' : 'Publish'}>
-                        {item.published ? <EyeOff size={13}/> : <Eye size={13}/>}
+                        {item.published ? <UilEyeSlash size={13}/> : <UilEye size={13}/>}
                       </button>
-                      <button className={styles.actionBtn} onClick={() => openLookbook(item)}><Edit2 size={13}/></button>
-                      <button className={styles.actionBtn} style={{ color: 'var(--color-error)' }} onClick={() => handleDeleteLookbook(item.id)}><Trash2 size={13}/></button>
+                      <button className={styles.actionBtn} onClick={() => openLookbook(item)}><UilEditAlt size={13}/></button>
+                      <button className={styles.actionBtn} style={{ color: 'var(--color-error)' }} onClick={() => handleDeleteLookbook(item.id)}><UilTrashAlt size={13}/></button>
                     </div>
                   </td>
                 </tr>
@@ -372,10 +372,10 @@ export const ContentPage: React.FC = () => {
                   <td>
                     <div className={styles.actions}>
                       <button className={styles.actionBtn} onClick={() => handleToggleStory(story)} title={story.published ? 'Unpublish' : 'Publish'}>
-                        {story.published ? <EyeOff size={13}/> : <Eye size={13}/>}
+                        {story.published ? <UilEyeSlash size={13}/> : <UilEye size={13}/>}
                       </button>
-                      <button className={styles.actionBtn} onClick={() => openStory(story)}><Edit2 size={13}/></button>
-                      <button className={styles.actionBtn} style={{ color: 'var(--color-error)' }} onClick={() => handleDeleteStory(story.id)}><Trash2 size={13}/></button>
+                      <button className={styles.actionBtn} onClick={() => openStory(story)}><UilEditAlt size={13}/></button>
+                      <button className={styles.actionBtn} style={{ color: 'var(--color-error)' }} onClick={() => handleDeleteStory(story.id)}><UilTrashAlt size={13}/></button>
                     </div>
                   </td>
                 </tr>
@@ -412,8 +412,8 @@ export const ContentPage: React.FC = () => {
                   </td>
                   <td>
                     <div className={styles.actions}>
-                      <button className={styles.actionBtn} onClick={() => openPost(post)}><Edit2 size={13}/> Edit</button>
-                      <button className={styles.actionBtn} style={{ color: 'var(--color-error)' }} onClick={() => handleDeletePost(post.id)}><Trash2 size={13}/></button>
+                      <button className={styles.actionBtn} onClick={() => openPost(post)}><UilEditAlt size={13}/> Edit</button>
+                      <button className={styles.actionBtn} style={{ color: 'var(--color-error)' }} onClick={() => handleDeletePost(post.id)}><UilTrashAlt size={13}/></button>
                     </div>
                   </td>
                 </tr>
@@ -454,7 +454,7 @@ export const ContentPage: React.FC = () => {
                   <td>{p.role}</td>
                   <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.bio || '—'}</td>
                   <td>{p.years_experience != null ? `${p.years_experience} yrs` : '—'}</td>
-                  <td><button className={styles.actionBtn} onClick={() => openEdit(p)}><Edit2 size={13}/> Edit Story</button></td>
+                  <td><button className={styles.actionBtn} onClick={() => openEdit(p)}><UilEditAlt size={13}/> Edit Story</button></td>
                 </tr>
               ))}
             </tbody>

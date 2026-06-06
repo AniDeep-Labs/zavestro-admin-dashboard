@@ -1,16 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Ruler } from 'lucide-react';
 import { measurementBookingsApi } from '../../api/adminApi';
 import type { MeasurementBooking } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AppConfigPage.module.css';
+import { UilPlus, UilRuler } from "@iconscout/react-unicons";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   confirmed:   { bg: 'rgba(59,130,246,0.12)',  color: '#3B82F6' },
   in_progress: { bg: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
-  completed:   { bg: 'rgba(28,92,66,0.12)',    color: '#1C5C42' },
+  completed:   { bg: 'rgba(31, 107, 79,0.12)',    color: '#1F6B4F' },
   cancelled:   { bg: 'rgba(239,68,68,0.1)',    color: '#EF4444' },
 };
 
@@ -49,7 +49,7 @@ export const MeasurementBookingsListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Measurement Bookings</h1>
         <button className={styles.addBtn} onClick={() => navigate('/admin/measurement-bookings/new')}>
-          <Plus size={15}/> Book Session
+          <UilPlus size={15}/> Book Session
         </button>
       </div>
 
@@ -67,7 +67,7 @@ export const MeasurementBookingsListPage: React.FC = () => {
         <div className={styles.card} style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-tertiary)' }}>Loading…</div>
       ) : bookings.length === 0 ? (
         <div className={styles.card} style={{ textAlign: 'center', padding: '48px 24px' }}>
-          <Ruler size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+          <UilRuler size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
           <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>No measurement bookings found.</p>
           <button className={styles.addBtn} style={{ marginTop: 16 }} onClick={() => navigate('/admin/measurement-bookings/new')}>
             + Book First Session

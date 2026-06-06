@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Download, X, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { ordersApi, usersApi, hubsApi } from '../../api/adminApi';
 import type { AdminOrder, OrderStage, AdminUser, Hub } from '../../api/adminApi';
 import { catalogApi } from '../../api/catalogApi';
@@ -9,6 +8,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './OrdersListPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilImport, UilPlus, UilSearch, UilTimes, UilTrashAlt } from "@iconscout/react-unicons";
 
 const LIMIT = 25;
 
@@ -234,17 +234,17 @@ export const OrdersListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Orders</h1>
         <div className={styles.headerActions}>
-          <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
+          <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><UilImport size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
           <button className={styles.exportBtn} onClick={openCreate}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green)', color: '#fff', border: 'none' }}>
-            <Plus size={14}/> Create Order
+            <UilPlus size={14}/> Create Order
           </button>
         </div>
       </div>
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input className={styles.searchInput} placeholder="Search order ID or customer…"
             value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
@@ -256,7 +256,7 @@ export const OrdersListPage: React.FC = () => {
           <option value="">All Modes</option>
           <option value="Simplified">Simplified</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStageFilter(''); setModeFilter(''); setPage(1); }}><X size={14} /> Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStageFilter(''); setModeFilter(''); setPage(1); }}><UilTimes size={14} /> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -307,9 +307,9 @@ export const OrdersListPage: React.FC = () => {
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} order${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><UilAngleLeft size={15}/> Prev</button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
-          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
+          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <UilAngleRight size={15}/></button>
         </div>
       </div>
 
@@ -383,7 +383,7 @@ export const OrdersListPage: React.FC = () => {
                     <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>No variants — base price ₹{selectedProduct.base_price.toLocaleString('en-IN')}</div>
                   )}
                   <button className={styles.addItemBtn} onClick={addItem} disabled={selectedProduct.variants.length > 0 && !selectedVariant}>
-                    <Plus size={13}/> Add to order
+                    <UilPlus size={13}/> Add to order
                   </button>
                 </div>
               )}
@@ -396,7 +396,7 @@ export const OrdersListPage: React.FC = () => {
                       <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginRight: 8 }}>₹{it.unit_price.toLocaleString('en-IN')}</span>
                       <input type="number" min="1" value={it.quantity} onChange={e => updateItemQty(i, parseInt(e.target.value) || 1)}
                         style={{ width: 48, height: 28, textAlign: 'center', border: '1px solid var(--color-border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 13 }} />
-                      <button onClick={() => removeItem(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', padding: '0 6px' }}><Trash2 size={13}/></button>
+                      <button onClick={() => removeItem(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', padding: '0 6px' }}><UilTrashAlt size={13}/></button>
                     </div>
                   ))}
                   <div style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', paddingTop: 8, borderTop: '1px solid var(--color-border-light)' }}>
