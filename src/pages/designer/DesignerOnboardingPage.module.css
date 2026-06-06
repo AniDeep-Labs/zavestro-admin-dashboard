@@ -156,7 +156,7 @@
 .uploadSlotFilled {
   border-color: var(--color-success);
   color: var(--color-success);
-  background: rgba(46, 204, 113, 0.05);
+  background: rgba(42, 155, 91, 0.05);
 }
 
 .actions {

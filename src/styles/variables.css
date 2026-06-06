@@ -31,7 +31,7 @@
   --color-bg-tertiary: #EDE9E1;
   --color-bg-section: #E8F5E9;     /* green tint sections / green pills */
   --color-bg-hover: #F1EEE8;
-  --color-app-bg: #F6F4F0;         /* web --color-scaffold — page background */
+  --color-app-bg: #FFFEF9;         /* web body canvas = warm-white #FFFEF9 (cards lift via border+shadow) */
 
   /* LIGHT MODE TEXT — web --color-text scale */
   --color-text-primary: #1A1A1A;
@@ -74,10 +74,11 @@
   --spacing-3xl: 4rem;    /* 64px */
   --spacing-4xl: 6rem;    /* 96px */
 
-  /* BORDER RADIUS — web uses 12–16px on cards */
+  /* BORDER RADIUS — tuned to the web's measured geometry:
+     buttons/inputs ~10–12px (--radius-md), cards 14–16px (--radius-lg/card). */
   --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
   --radius-xl: 16px;
   --radius-2xl: 20px;
   --radius-full: 9999px;

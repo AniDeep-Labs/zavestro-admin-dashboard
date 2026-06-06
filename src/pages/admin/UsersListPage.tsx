@@ -213,7 +213,7 @@ export const UsersListPage: React.FC = () => {
                 <label className={styles.fieldLabel}>Phone * (10-digit Indian mobile)</label>
                 <input className={styles.fieldInput} placeholder="e.g., 9876543210" maxLength={10}
                   value={newPhone} onChange={e => { setNewPhone(e.target.value.replace(/\D/g, '')); setPhoneError(''); }} />
-                {phoneError && <span style={{ color: 'var(--color-error, #ef4444)', fontSize: 12, marginTop: 4, display: 'block' }}>{phoneError}</span>}
+                {phoneError && <span style={{ color: 'var(--color-error, #D75B5B)', fontSize: 12, marginTop: 4, display: 'block' }}>{phoneError}</span>}
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Full Name (optional)</label>

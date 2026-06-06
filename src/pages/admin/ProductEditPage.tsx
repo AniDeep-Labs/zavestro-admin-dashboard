@@ -525,7 +525,7 @@ export const ProductEditPage: React.FC = () => {
                     type="button"
                     aria-label="Remove detail"
                     onClick={() => setAttrs(prev => prev.filter((_, j) => j !== i))}
-                    style={{ height: 38, padding: '0 10px', border: '1px solid #E4E0D6', borderRadius: 8, background: '#fff', cursor: 'pointer', color: '#D75B5B' }}
+                    style={{ height: 38, padding: '0 10px', border: '1px solid #EEEBE6', borderRadius: 8, background: '#fff', cursor: 'pointer', color: '#D75B5B' }}
                   >✕</button>
                 </div>
               ))}
@@ -625,7 +625,7 @@ export const ProductEditPage: React.FC = () => {
               Images
               <span
                 className={styles.imageCount}
-                style={allImages.length < MIN_IMAGES ? { color: 'var(--color-danger, #d9534f)' } : undefined}
+                style={allImages.length < MIN_IMAGES ? { color: 'var(--color-danger, #D75B5B)' } : undefined}
               >
                 {allImages.length}/{MAX_IMAGES}
               </span>

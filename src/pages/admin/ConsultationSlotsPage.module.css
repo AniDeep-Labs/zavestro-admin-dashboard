@@ -24,7 +24,7 @@
 
 .slotAvailable { background: var(--color-primary-extra-light); border-color: var(--color-border-emerald); color: var(--color-primary); }
 .slotPartial { background: var(--color-secondary-extra-light); border-color: var(--color-border-gold); color: var(--color-secondary-darker); }
-.slotFull { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.25); color: var(--color-error); }
+.slotFull { background: rgba(215, 91, 91, 0.08); border-color: rgba(215, 91, 91, 0.25); color: var(--color-error); }
 
 /* Modal */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; }
@@ -39,7 +39,7 @@
 .slotStatusPill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
 .pillAvailable { background: var(--color-primary-extra-light); color: var(--color-primary); }
 .pillPartial { background: var(--color-secondary-extra-light); color: var(--color-secondary-darker); }
-.pillFull { background: rgba(239, 68, 68, 0.08); color: var(--color-error); }
+.pillFull { background: rgba(215, 91, 91, 0.08); color: var(--color-error); }
 
 .fields { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
@@ -52,7 +52,7 @@
 .cancelBtn { padding: 9px 18px; border: 1px solid var(--color-border); border-radius: 8px; background: transparent; color: var(--color-text-muted); font-size: 0.875rem; cursor: pointer; }
 .createBtn { padding: 9px 20px; border: none; border-radius: 8px; background: var(--color-primary); color: #fff; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
 .createBtn:disabled { opacity: 0.5; cursor: not-allowed; }
-.deleteSlotBtn { padding: 9px 18px; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; background: transparent; color: var(--color-error); font-size: 0.875rem; cursor: pointer; }
+.deleteSlotBtn { padding: 9px 18px; border: 1px solid rgba(215, 91, 91, 0.4); border-radius: 8px; background: transparent; color: var(--color-error); font-size: 0.875rem; cursor: pointer; }
 .deleteSlotBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .skeleton { background: linear-gradient(90deg, var(--color-border-light) 25%, var(--color-bg-2) 50%, var(--color-border-light) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 8px; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

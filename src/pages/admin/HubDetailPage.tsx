@@ -505,7 +505,7 @@ export const HubDetailPage: React.FC = () => {
                 <tbody>
                   {workloadStaff.map(s => {
                     const total = (s.active_orders ?? 0) + (s.active_bookings ?? 0) + (s.active_visits ?? 0);
-                    const loadColor = total === 0 ? '#16a34a' : total <= 3 ? '#d97706' : '#dc2626';
+                    const loadColor = total === 0 ? '#2A9B5B' : total <= 3 ? '#C77F22' : '#C24B4B';
                     return (
                       <tr key={s.id}>
                         <td>
@@ -635,7 +635,7 @@ export const HubDetailPage: React.FC = () => {
                       <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{p.pincode}</td>
                       <td>{p.area_name || '—'}</td>
                       <td>
-                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: p.is_active ? 'rgba(31, 107, 79,0.12)' : 'rgba(148,163,184,0.12)', color: p.is_active ? '#1F6B4F' : 'var(--color-text-secondary)' }}>
+                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: p.is_active ? 'rgba(31, 107, 79,0.12)' : 'rgba(168, 162, 158,0.12)', color: p.is_active ? '#1F6B4F' : 'var(--color-text-secondary)' }}>
                           {p.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>

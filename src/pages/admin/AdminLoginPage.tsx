@@ -180,7 +180,7 @@ export const AdminLoginPage: React.FC = () => {
         {/* ── Force change password ── */}
         {view === 'change-password' && (
           <form className={styles.form} onSubmit={handleForceChange} noValidate>
-            <div style={{ background: 'var(--color-warning-bg, #FFF3CD)', border: '1px solid var(--color-warning, #FFC107)', borderRadius: 8, padding: '10px 14px', fontSize: '0.8125rem', color: 'var(--color-text-primary)', marginBottom: 4 }}>
+            <div style={{ background: 'var(--color-warning-bg, #FBF1DD)', border: '1px solid var(--color-warning, #E4952A)', borderRadius: 8, padding: '10px 14px', fontSize: '0.8125rem', color: 'var(--color-text-primary)', marginBottom: 4 }}>
               You must change your password before continuing. Signed in as <strong>{forceEmail}</strong>.
             </div>
             <input type="hidden" value={forceToken} />

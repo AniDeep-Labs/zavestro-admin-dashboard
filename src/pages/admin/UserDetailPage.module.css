@@ -33,13 +33,13 @@
 .pillGold { background: var(--color-secondary-extra-light); color: var(--color-secondary-darker); }
 .statusPill { display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
 .statusActive { background: rgba(31, 107, 79,0.1); color: #1F6B4F; }
-.statusDraft { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); }
-.statusArchived { background: rgba(231,76,60,0.08); color: var(--color-error); }
-.statusDeactivated { background: rgba(231,76,60,0.08); color: var(--color-error); }
-.statusExpired { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); }
+.statusDraft { background: rgba(168, 162, 158,0.12); color: var(--color-text-secondary); }
+.statusArchived { background: rgba(215, 91, 91,0.08); color: var(--color-error); }
+.statusDeactivated { background: rgba(215, 91, 91,0.08); color: var(--color-error); }
+.statusExpired { background: rgba(168, 162, 158,0.12); color: var(--color-text-secondary); }
 [data-theme="dark"] .statusActive { background: rgba(78, 168, 122,0.2); color: #4EA87A; }
-[data-theme="dark"] .statusDraft { background: rgba(156,163,175,0.2); color: #D1D5DB; }
-[data-theme="dark"] .statusArchived { background: rgba(239,68,68,0.2); color: #FCA5A5; }
+[data-theme="dark"] .statusDraft { background: rgba(168, 162, 158,0.2); color: #D6D3D1; }
+[data-theme="dark"] .statusArchived { background: rgba(215, 91, 91,0.2); color: #E89A9A; }
 .actionBtn { background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 4px 10px; font-family: var(--font-family); font-size: 12px; cursor: pointer; color: var(--color-text-secondary); transition: all var(--transition-fast); }
 .actionBtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .actions { display: flex; gap: 4px; }
@@ -60,8 +60,8 @@
 .fieldTextarea:focus { border-color: var(--color-primary); }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .fields { display: flex; flex-direction: column; gap: 14px; }
-.warningBanner { padding: 10px 14px; background: rgba(231,76,60,0.06); border: 1px solid rgba(231,76,60,0.3); border-radius: var(--radius-md); font-size: 13px; color: #991B1B; }
-[data-theme="dark"] .warningBanner { background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.3); color: #FCA5A5; }
+.warningBanner { padding: 10px 14px; background: rgba(215, 91, 91,0.06); border: 1px solid rgba(215, 91, 91,0.3); border-radius: var(--radius-md); font-size: 13px; color: #A8434A; }
+[data-theme="dark"] .warningBanner { background: rgba(215, 91, 91,0.1); border-color: rgba(215, 91, 91,0.3); color: #E89A9A; }
 .miniTable { width: 100%; border-collapse: collapse; font-size: var(--font-size-base); }
 .miniTable th { padding: 8px 12px; text-align: left; font-size: 11px; font-weight: var(--font-weight-semibold); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--color-border-light); }
 .miniTable td { padding: 9px 12px; border-bottom: 1px solid var(--color-border-light); color: var(--color-text-primary); font-size: 13px; }
@@ -79,7 +79,7 @@
 .profileDetailRow { display: inline-flex; align-items: baseline; gap: 4px; }
 .profileDetailLabel { font-size: 11px; font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-tertiary); }
 .statusActive { background: rgba(31, 107, 79,0.1); color: #1F6B4F; display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
-.statusDeactivated { background: rgba(231,76,60,0.08); color: var(--color-error); display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
+.statusDeactivated { background: rgba(215, 91, 91,0.08); color: var(--color-error); display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
 .fitProfiles { display: flex; flex-direction: column; gap: 10px; }
 .fitMember { padding: 10px; background: var(--color-bg-secondary); border-radius: var(--radius-md); }
 .fitMemberName { font-weight: var(--font-weight-semibold); margin-bottom: 6px; }

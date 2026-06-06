@@ -323,7 +323,7 @@
 
 .logoutBtn:hover {
   color: var(--color-error);
-  background: rgba(231, 76, 60, 0.08);
+  background: rgba(215, 91, 91, 0.08);
 }
 
 .adminUser {
@@ -376,8 +376,8 @@
 }
 
 .roleBadgeSuperAdmin {
-  background: #fef3c7;
-  color: #92400e;
+  background: #FBF1DD;
+  color: #8A5A1E;
 }
 
 /* Content area */

@@ -112,7 +112,7 @@ export const ReturnsListPage: React.FC = () => {
                           showToast('success', 'Return rejected', r.order_number);
                         } catch (e) { showToast('error', 'Failed', e instanceof Error ? e.message : undefined); }
                         finally { setActionId(null); }
-                      }} style={{ background: 'var(--color-error, #dc3545)', color: '#fff', border: 'none' }}>
+                      }} style={{ background: 'var(--color-error, #D75B5B)', color: '#fff', border: 'none' }}>
                         Reject
                       </button>
                     </>

@@ -209,7 +209,7 @@ export const UserDetailPage: React.FC = () => {
                         {activeProfile.source === 'home_visit' ? 'Agent Visit' : 'Self Input'}
                       </span>
                       {activeProfile.is_default && (
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: 'rgba(201,153,94,0.12)', color: '#9A6B2E', fontWeight: 500 }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: 'rgba(212, 165, 116,0.12)', color: '#9A6B2E', fontWeight: 500 }}>
                           Default
                         </span>
                       )}

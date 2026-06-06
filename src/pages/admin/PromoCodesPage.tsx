@@ -61,7 +61,7 @@ function PromoForm({
         <input type="date" className={styles.fieldInput} required
           min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
           value={expiry} onChange={e => setExpiry(e.target.value)} />
-        {!expiry && <span style={{ fontSize: 12, color: 'var(--color-danger, #d9534f)' }}>An expiry date is required.</span>}
+        {!expiry && <span style={{ fontSize: 12, color: 'var(--color-danger, #D75B5B)' }}>An expiry date is required.</span>}
       </div>
       <div className={styles.modalActions}>
         <button className={styles.cancelModalBtn} onClick={onCancel}>Cancel</button>
@@ -185,9 +185,9 @@ export const PromoCodesPage: React.FC = () => {
                     <td>{p.max_uses ?? '∞'}</td>
                     <td>
                       {p.valid_until ? (
-                        <span style={{ color: expired ? 'var(--color-error, #ef4444)' : 'inherit' }}>
+                        <span style={{ color: expired ? 'var(--color-error, #D75B5B)' : 'inherit' }}>
                           {new Date(p.valid_until).toLocaleDateString('en-IN')}
-                          {expired && <span style={{ marginLeft: 6, fontSize: 11, background: '#ef444422', color: '#ef4444', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Expired</span>}
+                          {expired && <span style={{ marginLeft: 6, fontSize: 11, background: '#D75B5B22', color: '#D75B5B', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Expired</span>}
                         </span>
                       ) : '—'}
                     </td>
@@ -205,7 +205,7 @@ export const PromoCodesPage: React.FC = () => {
                         <button className={styles.exportBtn} disabled={togglingId === p.id} onClick={() => handleToggle(p)} title={p.is_active ? 'Deactivate' : 'Activate'}>
                           {p.is_active ? <UilToggleOn size={14}/> : <UilToggleOff size={14}/>}
                         </button>
-                        <button className={styles.exportBtn} disabled={deletingId === p.id} onClick={() => handleDelete(p)} title="Delete" style={{ color: 'var(--color-error, #ef4444)' }}>
+                        <button className={styles.exportBtn} disabled={deletingId === p.id} onClick={() => handleDelete(p)} title="Delete" style={{ color: 'var(--color-error, #D75B5B)' }}>
                           <UilTrashAlt size={14}/>
                         </button>
                       </div>

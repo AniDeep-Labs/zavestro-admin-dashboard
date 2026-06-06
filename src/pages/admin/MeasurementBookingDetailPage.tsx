@@ -11,24 +11,24 @@ import { UilAngleDown, UilAngleLeft, UilAngleUp, UilCheckCircle, UilCircle, UilC
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
   pending:     <UilCircle size={14} style={{ color: 'var(--color-text-tertiary)' }} />,
-  in_progress: <UilClock size={14} style={{ color: '#F59E0B' }} />,
+  in_progress: <UilClock size={14} style={{ color: '#E4952A' }} />,
   completed:   <UilCheckCircle size={14} style={{ color: '#1F6B4F' }} />,
   skipped:     <UilStepForward size={14} style={{ color: 'var(--color-text-tertiary)' }} />,
 };
 
 const FIT_COLORS: Record<string, { bg: string; color: string }> = {
   slim:    { bg: 'rgba(31, 107, 79,0.12)',   color: '#1F6B4F' },
-  regular: { bg: 'rgba(59,130,246,0.12)', color: '#3B82F6' },
-  loose:   { bg: 'rgba(212,167,116,0.15)',color: '#b07c35' },
+  regular: { bg: 'rgba(59,130,246,0.12)', color: '#4B8DC8' },
+  loose:   { bg: 'rgba(212, 165, 116,0.15)',color: '#b07c35' },
   custom:  { bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' },
 };
 
 const BOOKING_STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  draft:       { bg: 'rgba(148,163,184,0.15)', color: '#64748B' },
-  confirmed:   { bg: 'rgba(59,130,246,0.12)',  color: '#3B82F6' },
-  in_progress: { bg: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
+  draft:       { bg: 'rgba(168, 162, 158,0.15)', color: '#78716C' },
+  confirmed:   { bg: 'rgba(59,130,246,0.12)',  color: '#4B8DC8' },
+  in_progress: { bg: 'rgba(228, 149, 42,0.12)',  color: '#E4952A' },
   completed:   { bg: 'rgba(31, 107, 79,0.12)',    color: '#1F6B4F' },
-  cancelled:   { bg: 'rgba(239,68,68,0.1)',    color: '#EF4444' },
+  cancelled:   { bg: 'rgba(215, 91, 91,0.1)',    color: '#D75B5B' },
 };
 
 // ── Garment Card ─────────────────────────────────────────────────────────────
@@ -161,11 +161,11 @@ function GarmentCard({
         )}
         <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
           background: item.measurement_status === 'completed' ? 'rgba(31, 107, 79,0.12)' :
-                      item.measurement_status === 'skipped'   ? 'rgba(148,163,184,0.1)' :
-                      item.measurement_status === 'in_progress' ? 'rgba(245,158,11,0.12)' : 'rgba(148,163,184,0.1)',
+                      item.measurement_status === 'skipped'   ? 'rgba(168, 162, 158,0.1)' :
+                      item.measurement_status === 'in_progress' ? 'rgba(228, 149, 42,0.12)' : 'rgba(168, 162, 158,0.1)',
           color: item.measurement_status === 'completed' ? '#1F6B4F' :
                  item.measurement_status === 'skipped'   ? 'var(--color-text-tertiary)' :
-                 item.measurement_status === 'in_progress' ? '#F59E0B' : 'var(--color-text-tertiary)',
+                 item.measurement_status === 'in_progress' ? '#E4952A' : 'var(--color-text-tertiary)',
         }}>
           {item.measurement_status.replace('_', ' ')}
         </span>
@@ -495,7 +495,7 @@ export const MeasurementBookingDetailPage: React.FC = () => {
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>Garments ({items.length})</h3>
               {!staffAssigned && (
-                <span style={{ fontSize: 12, color: '#F59E0B', fontWeight: 500 }}>← Assign staff to enable measurements</span>
+                <span style={{ fontSize: 12, color: '#E4952A', fontWeight: 500 }}>← Assign staff to enable measurements</span>
               )}
             </div>
 

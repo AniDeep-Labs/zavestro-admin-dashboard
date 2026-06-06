@@ -8,10 +8,10 @@ import styles from './AppConfigPage.module.css';
 import { UilPlus, UilRuler } from "@iconscout/react-unicons";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  confirmed:   { bg: 'rgba(59,130,246,0.12)',  color: '#3B82F6' },
-  in_progress: { bg: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
+  confirmed:   { bg: 'rgba(59,130,246,0.12)',  color: '#4B8DC8' },
+  in_progress: { bg: 'rgba(228, 149, 42,0.12)',  color: '#E4952A' },
   completed:   { bg: 'rgba(31, 107, 79,0.12)',    color: '#1F6B4F' },
-  cancelled:   { bg: 'rgba(239,68,68,0.1)',    color: '#EF4444' },
+  cancelled:   { bg: 'rgba(215, 91, 91,0.1)',    color: '#D75B5B' },
 };
 
 const STATUS_LABELS: Record<string, string> = {

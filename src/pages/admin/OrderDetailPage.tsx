@@ -99,7 +99,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
   if (stage === 'payment_pending') {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(148,163,184,0.12)', color: 'var(--color-text-tertiary)' }}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(168, 162, 158,0.12)', color: 'var(--color-text-tertiary)' }}>
           <UilClock size={18} />
         </div>
         <div className={styles.nextStepTitle}>Awaiting Payment</div>
@@ -113,7 +113,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
     const hasSavedProfiles = !profilesLoading && customerFitProfiles.length > 0;
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(201,153,94,0.12)', color: '#9A6B3A' }}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(212, 165, 116,0.12)', color: '#9E7340' }}>
           <UilRuler size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 1 — Measurements</div>
@@ -200,7 +200,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
         </div>
         <div className={styles.nextStepTitle}>Waiting for Measurement Visit</div>
         {!booking ? (
-          <div className={styles.nextStepDesc} style={{ color: '#9A6B3A' }}>
+          <div className={styles.nextStepDesc} style={{ color: '#9E7340' }}>
             ⚠ No measurement booking linked. Use the "Schedule Measurement Visit" step to link or create one first.
           </div>
         ) : (
@@ -274,7 +274,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
   if (stage === 'in_tailoring' || stage === 'fabric_sourced') {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(201,153,94,0.12)', color: '#9A6B3A' }}>
+        <div className={styles.nextStepIcon} style={{ background: 'rgba(212, 165, 116,0.12)', color: '#9E7340' }}>
           <UilProcess size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 3 — In Production</div>
@@ -693,7 +693,7 @@ export const OrderDetailPage: React.FC = () => {
             <span className={`${styles.pill} ${styles.pillGreen}`}>{order.mode}</span>
             <span className={`${styles.statusPill} ${styles[`status-${order.status}`]}`}>{order.status}</span>
             {order.on_hold_reason && (
-              <span style={{ fontSize: 12, padding: '3px 9px', borderRadius: 20, background: 'rgba(201,153,94,0.15)', color: '#9A6B3A', fontWeight: 600 }}>
+              <span style={{ fontSize: 12, padding: '3px 9px', borderRadius: 20, background: 'rgba(212, 165, 116,0.15)', color: '#9E7340', fontWeight: 600 }}>
                 ⏸ On Hold
               </span>
             )}
@@ -780,8 +780,8 @@ export const OrderDetailPage: React.FC = () => {
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <UilExclamationCircle size={13} style={{ color: '#9A6B3A' }} />
-                  <span style={{ fontSize: 13, color: '#9A6B3A' }}>Not linked — schedule via "Next Step" card</span>
+                  <UilExclamationCircle size={13} style={{ color: '#9E7340' }} />
+                  <span style={{ fontSize: 13, color: '#9E7340' }}>Not linked — schedule via "Next Step" card</span>
                 </div>
               )}
             </div>
@@ -943,7 +943,7 @@ export const OrderDetailPage: React.FC = () => {
                 </div>
               ) : (
                 <div className={styles.inlineEdit}>
-                  <span className={styles.metaValue} style={{ color: order.on_hold_reason ? '#9A6B3A' : 'var(--color-text-tertiary)', fontSize: 13 }}>{order.on_hold_reason ?? 'Not on hold'}</span>
+                  <span className={styles.metaValue} style={{ color: order.on_hold_reason ? '#9E7340' : 'var(--color-text-tertiary)', fontSize: 13 }}>{order.on_hold_reason ?? 'Not on hold'}</span>
                   <button className={styles.linkBtn} onClick={() => setEditingHold(true)}>Edit</button>
                 </div>
               )}

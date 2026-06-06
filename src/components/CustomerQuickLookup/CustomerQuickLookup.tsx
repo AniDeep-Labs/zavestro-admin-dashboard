@@ -162,7 +162,7 @@ export const CustomerQuickLookup: React.FC<Props> = ({
                   </span>
                 )}
                 {!c.is_active && (
-                  <span style={{ fontSize: 10, padding: '1px 6px', background: 'rgba(239,68,68,0.1)', color: '#EF4444', borderRadius: 4 }}>
+                  <span style={{ fontSize: 10, padding: '1px 6px', background: 'rgba(215, 91, 91,0.1)', color: '#D75B5B', borderRadius: 4 }}>
                     Inactive
                   </span>
                 )}

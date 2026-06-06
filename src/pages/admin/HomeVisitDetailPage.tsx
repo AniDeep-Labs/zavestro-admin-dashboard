@@ -502,8 +502,8 @@ export const HomeVisitDetailPage: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14 }}>{linkedBooking.booking_ref}</span>
                 <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-                  background: linkedBooking.status === 'completed' ? 'rgba(31, 107, 79,0.1)' : linkedBooking.status === 'in_progress' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.1)',
-                  color: linkedBooking.status === 'completed' ? '#1F6B4F' : linkedBooking.status === 'in_progress' ? '#F59E0B' : '#3B82F6',
+                  background: linkedBooking.status === 'completed' ? 'rgba(31, 107, 79,0.1)' : linkedBooking.status === 'in_progress' ? 'rgba(228, 149, 42,0.12)' : 'rgba(59,130,246,0.1)',
+                  color: linkedBooking.status === 'completed' ? '#1F6B4F' : linkedBooking.status === 'in_progress' ? '#E4952A' : '#4B8DC8',
                 }}>
                   {linkedBooking.status.replace('_', ' ')}
                 </span>

@@ -121,7 +121,7 @@ export const CategoriesPage: React.FC = () => {
                       {!cat.is_active && (
                         <span style={{
                           fontSize: 11, padding: '1px 7px', borderRadius: 8,
-                          background: 'rgba(239,68,68,0.1)', color: '#EF4444',
+                          background: 'rgba(215, 91, 91,0.1)', color: '#D75B5B',
                         }}>Inactive</span>
                       )}
                     </div>

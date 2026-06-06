@@ -21,14 +21,14 @@
 .slot { font-size: 0.8rem; color: var(--color-text-muted); white-space: nowrap; }
 .date { font-size: 0.8rem; color: var(--color-text-muted); white-space: nowrap; }
 
-.occasionPill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; background: rgba(99, 102, 241, 0.1); color: #4338CA; }
+.occasionPill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; background: rgba(99, 102, 241, 0.1); color: #4B8DC8; }
 [data-theme="dark"] .occasionPill { background: rgba(99, 102, 241, 0.2); color: #818CF8; }
 
 .statusPill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
 .statusColorSuccess { background: rgba(31, 107, 79, 0.1); color: #1F6B4F; }
-.statusColorWarning { background: rgba(201, 153, 94, 0.15); color: #9A6B3A; }
+.statusColorWarning { background: rgba(212, 165, 116, 0.15); color: #9E7340; }
 .statusColorBlue { background: rgba(59, 130, 246, 0.1); color: #1d4ed8; }
-[data-theme="dark"] .statusColorBlue { color: #93C5FD; }
+[data-theme="dark"] .statusColorBlue { color: #9FC0E0; }
 
 .stylistName { font-size: 0.8rem; color: var(--color-text); }
 .unassigned { font-size: 0.8rem; font-weight: 600; color: var(--color-secondary); }
@@ -68,5 +68,5 @@
 .cancelModalBtn { padding: 9px 18px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: transparent; color: var(--color-text-muted); font-size: 0.875rem; cursor: pointer; }
 .confirmAssignBtn { padding: 9px 24px; border: none; border-radius: 8px; background: var(--color-primary, #1F6B4F); color: #fff; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
 .confirmAssignBtn:disabled { opacity: 0.5; cursor: not-allowed; }
-.skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #f8fafc) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
+.skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #FAFAFA) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

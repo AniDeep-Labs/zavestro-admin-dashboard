@@ -268,7 +268,7 @@ export const GarmentTypesPage: React.FC = () => {
                       {CATEGORY_LABELS[gt.category ?? 'unisex']}
                     </span>
                     {!gt.is_active && (
-                      <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 8, background: 'rgba(239,68,68,0.1)', color: '#EF4444', marginLeft: 6 }}>Inactive</span>
+                      <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 8, background: 'rgba(215, 91, 91,0.1)', color: '#D75B5B', marginLeft: 6 }}>Inactive</span>
                     )}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>

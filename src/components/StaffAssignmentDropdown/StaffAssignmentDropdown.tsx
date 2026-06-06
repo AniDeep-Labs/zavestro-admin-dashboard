@@ -23,9 +23,9 @@ const ROLE_LABELS: Record<string, string> = {
 
 function workloadColor(total: number): string {
   if (total === 0) return 'var(--color-text-tertiary)';
-  if (total <= 3) return '#16a34a';
-  if (total <= 6) return '#d97706';
-  return '#dc2626';
+  if (total <= 3) return '#2A9B5B';
+  if (total <= 6) return '#C77F22';
+  return '#C24B4B';
 }
 
 function WorkloadBadge({ orders = 0, bookings = 0, visits = 0 }: { orders?: number; bookings?: number; visits?: number }) {
@@ -191,7 +191,7 @@ export const StaffAssignmentDropdown: React.FC<Props> = ({
                       </span>
                     )}
                     {showWorkload && total === 0 && (
-                      <span style={{ fontSize: 11, color: '#16a34a' }}>Available</span>
+                      <span style={{ fontSize: 11, color: '#2A9B5B' }}>Available</span>
                     )}
                   </div>
                   {hubName(s) && (

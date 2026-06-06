@@ -22,27 +22,27 @@
 
 .nameLink { background: none; border: none; color: var(--color-primary, #1F6B4F); font-weight: 500; cursor: pointer; padding: 0; font-size: 0.875rem; text-align: left; display: block; margin-bottom: 4px; }
 .nameLink:hover { text-decoration: underline; }
-.swatchBadge { display: inline-block; padding: 2px 8px; background: rgba(201, 153, 94, 0.15); color: #9A6B3A; border-radius: 20px; font-size: 0.7rem; font-weight: 500; margin-left: 6px; }
+.swatchBadge { display: inline-block; padding: 2px 8px; background: rgba(212, 165, 116, 0.15); color: #9E7340; border-radius: 20px; font-size: 0.7rem; font-weight: 500; margin-left: 6px; }
 .material { font-size: 0.8rem; color: var(--color-text); }
 .origin { font-size: 0.8rem; color: var(--color-text-muted); }
 
 .occasionChips { display: flex; flex-wrap: wrap; gap: 4px; }
-.occasionChip { display: inline-block; padding: 2px 8px; background: rgba(99, 102, 241, 0.1); color: #4338CA; border-radius: 20px; font-size: 0.7rem; font-weight: 500; }
+.occasionChip { display: inline-block; padding: 2px 8px; background: rgba(99, 102, 241, 0.1); color: #4B8DC8; border-radius: 20px; font-size: 0.7rem; font-weight: 500; }
 [data-theme="dark"] .occasionChip { background: rgba(99, 102, 241, 0.2); color: #818CF8; }
 
 .swatchThumb { width: 40px; height: 40px; background: var(--color-bg-2); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
 
 .statusPill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
 .statusActive { background: rgba(31, 107, 79, 0.1); color: #1F6B4F; }
-.statusDraft { background: rgba(100, 116, 139, 0.1); color: #64748b; }
-.statusArchived { background: rgba(239, 68, 68, 0.08); color: #dc2626; }
+.statusDraft { background: rgba(120, 113, 108, 0.1); color: #78716C; }
+.statusArchived { background: rgba(215, 91, 91, 0.08); color: #C24B4B; }
 
 .actions { display: flex; gap: 6px; }
 .actionBtn { padding: 4px 10px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 6px; background: transparent; color: var(--color-text); font-size: 0.75rem; cursor: pointer; }
 .actionBtn:hover { background: var(--color-bg-2); }
-.archiveBtn { padding: 4px 10px; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; background: transparent; color: #dc2626; font-size: 0.75rem; cursor: pointer; }
+.archiveBtn { padding: 4px 10px; border: 1px solid rgba(215, 91, 91, 0.3); border-radius: 6px; background: transparent; color: #C24B4B; font-size: 0.75rem; cursor: pointer; }
 
 .pagination { margin-top: 16px; font-size: 0.8rem; color: var(--color-text-muted); }
-.skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #f8fafc) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
+.skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #FAFAFA) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 .retryBtn { margin-top: 10px; padding: 6px 18px; background: var(--color-primary, #1F6B4F); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }

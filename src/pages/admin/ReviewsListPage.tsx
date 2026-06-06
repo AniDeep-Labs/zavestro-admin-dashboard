@@ -170,7 +170,7 @@ export const ReviewsListPage: React.FC = () => {
                       className={styles.actionBtn}
                       disabled={actionId === r.id}
                       onClick={() => handleModerate(r.id, false)}
-                      style={{ background: 'var(--color-error, #dc3545)', color: '#fff', border: 'none' }}
+                      style={{ background: 'var(--color-error, #D75B5B)', color: '#fff', border: 'none' }}
                     >
                       Reject
                     </button>
