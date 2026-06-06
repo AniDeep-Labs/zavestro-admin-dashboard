@@ -7,7 +7,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import { Spinner } from '../../components/Spinner';
 import { BreadcrumbProvider, useBreadcrumb } from '../../contexts/BreadcrumbContext';
 import styles from './AdminLayout.module.css';
-import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBuilding, UilChartBar, UilDashboard, UilEstate, UilFileAlt, UilHeadphones, UilHistory, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
+import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBuilding, UilChartBar, UilDashboard, UilEstate, UilFileAlt, UilHeadphones, UilHistory, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSearch, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
 
 interface NavItem {
   label: string;
@@ -261,6 +261,12 @@ const AdminLayoutInner: React.FC = () => {
                 </span>
               );
             })}
+          </div>
+
+          <div className={styles.topSearch}>
+            <UilSearch size={16} className={styles.topSearchIcon} />
+            <input className={styles.topSearchInput} placeholder="Search or type a command…" aria-label="Search" />
+            <span className={styles.topSearchKbd}>⌘K</span>
           </div>
 
           <div className={styles.topActions}>

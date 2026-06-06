@@ -94,6 +94,7 @@ function App() {
           <Route path="/admin/register" element={<AdminRegisterPage />} />
           <Route path="/admin/reset-password" element={<AdminResetPasswordPage />} />
           <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="orders" element={<OrdersListPage />} />
             <Route path="orders/:id" element={<OrderDetailPage />} />

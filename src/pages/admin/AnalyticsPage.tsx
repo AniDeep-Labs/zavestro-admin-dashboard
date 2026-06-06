@@ -5,6 +5,7 @@ import type { AnalyticsData, Hub, PromoCode, FitAnalyticsData } from '../../api/
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { downloadCsv, datedFilename } from '../../utils/csv';
+import { AreaTrendChart, fmtINRShort } from '../../components/charts/Charts';
 import styles from './AnalyticsPage.module.css';
 import { UilChartBar, UilChartDown, UilChartGrowth, UilImport, UilPlus, UilToggleOff, UilToggleOn } from "@iconscout/react-unicons";
 
@@ -188,21 +189,10 @@ export const AnalyticsPage: React.FC = () => {
               <button className={styles.exportBtn} onClick={exportRevenue} disabled={!analyticsData}><UilImport size={14}/> Export CSV</button>
             </div>
             {analyticsData && analyticsData.revenue.some(r => r.simplified > 0) ? (
-              <div className={styles.chart}>
-                <div className={styles.chartBars}>
-                  {analyticsData.revenue.map((d, i) => {
-                    const maxV = Math.max(...analyticsData.revenue.map(r => r.simplified), 1);
-                    return (
-                      <div key={i} className={styles.barGroup}>
-                        <div className={styles.barSimplified} style={{ height: `${Math.max(4, (d.simplified / maxV) * 100)}%` }} />
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className={styles.legend}>
-                  <span className={styles.legendGreen}>■ Revenue</span>
-                </div>
-              </div>
+              <AreaTrendChart
+                data={analyticsData.revenue as unknown as Record<string, string | number>[]}
+                xKey="label" dataKey="simplified" height={300} valueFormatter={fmtINRShort}
+              />
             ) : (
               <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem', padding: '24px 0' }}>No revenue recorded yet for this period.</p>
             )}
