@@ -6,7 +6,8 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import base from './OrdersListPage.module.css';
 import styles from './SampleVerificationPage.module.css';
-import { UilImage, UilAngleRightB, UilLayerGroup } from '@iconscout/react-unicons';
+import { UilImage, UilAngleRightB, UilLayerGroup, UilPlus } from '@iconscout/react-unicons';
+import { Button } from '../../components/Button/Button';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
@@ -56,6 +57,11 @@ export const DesignLibraryPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={base.pageHeader}>
         <h1 className={base.title}>Design Library</h1>
+        <Link to="/admin/design/library/new">
+          <Button variant="primary">
+            <UilPlus size={16} /> New design
+          </Button>
+        </Link>
       </div>
 
       <div className={base.filterBar}>

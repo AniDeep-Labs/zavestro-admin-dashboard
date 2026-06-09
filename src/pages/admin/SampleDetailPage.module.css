@@ -38,6 +38,14 @@
   text-transform: capitalize;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .rejectBanner {
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-md);

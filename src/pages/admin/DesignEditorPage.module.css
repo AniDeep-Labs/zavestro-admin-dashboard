@@ -1,0 +1,266 @@
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-md);
+}
+.back:hover {
+  color: var(--color-primary);
+}
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+}
+.title {
+  margin: 0 0 var(--spacing-lg);
+  font-size: var(--font-size-2xl);
+  color: var(--color-text);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  max-width: 860px;
+}
+.section {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+.sectionTitle {
+  margin: 0 0 var(--spacing-md);
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+}
+.req {
+  font-weight: 400;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+@media (max-width: 640px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+.fieldLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.hint {
+  display: block;
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* chips (capture-set / pain-points) */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+  background: var(--color-bg-input, var(--color-bg-card));
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  text-transform: capitalize;
+}
+.chip button {
+  display: inline-flex;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 0;
+}
+.chip button:hover {
+  color: var(--color-error);
+}
+.chipInput {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  padding: 4px;
+}
+
+/* fabric match */
+.fabricChosen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--spacing-md);
+}
+.fabricChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+.fabricChip em {
+  font-style: normal;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+.fabricChip button {
+  display: inline-flex;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 0;
+}
+.fabricChip button:hover {
+  color: var(--color-error);
+}
+.fabricChipSwatch {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--color-bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+.fabricChipSwatch img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fabricAdd {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: flex-end;
+}
+.fabricAdd > :first-child {
+  flex: 1;
+}
+
+/* tech-pack rows */
+.techRow {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr auto;
+  gap: var(--spacing-sm);
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.iconBtn:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+/* reference images */
+.refImages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+.refThumb {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+.refThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.refThumb button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.uploadBox {
+  width: 88px;
+  height: 88px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border);
+  background: var(--color-bg-section);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+.uploadBox:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* sticky action bar */
+.actionBar {
+  position: sticky;
+  bottom: 0;
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md) 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  max-width: 860px;
+  background: linear-gradient(to top, var(--color-bg-primary) 60%, transparent);
+}

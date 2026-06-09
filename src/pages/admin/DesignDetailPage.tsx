@@ -3,11 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import { designsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { DesignDetail } from '../../api/adminApi';
 import { Spinner } from '../../components/Spinner';
+import { Button } from '../../components/Button/Button';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import type { DesignStatus } from '../../api/adminApi';
 import base from './OrdersListPage.module.css';
 import s from './SampleDetailPage.module.css';
-import { UilArrowLeft, UilImage } from '@iconscout/react-unicons';
+import { UilArrowLeft, UilImage, UilEdit } from '@iconscout/react-unicons';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
@@ -33,8 +35,25 @@ export const DesignDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [design, setDesign] = React.useState<DesignDetail | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [busy, setBusy] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const dismiss = (t: string) => setToasts((x) => x.filter((y) => y.id !== t));
+  const toast = (type: ToastData['type'], title: string, msg?: string) =>
+    setToasts((x) => [...x, createToast(type, title, msg)]);
+
+  const changeStatus = async (status: DesignStatus) => {
+    if (!design) return;
+    setBusy(true);
+    try {
+      const updated = await designsApi.setStatus(design.id, status);
+      setDesign(updated);
+      toast('success', `Design ${status}`);
+    } catch (e) {
+      toast('error', 'Update failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   React.useEffect(() => {
     if (!id) return;
@@ -94,9 +113,35 @@ export const DesignDetailPage: React.FC = () => {
             {design.fit_preset ? ` · ${design.fit_preset} fit` : ''}
           </p>
         </div>
-        <span className={`${base.stagePill} ${base[STATUS_CSS[design.status] ?? 'stageNeutral']}`}>
-          {STATUS_LABELS[design.status] ?? design.status}
-        </span>
+        <div className={s.headerActions}>
+          <span className={`${base.stagePill} ${base[STATUS_CSS[design.status] ?? 'stageNeutral']}`}>
+            {STATUS_LABELS[design.status] ?? design.status}
+          </span>
+          <Link to={`/admin/design/library/${design.id}/edit`}>
+            <Button variant="outline">
+              <UilEdit size={15} /> Edit
+            </Button>
+          </Link>
+          {design.status === 'draft' && (
+            <Button
+              variant="primary"
+              disabled={busy || design.fabrics.length === 0}
+              onClick={() => changeStatus('published')}
+            >
+              Publish
+            </Button>
+          )}
+          {design.status === 'published' && (
+            <Button variant="ghost" disabled={busy} onClick={() => changeStatus('archived')}>
+              Archive
+            </Button>
+          )}
+          {design.status === 'archived' && (
+            <Button variant="ghost" disabled={busy} onClick={() => changeStatus('draft')}>
+              Restore to draft
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className={s.layout}>

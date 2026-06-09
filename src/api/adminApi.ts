@@ -921,6 +921,16 @@ export interface DesignInput {
   fabric_ids?: string[];
 }
 
+export interface GarmentCategoryOption {
+  id: string;
+  name: string;
+  slug: string;
+  body_region: string | null;
+  capture_set: unknown;
+  pain_point_menu: Record<string, unknown> | null;
+  available_fit_presets: string[] | null;
+}
+
 export const designsApi = {
   list: async (
     params: { status?: string; garment_category_id?: string; gender?: string; q?: string } = {},
@@ -938,6 +948,9 @@ export const designsApi = {
 
   fabricOptions: async (): Promise<FabricOption[]> =>
     req<FabricOption[]>(`/api/admin/designs/fabric-options`),
+
+  garmentCategories: async (): Promise<GarmentCategoryOption[]> =>
+    req<GarmentCategoryOption[]>(`/api/admin/designs/garment-categories`),
 
   create: async (input: DesignInput): Promise<DesignDetail> =>
     req<DesignDetail>(`/api/admin/designs`, { method: 'POST', body: JSON.stringify(input) }),
