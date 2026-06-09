@@ -1224,6 +1224,41 @@ export const fabricsApi = {
     req<Fabric>(`/api/admin/fabrics/${id}/active`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
 };
 
+// ─── Distribution (procurement pushes design+fabric → hub) ────────────────────
+
+export interface Distribution {
+  id: string;
+  design_id: string;
+  fabric_id: string | null;
+  hub_id: string;
+  sample_qty: string | number;
+  sellable_qty: string | number;
+  status: 'pushed' | 'received' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+  design_name: string;
+  fabric_name: string | null;
+}
+export interface PushDistributionInput {
+  design_id: string;
+  fabric_id?: string | null;
+  hub_id: string;
+  sample_qty?: number;
+  sellable_qty?: number;
+}
+
+export const distributionApi = {
+  list: async (params: { status?: string; hub_id?: string } = {}): Promise<Distribution[]> => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.hub_id) qs.set('hub_id', params.hub_id);
+    const s = qs.toString();
+    return req<Distribution[]>(`/api/admin/distribution${s ? `?${s}` : ''}`);
+  },
+  push: async (input: PushDistributionInput): Promise<Distribution> =>
+    req<Distribution>(`/api/admin/distribution`, { method: 'POST', body: JSON.stringify(input) }),
+};
+
 // ─── Listings (super read-only overview) ──────────────────────────────────────
 
 export interface ListingOverviewRow {

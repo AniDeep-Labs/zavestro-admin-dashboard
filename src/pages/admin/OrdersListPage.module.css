@@ -145,3 +145,21 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* push-to-hub modal */
+.modalStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+}
+.fieldLabel select {
+  font-weight: 400;
+}
