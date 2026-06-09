@@ -24,6 +24,12 @@ interface NavSection {
   title: string;
   caps: string[]; // section shows if the user holds ANY of these
   items: NavItem[];
+  // A role-owned *operating* console (design/catalog_manager). super_admin is
+  // oversight-only, so these are hidden from super (super gets read-only overviews
+  // instead). Shown to the owning role + the legacy `admin` god-mode account.
+  roleOwned?: boolean;
+  // A super-admin read-only OVERVIEW section — shown only to super_admin (+ legacy admin).
+  superOnly?: boolean;
 }
 
 // Always-visible home (no section header).
@@ -31,8 +37,18 @@ const HOME: NavItem = { label: 'Dashboard', icon: <UilDashboard size={18} />, pa
 
 const SECTIONS: NavSection[] = [
   {
+    title: 'Overviews',
+    caps: ['reports:read'],
+    superOnly: true,
+    items: [
+      { label: 'Design Overview', icon: <UilLayerGroup size={18} />, path: '/admin/oversight/designs', cap: 'reports:read' },
+      { label: 'Listings Overview', icon: <UilTag size={18} />, path: '/admin/oversight/listings', cap: 'reports:read' },
+    ],
+  },
+  {
     title: 'Design',
     caps: ['designs:write'],
+    roleOwned: true,
     items: [
       { label: 'Design Library', icon: <UilLayerGroup size={18} />, path: '/admin/design/library', cap: 'designs:write' },
       { label: 'Garment Types', icon: <UilRuler size={18} />, path: '/admin/system/garment-types', cap: 'designs:write' },
@@ -42,6 +58,7 @@ const SECTIONS: NavSection[] = [
   {
     title: 'Catalog · storefront',
     caps: ['catalog:write', 'cms:write'],
+    roleOwned: true,
     items: [
       {
         label: 'Catalog', icon: <UilTag size={18} />, path: '/admin/catalog', cap: 'catalog:write',
@@ -121,6 +138,8 @@ const NAV_CAP: Record<string, string | undefined> = Object.fromEntries([
   ...SECTIONS.flatMap((s) => s.items.map((it) => [it.label, it.cap])),
 ]);
 const ALL_ITEMS: NavItem[] = [HOME, ...SECTIONS.flatMap((s) => s.items)];
+// Paths inside role-owned operating consoles (Design, Catalog) — deep-link-blocked for super_admin.
+const ROLE_OWNED_PATHS: string[] = SECTIONS.filter(s => s.roleOwned).flatMap(s => s.items.map(it => it.path));
 
 // Inner component rendered inside BreadcrumbProvider so useBreadcrumb() reads
 // the correct context value (entity titles set by detail pages).
@@ -149,7 +168,15 @@ const AdminLayoutInner: React.FC = () => {
   }, []);
 
   const canSee = (item: NavItem) => !item.cap || caps.includes(item.cap);
-  const canSeeSection = (section: NavSection) => section.caps.some(c => caps.includes(c));
+  // Legacy `admin` = unchanged god-mode (sees all). super_admin = oversight-only:
+  // role-owned operating consoles (Design, Catalog) are hidden — super gets
+  // read-only overviews instead. Other roles: capability-gated as usual.
+  const canSeeSection = (section: NavSection) => {
+    if (adminRole === 'admin') return true;
+    if (section.superOnly) return adminRole === 'super_admin';
+    if (adminRole === 'super_admin' && section.roleOwned) return false;
+    return section.caps.some(c => caps.includes(c));
+  };
   const visibleSections = SECTIONS
     .filter(canSeeSection)
     .map(s => ({ ...s, items: s.items.filter(canSee) }))
@@ -160,7 +187,11 @@ const AdminLayoutInner: React.FC = () => {
   // so a still-loading session isn't bounced. Backend also 403s the APIs.
   const currentNav = ALL_ITEMS.find(n => location.pathname === n.path || location.pathname.startsWith(n.path + '/'));
   const requiredCap = currentNav ? NAV_CAP[currentNav.label] : undefined;
-  const accessDenied = !!requiredCap && caps.length > 0 && !caps.includes(requiredCap);
+  // super_admin is oversight-only — deep-link into a role-owned console is blocked too.
+  const superBlocked =
+    adminRole === 'super_admin' &&
+    ROLE_OWNED_PATHS.some(p => location.pathname === p || location.pathname.startsWith(p + '/'));
+  const accessDenied = superBlocked || (!!requiredCap && caps.length > 0 && !caps.includes(requiredCap));
 
   const handleLogout = async () => {
     await adminAuth.logout();

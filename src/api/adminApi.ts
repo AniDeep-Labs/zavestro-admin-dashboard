@@ -920,6 +920,17 @@ export interface GarmentCategoryOption {
   available_fit_presets: string[] | null;
 }
 
+export interface DesignOverviewRow {
+  id: string;
+  name: string;
+  status: DesignStatus;
+  gender: string | null;
+  garment_type: string;
+  fabrics: string[];
+  hubs: string[];
+  units_sold: number;
+}
+
 export const designsApi = {
   list: async (
     params: { status?: string; garment_category_id?: string; gender?: string; q?: string } = {},
@@ -940,6 +951,9 @@ export const designsApi = {
 
   garmentCategories: async (): Promise<GarmentCategoryOption[]> =>
     req<GarmentCategoryOption[]>(`/api/admin/designs/garment-categories`),
+
+  overview: async (): Promise<DesignOverviewRow[]> =>
+    req<DesignOverviewRow[]>(`/api/admin/designs/overview`),
 
   create: async (input: DesignInput): Promise<DesignDetail> =>
     req<DesignDetail>(`/api/admin/designs`, { method: 'POST', body: JSON.stringify(input) }),
@@ -1101,6 +1115,23 @@ export interface PincodeDemand {
 export const pincodeWaitlistApi = {
   list: async (): Promise<PincodeDemand[]> =>
     req<{ waitlist: PincodeDemand[] }>(`/api/admin/system/pincode-waitlist`).then(r => r.waitlist),
+};
+
+// ─── Listings (super read-only overview) ──────────────────────────────────────
+
+export interface ListingOverviewRow {
+  id: string;
+  design_name: string;
+  garment_type: string;
+  fabric_name: string;
+  hub_name: string;
+  price: string;
+  is_active: boolean;
+}
+
+export const listingsAdminApi = {
+  overview: async (): Promise<ListingOverviewRow[]> =>
+    req<ListingOverviewRow[]>(`/api/admin/listings/overview`),
 };
 
 // ─── Promo Codes ──────────────────────────────────────────────────────────────
