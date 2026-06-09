@@ -1176,6 +1176,54 @@ export const designAnalyticsApi = {
     req<{ designs: DesignPerformanceRow[] }>(`/api/admin/analytics/design-performance`),
 };
 
+// ─── Fabrics Master (procurement) ─────────────────────────────────────────────
+
+export interface Fabric {
+  id: string;
+  code: string;
+  name: string;
+  composition: string;
+  weight_gsm: number | null;
+  weave: string | null;
+  finish: string | null;
+  origin: string | null;
+  care_instructions: string[];
+  image_keys: string[];
+  price_per_meter: string | null;
+  is_active: boolean;
+  created_at: string;
+  design_count?: number;
+  listing_count?: number;
+}
+export interface FabricInput {
+  code: string;
+  name: string;
+  composition: string;
+  weight_gsm?: number | null;
+  weave?: string | null;
+  finish?: string | null;
+  origin?: string | null;
+  care_instructions?: string[];
+  image_keys?: string[];
+  price_per_meter?: number | null;
+}
+
+export const fabricsApi = {
+  list: async (params: { q?: string; active?: boolean } = {}): Promise<Fabric[]> => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set('q', params.q);
+    if (params.active !== undefined) qs.set('active', String(params.active));
+    const s = qs.toString();
+    return req<Fabric[]>(`/api/admin/fabrics${s ? `?${s}` : ''}`);
+  },
+  create: async (input: FabricInput): Promise<Fabric> =>
+    req<Fabric>(`/api/admin/fabrics`, { method: 'POST', body: JSON.stringify(input) }),
+  update: async (id: string, input: FabricInput): Promise<Fabric> =>
+    req<Fabric>(`/api/admin/fabrics/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+  setActive: async (id: string, is_active: boolean): Promise<Fabric> =>
+    req<Fabric>(`/api/admin/fabrics/${id}/active`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
+};
+
 // ─── Listings (super read-only overview) ──────────────────────────────────────
 
 export interface ListingOverviewRow {
