@@ -53,6 +53,7 @@ const SECTIONS: NavSection[] = [
       { label: 'Design Library', icon: <UilLayerGroup size={18} />, path: '/admin/design/library', cap: 'designs:write' },
       { label: 'Garment Types', icon: <UilRuler size={18} />, path: '/admin/design/templates', cap: 'designs:write' },
       { label: 'Sample Review', icon: <UilCheckCircle size={18} />, path: '/admin/design/samples', cap: 'samples:write' },
+      { label: 'Design Analytics', icon: <UilChartBar size={18} />, path: '/admin/design/analytics', cap: 'reports:read' },
     ],
   },
   {

@@ -60,6 +60,7 @@ const MeasurementBookingDetailPage = lazyPage(() => import('./pages/admin/Measur
 const MeasurementBookingNewPage = lazyPage(() => import('./pages/admin/MeasurementBookingNewPage'), 'MeasurementBookingNewPage');
 const GarmentTypeTemplatesPage = lazyPage(() => import('./pages/admin/GarmentTypeTemplatesPage'), 'GarmentTypeTemplatesPage');
 const GarmentTemplateEditorPage = lazyPage(() => import('./pages/admin/GarmentTemplateEditorPage'), 'GarmentTemplateEditorPage');
+const DesignAnalyticsPage = lazyPage(() => import('./pages/admin/DesignAnalyticsPage'), 'DesignAnalyticsPage');
 const ReviewsListPage = lazyPage(() => import('./pages/admin/ReviewsListPage'), 'ReviewsListPage');
 
 function NotFoundPage() {
@@ -135,6 +136,7 @@ function App() {
             <Route path="design/library/:id/edit" element={<DesignEditorPage />} />
             <Route path="design/templates" element={<GarmentTypeTemplatesPage />} />
             <Route path="design/templates/:id" element={<GarmentTemplateEditorPage />} />
+            <Route path="design/analytics" element={<DesignAnalyticsPage />} />
             <Route path="oversight/designs" element={<DesignOverviewPage />} />
             <Route path="oversight/listings" element={<ListingsOverviewPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />

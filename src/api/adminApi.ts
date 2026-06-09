@@ -1148,6 +1148,34 @@ export const pincodeWaitlistApi = {
     req<{ waitlist: PincodeDemand[] }>(`/api/admin/system/pincode-waitlist`).then(r => r.waitlist),
 };
 
+// ─── Design analytics (fit accuracy + design performance) ─────────────────────
+
+export interface FitAccuracyTotals {
+  delivered: number;
+  fit_issues: number;
+  fit_accuracy_pct: number;
+}
+export interface FitAccuracy {
+  hubs: { hub_id: string | null; hub_name: string | null; delivered: number; fit_issues: number; fit_accuracy_pct: number }[];
+  totals: FitAccuracyTotals;
+  note?: string;
+}
+export interface DesignPerformanceRow {
+  design_id: string;
+  design_name: string;
+  orders: number;
+  units: number;
+  fit_issue_orders: number;
+  fit_accuracy_pct: number;
+}
+
+export const designAnalyticsApi = {
+  fitAccuracy: async (): Promise<FitAccuracy> =>
+    req<FitAccuracy>(`/api/admin/analytics/fit-accuracy`),
+  designPerformance: async (): Promise<{ designs: DesignPerformanceRow[] }> =>
+    req<{ designs: DesignPerformanceRow[] }>(`/api/admin/analytics/design-performance`),
+};
+
 // ─── Listings (super read-only overview) ──────────────────────────────────────
 
 export interface ListingOverviewRow {
