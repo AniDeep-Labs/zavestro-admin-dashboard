@@ -43,6 +43,7 @@ const HomeSectionsPage = lazyPage(() => import('./pages/admin/HomeSectionsPage')
 const ReturnsListPage = lazyPage(() => import('./pages/admin/ReturnsListPage'), 'ReturnsListPage');
 const ReturnDetailPage = lazyPage(() => import('./pages/admin/ReturnDetailPage'), 'ReturnDetailPage');
 const AlterationsListPage = lazyPage(() => import('./pages/admin/AlterationsListPage'), 'AlterationsListPage');
+const SampleVerificationPage = lazyPage(() => import('./pages/admin/SampleVerificationPage'), 'SampleVerificationPage');
 const HomeVisitsListPage = lazyPage(() => import('./pages/admin/HomeVisitsListPage'), 'HomeVisitsListPage');
 const HomeVisitDetailPage = lazyPage(() => import('./pages/admin/HomeVisitDetailPage'), 'HomeVisitDetailPage');
 const InvoicesListPage = lazyPage(() => import('./pages/admin/InvoicesListPage'), 'InvoicesListPage');
@@ -124,6 +125,7 @@ function App() {
             <Route path="returns" element={<ReturnsListPage />} />
             <Route path="returns/:id" element={<ReturnDetailPage />} />
             <Route path="alterations" element={<AlterationsListPage />} />
+            <Route path="design/samples" element={<SampleVerificationPage />} />
             <Route path="home-visits" element={<HomeVisitsListPage />} />
             <Route path="home-visits/:id" element={<HomeVisitDetailPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
