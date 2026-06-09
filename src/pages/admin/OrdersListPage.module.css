@@ -130,3 +130,18 @@
 [data-theme="dark"] .actionWarning { background: rgba(228, 149, 42,0.2); color: #EAC06A; }
 [data-theme="dark"] .actionError { background: rgba(215, 91, 91,0.2); color: #E89A9A; }
 [data-theme="dark"] .actionInfo { background: rgba(59,130,246,0.2); color: #9FC0E0; }
+
+/* fabric editor modal form grid */
+.modalGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+.modalGrid > :nth-child(3) {
+  grid-column: 1 / -1;
+}
+@media (max-width: 560px) {
+  .modalGrid {
+    grid-template-columns: 1fr;
+  }
+}

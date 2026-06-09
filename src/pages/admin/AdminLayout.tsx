@@ -57,6 +57,14 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: 'Procurement',
+    caps: ['distribution:write'],
+    roleOwned: true,
+    items: [
+      { label: 'Fabrics Master', icon: <UilTag size={18} />, path: '/admin/procurement/fabrics', cap: 'distribution:write' },
+    ],
+  },
+  {
     title: 'Catalog · storefront',
     caps: ['catalog:write', 'cms:write'],
     roleOwned: true,
