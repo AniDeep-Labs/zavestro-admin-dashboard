@@ -62,6 +62,7 @@ const SECTIONS: NavSection[] = [
     roleOwned: true,
     items: [
       { label: 'Fabrics Master', icon: <UilTag size={18} />, path: '/admin/procurement/fabrics', cap: 'distribution:write' },
+      { label: 'Distribution', icon: <UilProcess size={18} />, path: '/admin/procurement/distribution', cap: 'distribution:write' },
     ],
   },
   {
