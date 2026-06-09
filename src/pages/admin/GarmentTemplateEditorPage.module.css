@@ -1,0 +1,237 @@
+.center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40vh;
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  margin-bottom: var(--spacing-sm);
+}
+.back:hover {
+  color: var(--color-text);
+}
+.title {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 var(--spacing-lg);
+}
+.sub {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.section {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+.sectionTitle {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 4px;
+}
+.req {
+  font-weight: 400;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+.hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-md);
+}
+
+/* chips (fields + presets) */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px 4px 10px;
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  text-transform: capitalize;
+}
+.chip button {
+  display: inline-flex;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+.chip button:hover {
+  color: var(--color-error);
+}
+.chipInput {
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  border-radius: var(--radius-md);
+  padding: 5px 10px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  min-width: 150px;
+}
+
+/* per-preset tabs */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--spacing-md);
+}
+.tab {
+  padding: 5px 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-transform: capitalize;
+}
+.tabActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+/* chart grid */
+.chart {
+  width: 100%;
+  border-collapse: collapse;
+}
+.chart th {
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+.chart td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--color-border-subtle, var(--color-border));
+}
+.cell,
+.sizeInput {
+  width: 100%;
+  min-width: 64px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+.sizeInput {
+  min-width: 90px;
+  font-weight: 500;
+}
+.cell:focus,
+.sizeInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+.iconBtn {
+  display: inline-flex;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+}
+.iconBtn:hover {
+  color: var(--color-error);
+}
+
+/* capture-set checks */
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  text-transform: capitalize;
+  cursor: pointer;
+}
+
+/* pain points */
+.painRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+.painArrow {
+  color: var(--color-text-muted);
+}
+.painTag {
+  flex: 1;
+  min-width: 160px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+.painField {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  text-transform: capitalize;
+}
+.painDelta {
+  width: 84px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.actionBar {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  position: sticky;
+  bottom: 0;
+  padding: var(--spacing-md) 0;
+  background: linear-gradient(transparent, var(--color-bg) 40%);
+}
