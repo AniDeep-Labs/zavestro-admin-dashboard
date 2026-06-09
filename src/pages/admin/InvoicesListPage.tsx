@@ -1,6 +1,6 @@
 import React from 'react';
-import { invoicesApi } from '../../api/adminApi';
-import type { Invoice } from '../../api/adminApi';
+import { invoicesApi, ordersApi } from '../../api/adminApi';
+import type { Invoice, AdminOrder } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
@@ -25,7 +25,15 @@ export const InvoicesListPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [actionId, setActionId] = React.useState<string | null>(null);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  const [refreshTick, setRefreshTick] = React.useState(0);
   const debouncedSearch = useDebounce(search, 350);
+
+  // Generate-invoice modal (find an order → generate its invoice)
+  const [showGenerate, setShowGenerate] = React.useState(false);
+  const [orderSearch, setOrderSearch] = React.useState('');
+  const [orderResults, setOrderResults] = React.useState<AdminOrder[]>([]);
+  const [generatingId, setGeneratingId] = React.useState<string | null>(null);
+  const debouncedOrderSearch = useDebounce(orderSearch, 350);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -42,7 +50,26 @@ export const InvoicesListPage: React.FC = () => {
       .then(r => { setInvoices(r.invoices); setTotal(r.total); })
       .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-  }, [debouncedSearch, statusFilter, page]);
+  }, [debouncedSearch, statusFilter, page, refreshTick]);
+
+  React.useEffect(() => {
+    if (!showGenerate || debouncedOrderSearch.trim().length < 2) { setOrderResults([]); return; }
+    ordersApi.list({ search: debouncedOrderSearch.trim(), limit: 6 })
+      .then(r => setOrderResults(r.orders))
+      .catch(() => {});
+  }, [showGenerate, debouncedOrderSearch]);
+
+  const handleGenerate = async (order: AdminOrder) => {
+    setGeneratingId(order.id);
+    try {
+      await invoicesApi.generateForOrder(order.id);
+      showToast('success', 'Invoice queued', `Generation queued for ${order.reference_id ?? order.id}`);
+      setShowGenerate(false); setOrderSearch(''); setOrderResults([]);
+      setRefreshTick(t => t + 1);
+    } catch (e) {
+      showToast('error', 'Generation failed', e instanceof Error ? e.message : undefined);
+    } finally { setGeneratingId(null); }
+  };
 
   const handleDownload = async (inv: Invoice) => {
     if (inv.status !== 'generated') {
@@ -74,9 +101,9 @@ export const InvoicesListPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Invoices</h1>
-        <button 
-          className={styles.addBtn} 
-          onClick={() => showToast('info', 'Coming Soon', 'Manual invoice generation will be available soon. Invoices are currently auto-generated from orders.')}
+        <button
+          className={styles.addBtn}
+          onClick={() => { setShowGenerate(true); setOrderSearch(''); setOrderResults([]); }}
         >
           <UilPlus size={15} /> Generate Invoice
         </button>
@@ -148,6 +175,42 @@ export const InvoicesListPage: React.FC = () => {
           <button className={styles.pageBtn} disabled={invoices.length < 25 || loading} onClick={() => setPage(p => p + 1)}>Next <UilAngleRight size={15}/></button>
         </div>
       </div>
+
+      {showGenerate && (
+        <div className={styles.modalOverlay} onClick={() => setShowGenerate(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Generate Invoice</h2>
+            <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              Find the order to invoice — generation is queued and the PDF appears once ready. (Invoices auto-generate from orders; use this to create or re-trigger one manually.)
+            </p>
+            <div style={{ position: 'relative' }}>
+              <input className={styles.fieldInput} autoFocus placeholder="Search order by number or customer…"
+                value={orderSearch} onChange={e => setOrderSearch(e.target.value)} />
+              {orderResults.length > 0 && (
+                <div className={styles.searchDropdown}>
+                  {orderResults.map(o => (
+                    <button key={o.id} className={styles.searchResult} disabled={generatingId !== null}
+                      onClick={() => handleGenerate(o)}>
+                      <span style={{ fontWeight: 500 }}>{o.reference_id ?? o.id}</span>
+                      <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+                        {o.customer ?? ''}{generatingId === o.id ? ' · generating…' : ''}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {debouncedOrderSearch.trim().length >= 2 && orderResults.length === 0 && (
+                <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)', marginTop: 8 }}>
+                  No orders found for "{orderSearch}".
+                </div>
+              )}
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.cancelModalBtn} onClick={() => setShowGenerate(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
