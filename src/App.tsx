@@ -47,6 +47,7 @@ const SampleDetailPage = lazyPage(() => import('./pages/admin/SampleDetailPage')
 const DesignLibraryPage = lazyPage(() => import('./pages/admin/DesignLibraryPage'), 'DesignLibraryPage');
 const DesignDetailPage = lazyPage(() => import('./pages/admin/DesignDetailPage'), 'DesignDetailPage');
 const DesignEditorPage = lazyPage(() => import('./pages/admin/DesignEditorPage'), 'DesignEditorPage');
+const DesignOverviewPage = lazyPage(() => import('./pages/admin/DesignOverviewPage'), 'DesignOverviewPage');
 const InvoicesListPage = lazyPage(() => import('./pages/admin/InvoicesListPage'), 'InvoicesListPage');
 const CodReconciliationPage = lazyPage(() => import('./pages/admin/CodReconciliationPage'), 'CodReconciliationPage');
 const NotificationBlastPage = lazyPage(() => import('./pages/admin/NotificationBlastPage'), 'NotificationBlastPage');
@@ -130,6 +131,7 @@ function App() {
             <Route path="design/library/new" element={<DesignEditorPage />} />
             <Route path="design/library/:id" element={<DesignDetailPage />} />
             <Route path="design/library/:id/edit" element={<DesignEditorPage />} />
+            <Route path="oversight/designs" element={<DesignOverviewPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
             <Route path="finance/cod-reconciliation" element={<CodReconciliationPage />} />
             <Route path="notifications" element={<NotificationBlastPage />} />

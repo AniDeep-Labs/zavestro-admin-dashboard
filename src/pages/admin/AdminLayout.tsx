@@ -28,12 +28,22 @@ interface NavSection {
   // oversight-only, so these are hidden from super (super gets read-only overviews
   // instead). Shown to the owning role + the legacy `admin` god-mode account.
   roleOwned?: boolean;
+  // A super-admin read-only OVERVIEW section — shown only to super_admin (+ legacy admin).
+  superOnly?: boolean;
 }
 
 // Always-visible home (no section header).
 const HOME: NavItem = { label: 'Dashboard', icon: <UilDashboard size={18} />, path: '/admin/dashboard' };
 
 const SECTIONS: NavSection[] = [
+  {
+    title: 'Overviews',
+    caps: ['reports:read'],
+    superOnly: true,
+    items: [
+      { label: 'Design Overview', icon: <UilLayerGroup size={18} />, path: '/admin/oversight/designs', cap: 'reports:read' },
+    ],
+  },
   {
     title: 'Design',
     caps: ['designs:write'],
@@ -162,6 +172,7 @@ const AdminLayoutInner: React.FC = () => {
   // read-only overviews instead. Other roles: capability-gated as usual.
   const canSeeSection = (section: NavSection) => {
     if (adminRole === 'admin') return true;
+    if (section.superOnly) return adminRole === 'super_admin';
     if (adminRole === 'super_admin' && section.roleOwned) return false;
     return section.caps.some(c => caps.includes(c));
   };
