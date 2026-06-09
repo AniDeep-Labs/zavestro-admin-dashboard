@@ -1,22 +1,22 @@
 import React from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { sampleJobsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { SampleJobDetail } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
-import { Modal } from '../../components/Modal/Modal';
 import { Textarea } from '../../components/Textarea/Textarea';
 import { Spinner } from '../../components/Spinner';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import base from './OrdersListPage.module.css';
 import styles from './SampleDetailPage.module.css';
-import { UilArrowLeft, UilImage, UilTimes } from '@iconscout/react-unicons';
+import { UilArrowLeft, UilImage, UilCheckCircle } from '@iconscout/react-unicons';
 
 const STATUS_LABELS: Record<string, string> = {
   requested: 'Requested',
   cutting: 'Cutting',
   stitching: 'Stitching',
   design_review: 'Awaiting Review',
+  reviewed: 'Reviewed',
   approved: 'Approved',
   rejected: 'Rejected',
 };
@@ -25,6 +25,7 @@ const STATUS_CSS: Record<string, string> = {
   cutting: 'stageBlue',
   stitching: 'stageBlue',
   design_review: 'stageWarning',
+  reviewed: 'stageSuccess',
   approved: 'stageSuccess',
   rejected: 'stageNeutral',
 };
@@ -81,12 +82,11 @@ const Gallery: React.FC<{ title: string; keys: string[]; emptyHint: string }> = 
 
 export const SampleDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [sample, setSample] = React.useState<SampleJobDetail | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [acting, setActing] = React.useState(false);
-  const [rejectOpen, setRejectOpen] = React.useState(false);
-  const [rejectReason, setRejectReason] = React.useState('');
+  const [newComment, setNewComment] = React.useState('');
+  const [posting, setPosting] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   const dismissToast = (t: string) => setToasts((x) => x.filter((y) => y.id !== t));
@@ -103,30 +103,31 @@ export const SampleDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const approve = async () => {
+  const markReviewed = async () => {
     if (!sample) return;
     setActing(true);
     try {
-      await sampleJobsApi.approve(sample.id);
-      showToast('success', 'Sample approved', 'Ready for the catalog manager to list.');
-      setTimeout(() => navigate('/admin/design/samples'), 700);
+      await sampleJobsApi.review(sample.id);
+      setSample({ ...sample, status: 'reviewed' });
+      showToast('success', 'Marked reviewed', 'The catalog manager can now list it.');
     } catch (e) {
-      showToast('error', 'Approve failed', e instanceof Error ? e.message : undefined);
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    } finally {
       setActing(false);
     }
   };
 
-  const submitReject = async () => {
-    if (!sample || !rejectReason.trim()) return;
-    setActing(true);
+  const postComment = async () => {
+    if (!sample || !newComment.trim()) return;
+    setPosting(true);
     try {
-      await sampleJobsApi.reject(sample.id, rejectReason.trim());
-      showToast('success', 'Sample rejected', 'Sent back to the hub for a rebuild.');
-      setRejectOpen(false);
-      setTimeout(() => navigate('/admin/design/samples'), 700);
+      const c = await sampleJobsApi.addComment(sample.id, newComment.trim());
+      setSample({ ...sample, comments: [...sample.comments, c] });
+      setNewComment('');
     } catch (e) {
-      showToast('error', 'Reject failed', e instanceof Error ? e.message : undefined);
-      setActing(false);
+      showToast('error', 'Comment failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setPosting(false);
     }
   };
 
@@ -301,48 +302,57 @@ export const SampleDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Advisory review — improvement comments (no approve/reject; design suggests, CM lists) */}
+      <section className={styles.reviewPanel}>
+        <h3 className={styles.panelTitle}>Review &amp; comments</h3>
+        {sample.comments.length === 0 ? (
+          <p className={styles.modalHint}>
+            No comments yet. Leave improvement notes for the hub — this is advisory, not a rejection.
+          </p>
+        ) : (
+          <div className={styles.commentList}>
+            {sample.comments.map((c) => (
+              <div key={c.id} className={styles.comment}>
+                <div className={styles.commentMeta}>
+                  <strong>{c.author_name ?? 'Design'}</strong>
+                  <span>
+                    {new Date(c.created_at).toLocaleString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+                <div className={styles.commentBody}>{c.body}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className={styles.commentForm}>
+          <Textarea
+            value={newComment}
+            onChange={setNewComment}
+            placeholder="Suggest an improvement… (e.g. collar uneven, sleeve +1cm)"
+          />
+          <Button
+            variant="outline"
+            disabled={!newComment.trim()}
+            state={posting ? 'loading' : 'default'}
+            onClick={postComment}
+          >
+            Post comment
+          </Button>
+        </div>
+      </section>
+
       {sample.status === 'design_review' && (
         <div className={styles.actionBar}>
-          <Button
-            variant="danger"
-            disabled={acting}
-            onClick={() => {
-              setRejectReason('');
-              setRejectOpen(true);
-            }}
-          >
-            Reject
-          </Button>
-          <Button variant="primary" state={acting ? 'loading' : 'default'} onClick={approve}>
-            Approve sample
+          <Button variant="primary" state={acting ? 'loading' : 'default'} onClick={markReviewed}>
+            <UilCheckCircle size={16} /> Mark reviewed
           </Button>
         </div>
       )}
-
-      <Modal open={rejectOpen} onClose={() => setRejectOpen(false)} title={`Reject "${design.name}"`}>
-        <div className={styles.modalBody}>
-          <p className={styles.modalHint}>The hub will rebuild the sample. Tell them what's wrong.</p>
-          <Textarea
-            value={rejectReason}
-            onChange={setRejectReason}
-            label="Rejection reason"
-            placeholder="e.g. collar uneven, sleeve length off by 2cm…"
-          />
-          <div className={styles.modalActions}>
-            <Button variant="outline" onClick={() => setRejectOpen(false)}>
-              <UilTimes size={15} /> Cancel
-            </Button>
-            <Button
-              variant="danger"
-              disabled={!rejectReason.trim()}
-              state={acting ? 'loading' : 'default'}
-              onClick={submitReject}
-            >
-              Reject sample
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };

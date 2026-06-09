@@ -754,7 +754,7 @@ export interface SampleJob {
   design_id: string;
   fabric_id: string;
   hub_id: string;
-  status: 'requested' | 'cutting' | 'stitching' | 'design_review' | 'approved' | 'rejected';
+  status: 'requested' | 'cutting' | 'stitching' | 'design_review' | 'reviewed' | 'approved' | 'rejected';
   assigned_tailor_id: string | null;
   photo_keys: string[];
   rejection_reason: string | null;
@@ -763,6 +763,13 @@ export interface SampleJob {
   design_name: string;
   fabric_name: string;
   tailor_name: string | null;
+}
+
+export interface SampleComment {
+  id: string;
+  body: string;
+  created_at: string;
+  author_name: string | null;
 }
 
 export interface SampleJobDetail {
@@ -775,6 +782,7 @@ export interface SampleJobDetail {
   tailor_name: string | null;
   created_at: string;
   updated_at: string;
+  comments: SampleComment[];
   design: {
     id: string;
     name: string;
@@ -817,13 +825,14 @@ export const sampleJobsApi = {
   get: async (id: string): Promise<SampleJobDetail> =>
     req<SampleJobDetail>(`/api/admin/sample-jobs/${id}`),
 
-  approve: async (id: string): Promise<SampleJob> =>
-    req<SampleJob>(`/api/admin/sample-jobs/${id}/approve`, { method: 'POST' }),
+  // Advisory review: mark the sample 'reviewed' (non-blocking; no reject).
+  review: async (id: string): Promise<SampleJob> =>
+    req<SampleJob>(`/api/admin/sample-jobs/${id}/review`, { method: 'POST' }),
 
-  reject: async (id: string, reason: string): Promise<SampleJob> =>
-    req<SampleJob>(`/api/admin/sample-jobs/${id}/reject`, {
+  addComment: async (id: string, body: string): Promise<SampleComment> =>
+    req<SampleComment>(`/api/admin/sample-jobs/${id}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ body }),
     }),
 };
 

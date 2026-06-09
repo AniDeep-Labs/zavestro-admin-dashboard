@@ -13,6 +13,7 @@ const STATUS_LABELS: Record<string, string> = {
   cutting: 'Cutting',
   stitching: 'Stitching',
   design_review: 'Awaiting Review',
+  reviewed: 'Reviewed',
   approved: 'Approved',
   rejected: 'Rejected',
 };
@@ -21,6 +22,7 @@ const STATUS_CSS: Record<string, string> = {
   cutting: 'stageBlue',
   stitching: 'stageBlue',
   design_review: 'stageWarning',
+  reviewed: 'stageSuccess',
   approved: 'stageSuccess',
   rejected: 'stageNeutral',
 };
@@ -50,7 +52,7 @@ export const SampleVerificationPage: React.FC = () => {
     <div className={base.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={base.pageHeader}>
-        <h1 className={base.title}>Sample Verification</h1>
+        <h1 className={base.title}>Sample Review</h1>
       </div>
 
       <div className={base.filterBar}>
@@ -60,8 +62,7 @@ export const SampleVerificationPage: React.FC = () => {
           onChange={(e) => setStatusFilter(e.target.value)}
         >
           <option value="design_review">Awaiting Review</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
+          <option value="reviewed">Reviewed</option>
           <option value="">All Statuses</option>
         </select>
       </div>
