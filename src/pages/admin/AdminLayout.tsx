@@ -7,7 +7,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import { Spinner } from '../../components/Spinner';
 import { BreadcrumbProvider, useBreadcrumb } from '../../contexts/BreadcrumbContext';
 import styles from './AdminLayout.module.css';
-import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBuilding, UilChartBar, UilCheckCircle, UilDashboard, UilEstate, UilFileAlt, UilHeadphones, UilHistory, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSearch, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
+import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBuilding, UilChartBar, UilCheckCircle, UilDashboard, UilEstate, UilFileAlt, UilHeadphones, UilHistory, UilLayerGroup, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSearch, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
 
 interface NavItem {
   label: string;
@@ -55,6 +55,7 @@ const NAV: NavItem[] = [
   { label: 'Support',     icon: <UilHeadphones size={18} />,  path: '/admin/support',      roles: ['admin', 'admin_support'] },
   { label: 'Returns',     icon: <UilHistory size={18} />,   path: '/admin/returns',      roles: ['admin', 'admin_ops'] },
   { label: 'Alterations', icon: <UilProcess size={18} />,    path: '/admin/alterations',  roles: ['admin', 'admin_ops'] },
+  { label: 'Design Library', icon: <UilLayerGroup size={18} />, path: '/admin/design/library', roles: ['admin', 'design'] },
   { label: 'Sample Verification', icon: <UilCheckCircle size={18} />, path: '/admin/design/samples', roles: ['admin', 'design'] },
   { label: 'Reviews',     icon: <UilStar size={18} />,        path: '/admin/reviews',       roles: ['admin', 'admin_ops'] },
   { label: 'Home Visits', icon: <UilEstate size={18} />,        path: '/admin/home-visits',           roles: ['admin', 'admin_ops'] },
@@ -91,6 +92,7 @@ const NAV_CAP: Record<string, string | undefined> = {
   'Support':      'customers:write',
   'Returns':      'orders:write',
   'Alterations':  'orders:write',
+  'Design Library': 'designs:write',
   'Sample Verification': 'samples:write',
   'Reviews':      'reviews:moderate',
   'Home Visits':  'orders:write',
