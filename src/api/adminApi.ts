@@ -847,6 +847,111 @@ export const sampleJobsApi = {
     }),
 };
 
+// ─── Designs (central design library — P3 item 28) ────────────────────────────
+
+export type DesignStatus = 'draft' | 'published' | 'archived';
+
+export interface DesignSummary {
+  id: string;
+  name: string;
+  gender: string | null;
+  style: string | null;
+  fit_preset: string | null;
+  meters_per_garment: string | null;
+  status: DesignStatus;
+  garment_type: string;
+  garment_slug: string;
+  reference_image_keys: string[];
+  fabric_count: number;
+  cover_key: string | null;
+  updated_at: string;
+}
+
+export interface DesignFabricRef {
+  id: string;
+  name: string;
+  code: string | null;
+  composition: string | null;
+  image_keys: string[];
+}
+
+export interface DesignDetail {
+  id: string;
+  name: string;
+  gender: string | null;
+  style: string | null;
+  fit_preset: string | null;
+  meters_per_garment: string | null;
+  status: DesignStatus;
+  garment_type: string;
+  garment_slug: string;
+  garment_category_id: string;
+  tech_pack: Record<string, unknown> | null;
+  capture_set: unknown;
+  pain_point_menu: Record<string, unknown> | null;
+  reference_image_keys: string[];
+  template_capture_set: unknown;
+  template_pain_point_menu: Record<string, unknown> | null;
+  template_fit_presets: string[] | null;
+  created_at: string;
+  updated_at: string;
+  fabrics: DesignFabricRef[];
+}
+
+export interface FabricOption {
+  id: string;
+  name: string;
+  code: string | null;
+  composition: string | null;
+  weave: string | null;
+  image_keys: string[];
+}
+
+export interface DesignInput {
+  name: string;
+  garment_category_id: string;
+  gender?: string;
+  style?: string | null;
+  fit_preset?: string | null;
+  meters_per_garment?: number;
+  tech_pack?: Record<string, unknown> | null;
+  capture_set?: unknown;
+  pain_point_menu?: Record<string, unknown> | null;
+  reference_image_keys?: string[];
+  fabric_ids?: string[];
+}
+
+export const designsApi = {
+  list: async (
+    params: { status?: string; garment_category_id?: string; gender?: string; q?: string } = {},
+  ): Promise<DesignSummary[]> => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.garment_category_id) qs.set('garment_category_id', params.garment_category_id);
+    if (params.gender) qs.set('gender', params.gender);
+    if (params.q) qs.set('q', params.q);
+    const q = qs.toString();
+    return req<DesignSummary[]>(`/api/admin/designs${q ? `?${q}` : ''}`);
+  },
+
+  get: async (id: string): Promise<DesignDetail> => req<DesignDetail>(`/api/admin/designs/${id}`),
+
+  fabricOptions: async (): Promise<FabricOption[]> =>
+    req<FabricOption[]>(`/api/admin/designs/fabric-options`),
+
+  create: async (input: DesignInput): Promise<DesignDetail> =>
+    req<DesignDetail>(`/api/admin/designs`, { method: 'POST', body: JSON.stringify(input) }),
+
+  update: async (id: string, input: DesignInput): Promise<DesignDetail> =>
+    req<DesignDetail>(`/api/admin/designs/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+
+  setStatus: async (id: string, status: DesignStatus): Promise<DesignDetail> =>
+    req<DesignDetail>(`/api/admin/designs/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+};
+
 // ─── Home Visits ──────────────────────────────────────────────────────────────
 
 export interface HomeVisit {
