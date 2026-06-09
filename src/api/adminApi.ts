@@ -1117,6 +1117,23 @@ export const pincodeWaitlistApi = {
     req<{ waitlist: PincodeDemand[] }>(`/api/admin/system/pincode-waitlist`).then(r => r.waitlist),
 };
 
+// ─── Listings (super read-only overview) ──────────────────────────────────────
+
+export interface ListingOverviewRow {
+  id: string;
+  design_name: string;
+  garment_type: string;
+  fabric_name: string;
+  hub_name: string;
+  price: string;
+  is_active: boolean;
+}
+
+export const listingsAdminApi = {
+  overview: async (): Promise<ListingOverviewRow[]> =>
+    req<ListingOverviewRow[]>(`/api/admin/listings/overview`),
+};
+
 // ─── Promo Codes ──────────────────────────────────────────────────────────────
 
 export interface PromoCode {

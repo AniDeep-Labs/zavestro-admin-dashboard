@@ -42,6 +42,7 @@ const SECTIONS: NavSection[] = [
     superOnly: true,
     items: [
       { label: 'Design Overview', icon: <UilLayerGroup size={18} />, path: '/admin/oversight/designs', cap: 'reports:read' },
+      { label: 'Listings Overview', icon: <UilTag size={18} />, path: '/admin/oversight/listings', cap: 'reports:read' },
     ],
   },
   {
