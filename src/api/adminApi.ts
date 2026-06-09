@@ -767,6 +767,43 @@ export const alterationsApi = {
     req<AlterationRequest>(`/api/admin/alterations/${id}`),
 };
 
+// ─── Sample jobs (design verify gate — P3 item 28) ────────────────────────────
+
+export interface SampleJob {
+  id: string;
+  design_id: string;
+  fabric_id: string;
+  hub_id: string;
+  status: 'requested' | 'cutting' | 'stitching' | 'design_review' | 'approved' | 'rejected';
+  assigned_tailor_id: string | null;
+  photo_keys: string[];
+  rejection_reason: string | null;
+  created_at: string;
+  updated_at: string;
+  design_name: string;
+  fabric_name: string;
+  tailor_name: string | null;
+}
+
+export const sampleJobsApi = {
+  list: async (params: { status?: string; hub_id?: string } = {}): Promise<SampleJob[]> => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.hub_id) qs.set('hub_id', params.hub_id);
+    const q = qs.toString();
+    return req<SampleJob[]>(`/api/admin/sample-jobs${q ? `?${q}` : ''}`);
+  },
+
+  approve: async (id: string): Promise<SampleJob> =>
+    req<SampleJob>(`/api/admin/sample-jobs/${id}/approve`, { method: 'POST' }),
+
+  reject: async (id: string, reason: string): Promise<SampleJob> =>
+    req<SampleJob>(`/api/admin/sample-jobs/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+};
+
 // ─── Home Visits ──────────────────────────────────────────────────────────────
 
 export interface HomeVisit {
