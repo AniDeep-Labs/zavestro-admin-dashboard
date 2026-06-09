@@ -163,3 +163,10 @@
 .fieldLabel select {
   font-weight: 400;
 }
+
+/* restock row actions */
+.rowActions {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
