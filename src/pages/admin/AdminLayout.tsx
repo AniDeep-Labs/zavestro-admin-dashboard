@@ -7,103 +7,120 @@ import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import { Spinner } from '../../components/Spinner';
 import { BreadcrumbProvider, useBreadcrumb } from '../../contexts/BreadcrumbContext';
 import styles from './AdminLayout.module.css';
-import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBuilding, UilChartBar, UilCheckCircle, UilDashboard, UilEstate, UilFileAlt, UilHeadphones, UilHistory, UilLayerGroup, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSearch, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
+import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBuilding, UilChartBar, UilCheckCircle, UilDashboard, UilFileAlt, UilHeadphones, UilHistory, UilLayerGroup, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSearch, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
 
+// Role-scoped navigation (CATALOG-DARKSTORE-ARCHITECTURE §11–18): the sidebar is
+// grouped into capability-gated WORKSPACES, not a flat list. A role sees only the
+// sections whose capability it holds — e.g. `design` sees only the Design console;
+// `super_admin` (all caps) sees everything. Item-level `cap` gates within a section.
 interface NavItem {
   label: string;
   icon: React.ReactNode;
   path: string;
-  roles: string[];
+  cap?: string;
   children?: { label: string; path: string }[];
 }
+interface NavSection {
+  title: string;
+  caps: string[]; // section shows if the user holds ANY of these
+  items: NavItem[];
+}
 
-const NAV: NavItem[] = [
-  { label: 'Dashboard',  icon: <UilDashboard size={18} />, path: '/admin/dashboard', roles: ['admin', 'admin_finance', 'admin_ops'] },
-  { label: 'Orders',     icon: <UilShoppingBag size={18} />,     path: '/admin/orders',    roles: ['admin', 'admin_support'] },
-  { label: 'Users',      icon: <UilUsersAlt size={18} />,           path: '/admin/users',     roles: ['admin', 'admin_support'] },
-  { label: 'Hubs',       icon: <UilBuilding size={18} />,       path: '/admin/hubs',      roles: ['admin', 'admin_ops'] },
+// Always-visible home (no section header).
+const HOME: NavItem = { label: 'Dashboard', icon: <UilDashboard size={18} />, path: '/admin/dashboard' };
+
+const SECTIONS: NavSection[] = [
   {
-    label: 'Catalog', icon: <UilTag size={18} />, path: '/admin/catalog', roles: ['admin', 'admin_catalog'],
-    children: [
-      { label: 'Products',            path: '/admin/catalog/products' },
-      { label: 'Collections',         path: '/admin/catalog/collections' },
-      { label: 'Hero Banners',        path: '/admin/catalog/banners' },
-      { label: 'Categories',          path: '/admin/catalog/categories' },
-      { label: 'Home Layout',         path: '/admin/catalog/home-layout' },
+    title: 'Design',
+    caps: ['designs:write'],
+    items: [
+      { label: 'Design Library', icon: <UilLayerGroup size={18} />, path: '/admin/design/library', cap: 'designs:write' },
+      { label: 'Garment Types', icon: <UilRuler size={18} />, path: '/admin/system/garment-types', cap: 'designs:write' },
+      { label: 'Sample Verification', icon: <UilCheckCircle size={18} />, path: '/admin/design/samples', cap: 'samples:write' },
     ],
   },
   {
-    label: 'Content', icon: <UilFileAlt size={18} />, path: '/admin/content', roles: ['admin', 'admin_catalog'],
-    children: [
-      { label: 'Lookbook',       path: '/admin/content/lookbook' },
-      { label: 'Craftspeople',   path: '/admin/content/craftspeople' },
-      { label: 'Stories',        path: '/admin/content/stories' },
-      { label: 'Journal',        path: '/admin/content/journal' },
+    title: 'Catalog · storefront',
+    caps: ['catalog:write', 'cms:write'],
+    items: [
+      {
+        label: 'Catalog', icon: <UilTag size={18} />, path: '/admin/catalog', cap: 'catalog:write',
+        children: [
+          { label: 'Products', path: '/admin/catalog/products' },
+          { label: 'Collections', path: '/admin/catalog/collections' },
+          { label: 'Hero Banners', path: '/admin/catalog/banners' },
+          { label: 'Categories', path: '/admin/catalog/categories' },
+          { label: 'Home Layout', path: '/admin/catalog/home-layout' },
+        ],
+      },
+      {
+        label: 'Content', icon: <UilFileAlt size={18} />, path: '/admin/content', cap: 'cms:write',
+        children: [
+          { label: 'Lookbook', path: '/admin/content/lookbook' },
+          { label: 'Craftspeople', path: '/admin/content/craftspeople' },
+          { label: 'Stories', path: '/admin/content/stories' },
+          { label: 'Journal', path: '/admin/content/journal' },
+        ],
+      },
     ],
   },
   {
-    label: 'Analytics', icon: <UilChartBar size={18} />, path: '/admin/analytics', roles: ['admin', 'admin_finance'],
-    children: [
-      { label: 'Revenue',          path: '/admin/analytics/revenue' },
-      { label: 'Orders',           path: '/admin/analytics/orders' },
-      { label: 'Fit Scores',       path: '/admin/analytics/fit-scores' },
-      { label: 'Hub Performance',  path: '/admin/analytics/hub-performance' },
-      { label: 'Retention',        path: '/admin/analytics/retention' },
+    title: 'Orders & support',
+    caps: ['orders:read', 'orders:write', 'customers:read', 'reviews:moderate'],
+    items: [
+      { label: 'Orders', icon: <UilShoppingBag size={18} />, path: '/admin/orders', cap: 'orders:read' },
+      { label: 'Customers', icon: <UilUsersAlt size={18} />, path: '/admin/users', cap: 'customers:read' },
+      { label: 'Returns', icon: <UilHistory size={18} />, path: '/admin/returns', cap: 'orders:write' },
+      { label: 'Alterations', icon: <UilProcess size={18} />, path: '/admin/alterations', cap: 'orders:write' },
+      { label: 'Support', icon: <UilHeadphones size={18} />, path: '/admin/support', cap: 'customers:write' },
+      { label: 'Reviews', icon: <UilStar size={18} />, path: '/admin/reviews', cap: 'reviews:moderate' },
     ],
   },
-  { label: 'Promo Codes', icon: <UilTicket size={18} />, path: '/admin/promo-codes', roles: ['admin', 'admin_marketing'] },
-  { label: 'Support',     icon: <UilHeadphones size={18} />,  path: '/admin/support',      roles: ['admin', 'admin_support'] },
-  { label: 'Returns',     icon: <UilHistory size={18} />,   path: '/admin/returns',      roles: ['admin', 'admin_ops'] },
-  { label: 'Alterations', icon: <UilProcess size={18} />,    path: '/admin/alterations',  roles: ['admin', 'admin_ops'] },
-  { label: 'Design Library', icon: <UilLayerGroup size={18} />, path: '/admin/design/library', roles: ['admin', 'design'] },
-  { label: 'Sample Verification', icon: <UilCheckCircle size={18} />, path: '/admin/design/samples', roles: ['admin', 'design'] },
-  { label: 'Reviews',     icon: <UilStar size={18} />,        path: '/admin/reviews',       roles: ['admin', 'admin_ops'] },
-  { label: 'Home Visits', icon: <UilEstate size={18} />,        path: '/admin/home-visits',           roles: ['admin', 'admin_ops'] },
-  // Consultations belonged to the scrapped Premium Custom flow — hidden from nav (route still exists).
-  { label: 'Measurements', icon: <UilRuler size={18} />,     path: '/admin/measurement-bookings',  roles: ['admin', 'admin_ops'] },
-  { label: 'Invoices',    icon: <UilReceipt size={18} />,     path: '/admin/invoices',              roles: ['admin', 'admin_finance'] },
-  { label: 'COD Reconciliation', icon: <UilWallet size={18} />, path: '/admin/finance/cod-reconciliation', roles: ['admin', 'admin_finance'] },
-  { label: 'Notification Blast', icon: <UilMegaphone size={18} />, path: '/admin/notifications',     roles: ['admin', 'admin_marketing'] },
-  { label: 'Pincode Demand', icon: <UilMapMarker size={18} />,    path: '/admin/pincode-waitlist',      roles: ['admin', 'admin_finance'] },
   {
-    label: 'System', icon: <UilSetting size={18} />, path: '/admin/system', roles: ['admin', 'admin_ops', 'admin_finance'],
-    children: [
-      { label: 'App Config',     path: '/admin/system/app-config' },
-      { label: 'Audit Log',      path: '/admin/system/audit-log' },
-      { label: 'Waitlist',       path: '/admin/system/waitlist' },
-      { label: 'Admin Users',    path: '/admin/system/admin-users' },
-      { label: 'Service Areas',  path: '/admin/system/service-areas' },
-      { label: 'Garment Types',  path: '/admin/system/garment-types' },
+    title: 'Finance',
+    caps: ['refunds:approve', 'pricing:write'],
+    items: [
+      { label: 'Invoices', icon: <UilReceipt size={18} />, path: '/admin/invoices', cap: 'refunds:approve' },
+      { label: 'COD Reconciliation', icon: <UilWallet size={18} />, path: '/admin/finance/cod-reconciliation', cap: 'refunds:approve' },
+      { label: 'Promo Codes', icon: <UilTicket size={18} />, path: '/admin/promo-codes', cap: 'pricing:write' },
+      { label: 'Pincode Demand', icon: <UilMapMarker size={18} />, path: '/admin/pincode-waitlist', cap: 'reports:read' },
+    ],
+  },
+  {
+    title: 'Oversight · system',
+    caps: ['system:manage'],
+    items: [
+      { label: 'Hubs', icon: <UilBuilding size={18} />, path: '/admin/hubs', cap: 'system:manage' },
+      {
+        label: 'Analytics', icon: <UilChartBar size={18} />, path: '/admin/analytics', cap: 'reports:read',
+        children: [
+          { label: 'Revenue', path: '/admin/analytics/revenue' },
+          { label: 'Orders', path: '/admin/analytics/orders' },
+          { label: 'Fit Scores', path: '/admin/analytics/fit-scores' },
+          { label: 'Hub Performance', path: '/admin/analytics/hub-performance' },
+          { label: 'Retention', path: '/admin/analytics/retention' },
+        ],
+      },
+      { label: 'Notification Blast', icon: <UilMegaphone size={18} />, path: '/admin/notifications', cap: 'cms:write' },
+      {
+        label: 'System', icon: <UilSetting size={18} />, path: '/admin/system', cap: 'system:manage',
+        children: [
+          { label: 'App Config', path: '/admin/system/app-config' },
+          { label: 'Audit Log', path: '/admin/system/audit-log' },
+          { label: 'Admin Users', path: '/admin/system/admin-users' },
+          { label: 'Service Areas', path: '/admin/system/service-areas' },
+        ],
+      },
     ],
   },
 ];
 
-// Capability required to see each top-level nav section (super_admin holds all).
-// Drives the role-based sidebar — see backend src/admin/auth/permissions.ts.
-const NAV_CAP: Record<string, string | undefined> = {
-  'Dashboard':    undefined,            // everyone signed in
-  'Orders':       'orders:read',
-  'Users':        'customers:read',
-  'Hubs':         'system:manage',
-  'Catalog':      'catalog:write',
-  'Content':      'cms:write',
-  'Analytics':    'reports:read',
-  'Promo Codes':  'pricing:write',
-  'Support':      'customers:write',
-  'Returns':      'orders:write',
-  'Alterations':  'orders:write',
-  'Design Library': 'designs:write',
-  'Sample Verification': 'samples:write',
-  'Reviews':      'reviews:moderate',
-  'Home Visits':  'orders:write',
-  'Measurements': 'orders:write',
-  'Invoices':     'refunds:approve',
-  'COD Reconciliation': 'refunds:approve',
-  'Consultations': 'orders:write',
-  'Notification Blast': 'cms:write',
-  'Pincode Demand': 'reports:read',
-  'System':       'system:manage',
-};
+// Flat label→cap map (for the deep-link route guard), derived from SECTIONS + HOME.
+const NAV_CAP: Record<string, string | undefined> = Object.fromEntries([
+  [HOME.label, undefined],
+  ...SECTIONS.flatMap((s) => s.items.map((it) => [it.label, it.cap])),
+]);
+const ALL_ITEMS: NavItem[] = [HOME, ...SECTIONS.flatMap((s) => s.items)];
 
 // Inner component rendered inside BreadcrumbProvider so useBreadcrumb() reads
 // the correct context value (entity titles set by detail pages).
@@ -131,13 +148,17 @@ const AdminLayoutInner: React.FC = () => {
     return () => { alive = false; };
   }, []);
 
-  const canSee = (label: string) => { const c = NAV_CAP[label]; return !c || caps.includes(c); };
-  const visibleNav = NAV.filter(item => canSee(item.label));
+  const canSee = (item: NavItem) => !item.cap || caps.includes(item.cap);
+  const canSeeSection = (section: NavSection) => section.caps.some(c => caps.includes(c));
+  const visibleSections = SECTIONS
+    .filter(canSeeSection)
+    .map(s => ({ ...s, items: s.items.filter(canSee) }))
+    .filter(s => s.items.length > 0);
 
   // Route guard: block the content area if the current path needs a capability the
   // role lacks (deep-link protection). Only enforce once caps are known (non-empty)
   // so a still-loading session isn't bounced. Backend also 403s the APIs.
-  const currentNav = NAV.find(n => location.pathname === n.path || location.pathname.startsWith(n.path + '/'));
+  const currentNav = ALL_ITEMS.find(n => location.pathname === n.path || location.pathname.startsWith(n.path + '/'));
   const requiredCap = currentNav ? NAV_CAP[currentNav.label] : undefined;
   const accessDenied = !!requiredCap && caps.length > 0 && !caps.includes(requiredCap);
 
@@ -151,6 +172,57 @@ const AdminLayoutInner: React.FC = () => {
   const toggleSection = (label: string) => {
     setExpandedSections(prev =>
       prev.includes(label) ? prev.filter(s => s !== label) : [...prev, label]
+    );
+  };
+
+  const renderItem = (item: NavItem) => {
+    const active = isActive(item.path);
+    const expanded = expandedSections.includes(item.label);
+    if (item.children) {
+      return (
+        <div key={item.label} className={styles.navGroup}>
+          <button
+            className={`${styles.navItem} ${active ? styles.navItemActive : ''}`}
+            onClick={() => !collapsed && toggleSection(item.label)}
+            title={collapsed ? item.label : undefined}
+          >
+            <span className={styles.navIcon}>{item.icon}</span>
+            {!collapsed && (
+              <>
+                <span className={styles.navLabel}>{item.label}</span>
+                <span className={styles.navChevron}>
+                  {expanded ? <UilAngleDown size={14} /> : <UilAngleRight size={14} />}
+                </span>
+              </>
+            )}
+          </button>
+          {!collapsed && expanded && (
+            <div className={styles.navChildren}>
+              {item.children.map(child => (
+                <button
+                  key={child.path}
+                  className={`${styles.navChild} ${isActive(child.path) ? styles.navChildActive : ''}`}
+                  onClick={() => navigate(child.path)}
+                >
+                  <span className={styles.navChildDot} />
+                  {child.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <button
+        key={item.path}
+        className={`${styles.navItem} ${active ? styles.navItemActive : ''}`}
+        onClick={() => navigate(item.path)}
+        title={collapsed ? item.label : undefined}
+      >
+        <span className={styles.navIcon}>{item.icon}</span>
+        {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
+      </button>
     );
   };
 
@@ -171,58 +243,13 @@ const AdminLayoutInner: React.FC = () => {
           </div>
 
           <nav className={styles.nav}>
-            {visibleNav.map(item => {
-              const active = isActive(item.path);
-              const expanded = expandedSections.includes(item.label);
-
-              if (item.children) {
-                return (
-                  <div key={item.label} className={styles.navGroup}>
-                    <button
-                      className={`${styles.navItem} ${active ? styles.navItemActive : ''}`}
-                      onClick={() => !collapsed && toggleSection(item.label)}
-                      title={collapsed ? item.label : undefined}
-                    >
-                      <span className={styles.navIcon}>{item.icon}</span>
-                      {!collapsed && (
-                        <>
-                          <span className={styles.navLabel}>{item.label}</span>
-                          <span className={styles.navChevron}>
-                            {expanded ? <UilAngleDown size={14} /> : <UilAngleRight size={14} />}
-                          </span>
-                        </>
-                      )}
-                    </button>
-                    {!collapsed && expanded && (
-                      <div className={styles.navChildren}>
-                        {item.children.map(child => (
-                          <button
-                            key={child.path}
-                            className={`${styles.navChild} ${isActive(child.path) ? styles.navChildActive : ''}`}
-                            onClick={() => navigate(child.path)}
-                          >
-                            <span className={styles.navChildDot} />
-                            {child.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-
-              return (
-                <button
-                  key={item.path}
-                  className={`${styles.navItem} ${active ? styles.navItemActive : ''}`}
-                  onClick={() => navigate(item.path)}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <span className={styles.navIcon}>{item.icon}</span>
-                  {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
-                </button>
-              );
-            })}
+            {renderItem(HOME)}
+            {visibleSections.map(section => (
+              <div key={section.title} className={styles.navSection}>
+                {!collapsed && <span className={styles.navSectionTitle}>{section.title}</span>}
+                {section.items.map(renderItem)}
+              </div>
+            ))}
           </nav>
         </div>
 

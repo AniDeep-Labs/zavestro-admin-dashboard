@@ -33,7 +33,6 @@ const TicketDetailPage = lazyPage(() => import('./pages/admin/TicketDetailPage')
 const PromoCodesPage = lazyPage(() => import('./pages/admin/PromoCodesPage'), 'PromoCodesPage');
 const AppConfigPage = lazyPage(() => import('./pages/admin/AppConfigPage'), 'AppConfigPage');
 const AuditLogPage = lazyPage(() => import('./pages/admin/AuditLogPage'), 'AuditLogPage');
-const WaitlistPage = lazyPage(() => import('./pages/admin/WaitlistPage'), 'WaitlistPage');
 const AdminUsersManagePage = lazyPage(() => import('./pages/admin/AdminUsersManagePage'), 'AdminUsersManagePage');
 const CollectionsListPage = lazyPage(() => import('./pages/admin/CollectionsListPage'), 'CollectionsListPage');
 const CollectionEditPage = lazyPage(() => import('./pages/admin/CollectionEditPage'), 'CollectionEditPage');
@@ -48,11 +47,8 @@ const SampleDetailPage = lazyPage(() => import('./pages/admin/SampleDetailPage')
 const DesignLibraryPage = lazyPage(() => import('./pages/admin/DesignLibraryPage'), 'DesignLibraryPage');
 const DesignDetailPage = lazyPage(() => import('./pages/admin/DesignDetailPage'), 'DesignDetailPage');
 const DesignEditorPage = lazyPage(() => import('./pages/admin/DesignEditorPage'), 'DesignEditorPage');
-const HomeVisitsListPage = lazyPage(() => import('./pages/admin/HomeVisitsListPage'), 'HomeVisitsListPage');
-const HomeVisitDetailPage = lazyPage(() => import('./pages/admin/HomeVisitDetailPage'), 'HomeVisitDetailPage');
 const InvoicesListPage = lazyPage(() => import('./pages/admin/InvoicesListPage'), 'InvoicesListPage');
 const CodReconciliationPage = lazyPage(() => import('./pages/admin/CodReconciliationPage'), 'CodReconciliationPage');
-const ConsultationsPage = lazyPage(() => import('./pages/admin/ConsultationsPage'), 'ConsultationsPage');
 const NotificationBlastPage = lazyPage(() => import('./pages/admin/NotificationBlastPage'), 'NotificationBlastPage');
 const PincodeWaitlistPage = lazyPage(() => import('./pages/admin/PincodeWaitlistPage'), 'PincodeWaitlistPage');
 const ServiceAreasPage = lazyPage(() => import('./pages/admin/ServiceAreasPage'), 'ServiceAreasPage');
@@ -123,7 +119,6 @@ function App() {
             <Route path="support/:id" element={<TicketDetailPage />} />
             <Route path="system/app-config" element={<AppConfigPage />} />
             <Route path="system/audit-log" element={<AuditLogPage />} />
-            <Route path="system/waitlist" element={<WaitlistPage />} />
             <Route path="system/admin-users" element={<AdminUsersManagePage />} />
             <Route path="system/service-areas" element={<ServiceAreasPage />} />
             <Route path="returns" element={<ReturnsListPage />} />
@@ -135,11 +130,8 @@ function App() {
             <Route path="design/library/new" element={<DesignEditorPage />} />
             <Route path="design/library/:id" element={<DesignDetailPage />} />
             <Route path="design/library/:id/edit" element={<DesignEditorPage />} />
-            <Route path="home-visits" element={<HomeVisitsListPage />} />
-            <Route path="home-visits/:id" element={<HomeVisitDetailPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
             <Route path="finance/cod-reconciliation" element={<CodReconciliationPage />} />
-            <Route path="consultations" element={<ConsultationsPage />} />
             <Route path="notifications" element={<NotificationBlastPage />} />
             <Route path="pincode-waitlist" element={<PincodeWaitlistPage />} />
             <Route path="promo-codes" element={<PromoCodesPage />} />

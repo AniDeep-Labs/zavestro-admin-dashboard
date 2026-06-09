@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UilSync, UilFilter, UilTruck, UilRuler, UilCheckCircle, UilReceipt, UilBox, UilExclamationTriangle, UilShoppingBag, UilHistory, UilProcess } from '@iconscout/react-unicons';
+import { UilSync, UilTruck, UilRuler, UilCheckCircle, UilReceipt, UilBox, UilExclamationTriangle, UilShoppingBag, UilHistory, UilProcess } from '@iconscout/react-unicons';
 import { dashboardApi, hasCapability } from '../../api/adminApi';
 import type { DashboardData } from '../../api/adminApi';
 import { clearAdminToken } from '../../api/catalogApi';
@@ -103,13 +103,11 @@ const kpis: { label: string; key: string; format: (v: number) => string; icon: I
   { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders', cap: 'orders:read' },
   { label: 'Open Tickets',     key: 'openTickets',     format: v => v.toLocaleString(),                   icon: 'Headphones',    accent: 'Red',     navPath: '/admin/support', cap: 'customers:write' },
   { label: 'New Customers',    key: 'newCustomers',    format: v => v.toLocaleString(),                   icon: 'UserPlus',      accent: 'Emerald', navPath: '/admin/users', cap: 'customers:read' },
-  { label: 'Waitlist Signups', key: 'waitlistSignups', format: v => v.toLocaleString(),                   icon: 'ClipboardList', accent: 'Gold',    navPath: '/admin/system/waitlist', cap: 'system:manage' },
-  { label: 'Pending Sessions', key: 'pendingMeasurementSessions', format: v => v.toLocaleString(),        icon: 'ClipboardList', accent: 'Amber',   navPath: '/admin/measurement-bookings', cap: 'orders:write' },
 ];
 
 // Each dashboard card section → the capability that should see it.
 const CARD_CAP = {
-  pipeline: 'orders:read', sessions: 'orders:write', hubPerf: 'reports:read',
+  pipeline: 'orders:read', hubPerf: 'reports:read',
   support: 'customers:write', revenue: 'reports:read',
 } as const;
 
@@ -254,7 +252,6 @@ export const AdminDashboardPage: React.FC = () => {
                 </button>
               ))}
             </div>
-            <button className={styles.filterBtn}><UilFilter size={14} /> Filter</button>
             <button
               className={`${styles.overviewRefresh} ${loading ? styles.refreshSpinning : ''}`}
               onClick={refresh} disabled={loading} title="Refresh data" aria-label="Refresh data"
@@ -374,39 +371,8 @@ export const AdminDashboardPage: React.FC = () => {
 
       {/* Measurement Sessions Today + Hub Performance */}
       <div className={styles.twoCol}>
-        {/* Measurement Sessions Today */}
-        {hasCapability(CARD_CAP.sessions) && (
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Today's Measurement Sessions</h2>
-            <button className={styles.cardLink} onClick={() => navigate('/admin/measurement-bookings')}>View All →</button>
-          </div>
-          {loading ? (
-            <div className={`${styles.skeletonBlock} ${styles.skeletonPulse}`} />
-          ) : (
-            <div className={styles.sessionStats}>
-              <div className={styles.sessionRow}>
-                <span className={`${styles.sessionIcon} ${styles.avEmerald}`}><UilCheckCircle size={16} /></span>
-                <span className={styles.sessionLbl}>Confirmed / in-progress today</span>
-                <span className={styles.sessionVal}>{data?.stats?.pendingMeasurementSessions?.value ?? 0}</span>
-              </div>
-              <div className={styles.sessionRow}>
-                <span className={`${styles.sessionIcon} ${styles.avAmber}`}><UilRuler size={16} /></span>
-                <span className={styles.sessionLbl}>Awaiting measurement</span>
-                <span className={styles.sessionVal}>{(data?.ordersByStage ?? []).find(s => s.stage === 'awaiting_measurement')?.count ?? 0}</span>
-              </div>
-              <div className={styles.sessionRow}>
-                <span className={`${styles.sessionIcon} ${styles.avBlue}`}><UilCheckCircle size={16} /></span>
-                <span className={styles.sessionLbl}>Measurement complete</span>
-                <span className={styles.sessionVal}>{(data?.ordersByStage ?? []).find(s => s.stage === 'measurement_complete')?.count ?? 0}</span>
-              </div>
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* Hub Performance now lives in the Performance card's "Hubs" tab —
-            Measurement Sessions, Urgent Tickets & Alerts share one operational row. */}
+        {/* Hub Performance lives in the Performance card's "Hubs" tab —
+            Urgent Tickets & Alerts share this operational row. */}
         {/* High-priority tickets */}
         {hasCapability(CARD_CAP.support) && (
         <div className={styles.card}>

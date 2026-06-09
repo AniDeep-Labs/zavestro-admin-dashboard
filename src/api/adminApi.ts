@@ -439,26 +439,6 @@ export const analyticsApi = {
     req<AnalyticsData>(`/api/admin/analytics?period=${period}`),
 };
 
-// ─── Waitlist ─────────────────────────────────────────────────────────────────
-
-export interface WaitlistResponse { entries: WaitlistEntry[]; total: number; page: number; totalPages: number; }
-
-export const waitlistApi = {
-  list: async (params: { search?: string; page?: number; limit?: number } = {}): Promise<WaitlistResponse> => {
-    const qs = new URLSearchParams();
-    if (params.search) qs.set('search', params.search);
-    if (params.page)   qs.set('page',   String(params.page));
-    if (params.limit)  qs.set('limit',  String(params.limit));
-    return req<WaitlistResponse>(`/api/admin/waitlist?${qs}`);
-  },
-
-  remove: async (id: string): Promise<void> =>
-    req(`/api/admin/waitlist/${id}`, { method: 'DELETE' }),
-
-  notify: async (subject: string, message: string): Promise<void> =>
-    req('/api/admin/waitlist/notify', { method: 'POST', body: JSON.stringify({ subject, message }) }),
-};
-
 // ─── App Config ───────────────────────────────────────────────────────────────
 
 function inferConfigType(key: string, value: unknown): ConfigItem['type'] {
@@ -965,37 +945,6 @@ export const designsApi = {
     }),
 };
 
-// ─── Home Visits ──────────────────────────────────────────────────────────────
-
-export interface HomeVisit {
-  id: string;
-  reference_id?: string;
-  customer_name: string;
-  customer_phone: string;
-  customer_ref?: string;
-  customer_id?: string;
-  assigned_staff_id?: string | null;
-  assigned_staff_name: string | null;
-  hub_id?: string | null;
-  hub_name?: string | null;
-  fit_profile_id?: string | null;
-  status: string;
-  scheduled_at: string;
-  completed_at?: string | null;
-  address: Record<string, string>;
-  city: string;
-  state?: string;
-  pincode?: string;
-  address_line1?: string;
-  address_line2?: string;
-  address_name?: string;
-  address_phone?: string;
-  notes?: string;
-  created_at: string;
-}
-
-export interface HomeVisitsResponse { visits: HomeVisit[]; total: number; page: number; limit: number; }
-
 export interface BodyMeasurement {
   id: string;
   fit_profile_id: string;
@@ -1017,61 +966,6 @@ export interface BodyMeasurement {
   measured_at: string;
   created_at: string;
 }
-
-export const homeVisitsApi = {
-  list: async (params: { status?: string; date?: string; hub_id?: string; page?: number; limit?: number } = {}): Promise<HomeVisitsResponse> => {
-    const qs = new URLSearchParams();
-    if (params.status) qs.set('status', params.status);
-    if (params.date)   qs.set('date',   params.date);
-    if (params.hub_id) qs.set('hub_id', params.hub_id);
-    if (params.page)   qs.set('page',   String(params.page));
-    if (params.limit)  qs.set('limit',  String(params.limit));
-    return req<HomeVisitsResponse>(`/api/admin/home-visits?${qs}`);
-  },
-
-  get: async (id: string): Promise<HomeVisit> =>
-    req<HomeVisit>(`/api/admin/home-visits/${id}`),
-
-  updateStatus: async (id: string, status: string): Promise<HomeVisit> =>
-    req<HomeVisit>(`/api/admin/home-visits/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-
-  assignHub: async (id: string, hub_id: string): Promise<HomeVisit> =>
-    req<HomeVisit>(`/api/admin/home-visits/${id}/hub`, { method: 'PATCH', body: JSON.stringify({ hub_id }) }),
-
-  assign: async (id: string, staff_id: string): Promise<HomeVisit> =>
-    req<HomeVisit>(`/api/admin/home-visits/${id}/assign`, { method: 'POST', body: JSON.stringify({ staff_id }) }),
-
-  reschedule: async (id: string, scheduled_at: string): Promise<{ id: string; scheduled_at: string }> =>
-    req<{ id: string; scheduled_at: string }>(`/api/admin/home-visits/${id}/reschedule`, { method: 'PATCH', body: JSON.stringify({ scheduled_at }) }),
-
-  getMeasurements: async (id: string): Promise<BodyMeasurement[]> =>
-    req<{ measurements: BodyMeasurement[] }>(`/api/admin/home-visits/${id}/measurements`).then(r => r.measurements),
-
-  recordMeasurements: async (id: string, data: Partial<Record<string, number>>): Promise<BodyMeasurement> =>
-    req<BodyMeasurement>(`/api/admin/home-visits/${id}/measurements`, { method: 'POST', body: JSON.stringify(data) }),
-
-  create: async (data: {
-    user_id?: string;
-    customer_name?: string;
-    customer_phone?: string;
-    scheduled_at: string;
-    hub_id?: string;
-    notes?: string;
-    address_name?: string;
-    address_phone?: string;
-    address_line1: string;
-    address_line2?: string;
-    city: string;
-    state?: string;
-    pincode?: string;
-  }): Promise<HomeVisit> =>
-    req<HomeVisit>('/api/admin/home-visits', { method: 'POST', body: JSON.stringify(data) }),
-
-  searchUsers: async (q: string): Promise<{ id: string; name: string; phone: string; email: string }[]> =>
-    req<{ users: { id: string; name: string; phone: string; email: string }[] }>(
-      `/api/admin/home-visits/user-search?q=${encodeURIComponent(q)}`
-    ).then(r => r.users),
-};
 
 // ─── Invoices ─────────────────────────────────────────────────────────────────
 
@@ -1164,54 +1058,6 @@ export const codReconciliationApi = {
     a.remove();
     URL.revokeObjectURL(url);
   },
-};
-
-// ─── Consultations (premium custom) ─────────────────────────────────────────────
-
-export interface Consultation {
-  id: string;
-  user_id: string;
-  order_id: string | null;
-  assigned_staff_id: string | null;
-  status: string;
-  scheduled_at: string | null;
-  notes: string | null;
-  completed_at: string | null;
-  customer_name: string;
-  customer_phone: string;
-  created_at: string;
-}
-
-export interface ConsultationSlot {
-  id: string;
-  hub_id: string | null;
-  slot_date: string;
-  time_start: string;
-  time_end: string;
-  mode: 'in_person' | 'video';
-  capacity: number;
-  booked_count: number;
-  created_at: string;
-}
-
-export const consultationsApi = {
-  list: async (status?: string): Promise<Consultation[]> => {
-    const q = status && status !== 'All' ? `?status=${encodeURIComponent(status)}` : '';
-    return req<{ consultations: Consultation[]; total: number }>(`/api/admin/consultations${q}`).then(r => r.consultations);
-  },
-  update: async (id: string, body: { status?: string; assigned_staff_id?: string }): Promise<Consultation> =>
-    req<Consultation>(`/api/admin/consultations/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-
-  listSlots: async (params: { hub_id?: string; date?: string } = {}): Promise<ConsultationSlot[]> => {
-    const qs = new URLSearchParams();
-    if (params.hub_id) qs.set('hub_id', params.hub_id);
-    if (params.date)   qs.set('date',   params.date);
-    return req<{ slots: ConsultationSlot[]; total: number }>(`/api/admin/consultation-slots?${qs}`).then(r => r.slots);
-  },
-  createSlot: async (body: { hub_id?: string; slot_date: string; time_start: string; time_end: string; mode: string; capacity: number }): Promise<ConsultationSlot> =>
-    req<ConsultationSlot>(`/api/admin/consultation-slots`, { method: 'POST', body: JSON.stringify(body) }),
-  deleteSlot: async (id: string): Promise<void> =>
-    req(`/api/admin/consultation-slots/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Notification Blast ──────────────────────────────────────────────────────────

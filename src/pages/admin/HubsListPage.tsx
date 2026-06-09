@@ -15,7 +15,6 @@ function useDebounce<T>(v: T, d: number) {
 
 const statusCss: Record<string, string> = {
   Active: 'statusActive', Inactive: 'statusInactive',
-  'At Capacity': 'statusCapacity', Critical: 'statusCritical',
 };
 
 export const HubsListPage: React.FC = () => {
@@ -55,7 +54,6 @@ export const HubsListPage: React.FC = () => {
         <select className={styles.filterSelect} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">All Status</option>
           <option>Active</option><option>Inactive</option>
-          <option>At Capacity</option><option>Critical</option>
         </select>
         <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); }}><UilTimes size={14}/> Clear</button>
       </div>

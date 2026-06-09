@@ -24,6 +24,8 @@ function PromoForm({
   const [minOrder, setMinOrder] = React.useState(initial.min_order_amount != null && initial.min_order_amount > 0 ? String(initial.min_order_amount) : '');
   const [maxUses, setMaxUses] = React.useState(initial.max_uses != null ? String(initial.max_uses) : '');
   const [expiry, setExpiry] = React.useState(initial.valid_until ? initial.valid_until.slice(0, 10) : '');
+  // Tomorrow, computed once (lazy init keeps render pure — no Date.now() in render body).
+  const [minDate] = React.useState(() => new Date(Date.now() + 86400000).toISOString().slice(0, 10));
 
   return (
     <div className={styles.fields}>
@@ -59,7 +61,7 @@ function PromoForm({
       <div className={styles.field}>
         <label className={styles.fieldLabel}>Expiry Date *</label>
         <input type="date" className={styles.fieldInput} required
-          min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
+          min={minDate}
           value={expiry} onChange={e => setExpiry(e.target.value)} />
         {!expiry && <span style={{ fontSize: 12, color: 'var(--color-danger, #D75B5B)' }}>An expiry date is required.</span>}
       </div>
