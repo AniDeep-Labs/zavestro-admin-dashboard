@@ -6,7 +6,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './UsersListPage.module.css';
-import { UilAngleLeft, UilAngleRight, UilCheck, UilCopy, UilImport, UilSearch, UilTimes, UilUserPlus } from "@iconscout/react-unicons";
+import { UilAngleLeft, UilAngleRight, UilImport, UilSearch, UilTimes } from "@iconscout/react-unicons";
 
 const LIMIT = 25;
 
@@ -30,20 +30,6 @@ export const UsersListPage: React.FC = () => {
   const [exporting, setExporting] = React.useState(false);
   const debouncedSearch = useDebounce(search, 350);
 
-  // Create user modal
-  const [showCreate, setShowCreate] = React.useState(false);
-  const [newPhone, setNewPhone] = React.useState('');
-  const [newName, setNewName] = React.useState('');
-  const [newEmail, setNewEmail] = React.useState('');
-  const [newCity, setNewCity] = React.useState('Bangalore');
-  const [genPassword, setGenPassword] = React.useState(true);
-  const [creating, setCreating] = React.useState(false);
-  const [phoneError, setPhoneError] = React.useState('');
-
-  // Temp password reveal modal
-  const [tempPassword, setTempPassword] = React.useState('');
-  const [copied, setCopied] = React.useState(false);
-
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
@@ -56,7 +42,7 @@ export const UsersListPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [debouncedSearch, statusFilter, page]);
 
-  // Exports ALL users matching the current filters (not just the current page).
+  // Exports ALL customers matching the current filters (not just the current page).
   const exportCSV = async () => {
     if (exporting) return;
     setExporting(true);
@@ -73,7 +59,7 @@ export const UsersListPage: React.FC = () => {
         if (p >= r.totalPages || r.users.length === 0) break;
       }
       downloadCsv<AdminUser>(
-        datedFilename('users'),
+        datedFilename('customers'),
         [
           { header: 'ID', value: u => u.reference_id || u.id },
           { header: 'Name', value: u => u.name },
@@ -95,50 +81,12 @@ export const UsersListPage: React.FC = () => {
     }
   };
 
-  const handleCreateUser = async () => {
-    const phone = newPhone.trim();
-    if (!phone) { setPhoneError('Phone number is required'); return; }
-    if (!/^\d{10}$/.test(phone)) { setPhoneError('Enter a 10-digit Indian mobile number (no country code)'); return; }
-    setPhoneError('');
-    setCreating(true);
-    try {
-      const created = await usersApi.create({
-        phone,
-        name: newName.trim() || undefined,
-        email: newEmail.trim() || undefined,
-        generate_password: genPassword,
-      });
-      setUsers(prev => [created, ...prev]);
-      setTotal(t => t + 1);
-      setShowCreate(false);
-      setNewPhone(''); setNewName(''); setNewEmail(''); setNewCity('Bangalore'); setGenPassword(true);
-      if (created.temp_password) {
-        setTempPassword(created.temp_password);
-      } else {
-        showToast('success', 'Customer created', `${created.name || created.phone} added`);
-      }
-    } catch (e) {
-      showToast('error', 'Failed to create customer', e instanceof Error ? e.message : undefined);
-    } finally { setCreating(false); }
-  };
-
-  const handleCopyPassword = () => {
-    navigator.clipboard.writeText(tempPassword).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Users</h1>
+        <h1 className={styles.title}>Customers</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className={styles.exportBtn} onClick={() => setShowCreate(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-green, var(--green))', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}>
-            <UilUserPlus size={14}/> Add Customer
-          </button>
           <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><UilImport size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
         </div>
       </div>
@@ -171,7 +119,7 @@ export const UsersListPage: React.FC = () => {
                 {error}<br/><button className={styles.retryBtn} onClick={() => setPage(1)}>Retry</button>
               </td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={9} className={styles.empty}>No users found.</td></tr>
+              <tr><td colSpan={9} className={styles.empty}>No customers found.</td></tr>
             ) : users.map(u => (
               <tr key={u.id} className={styles.row} onClick={() => navigate(`/admin/users/${u.id}`)}>
                 <td style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{u.reference_id ?? '—'}</td>
@@ -194,83 +142,15 @@ export const UsersListPage: React.FC = () => {
       </div>
 
       <div className={styles.paginationRow}>
-        <span className={styles.pagination}>{loading ? 'Loading…' : `${total} user${total !== 1 ? 's' : ''} total`}</span>
+        <span className={styles.pagination}>{loading ? 'Loading…' : `${total} customer${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
           <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><UilAngleLeft size={15}/> Prev</button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
           <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <UilAngleRight size={15}/></button>
         </div>
       </div>
-
-      {/* Add Customer modal */}
-      {showCreate && (
-        <div className={styles.modalOverlay} onClick={() => setShowCreate(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Add Customer Account</h3>
-            <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-secondary)' }}>Creates a customer account directly. Share the generated password with the customer via phone/WhatsApp.</p>
-            <div className={styles.fields}>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Phone * (10-digit Indian mobile)</label>
-                <input className={styles.fieldInput} placeholder="e.g., 9876543210" maxLength={10}
-                  value={newPhone} onChange={e => { setNewPhone(e.target.value.replace(/\D/g, '')); setPhoneError(''); }} />
-                {phoneError && <span style={{ color: 'var(--color-error, #D75B5B)', fontSize: 12, marginTop: 4, display: 'block' }}>{phoneError}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Full Name (optional)</label>
-                <input className={styles.fieldInput} placeholder="Customer's full name"
-                  value={newName} onChange={e => setNewName(e.target.value)} />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Email (optional)</label>
-                <input className={styles.fieldInput} type="email" placeholder="customer@example.com"
-                  value={newEmail} onChange={e => setNewEmail(e.target.value)} />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>City</label>
-                <input className={styles.fieldInput} placeholder="City"
-                  value={newCity} onChange={e => setNewCity(e.target.value)} />
-              </div>
-              <div className={styles.field}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                  <input type="checkbox" checked={genPassword} onChange={e => setGenPassword(e.target.checked)} style={{ width: 16, height: 16 }} />
-                  Generate temporary password (shown once, share manually)
-                </label>
-              </div>
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setShowCreate(false)}>Cancel</button>
-              <button className={styles.addBtn} disabled={creating} onClick={handleCreateUser}
-                style={{ height: 40, padding: '0 20px', borderRadius: 'var(--radius-md)', cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.7 : 1 }}>
-                {creating ? 'Creating…' : 'Create Customer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Temp password reveal modal — shown once after creation */}
-      {tempPassword && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Customer Account Created</h3>
-            <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-              Share this temporary password with the customer via phone or WhatsApp. <strong>This is shown only once and cannot be retrieved again.</strong> The customer will be asked to change it on first login.
-            </p>
-            <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
-              <code style={{ fontSize: 18, letterSpacing: 2, fontFamily: 'monospace', color: 'var(--color-text-primary)', fontWeight: 700 }}>{tempPassword}</code>
-              <button onClick={handleCopyPassword} style={{ display: 'flex', alignItems: 'center', gap: 6, background: copied ? 'var(--color-primary)' : 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: copied ? '#fff' : 'var(--color-text-secondary)', transition: 'all 0.2s' }}>
-                {copied ? <><UilCheck size={13}/> Copied</> : <><UilCopy size={13}/> Copy</>}
-              </button>
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.addBtn} onClick={() => { setTempPassword(''); setCopied(false); showToast('success', 'Customer created successfully'); }}
-                style={{ height: 40, padding: '0 20px', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>
-                Done — I've noted the password
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
+
+export default UsersListPage;
