@@ -10,12 +10,15 @@ import { UilKeySkeletonAlt, UilRefresh, UilUserPlus } from "@iconscout/react-uni
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin',
+  design: 'Design',
+  procurement: 'Procurement',
+  catalog_manager: 'Catalog Manager',
+  support: 'Support',
+  finance: 'Finance',
+  // legacy roles — kept for displaying existing accounts
   admin: 'Admin',
-  catalog_manager: 'Catalog / Content',
   merchandiser: 'Merchandiser',
   pricing_manager: 'Pricing',
-  support: 'Operations & Support',
-  finance: 'Finance',
   analyst: 'Analyst',
 };
 
@@ -36,7 +39,7 @@ export const AdminUsersManagePage: React.FC = () => {
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');
-  type AdminRole = 'super_admin' | 'catalog_manager' | 'support' | 'finance';
+  type AdminRole = 'super_admin' | 'design' | 'procurement' | 'catalog_manager' | 'support' | 'finance';
   const [newRole, setNewRole] = React.useState<AdminRole>('catalog_manager');
   const [newHubId, setNewHubId] = React.useState('');
   const [creating, setCreating] = React.useState(false);
@@ -339,8 +342,10 @@ export const AdminUsersManagePage: React.FC = () => {
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Role</label>
                 <select className={styles.fieldInput} value={newRole} onChange={e => setNewRole(e.target.value as AdminRole)}>
-                  <option value="catalog_manager">Catalog / Content Manager</option>
-                  <option value="support">Operations &amp; Support</option>
+                  <option value="design">Design (central)</option>
+                  <option value="procurement">Procurement (central)</option>
+                  <option value="catalog_manager">Catalog Manager (per-hub)</option>
+                  <option value="support">Support</option>
                   <option value="finance">Finance</option>
                   <option value="super_admin">Super Admin</option>
                 </select>
