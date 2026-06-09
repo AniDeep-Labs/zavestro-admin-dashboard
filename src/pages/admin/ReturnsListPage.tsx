@@ -29,7 +29,6 @@ export const ReturnsListPage: React.FC = () => {
   const [returns, setReturns] = React.useState<ReturnRequest[]>([]);
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
-  const [actionId, setActionId] = React.useState<string | null>(null);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const debouncedSearch = useDebounce(search, 350);
 
@@ -75,13 +74,13 @@ export const ReturnsListPage: React.FC = () => {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead><tr>
-            <th>Order</th><th>Customer</th><th>Phone</th><th>Reason</th><th>Status</th><th>Date</th><th>Actions</th>
+            <th>Order</th><th>Customer</th><th>Phone</th><th>Reason</th><th>Status</th><th>Date</th>
           </tr></thead>
           <tbody>
             {loading ? Array.from({ length: 6 }).map((_, i) => (
-              <tr key={i}>{Array.from({ length: 7 }).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
+              <tr key={i}>{Array.from({ length: 6 }).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
             )) : filtered.length === 0 ? (
-              <tr><td colSpan={7} className={styles.empty}>No return requests found.</td></tr>
+              <tr><td colSpan={6} className={styles.empty}>No return requests found.</td></tr>
             ) : filtered.map(r => (
               <tr key={r.id} className={styles.row} onClick={() => navigate(`/admin/returns/${r.id}`)}>
                 <td className={styles.orderId}>{r.order_number}</td>
@@ -90,36 +89,6 @@ export const ReturnsListPage: React.FC = () => {
                 <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.reason}</td>
                 <td><span className={`${styles.stagePill} ${styles[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[r.status] ?? r.status}</span></td>
                 <td className={styles.date}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
-                  {r.status === 'pending' || r.status === 'under_review' ? (
-                    <>
-                      <button className={styles.actionBtn} disabled={actionId === r.id} onClick={async () => {
-                        setActionId(r.id);
-                        try {
-                          await returnsApi.review(r.id, { status: 'approved' });
-                          setReturns(prev => prev.map(x => x.id === r.id ? { ...x, status: 'approved' } : x));
-                          showToast('success', 'Return approved', r.order_number);
-                        } catch (e) { showToast('error', 'Failed', e instanceof Error ? e.message : undefined); }
-                        finally { setActionId(null); }
-                      }} style={{ marginRight: 4, background: 'var(--green)', color: '#fff', border: 'none' }}>
-                        {actionId === r.id ? '…' : 'Approve'}
-                      </button>
-                      <button className={styles.actionBtn} disabled={actionId === r.id} onClick={async () => {
-                        setActionId(r.id);
-                        try {
-                          await returnsApi.review(r.id, { status: 'rejected' });
-                          setReturns(prev => prev.map(x => x.id === r.id ? { ...x, status: 'rejected' } : x));
-                          showToast('success', 'Return rejected', r.order_number);
-                        } catch (e) { showToast('error', 'Failed', e instanceof Error ? e.message : undefined); }
-                        finally { setActionId(null); }
-                      }} style={{ background: 'var(--color-error, #D75B5B)', color: '#fff', border: 'none' }}>
-                        Reject
-                      </button>
-                    </>
-                  ) : (
-                    <button className={styles.actionBtn} onClick={() => navigate(`/admin/returns/${r.id}`)}>Review</button>
-                  )}
-                </td>
               </tr>
             ))}
           </tbody>
