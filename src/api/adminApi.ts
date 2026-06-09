@@ -920,6 +920,28 @@ export interface GarmentCategoryOption {
   available_fit_presets: string[] | null;
 }
 
+export interface ChartRow {
+  fit_preset: string | null;
+  size_label: string;
+  measurements: Record<string, number>;
+}
+export interface GarmentTemplate {
+  id: string;
+  name: string;
+  slug: string;
+  body_region: string | null;
+  capture_set: string[] | null;
+  pain_point_menu: Record<string, Record<string, number>> | null;
+  available_fit_presets: string[] | null;
+  chart: ChartRow[];
+}
+export interface GarmentTemplateInput {
+  capture_set: string[];
+  pain_point_menu: Record<string, Record<string, number>>;
+  available_fit_presets: string[];
+  chart: ChartRow[];
+}
+
 export interface DesignOverviewRow {
   id: string;
   name: string;
@@ -954,6 +976,15 @@ export const designsApi = {
 
   overview: async (): Promise<DesignOverviewRow[]> =>
     req<DesignOverviewRow[]>(`/api/admin/designs/overview`),
+
+  getTemplate: async (categoryId: string): Promise<GarmentTemplate> =>
+    req<GarmentTemplate>(`/api/admin/designs/garment-categories/${categoryId}/template`),
+
+  saveTemplate: async (categoryId: string, input: GarmentTemplateInput): Promise<GarmentTemplate> =>
+    req<GarmentTemplate>(`/api/admin/designs/garment-categories/${categoryId}/template`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
 
   create: async (input: DesignInput): Promise<DesignDetail> =>
     req<DesignDetail>(`/api/admin/designs`, { method: 'POST', body: JSON.stringify(input) }),

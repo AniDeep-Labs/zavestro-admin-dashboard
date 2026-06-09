@@ -58,7 +58,8 @@ const AdminProfilePage = lazyPage(() => import('./pages/admin/AdminProfilePage')
 const MeasurementBookingsListPage = lazyPage(() => import('./pages/admin/MeasurementBookingsListPage'), 'MeasurementBookingsListPage');
 const MeasurementBookingDetailPage = lazyPage(() => import('./pages/admin/MeasurementBookingDetailPage'), 'MeasurementBookingDetailPage');
 const MeasurementBookingNewPage = lazyPage(() => import('./pages/admin/MeasurementBookingNewPage'), 'MeasurementBookingNewPage');
-const GarmentTypesPage = lazyPage(() => import('./pages/admin/GarmentTypesPage'), 'GarmentTypesPage');
+const GarmentTypeTemplatesPage = lazyPage(() => import('./pages/admin/GarmentTypeTemplatesPage'), 'GarmentTypeTemplatesPage');
+const GarmentTemplateEditorPage = lazyPage(() => import('./pages/admin/GarmentTemplateEditorPage'), 'GarmentTemplateEditorPage');
 const ReviewsListPage = lazyPage(() => import('./pages/admin/ReviewsListPage'), 'ReviewsListPage');
 
 function NotFoundPage() {
@@ -132,6 +133,8 @@ function App() {
             <Route path="design/library/new" element={<DesignEditorPage />} />
             <Route path="design/library/:id" element={<DesignDetailPage />} />
             <Route path="design/library/:id/edit" element={<DesignEditorPage />} />
+            <Route path="design/templates" element={<GarmentTypeTemplatesPage />} />
+            <Route path="design/templates/:id" element={<GarmentTemplateEditorPage />} />
             <Route path="oversight/designs" element={<DesignOverviewPage />} />
             <Route path="oversight/listings" element={<ListingsOverviewPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
@@ -143,7 +146,6 @@ function App() {
             <Route path="measurement-bookings" element={<MeasurementBookingsListPage />} />
             <Route path="measurement-bookings/new" element={<MeasurementBookingNewPage />} />
             <Route path="measurement-bookings/:id" element={<MeasurementBookingDetailPage />} />
-            <Route path="system/garment-types" element={<GarmentTypesPage />} />
             <Route path="reviews" element={<ReviewsListPage />} />
             {/* Admin 404 — renders inside the sidebar layout */}
             <Route path="*" element={<NotFoundPage />} />

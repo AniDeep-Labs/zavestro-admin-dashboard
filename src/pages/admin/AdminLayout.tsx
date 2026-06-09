@@ -51,7 +51,7 @@ const SECTIONS: NavSection[] = [
     roleOwned: true,
     items: [
       { label: 'Design Library', icon: <UilLayerGroup size={18} />, path: '/admin/design/library', cap: 'designs:write' },
-      { label: 'Garment Types', icon: <UilRuler size={18} />, path: '/admin/system/garment-types', cap: 'designs:write' },
+      { label: 'Garment Types', icon: <UilRuler size={18} />, path: '/admin/design/templates', cap: 'designs:write' },
       { label: 'Sample Review', icon: <UilCheckCircle size={18} />, path: '/admin/design/samples', cap: 'samples:write' },
     ],
   },
