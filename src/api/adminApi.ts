@@ -1259,6 +1259,33 @@ export const distributionApi = {
     req<Distribution>(`/api/admin/distribution`, { method: 'POST', body: JSON.stringify(input) }),
 };
 
+// ─── Restock (catalog_manager requests; procurement ships/fulfils) ────────────
+
+export type RestockStatus = 'requested' | 'shipped' | 'fulfilled' | 'cancelled';
+export interface RestockRequest {
+  id: string;
+  fabric_id: string;
+  hub_id: string;
+  qty: string | number;
+  status: RestockStatus;
+  demand_note: string | null;
+  created_at: string;
+  updated_at: string;
+  fabric_name: string;
+}
+
+export const restockApi = {
+  list: async (params: { status?: string; hub_id?: string } = {}): Promise<RestockRequest[]> => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.hub_id) qs.set('hub_id', params.hub_id);
+    const s = qs.toString();
+    return req<RestockRequest[]>(`/api/admin/distribution/restock${s ? `?${s}` : ''}`);
+  },
+  setStatus: async (id: string, status: 'shipped' | 'fulfilled' | 'cancelled'): Promise<{ id: string; status: string; stocked_meters: number }> =>
+    req(`/api/admin/distribution/restock/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+};
+
 // ─── Listings (super read-only overview) ──────────────────────────────────────
 
 export interface ListingOverviewRow {

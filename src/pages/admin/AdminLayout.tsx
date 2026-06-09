@@ -63,6 +63,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: 'Fabrics Master', icon: <UilTag size={18} />, path: '/admin/procurement/fabrics', cap: 'distribution:write' },
       { label: 'Distribution', icon: <UilProcess size={18} />, path: '/admin/procurement/distribution', cap: 'distribution:write' },
+      { label: 'Restock Queue', icon: <UilHistory size={18} />, path: '/admin/procurement/restock', cap: 'distribution:write' },
     ],
   },
   {
