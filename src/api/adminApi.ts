@@ -785,6 +785,46 @@ export interface SampleJob {
   tailor_name: string | null;
 }
 
+export interface SampleJobDetail {
+  id: string;
+  status: SampleJob['status'];
+  photo_keys: string[];
+  rejection_reason: string | null;
+  hub_id: string;
+  hub_name: string | null;
+  tailor_name: string | null;
+  created_at: string;
+  updated_at: string;
+  design: {
+    id: string;
+    name: string;
+    garment_type: string;
+    garment_slug: string;
+    gender: string | null;
+    style: string | null;
+    fit_preset: string | null;
+    meters_per_garment: string | null;
+    tech_pack: Record<string, unknown> | null;
+    reference_image_keys: string[];
+    capture_set: unknown;
+    pain_point_menu: Record<string, unknown> | null;
+    status: string;
+  };
+  fabric: {
+    id: string;
+    name: string;
+    code: string | null;
+    composition: string | null;
+    weave: string | null;
+    finish: string | null;
+    weight_gsm: number | null;
+    care_instructions: string | null;
+    origin: string | null;
+    price_per_meter: string | null;
+    image_keys: string[];
+  };
+}
+
 export const sampleJobsApi = {
   list: async (params: { status?: string; hub_id?: string } = {}): Promise<SampleJob[]> => {
     const qs = new URLSearchParams();
@@ -793,6 +833,9 @@ export const sampleJobsApi = {
     const q = qs.toString();
     return req<SampleJob[]>(`/api/admin/sample-jobs${q ? `?${q}` : ''}`);
   },
+
+  get: async (id: string): Promise<SampleJobDetail> =>
+    req<SampleJobDetail>(`/api/admin/sample-jobs/${id}`),
 
   approve: async (id: string): Promise<SampleJob> =>
     req<SampleJob>(`/api/admin/sample-jobs/${id}/approve`, { method: 'POST' }),
