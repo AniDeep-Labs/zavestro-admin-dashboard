@@ -127,6 +127,14 @@ export const DesignLibraryPage: React.FC = () => {
                     {d.gender ? ` · ${d.gender}` : ''}
                     {d.fit_preset ? ` · ${d.fit_preset}` : ''}
                   </div>
+                  {d.fabric_swatches && d.fabric_swatches.length > 0 && (
+                    <div className={styles.swatchChips}>
+                      {d.fabric_swatches.slice(0, 5).map((k, i) => (
+                        <span key={i} className={styles.swatchChip}><img src={photoUrl(k)} alt="" /></span>
+                      ))}
+                      {d.fabric_swatches.length > 5 && <span className={styles.swatchMore}>+{d.fabric_swatches.length - 5}</span>}
+                    </div>
+                  )}
                   <div className={styles.cardMeta}>
                     <span>
                       <UilLayerGroup size={13} /> {d.fabric_count} fabric

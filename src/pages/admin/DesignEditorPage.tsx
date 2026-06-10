@@ -71,13 +71,13 @@ export const DesignEditorPage: React.FC = () => {
   const [style, setStyle] = React.useState('');
   const [fitPreset, setFitPreset] = React.useState('');
   const [meters, setMeters] = React.useState('');
-  const [fabricIds, setFabricIds] = React.useState<string[]>([]);
+  const [matched, setMatched] = React.useState<{ fabric_id: string; meters: string }[]>([]);
   const [captureSet, setCaptureSet] = React.useState<string[]>([]);
   const [painPoints, setPainPoints] = React.useState<string[]>([]);
   const [techRows, setTechRows] = React.useState<{ k: string; v: string }[]>([]);
   const [refKeys, setRefKeys] = React.useState<string[]>([]);
   const [uploading, setUploading] = React.useState(false);
-  const [fabricToAdd, setFabricToAdd] = React.useState('');
+  const [fabricSearch, setFabricSearch] = React.useState('');
 
   const dismiss = (t: string) => setToasts((x) => x.filter((y) => y.id !== t));
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -104,7 +104,7 @@ export const DesignEditorPage: React.FC = () => {
           setStyle(d.style ?? '');
           setFitPreset(d.fit_preset ?? '');
           setMeters(d.meters_per_garment ?? '');
-          setFabricIds(d.fabrics.map((f) => f.id));
+          setMatched(d.fabrics.map((f) => ({ fabric_id: f.id, meters: f.meters_per_garment ?? '' })));
           setCaptureSet(Array.isArray(d.capture_set) ? (d.capture_set as string[]) : []);
           setPainPoints(d.pain_point_menu ? Object.keys(d.pain_point_menu) : []);
           setTechRows(
@@ -168,14 +168,17 @@ export const DesignEditorPage: React.FC = () => {
       capture_set: captureSet.length ? captureSet : null,
       pain_point_menu: Object.keys(pain_point_menu).length ? pain_point_menu : null,
       reference_image_keys: refKeys,
-      fabric_ids: fabricIds,
+      fabrics: matched.map((m) => ({
+        fabric_id: m.fabric_id,
+        meters_per_garment: m.meters ? Number(m.meters) : null,
+      })),
     };
   };
 
   const save = async (publish: boolean) => {
     if (!name.trim()) return toast('error', 'Name required');
     if (!categoryId) return toast('error', 'Pick a garment type');
-    if (publish && fabricIds.length === 0)
+    if (publish && matched.length === 0)
       return toast('error', 'Add at least one fabric to publish');
     setSaving(publish ? 'publish' : 'draft');
     try {
@@ -199,7 +202,13 @@ export const DesignEditorPage: React.FC = () => {
       </div>
     );
 
-  const availableFabrics = fabrics.filter((f) => !fabricIds.includes(f.id));
+  const matchedIds = new Set(matched.map((m) => m.fabric_id));
+  const q = fabricSearch.trim().toLowerCase();
+  const availableFabrics = fabrics.filter(
+    (f) =>
+      !matchedIds.has(f.id) &&
+      (!q || f.name.toLowerCase().includes(q) || (f.code ?? '').toLowerCase().includes(q)),
+  );
 
   return (
     <div className={base.page}>
@@ -261,56 +270,74 @@ export const DesignEditorPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Fabric match */}
+        {/* Fabric match — swatch picker + per-fabric metreage */}
         <section className={s.section}>
           <h3 className={s.sectionTitle}>
-            Fabric match <span className={s.req}>· ≥1 required to publish</span>
+            Fabric match <span className={s.req}>· ≥1 required to publish · set metres per fabric</span>
           </h3>
-          <div className={s.fabricChosen}>
-            {fabricIds.length === 0 && <span className={s.hint}>No fabrics matched yet.</span>}
-            {fabricIds.map((fid) => {
-              const f = fabrics.find((x) => x.id === fid);
-              if (!f) return null;
-              return (
-                <span key={fid} className={s.fabricChip}>
-                  <span className={s.fabricChipSwatch}>
-                    {url(f.image_keys?.[0]) ? (
-                      <img src={url(f.image_keys[0])} alt={f.name} />
-                    ) : (
-                      <UilImage size={14} />
-                    )}
+
+          {matched.length === 0 ? (
+            <span className={s.hint}>No fabrics matched yet — pick from below.</span>
+          ) : (
+            <div className={s.matchedList}>
+              {matched.map((m) => {
+                const f = fabrics.find((x) => x.id === m.fabric_id);
+                return (
+                  <div key={m.fabric_id} className={s.matchedRow}>
+                    <span className={s.matchedSwatch}>
+                      {f && url(f.image_keys?.[0]) ? <img src={url(f.image_keys[0])} alt={f.name} /> : <UilImage size={16} />}
+                    </span>
+                    <div className={s.matchedInfo}>
+                      <strong>{f?.name ?? 'Fabric'}</strong>
+                      {f?.code ? <em> · {f.code}</em> : null}
+                    </div>
+                    <div className={s.metersField}>
+                      <input
+                        type="number"
+                        step="0.1"
+                        className={s.metersInput}
+                        value={m.meters}
+                        placeholder={meters || 'm'}
+                        onChange={(e) =>
+                          setMatched(matched.map((x) => (x.fabric_id === m.fabric_id ? { ...x, meters: e.target.value } : x)))
+                        }
+                      />
+                      <span>m/garment</span>
+                    </div>
+                    <button type="button" className={s.matchedRemove} onClick={() => setMatched(matched.filter((x) => x.fabric_id !== m.fabric_id))}>
+                      <UilTimes size={15} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <input
+            className={s.fabricSearch}
+            placeholder="Search fabrics to add…"
+            value={fabricSearch}
+            onChange={(e) => setFabricSearch(e.target.value)}
+          />
+          <div className={s.fabricPicker}>
+            {availableFabrics.length === 0 ? (
+              <span className={s.hint}>{fabrics.length ? 'No matching fabrics.' : 'No fabrics in the master yet.'}</span>
+            ) : (
+              availableFabrics.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  className={s.pickCard}
+                  onClick={() => setMatched([...matched, { fabric_id: f.id, meters: '' }])}
+                >
+                  <span className={s.pickSwatch}>
+                    {url(f.image_keys?.[0]) ? <img src={url(f.image_keys[0])} alt={f.name} /> : <UilImage size={18} />}
                   </span>
-                  {f.name}
-                  {f.code ? <em>· {f.code}</em> : null}
-                  <button type="button" onClick={() => setFabricIds(fabricIds.filter((x) => x !== fid))}>
-                    <UilTimes size={14} />
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-          <div className={s.fabricAdd}>
-            <Select
-              value={fabricToAdd}
-              onChange={setFabricToAdd}
-              placeholder={availableFabrics.length ? 'Add a fabric SKU…' : 'No more fabrics'}
-              options={availableFabrics.map((f) => ({
-                label: `${f.name}${f.code ? ` (${f.code})` : ''}`,
-                value: f.id,
-              }))}
-            />
-            <Button
-              variant="outline"
-              disabled={!fabricToAdd}
-              onClick={() => {
-                if (fabricToAdd) {
-                  setFabricIds([...fabricIds, fabricToAdd]);
-                  setFabricToAdd('');
-                }
-              }}
-            >
-              <UilPlus size={15} /> Add
-            </Button>
+                  <span className={s.pickName}>{f.name}</span>
+                  {f.code ? <span className={s.pickCode}>{f.code}</span> : null}
+                </button>
+              ))
+            )}
           </div>
         </section>
 
@@ -398,7 +425,7 @@ export const DesignEditorPage: React.FC = () => {
         <Button
           variant="primary"
           state={saving === 'publish' ? 'loading' : 'default'}
-          disabled={fabricIds.length === 0}
+          disabled={matched.length === 0}
           onClick={() => save(true)}
         >
           Publish ▸

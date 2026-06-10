@@ -856,6 +856,7 @@ export interface DesignSummary {
   garment_slug: string;
   reference_image_keys: string[];
   fabric_count: number;
+  fabric_swatches?: string[];
   cover_key: string | null;
   updated_at: string;
 }
@@ -864,8 +865,10 @@ export interface DesignFabricRef {
   id: string;
   name: string;
   code: string | null;
+  color_name: string | null;
   composition: string | null;
   image_keys: string[];
+  meters_per_garment: string | null;
 }
 
 export interface DesignDetail {
@@ -911,7 +914,7 @@ export interface DesignInput {
   capture_set?: unknown;
   pain_point_menu?: Record<string, unknown> | null;
   reference_image_keys?: string[];
-  fabric_ids?: string[];
+  fabrics?: { fabric_id: string; meters_per_garment?: number | null }[];
 }
 
 export interface GarmentCategoryOption {
