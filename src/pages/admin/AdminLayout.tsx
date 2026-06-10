@@ -7,7 +7,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import { Spinner } from '../../components/Spinner';
 import { BreadcrumbProvider, useBreadcrumb } from '../../contexts/BreadcrumbContext';
 import styles from './AdminLayout.module.css';
-import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBuilding, UilChartBar, UilCheckCircle, UilDashboard, UilFileAlt, UilHeadphones, UilHistory, UilLayerGroup, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSearch, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
+import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBox, UilBuilding, UilChartBar, UilCheckCircle, UilDashboard, UilFileAlt, UilHeadphones, UilHistory, UilLayerGroup, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSearch, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
 
 // Role-scoped navigation (CATALOG-DARKSTORE-ARCHITECTURE §11–18): the sidebar is
 // grouped into capability-gated WORKSPACES, not a flat list. A role sees only the
@@ -64,6 +64,7 @@ const SECTIONS: NavSection[] = [
       { label: 'Fabrics Master', icon: <UilTag size={18} />, path: '/admin/procurement/fabrics', cap: 'distribution:write' },
       { label: 'Distribution', icon: <UilProcess size={18} />, path: '/admin/procurement/distribution', cap: 'distribution:write' },
       { label: 'Restock Queue', icon: <UilHistory size={18} />, path: '/admin/procurement/restock', cap: 'distribution:write' },
+      { label: 'Cross-hub Stock', icon: <UilBox size={18} />, path: '/admin/procurement/stock', cap: 'distribution:write' },
     ],
   },
   {

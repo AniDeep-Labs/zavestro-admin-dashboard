@@ -1222,7 +1222,19 @@ export const fabricsApi = {
     req<Fabric>(`/api/admin/fabrics/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
   setActive: async (id: string, is_active: boolean): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics/${id}/active`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
+  stock: async (params: { hub_id?: string } = {}): Promise<FabricStockRow[]> =>
+    req<FabricStockRow[]>(`/api/admin/fabrics/stock${params.hub_id ? `?hub_id=${params.hub_id}` : ''}`),
 };
+
+export interface FabricStockRow {
+  hub_id: string;
+  hub_name: string;
+  fabric_code: string;
+  fabric_name: string;
+  available_meters: string | number;
+  reserved_meters: string | number;
+  updated_at: string;
+}
 
 // ─── Distribution (procurement pushes design+fabric → hub) ────────────────────
 

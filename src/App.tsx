@@ -64,6 +64,7 @@ const DesignAnalyticsPage = lazyPage(() => import('./pages/admin/DesignAnalytics
 const FabricsMasterPage = lazyPage(() => import('./pages/admin/FabricsMasterPage'), 'FabricsMasterPage');
 const DistributionPage = lazyPage(() => import('./pages/admin/DistributionPage'), 'DistributionPage');
 const RestockQueuePage = lazyPage(() => import('./pages/admin/RestockQueuePage'), 'RestockQueuePage');
+const CrossHubStockPage = lazyPage(() => import('./pages/admin/CrossHubStockPage'), 'CrossHubStockPage');
 const ReviewsListPage = lazyPage(() => import('./pages/admin/ReviewsListPage'), 'ReviewsListPage');
 
 function NotFoundPage() {
@@ -143,6 +144,7 @@ function App() {
             <Route path="procurement/fabrics" element={<FabricsMasterPage />} />
             <Route path="procurement/distribution" element={<DistributionPage />} />
             <Route path="procurement/restock" element={<RestockQueuePage />} />
+            <Route path="procurement/stock" element={<CrossHubStockPage />} />
             <Route path="oversight/designs" element={<DesignOverviewPage />} />
             <Route path="oversight/listings" element={<ListingsOverviewPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
