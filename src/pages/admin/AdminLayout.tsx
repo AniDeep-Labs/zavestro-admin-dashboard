@@ -81,9 +81,8 @@ const SECTIONS: NavSection[] = [
       { label: 'Fabric for Listing', icon: <UilReceipt size={18} />, path: '/admin/catalog/listing-requests', cap: 'catalog:write' },
       { label: 'Request Restock', icon: <UilHistory size={18} />, path: '/admin/catalog/restock', cap: 'restock:write' },
       {
-        label: 'Catalog', icon: <UilTag size={18} />, path: '/admin/catalog', cap: 'catalog:write',
+        label: 'Storefront', icon: <UilTag size={18} />, path: '/admin/catalog/collections', cap: 'catalog:write',
         children: [
-          { label: 'Products', path: '/admin/catalog/products' },
           { label: 'Collections', path: '/admin/catalog/collections' },
           { label: 'Hero Banners', path: '/admin/catalog/banners' },
           { label: 'Categories', path: '/admin/catalog/categories' },
