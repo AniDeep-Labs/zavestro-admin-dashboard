@@ -77,6 +77,7 @@ const SECTIONS: NavSection[] = [
     caps: ['catalog:write', 'cms:write'],
     roleOwned: true,
     items: [
+      { label: 'Listings', icon: <UilShoppingBag size={18} />, path: '/admin/catalog/listings', cap: 'catalog:write' },
       { label: 'Fabric for Listing', icon: <UilReceipt size={18} />, path: '/admin/catalog/listing-requests', cap: 'catalog:write' },
       { label: 'Request Restock', icon: <UilHistory size={18} />, path: '/admin/catalog/restock', cap: 'restock:write' },
       {

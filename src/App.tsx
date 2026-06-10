@@ -70,6 +70,7 @@ const RestockQueuePage = lazyPage(() => import('./pages/admin/RestockQueuePage')
 const CrossHubStockPage = lazyPage(() => import('./pages/admin/CrossHubStockPage'), 'CrossHubStockPage');
 const ListingRequestsPage = lazyPage(() => import('./pages/admin/ListingRequestsPage'), 'ListingRequestsPage');
 const FabricAtHubPage = lazyPage(() => import('./pages/admin/FabricAtHubPage'), 'FabricAtHubPage');
+const ListingsManagePage = lazyPage(() => import('./pages/admin/ListingsManagePage'), 'ListingsManagePage');
 const ReviewsListPage = lazyPage(() => import('./pages/admin/ReviewsListPage'), 'ReviewsListPage');
 
 function NotFoundPage() {
@@ -157,6 +158,7 @@ function App() {
             <Route path="procurement/listing-requests" element={<ListingRequestsPage mode="procurement" />} />
             <Route path="catalog/listing-requests" element={<ListingRequestsPage mode="cm" />} />
             <Route path="catalog/restock" element={<RestockQueuePage mode="cm" />} />
+            <Route path="catalog/listings" element={<ListingsManagePage />} />
             <Route path="procurement/track/:hubId/:fabricId" element={<FabricAtHubPage />} />
             <Route path="oversight/designs" element={<DesignOverviewPage />} />
             <Route path="oversight/listings" element={<ListingsOverviewPage />} />

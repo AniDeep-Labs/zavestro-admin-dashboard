@@ -1428,6 +1428,63 @@ export const listingsAdminApi = {
     req<ListingOverviewRow[]>(`/api/admin/listings/overview`),
 };
 
+// ─── Catalog-manager listings management ──────────────────────────────────────
+
+export interface CmListing {
+  id: string;
+  design_id: string;
+  fabric_id: string;
+  hub_id: string;
+  price: string;
+  description: string | null;
+  photo_keys: string[];
+  is_active: boolean;
+  created_at: string;
+  design_name: string;
+  garment_type: string;
+  design_image_keys: string[] | null;
+  fabric_name: string;
+  fabric_code: string;
+  fabric_color: string | null;
+  fabric_image_keys: string[] | null;
+  hub_name: string;
+}
+export interface ReadyToListSample {
+  sample_id: string;
+  design_id: string;
+  fabric_id: string;
+  hub_id: string;
+  sample_photos: string[] | null;
+  design_name: string;
+  garment_type: string;
+  design_image_keys: string[] | null;
+  fabric_name: string;
+  fabric_code: string;
+  fabric_color: string | null;
+  fabric_image_keys: string[] | null;
+  hub_name: string;
+}
+export interface CmListingInput {
+  design_id: string;
+  fabric_id: string;
+  hub_id: string;
+  price: number;
+  description?: string | null;
+  photo_keys?: string[];
+  is_active?: boolean;
+}
+
+export const cmListingsApi = {
+  list: async (): Promise<CmListing[]> => req<CmListing[]>(`/api/admin/listings`),
+  ready: async (): Promise<ReadyToListSample[]> => req<ReadyToListSample[]>(`/api/admin/listings/ready`),
+  create: async (input: CmListingInput): Promise<{ id: string }> =>
+    req(`/api/admin/listings`, { method: 'POST', body: JSON.stringify(input) }),
+  update: async (id: string, input: Partial<Omit<CmListingInput, 'design_id' | 'fabric_id' | 'hub_id'>>): Promise<CmListing> =>
+    req<CmListing>(`/api/admin/listings/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  fromSample: async (sampleId: string, input: { price: number; photo_keys?: string[]; description?: string; is_active?: boolean }): Promise<{ listing_id: string; reused: boolean }> =>
+    req(`/api/admin/sample-jobs/${sampleId}/list`, { method: 'POST', body: JSON.stringify(input) }),
+};
+
 // ─── Promo Codes ──────────────────────────────────────────────────────────────
 
 export interface PromoCode {
