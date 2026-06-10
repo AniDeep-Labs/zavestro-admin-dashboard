@@ -1,19 +1,28 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { restockApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
-import type { RestockRequest, Hub } from '../../api/adminApi';
+import { restockApi, fabricsApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
+import type { RestockRequest, Fabric, Hub } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { Input } from '../../components/Input/Input';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import { UilPlus } from '@iconscout/react-unicons';
 
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 const STATUS_LABELS: Record<string, string> = { requested: 'Requested', shipped: 'Sent · in transit', fulfilled: 'Received · in stock', cancelled: 'Cancelled' };
 const STATUS_CSS: Record<string, string> = { requested: 'stageWarning', shipped: 'stageBlue', fulfilled: 'stageSuccess', cancelled: 'stageNeutral' };
 
-export const RestockQueuePage: React.FC = () => {
+export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mode = 'procurement' }) => {
   const navigate = useNavigate();
+  const isCm = mode === 'cm';
+  const [fabrics, setFabrics] = React.useState<Fabric[]>([]);
+  const [fFabric, setFFabric] = React.useState('');
+  const [fHub, setFHub] = React.useState('');
+  const [fQty, setFQty] = React.useState('');
+  const [fNote, setFNote] = React.useState('');
+  const [submitting, setSubmitting] = React.useState(false);
   const [confirm, setConfirm] = React.useState<null | { title: string; message: React.ReactNode; label: string; variant?: 'primary' | 'danger'; run: () => Promise<void> }>(null);
   const [confirming, setConfirming] = React.useState(false);
   const runConfirm = async () => {
@@ -43,7 +52,25 @@ export const RestockQueuePage: React.FC = () => {
   }, [statusFilter, hubFilter]);
 
   React.useEffect(() => { load(); }, [load]);
-  React.useEffect(() => { hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {}); }, []);
+  React.useEffect(() => {
+    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
+    if (isCm) fabricsApi.list({ active: true }).then(setFabrics).catch(() => {});
+  }, [isCm]);
+
+  const submit = async () => {
+    if (!fFabric || !fHub || !fQty) { toast('error', 'Fabric, hub and metres are required'); return; }
+    setSubmitting(true);
+    try {
+      await restockApi.create({ fabric_id: fFabric, hub_id: fHub, qty: Number(fQty), demand_note: fNote.trim() || undefined });
+      toast('success', 'Restock requested', 'Procurement will ship it.');
+      setFFabric(''); setFHub(''); setFQty(''); setFNote('');
+      load();
+    } catch (e) {
+      toast('error', 'Request failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const hubName = (id: string) => hubs.find((h) => h.id === id)?.name ?? '—';
 
@@ -66,9 +93,29 @@ export const RestockQueuePage: React.FC = () => {
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
       <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Restock Queue</h1>
+        <h1 className={styles.title}>{isCm ? 'Request Restock' : 'Restock Queue'}</h1>
         <span className={styles.pagination}>{loading ? '' : `${pending} open · ${rows.length} total`}</span>
       </div>
+
+      {isCm && (
+        <section className={styles.modalGrid} style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: 'var(--spacing-lg)', marginBottom: 'var(--spacing-lg)', alignItems: 'end' }}>
+          <label className={styles.fieldLabel}>Fabric
+            <select className={styles.filterSelect} value={fFabric} onChange={(e) => setFFabric(e.target.value)}>
+              <option value="">Select…</option>
+              {fabrics.map((f) => <option key={f.id} value={f.id}>{f.name} ({f.code})</option>)}
+            </select>
+          </label>
+          <label className={styles.fieldLabel}>Hub
+            <select className={styles.filterSelect} value={fHub} onChange={(e) => setFHub(e.target.value)}>
+              <option value="">Select…</option>
+              {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+            </select>
+          </label>
+          <Input label="Metres" type="number" value={fQty} onChange={setFQty} placeholder="e.g. 40" />
+          <Input label="Why (optional)" value={fNote} onChange={setFNote} placeholder="Running low" />
+          <Button variant="primary" state={submitting ? 'loading' : 'default'} onClick={submit}><UilPlus size={15} /> Request</Button>
+        </section>
+      )}
 
       <div className={styles.filterBar}>
         <select className={styles.filterSelect} value={hubFilter} onChange={(e) => setHubFilter(e.target.value)}>
@@ -87,15 +134,15 @@ export const RestockQueuePage: React.FC = () => {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Fabric</th><th>Hub</th><th>Qty (m)</th><th>Demand note</th><th>Status</th><th>Requested</th><th>Actions</th></tr>
+            <tr><th>Fabric</th><th>Hub</th><th>Qty (m)</th><th>Demand note</th><th>Status</th><th>Requested</th>{!isCm && <th>Actions</th>}</tr>
           </thead>
           <tbody>
             {loading ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}>{Array.from({ length: 7 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
+                <tr key={i}>{Array.from({ length: isCm ? 6 : 7 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
               ))
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} className={styles.empty}>No restock requests. Catalog managers raise these when a hub runs low.</td></tr>
+              <tr><td colSpan={isCm ? 6 : 7} className={styles.empty}>No restock requests yet.</td></tr>
             ) : (
               rows.map((r) => {
                 const busy = actingId === r.id;
@@ -115,7 +162,7 @@ export const RestockQueuePage: React.FC = () => {
                     <td style={{ color: 'var(--color-text-secondary)', maxWidth: 240 }}>{r.demand_note || <span style={{ opacity: 0.5 }}>—</span>}</td>
                     <td><span className={`${styles.stagePill} ${styles[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[r.status] ?? r.status}</span></td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
+                    {!isCm && <td onClick={(e) => e.stopPropagation()}>
                       <div className={styles.rowActions}>
                         {r.status === 'requested' && (
                           <Button variant="primary" size="sm" disabled={busy} onClick={() => setConfirm({
@@ -140,7 +187,7 @@ export const RestockQueuePage: React.FC = () => {
                         )}
                         {(r.status === 'fulfilled' || r.status === 'cancelled') && <span style={{ opacity: 0.5 }}>—</span>}
                       </div>
-                    </td>
+                    </td>}
                   </tr>
                 );
               })

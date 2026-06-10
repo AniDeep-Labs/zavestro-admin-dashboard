@@ -1362,6 +1362,8 @@ export const restockApi = {
   },
   setStatus: async (id: string, status: 'shipped' | 'fulfilled' | 'cancelled'): Promise<{ id: string; status: string; stocked_meters: number }> =>
     req(`/api/admin/distribution/restock/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  create: async (input: { fabric_id: string; hub_id: string; qty: number; demand_note?: string }): Promise<{ id: string }> =>
+    req(`/api/admin/distribution/restock`, { method: 'POST', body: JSON.stringify(input) }),
 };
 
 // ─── Fabric-for-listing requests (CM → procurement, Stage 5) ──────────────────

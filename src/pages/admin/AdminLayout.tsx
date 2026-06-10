@@ -44,6 +44,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: 'Design Overview', icon: <UilLayerGroup size={18} />, path: '/admin/oversight/designs', cap: 'reports:read' },
       { label: 'Listings Overview', icon: <UilTag size={18} />, path: '/admin/oversight/listings', cap: 'reports:read' },
+      { label: 'Supply Overview', icon: <UilBox size={18} />, path: '/admin/oversight/supply', cap: 'reports:read' },
     ],
   },
   {
@@ -77,6 +78,7 @@ const SECTIONS: NavSection[] = [
     roleOwned: true,
     items: [
       { label: 'Fabric for Listing', icon: <UilReceipt size={18} />, path: '/admin/catalog/listing-requests', cap: 'catalog:write' },
+      { label: 'Request Restock', icon: <UilHistory size={18} />, path: '/admin/catalog/restock', cap: 'restock:write' },
       {
         label: 'Catalog', icon: <UilTag size={18} />, path: '/admin/catalog', cap: 'catalog:write',
         children: [

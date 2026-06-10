@@ -49,6 +49,7 @@ const DesignDetailPage = lazyPage(() => import('./pages/admin/DesignDetailPage')
 const DesignEditorPage = lazyPage(() => import('./pages/admin/DesignEditorPage'), 'DesignEditorPage');
 const DesignOverviewPage = lazyPage(() => import('./pages/admin/DesignOverviewPage'), 'DesignOverviewPage');
 const ListingsOverviewPage = lazyPage(() => import('./pages/admin/ListingsOverviewPage'), 'ListingsOverviewPage');
+const SupplyOverviewPage = lazyPage(() => import('./pages/admin/SupplyOverviewPage'), 'SupplyOverviewPage');
 const InvoicesListPage = lazyPage(() => import('./pages/admin/InvoicesListPage'), 'InvoicesListPage');
 const CodReconciliationPage = lazyPage(() => import('./pages/admin/CodReconciliationPage'), 'CodReconciliationPage');
 const NotificationBlastPage = lazyPage(() => import('./pages/admin/NotificationBlastPage'), 'NotificationBlastPage');
@@ -155,9 +156,11 @@ function App() {
             <Route path="procurement/stock" element={<CrossHubStockPage />} />
             <Route path="procurement/listing-requests" element={<ListingRequestsPage mode="procurement" />} />
             <Route path="catalog/listing-requests" element={<ListingRequestsPage mode="cm" />} />
+            <Route path="catalog/restock" element={<RestockQueuePage mode="cm" />} />
             <Route path="procurement/track/:hubId/:fabricId" element={<FabricAtHubPage />} />
             <Route path="oversight/designs" element={<DesignOverviewPage />} />
             <Route path="oversight/listings" element={<ListingsOverviewPage />} />
+            <Route path="oversight/supply" element={<SupplyOverviewPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
             <Route path="finance/cod-reconciliation" element={<CodReconciliationPage />} />
             <Route path="notifications" element={<NotificationBlastPage />} />
