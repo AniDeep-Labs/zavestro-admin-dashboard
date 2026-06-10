@@ -66,6 +66,7 @@ const SECTIONS: NavSection[] = [
       { label: 'Distribution', icon: <UilProcess size={18} />, path: '/admin/procurement/distribution', cap: 'distribution:write' },
       { label: 'Restock Queue', icon: <UilHistory size={18} />, path: '/admin/procurement/restock', cap: 'distribution:write' },
       { label: 'Cross-hub Stock', icon: <UilBox size={18} />, path: '/admin/procurement/stock', cap: 'distribution:write' },
+      { label: 'Listing Requests', icon: <UilReceipt size={18} />, path: '/admin/procurement/listing-requests', cap: 'distribution:write' },
     ],
   },
   {
@@ -73,6 +74,7 @@ const SECTIONS: NavSection[] = [
     caps: ['catalog:write', 'cms:write'],
     roleOwned: true,
     items: [
+      { label: 'Fabric for Listing', icon: <UilReceipt size={18} />, path: '/admin/catalog/listing-requests', cap: 'catalog:write' },
       {
         label: 'Catalog', icon: <UilTag size={18} />, path: '/admin/catalog', cap: 'catalog:write',
         children: [
