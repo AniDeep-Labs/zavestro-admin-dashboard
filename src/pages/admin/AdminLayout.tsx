@@ -7,6 +7,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import { Spinner } from '../../components/Spinner';
 import { BreadcrumbProvider, useBreadcrumb } from '../../contexts/BreadcrumbContext';
 import styles from './AdminLayout.module.css';
+import { NotificationBell } from './NotificationBell';
 import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBox, UilBuilding, UilChartBar, UilCheckCircle, UilDashboard, UilFileAlt, UilHeadphones, UilHistory, UilLayerGroup, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSearch, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
 
 // Role-scoped navigation (CATALOG-DARKSTORE-ARCHITECTURE §11–18): the sidebar is
@@ -354,8 +355,7 @@ const AdminLayoutInner: React.FC = () => {
             >
               {theme === 'dark' ? <UilSun size={18} /> : <UilMoon size={18} />}
             </button>
-            {/* Notification bell removed — there is no admin notification feed yet, and a
-                dead "coming soon" control is worse than none. Re-add when a real feed exists. */}
+            <NotificationBell />
             <div
               className={styles.adminUser}
               onClick={() => navigate('/admin/profile')}

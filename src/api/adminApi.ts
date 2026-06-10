@@ -1138,6 +1138,31 @@ export const notificationsAdminApi = {
     req<{ users_targeted: number }>(`/api/admin/notifications/blast`, { method: 'POST', body: JSON.stringify(payload) }),
 };
 
+// ─── Admin inbox (hand-off notifications) ─────────────────────────────────────
+
+export interface AdminNotification {
+  id: string;
+  category: string;
+  title: string;
+  body: string;
+  deep_link: string | null;
+  ref_id: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+export const adminInboxApi = {
+  list: async (unreadOnly = false): Promise<AdminNotification[]> =>
+    req<{ notifications: AdminNotification[]; unread_count: number }>(
+      `/api/admin/notifications${unreadOnly ? '?unread=true' : ''}`,
+    ).then((r) => r.notifications),
+  markRead: async (id: string): Promise<void> => {
+    await req(`/api/admin/notifications/${id}/read`, { method: 'POST' });
+  },
+  markAllRead: async (): Promise<void> => {
+    await req(`/api/admin/notifications/read-all`, { method: 'POST' });
+  },
+};
+
 // ─── Pincode Demand (waitlist for unserved pincodes) ─────────────────────────────
 
 export interface PincodeDemand {
