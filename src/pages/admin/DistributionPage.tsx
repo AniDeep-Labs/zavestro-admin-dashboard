@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { distributionApi, designsApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { Distribution, DesignSummary, DesignFabricRef, Hub } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
@@ -10,10 +11,12 @@ import styles from './OrdersListPage.module.css';
 import { UilPlus } from '@iconscout/react-unicons';
 
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
-const STATUS_LABELS: Record<string, string> = { pushed: 'Pushed', received: 'Received', cancelled: 'Cancelled' };
+const STATUS_LABELS: Record<string, string> = { pushed: 'Sent · in transit', received: 'Received · in stock', cancelled: 'Cancelled' };
 const STATUS_CSS: Record<string, string> = { pushed: 'stageWarning', received: 'stageSuccess', cancelled: 'stageNeutral' };
 
 export const DistributionPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [acting, setActing] = React.useState('');
   const [rows, setRows] = React.useState<Distribution[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
@@ -62,6 +65,19 @@ export const DistributionPage: React.FC = () => {
   const openPush = () => {
     setDesignId(''); setFabrics([]); setFabricId(''); setHubId(hubs[0]?.id ?? '');
     setSampleQty('1'); setSellableQty('0'); setOpen(true);
+  };
+
+  const receive = async (r: Distribution) => {
+    setActing(r.id);
+    try {
+      const res = await distributionApi.receive(r.id);
+      toast('success', 'Received at hub', res.stocked_meters ? `${res.stocked_meters}m landed in stock.` : undefined);
+      load();
+    } catch (err) {
+      toast('error', 'Failed', err instanceof Error ? err.message : undefined);
+    } finally {
+      setActing('');
+    }
   };
 
   const push = async () => {
@@ -120,7 +136,12 @@ export const DistributionPage: React.FC = () => {
               <tr><td colSpan={7} className={styles.empty}>Nothing distributed yet. Push a design + fabric to a hub.</td></tr>
             ) : (
               rows.map((r) => (
-                <tr key={r.id}>
+                <tr
+                  key={r.id}
+                  className={r.fabric_id ? styles.row : undefined}
+                  style={r.fabric_id ? { cursor: 'pointer' } : undefined}
+                  onClick={r.fabric_id ? () => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`) : undefined}
+                >
                   <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.design_name}</td>
                   <td>
                     {r.fabric_name ? (
@@ -138,7 +159,14 @@ export const DistributionPage: React.FC = () => {
                   <td>{hubName(r.hub_id)}</td>
                   <td className={styles.total}>{Number(r.sample_qty)}</td>
                   <td className={styles.total}>{Number(r.sellable_qty)}</td>
-                  <td><span className={`${styles.stagePill} ${styles[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[r.status] ?? r.status}</span></td>
+                  <td>
+                    <div className={styles.rowActions} onClick={(e) => e.stopPropagation()}>
+                      <span className={`${styles.stagePill} ${styles[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[r.status] ?? r.status}</span>
+                      {r.status === 'pushed' && (
+                        <Button variant="ghost" size="sm" disabled={acting === r.id} onClick={() => receive(r)}>Mark received</Button>
+                      )}
+                    </div>
+                  </td>
                   <td style={{ color: 'var(--color-text-secondary)' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
                 </tr>
               ))

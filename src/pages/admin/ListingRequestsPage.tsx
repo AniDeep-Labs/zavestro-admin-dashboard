@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { listingRequestsApi, designsApi, fabricsApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { ListingRequest, DesignSummary, Fabric, Hub } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
@@ -10,10 +11,11 @@ import s from './ListingRequestsPage.module.css';
 import { UilImage } from '@iconscout/react-unicons';
 
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
-const STATUS_LABELS: Record<string, string> = { requested: 'Requested', approved: 'Approved', rejected: 'Rejected' };
-const STATUS_CSS: Record<string, string> = { requested: 'stageWarning', approved: 'stageSuccess', rejected: 'stageNeutral' };
+const STATUS_LABELS: Record<string, string> = { requested: 'Requested', approved: 'Sent · in transit', received: 'Received · in stock', rejected: 'Rejected' };
+const STATUS_CSS: Record<string, string> = { requested: 'stageWarning', approved: 'stageBlue', received: 'stageSuccess', rejected: 'stageNeutral' };
 
 export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mode = 'procurement' }) => {
+  const navigate = useNavigate();
   const isProc = mode === 'procurement';
   const [rows, setRows] = React.useState<ListingRequest[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
@@ -59,11 +61,24 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
   const decide = async (r: ListingRequest, decision: 'approved' | 'rejected') => {
     setActingId(r.id);
     try {
-      const res = await listingRequestsApi.decide(r.id, decision);
-      toast('success', `Request ${decision}`, decision === 'approved' && res.stocked_meters ? `${res.stocked_meters}m sent to ${hubName(r.hub_id)} stock.` : undefined);
+      await listingRequestsApi.decide(r.id, decision);
+      toast('success', decision === 'approved' ? 'Approved & sent' : 'Rejected', decision === 'approved' ? 'Confirm receipt once it reaches the hub.' : undefined);
       load();
     } catch (e) {
       toast('error', 'Action failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setActingId('');
+    }
+  };
+
+  const receive = async (r: ListingRequest) => {
+    setActingId(r.id);
+    try {
+      const res = await listingRequestsApi.receive(r.id);
+      toast('success', 'Received at hub', res.stocked_meters ? `${res.stocked_meters}m landed in ${hubName(r.hub_id)} stock.` : undefined);
+      load();
+    } catch (e) {
+      toast('error', 'Failed', e instanceof Error ? e.message : undefined);
     } finally {
       setActingId('');
     }
@@ -144,7 +159,7 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
             const img = swatch(r.fabric_image_keys);
             const busy = actingId === r.id;
             return (
-              <div key={r.id} className={s.card}>
+              <div key={r.id} className={s.card} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`)}>
                 <div className={s.cardSwatch}>{img ? <img src={img} alt={r.fabric_name} /> : <UilImage size={26} />}</div>
                 <div className={s.cardBody}>
                   <div className={s.cardCode}>{r.fabric_code}{r.fabric_color ? ` · ${r.fabric_color}` : ''}</div>
@@ -156,9 +171,14 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
                   <div className={s.cardFoot}>
                     <span className={`${base.stagePill} ${base[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[r.status] ?? r.status}</span>
                     {isProc && r.status === 'requested' && (
-                      <div className={s.cardActions}>
+                      <div className={s.cardActions} onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="sm" disabled={busy} onClick={() => decide(r, 'rejected')}>Reject</Button>
                         <Button variant="primary" size="sm" disabled={busy} onClick={() => decide(r, 'approved')}>Approve &amp; send</Button>
+                      </div>
+                    )}
+                    {isProc && r.status === 'approved' && (
+                      <div className={s.cardActions} onClick={(e) => e.stopPropagation()}>
+                        <Button variant="primary" size="sm" disabled={busy} onClick={() => receive(r)}>Mark received</Button>
                       </div>
                     )}
                   </div>

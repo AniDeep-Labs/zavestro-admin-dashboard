@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fabricsApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { FabricStockRow, Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -8,6 +9,7 @@ import styles from './OrdersListPage.module.css';
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 
 export const CrossHubStockPage: React.FC = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = React.useState<FabricStockRow[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [hubFilter, setHubFilter] = React.useState('');
@@ -62,7 +64,7 @@ export const CrossHubStockPage: React.FC = () => {
               rows.map((r) => {
                 const avail = Number(r.available_meters);
                 return (
-                  <tr key={`${r.hub_id}-${r.fabric_code}`}>
+                  <tr key={`${r.hub_id}-${r.fabric_code}`} className={styles.row} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`)}>
                     <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.hub_name}</td>
                     <td>
                       <div className={styles.fabricCell}>

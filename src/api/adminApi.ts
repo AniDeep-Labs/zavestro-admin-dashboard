@@ -1262,11 +1262,32 @@ export const fabricsApi = {
     req<Fabric>(`/api/admin/fabrics/${id}/active`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
   stock: async (params: { hub_id?: string } = {}): Promise<FabricStockRow[]> =>
     req<FabricStockRow[]>(`/api/admin/fabrics/stock${params.hub_id ? `?hub_id=${params.hub_id}` : ''}`),
+  atHub: async (hubId: string, fabricId: string): Promise<FabricAtHub> =>
+    req<FabricAtHub>(`/api/admin/fabrics/at-hub?hub_id=${hubId}&fabric_id=${fabricId}`),
 };
+
+export interface FabricMovement {
+  kind: 'distribution' | 'restock' | 'listing';
+  id: string;
+  status: string;
+  qty: string | number;
+  created_at: string;
+  updated_at: string;
+  design_name: string | null;
+  note: string | null;
+}
+export interface FabricAtHub {
+  fabric: Fabric;
+  hub_id: string;
+  hub_name: string | null;
+  stock: { available_meters: string; reserved_meters: string; updated_at: string | null };
+  movements: FabricMovement[];
+}
 
 export interface FabricStockRow {
   hub_id: string;
   hub_name: string;
+  fabric_id: string;
   fabric_code: string;
   fabric_name: string;
   fabric_image_keys: string[] | null;
@@ -1310,6 +1331,8 @@ export const distributionApi = {
   },
   push: async (input: PushDistributionInput): Promise<Distribution> =>
     req<Distribution>(`/api/admin/distribution`, { method: 'POST', body: JSON.stringify(input) }),
+  receive: async (id: string): Promise<{ id: string; stocked_meters: number }> =>
+    req(`/api/admin/distribution/${id}/receive`, { method: 'POST' }),
 };
 
 // ─── Restock (catalog_manager requests; procurement ships/fulfils) ────────────
@@ -1343,7 +1366,7 @@ export const restockApi = {
 
 // ─── Fabric-for-listing requests (CM → procurement, Stage 5) ──────────────────
 
-export type ListingRequestStatus = 'requested' | 'approved' | 'rejected';
+export type ListingRequestStatus = 'requested' | 'approved' | 'received' | 'rejected';
 export interface ListingRequest {
   id: string;
   design_id: string;
@@ -1382,6 +1405,8 @@ export const listingRequestsApi = {
     req(`/api/admin/listing-requests`, { method: 'POST', body: JSON.stringify(input) }),
   decide: async (id: string, decision: 'approved' | 'rejected'): Promise<{ id: string; status: string; stocked_meters: number }> =>
     req(`/api/admin/listing-requests/${id}`, { method: 'PATCH', body: JSON.stringify({ decision }) }),
+  receive: async (id: string): Promise<{ id: string; status: string; stocked_meters: number }> =>
+    req(`/api/admin/listing-requests/${id}/receive`, { method: 'POST' }),
 };
 
 // ─── Listings (super read-only overview) ──────────────────────────────────────

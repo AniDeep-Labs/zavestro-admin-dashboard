@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { restockApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { RestockRequest, Hub } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
@@ -7,10 +8,11 @@ import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
 
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
-const STATUS_LABELS: Record<string, string> = { requested: 'Requested', shipped: 'Shipped', fulfilled: 'Fulfilled', cancelled: 'Cancelled' };
+const STATUS_LABELS: Record<string, string> = { requested: 'Requested', shipped: 'Sent · in transit', fulfilled: 'Received · in stock', cancelled: 'Cancelled' };
 const STATUS_CSS: Record<string, string> = { requested: 'stageWarning', shipped: 'stageBlue', fulfilled: 'stageSuccess', cancelled: 'stageNeutral' };
 
 export const RestockQueuePage: React.FC = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = React.useState<RestockRequest[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -90,7 +92,7 @@ export const RestockQueuePage: React.FC = () => {
               rows.map((r) => {
                 const busy = actingId === r.id;
                 return (
-                  <tr key={r.id}>
+                  <tr key={r.id} className={styles.row} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`)}>
                     <td>
                       <div className={styles.fabricCell}>
                         {swatch(r.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(r.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
@@ -105,7 +107,7 @@ export const RestockQueuePage: React.FC = () => {
                     <td style={{ color: 'var(--color-text-secondary)', maxWidth: 240 }}>{r.demand_note || <span style={{ opacity: 0.5 }}>—</span>}</td>
                     <td><span className={`${styles.stagePill} ${styles[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[r.status] ?? r.status}</span></td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <div className={styles.rowActions}>
                         {r.status === 'requested' && (
                           <Button variant="primary" size="sm" disabled={busy} onClick={() => act(r, 'shipped')}>Ship</Button>
