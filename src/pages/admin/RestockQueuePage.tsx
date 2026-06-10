@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { restockApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { RestockRequest, Hub } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
@@ -13,6 +14,13 @@ const STATUS_CSS: Record<string, string> = { requested: 'stageWarning', shipped:
 
 export const RestockQueuePage: React.FC = () => {
   const navigate = useNavigate();
+  const [confirm, setConfirm] = React.useState<null | { title: string; message: React.ReactNode; label: string; variant?: 'primary' | 'danger'; run: () => Promise<void> }>(null);
+  const [confirming, setConfirming] = React.useState(false);
+  const runConfirm = async () => {
+    if (!confirm) return;
+    setConfirming(true);
+    try { await confirm.run(); } finally { setConfirming(false); setConfirm(null); }
+  };
   const [rows, setRows] = React.useState<RestockRequest[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -110,13 +118,25 @@ export const RestockQueuePage: React.FC = () => {
                     <td onClick={(e) => e.stopPropagation()}>
                       <div className={styles.rowActions}>
                         {r.status === 'requested' && (
-                          <Button variant="primary" size="sm" disabled={busy} onClick={() => act(r, 'shipped')}>Ship</Button>
+                          <Button variant="primary" size="sm" disabled={busy} onClick={() => setConfirm({
+                            title: 'Ship this restock?', label: 'Ship',
+                            message: <>Mark <strong>{Number(r.qty)}m</strong> of <strong>{r.fabric_name}</strong> ({r.fabric_code}) as sent to <strong>{hubName(r.hub_id)}</strong>? It'll show as <em>in transit</em>.</>,
+                            run: () => act(r, 'shipped'),
+                          })}>Ship</Button>
                         )}
                         {r.status === 'shipped' && (
-                          <Button variant="primary" size="sm" disabled={busy} onClick={() => act(r, 'fulfilled')}>Mark fulfilled</Button>
+                          <Button variant="primary" size="sm" disabled={busy} onClick={() => setConfirm({
+                            title: 'Mark received?', label: 'Yes, it arrived',
+                            message: <>Confirm <strong>{Number(r.qty)}m</strong> of <strong>{r.fabric_name}</strong> ({r.fabric_code}) physically arrived at <strong>{hubName(r.hub_id)}</strong>. This lands it in stock and can't be undone.</>,
+                            run: () => act(r, 'fulfilled'),
+                          })}>Mark received</Button>
                         )}
                         {(r.status === 'requested' || r.status === 'shipped') && (
-                          <Button variant="ghost" size="sm" disabled={busy} onClick={() => act(r, 'cancelled')}>Cancel</Button>
+                          <Button variant="ghost" size="sm" disabled={busy} onClick={() => setConfirm({
+                            title: 'Cancel this restock?', label: 'Cancel request', variant: 'danger',
+                            message: <>Cancel the restock for <strong>{r.fabric_name}</strong> ({r.fabric_code})?</>,
+                            run: () => act(r, 'cancelled'),
+                          })}>Cancel</Button>
                         )}
                         {(r.status === 'fulfilled' || r.status === 'cancelled') && <span style={{ opacity: 0.5 }}>—</span>}
                       </div>
@@ -128,6 +148,17 @@ export const RestockQueuePage: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title ?? ''}
+        message={confirm?.message ?? ''}
+        confirmLabel={confirm?.label}
+        variant={confirm?.variant}
+        loading={confirming}
+        onConfirm={runConfirm}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 };

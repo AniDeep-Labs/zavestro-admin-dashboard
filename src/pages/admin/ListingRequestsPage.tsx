@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { listingRequestsApi, designsApi, fabricsApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { ListingRequest, DesignSummary, Fabric, Hub } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Input } from '../../components/Input/Input';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -17,6 +18,15 @@ const STATUS_CSS: Record<string, string> = { requested: 'stageWarning', approved
 export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mode = 'procurement' }) => {
   const navigate = useNavigate();
   const isProc = mode === 'procurement';
+  const [confirm, setConfirm] = React.useState<
+    null | { title: string; message: React.ReactNode; label: string; variant?: 'primary' | 'danger'; run: () => Promise<void> }
+  >(null);
+  const [confirming, setConfirming] = React.useState(false);
+  const runConfirm = async () => {
+    if (!confirm) return;
+    setConfirming(true);
+    try { await confirm.run(); } finally { setConfirming(false); setConfirm(null); }
+  };
   const [rows, setRows] = React.useState<ListingRequest[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
@@ -172,13 +182,25 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
                     <span className={`${base.stagePill} ${base[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[r.status] ?? r.status}</span>
                     {isProc && r.status === 'requested' && (
                       <div className={s.cardActions} onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" disabled={busy} onClick={() => decide(r, 'rejected')}>Reject</Button>
-                        <Button variant="primary" size="sm" disabled={busy} onClick={() => decide(r, 'approved')}>Approve &amp; send</Button>
+                        <Button variant="ghost" size="sm" disabled={busy} onClick={() => setConfirm({
+                          title: 'Reject this request?', variant: 'danger', label: 'Reject',
+                          message: <>Reject the request for <strong>{r.fabric_name}</strong> ({r.fabric_code})? The catalog manager will need to re-request.</>,
+                          run: () => decide(r, 'rejected'),
+                        })}>Reject</Button>
+                        <Button variant="primary" size="sm" disabled={busy} onClick={() => setConfirm({
+                          title: 'Approve & send?', label: 'Approve & send',
+                          message: <>Approve and send <strong>{Number(r.qty)}m</strong> of <strong>{r.fabric_name}</strong> ({r.fabric_code}) to <strong>{r.hub_name}</strong>? It will show as <em>in transit</em> until you confirm receipt.</>,
+                          run: () => decide(r, 'approved'),
+                        })}>Approve &amp; send</Button>
                       </div>
                     )}
                     {isProc && r.status === 'approved' && (
                       <div className={s.cardActions} onClick={(e) => e.stopPropagation()}>
-                        <Button variant="primary" size="sm" disabled={busy} onClick={() => receive(r)}>Mark received</Button>
+                        <Button variant="primary" size="sm" disabled={busy} onClick={() => setConfirm({
+                          title: 'Mark received?', label: 'Yes, it arrived',
+                          message: <>Confirm <strong>{Number(r.qty)}m</strong> of <strong>{r.fabric_name}</strong> ({r.fabric_code}) physically arrived at <strong>{r.hub_name}</strong>. This lands it in stock and can't be undone — only do this once the fabric is actually there.</>,
+                          run: () => receive(r),
+                        })}>Mark received</Button>
                       </div>
                     )}
                   </div>
@@ -188,6 +210,17 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title ?? ''}
+        message={confirm?.message ?? ''}
+        confirmLabel={confirm?.label}
+        variant={confirm?.variant}
+        loading={confirming}
+        onConfirm={runConfirm}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 };
