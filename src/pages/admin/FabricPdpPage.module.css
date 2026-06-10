@@ -75,3 +75,48 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
+
+/* design-mode: use this fabric (compare + request sample) */
+.useFabric {
+  margin-top: var(--spacing-xl);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  max-width: 640px;
+}
+.useTitle { font-size: var(--font-size-base); font-weight: 600; color: var(--color-text); margin: 0; }
+.useField { display: flex; flex-direction: column; gap: 6px; font-size: var(--font-size-sm); font-weight: 500; color: var(--color-text); }
+.useField select {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  font-weight: 400;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+.useRow { display: flex; align-items: flex-end; gap: var(--spacing-md); }
+.useRow .useField { flex: 1; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md); }
+.compareCol { display: flex; flex-direction: column; gap: 4px; }
+.compareLabel { font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); }
+.compareCol img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+.compareEmpty {
+  aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}

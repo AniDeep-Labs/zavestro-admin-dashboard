@@ -834,6 +834,10 @@ export const sampleJobsApi = {
       method: 'POST',
       body: JSON.stringify({ body }),
     }),
+
+  // Design requests a sample (design × fabric × hub) → goes to the hub.
+  request: async (input: { design_id: string; fabric_id: string; hub_id: string }): Promise<SampleJob> =>
+    req<SampleJob>(`/api/admin/sample-jobs`, { method: 'POST', body: JSON.stringify(input) }),
 };
 
 // ─── Designs (central design library — P3 item 28) ────────────────────────────

@@ -142,6 +142,8 @@ function App() {
             <Route path="design/templates" element={<GarmentTypeTemplatesPage />} />
             <Route path="design/templates/:id" element={<GarmentTemplateEditorPage />} />
             <Route path="design/analytics" element={<DesignAnalyticsPage />} />
+            <Route path="design/fabrics" element={<FabricsMasterPage mode="design" />} />
+            <Route path="design/fabrics/:id" element={<FabricPdpPage mode="design" />} />
             <Route path="procurement/fabrics" element={<FabricsMasterPage />} />
             <Route path="procurement/fabrics/:id" element={<FabricPdpPage />} />
             <Route path="procurement/distribution" element={<DistributionPage />} />

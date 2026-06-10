@@ -16,8 +16,10 @@ const swatchUrl = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${
 const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', origin: '', supplier: '', price_per_meter: '', care: '' };
 type Form = typeof EMPTY;
 
-export const FabricsMasterPage: React.FC = () => {
+export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ mode = 'procurement' }) => {
   const navigate = useNavigate();
+  const readOnly = mode === 'design';
+  const basePath = readOnly ? '/admin/design/fabrics' : '/admin/procurement/fabrics';
   const [fabrics, setFabrics] = React.useState<Fabric[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState('');
@@ -122,8 +124,8 @@ export const FabricsMasterPage: React.FC = () => {
     <div className={base.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
       <div className={base.pageHeader}>
-        <h1 className={base.title}>Fabrics Master</h1>
-        <Button variant="primary" onClick={openCreate}><UilPlus size={16} /> New fabric</Button>
+        <h1 className={base.title}>{readOnly ? 'Fabrics' : 'Fabrics Master'}</h1>
+        {!readOnly && <Button variant="primary" onClick={openCreate}><UilPlus size={16} /> New fabric</Button>}
       </div>
 
       <div className={base.filterBar}>
@@ -146,7 +148,7 @@ export const FabricsMasterPage: React.FC = () => {
           {fabrics.map((f) => {
             const url = swatchUrl(f.image_keys?.[0]);
             return (
-              <div key={f.id} className={s.card} onClick={() => navigate(`/admin/procurement/fabrics/${f.id}`)}>
+              <div key={f.id} className={s.card} onClick={() => navigate(`${basePath}/${f.id}`)}>
                 <div className={s.swatch}>
                   {url ? <img src={url} alt={f.name} /> : <span className={s.swatchEmpty}>no swatch</span>}
                 </div>
@@ -158,13 +160,13 @@ export const FabricsMasterPage: React.FC = () => {
                     <span className={s.price}>{f.price_per_meter ? `₹${Number(f.price_per_meter).toLocaleString('en-IN')}/m` : '—'}</span>
                     <span
                       className={`${base.stagePill} ${f.is_active ? base.stageSuccess : base.stageNeutral}`}
-                      onClick={(e) => toggleActive(f, e)}
-                      style={{ cursor: 'pointer' }}
+                      onClick={readOnly ? undefined : (e) => toggleActive(f, e)}
+                      style={readOnly ? undefined : { cursor: 'pointer' }}
                     >
                       {f.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  <button className={s.editLink} onClick={(e) => { e.stopPropagation(); openEdit(f); }}>Edit</button>
+                  {!readOnly && <button className={s.editLink} onClick={(e) => { e.stopPropagation(); openEdit(f); }}>Edit</button>}
                 </div>
               </div>
             );
