@@ -1,5 +1,5 @@
 import React from 'react';
-import { distributionApi, designsApi, hubsApi } from '../../api/adminApi';
+import { distributionApi, designsApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { Distribution, DesignSummary, DesignFabricRef, Hub } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
@@ -9,6 +9,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
 import { UilPlus } from '@iconscout/react-unicons';
 
+const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 const STATUS_LABELS: Record<string, string> = { pushed: 'Pushed', received: 'Received', cancelled: 'Cancelled' };
 const STATUS_CSS: Record<string, string> = { pushed: 'stageWarning', received: 'stageSuccess', cancelled: 'stageNeutral' };
 
@@ -121,7 +122,19 @@ export const DistributionPage: React.FC = () => {
               rows.map((r) => (
                 <tr key={r.id}>
                   <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.design_name}</td>
-                  <td style={{ color: 'var(--color-text-secondary)' }}>{r.fabric_name ?? <span style={{ opacity: 0.5 }}>hub stocks SKU</span>}</td>
+                  <td>
+                    {r.fabric_name ? (
+                      <div className={styles.fabricCell}>
+                        {swatch(r.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(r.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
+                        <div className={styles.fabricCellText}>
+                          <span>{r.fabric_name}</span>
+                          <span className={styles.fabricCellCode}>{r.fabric_code}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ opacity: 0.5 }}>hub stocks SKU</span>
+                    )}
+                  </td>
                   <td>{hubName(r.hub_id)}</td>
                   <td className={styles.total}>{Number(r.sample_qty)}</td>
                   <td className={styles.total}>{Number(r.sellable_qty)}</td>

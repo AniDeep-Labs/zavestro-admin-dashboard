@@ -1,11 +1,12 @@
 import React from 'react';
-import { restockApi, hubsApi } from '../../api/adminApi';
+import { restockApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { RestockRequest, Hub } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
 
+const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 const STATUS_LABELS: Record<string, string> = { requested: 'Requested', shipped: 'Shipped', fulfilled: 'Fulfilled', cancelled: 'Cancelled' };
 const STATUS_CSS: Record<string, string> = { requested: 'stageWarning', shipped: 'stageBlue', fulfilled: 'stageSuccess', cancelled: 'stageNeutral' };
 
@@ -90,7 +91,15 @@ export const RestockQueuePage: React.FC = () => {
                 const busy = actingId === r.id;
                 return (
                   <tr key={r.id}>
-                    <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.fabric_name}</td>
+                    <td>
+                      <div className={styles.fabricCell}>
+                        {swatch(r.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(r.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
+                        <div className={styles.fabricCellText}>
+                          <span style={{ fontWeight: 500 }}>{r.fabric_name}</span>
+                          <span className={styles.fabricCellCode}>{r.fabric_code}</span>
+                        </div>
+                      </div>
+                    </td>
                     <td>{hubName(r.hub_id)}</td>
                     <td className={styles.total}>{Number(r.qty)}</td>
                     <td style={{ color: 'var(--color-text-secondary)', maxWidth: 240 }}>{r.demand_note || <span style={{ opacity: 0.5 }}>—</span>}</td>

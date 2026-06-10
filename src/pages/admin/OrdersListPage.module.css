@@ -170,3 +170,16 @@
   gap: var(--spacing-xs);
   align-items: center;
 }
+
+/* fabric cell with swatch thumb + code (procurement ops lists) */
+.fabricCell { display: flex; align-items: center; gap: 8px; }
+.swatchThumb {
+  width: 34px; height: 34px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+}
+.fabricCellText { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.fabricCellCode { font-size: var(--font-size-xs); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }

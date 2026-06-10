@@ -1242,6 +1242,7 @@ export interface FabricStockRow {
   hub_name: string;
   fabric_code: string;
   fabric_name: string;
+  fabric_image_keys: string[] | null;
   available_meters: string | number;
   reserved_meters: string | number;
   updated_at: string;
@@ -1261,6 +1262,8 @@ export interface Distribution {
   updated_at: string;
   design_name: string;
   fabric_name: string | null;
+  fabric_code: string | null;
+  fabric_image_keys: string[] | null;
 }
 export interface PushDistributionInput {
   design_id: string;
@@ -1295,6 +1298,8 @@ export interface RestockRequest {
   created_at: string;
   updated_at: string;
   fabric_name: string;
+  fabric_code: string | null;
+  fabric_image_keys: string[] | null;
 }
 
 export const restockApi = {

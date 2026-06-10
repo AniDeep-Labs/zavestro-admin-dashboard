@@ -1,9 +1,11 @@
 import React from 'react';
-import { fabricsApi, hubsApi } from '../../api/adminApi';
+import { fabricsApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { FabricStockRow, Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+
+const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 
 export const CrossHubStockPage: React.FC = () => {
   const [rows, setRows] = React.useState<FabricStockRow[]>([]);
@@ -62,7 +64,12 @@ export const CrossHubStockPage: React.FC = () => {
                 return (
                   <tr key={`${r.hub_id}-${r.fabric_code}`}>
                     <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.hub_name}</td>
-                    <td>{r.fabric_name}</td>
+                    <td>
+                      <div className={styles.fabricCell}>
+                        {swatch(r.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(r.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
+                        <span>{r.fabric_name}</span>
+                      </div>
+                    </td>
                     <td style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>{r.fabric_code}</td>
                     <td className={styles.total} style={{ fontWeight: 600, color: avail <= 0 ? 'var(--color-error)' : undefined }}>{avail}</td>
                     <td className={styles.total} style={{ color: 'var(--color-text-secondary)' }}>{Number(r.reserved_meters)}</td>
