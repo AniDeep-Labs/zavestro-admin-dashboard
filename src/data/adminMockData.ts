@@ -69,6 +69,7 @@ export interface AdminOrder {
   linked_measurement_booking_ref?: string | null;
   linked_home_visit_id?: string | null;
   linked_home_visit_ref?: string | null;
+  fit_profile_id?: string | null;
   estimated_delivery_date?: string | null;
   on_hold_reason?: string | null;
   cancellation_reason?: string | null;

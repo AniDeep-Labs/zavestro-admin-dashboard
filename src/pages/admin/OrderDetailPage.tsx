@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ordersApi, invoicesApi, measurementBookingsApi, customerMeasurementsApi } from '../../api/adminApi';
-import type { AdminOrder, OrderStage, OrderTimelineEntry, MeasurementBooking, CustomerMeasurementsData } from '../../api/adminApi';
+import { ordersApi, invoicesApi, customerMeasurementsApi } from '../../api/adminApi';
+import type { AdminOrder, OrderStage, OrderTimelineEntry, CustomerMeasurementsData } from '../../api/adminApi';
 import { StaffAssignmentDropdown } from '../../components/StaffAssignmentDropdown/StaffAssignmentDropdown';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -67,31 +67,25 @@ function timelineText(entry: OrderTimelineEntry): string {
 
 interface NextStepProps {
   order: AdminOrder;
-  customerBookings: MeasurementBooking[];
-  bookingsLoading: boolean;
   customerFitProfiles: CustomerMeasurementsData['profiles'];
   profilesLoading: boolean;
   advancingStage: boolean;
   assigningCraft: boolean;
   assigningQC: boolean;
-  onLinkMeasurement: (bookingId: string) => Promise<void>;
   onAdvance: (stage: OrderStage, note?: string) => Promise<void>;
   onAssignCraft: (staffId: string | null) => Promise<void>;
   onAssignQC: (staffId: string | null) => Promise<void>;
-  onCreateMeasurementBooking: () => void;
   onUseFitProfile: (profileId: string) => Promise<void>;
 }
 
 const NextStepCard: React.FC<NextStepProps> = ({
-  order, customerBookings, bookingsLoading,
+  order,
   customerFitProfiles, profilesLoading,
   advancingStage, assigningCraft, assigningQC,
-  onLinkMeasurement, onAdvance, onAssignCraft, onAssignQC,
-  onCreateMeasurementBooking, onUseFitProfile,
+  onAdvance, onAssignCraft, onAssignQC,
+  onUseFitProfile,
 }) => {
-  const [selectedBookingId, setSelectedBookingId] = React.useState('');
   const [selectedProfileId, setSelectedProfileId] = React.useState('');
-  const navigate = useNavigate();
 
   const stage = order.stage;
 
@@ -153,38 +147,12 @@ const NextStepCard: React.FC<NextStepProps> = ({
           </div>
         )}
 
-        {/* Measurement booking path */}
-        {bookingsLoading ? (
-          <div className={styles.nextStepLoading}>Loading bookings…</div>
-        ) : customerBookings.length > 0 ? (
-          <>
-            <div className={styles.nextStepLabel}>Link existing booking</div>
-            <select
-              className={styles.nextStepSelect}
-              value={selectedBookingId}
-              onChange={e => setSelectedBookingId(e.target.value)}
-            >
-              <option value="">Select a booking…</option>
-              {customerBookings.map(b => (
-                <option key={b.id} value={b.id}>
-                  {b.reference_id ?? b.booking_ref} — {b.status} — {b.scheduled_at ? new Date(b.scheduled_at).toLocaleDateString('en-IN') : 'Unscheduled'}
-                </option>
-              ))}
-            </select>
-            <button
-              className={styles.nextStepSecondary}
-              disabled={!selectedBookingId || advancingStage}
-              onClick={() => onLinkMeasurement(selectedBookingId)}
-            >
-              {advancingStage ? 'Linking…' : 'Link Booking & Schedule Visit'}
-            </button>
-          </>
-        ) : null}
-        <button className={styles.nextStepSecondary} onClick={onCreateMeasurementBooking}>
-          Create New Measurement Booking →
-        </button>
+        {/* Dark-store: measurement is captured by the field agent on the home visit
+            (booked at checkout) and recorded via the ops app — no admin booking here. */}
         <div className={styles.nextStepEmpty} style={{ marginTop: 6 }}>
-          Customer can also submit self-measurements via the app to skip the home visit.
+          {order.linked_home_visit_id
+            ? 'An agent home visit is booked — the agent captures measurements on the visit (via the ops app).'
+            : 'If there are no saved measurements, an agent home visit captures them after checkout.'}
         </div>
       </div>
     );
@@ -192,45 +160,17 @@ const NextStepCard: React.FC<NextStepProps> = ({
 
   // Measurement visit scheduled — waiting for specialist to visit
   if (stage === 'awaiting_measurement') {
-    const booking = order.linked_measurement_booking_id;
     return (
       <div className={styles.nextStepCard}>
         <div className={styles.nextStepIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--color-info)' }}>
           <UilClock size={18} />
         </div>
         <div className={styles.nextStepTitle}>Waiting for Measurement Visit</div>
-        {!booking ? (
-          <div className={styles.nextStepDesc} style={{ color: '#9E7340' }}>
-            ⚠ No measurement booking linked. Use the "Schedule Measurement Visit" step to link or create one first.
-          </div>
-        ) : (
-          <div className={styles.nextStepDesc}>
-            The measurement specialist will visit the customer's home and upload measurements via the ops app. This card will automatically advance once the booking is marked complete.
-          </div>
-        )}
-        {booking && (
-          <button className={styles.nextStepSecondary} onClick={() => navigate(`/admin/measurement-bookings/${booking}`)}>
-            View Booking →
-          </button>
-        )}
-        {booking && (
-          <>
-            <div className={styles.nextStepOr}>If the ops app didn't auto-advance:</div>
-            <button
-              className={styles.nextStepPrimary}
-              style={{ opacity: 0.75, fontSize: '0.8rem' }}
-              disabled={advancingStage}
-              onClick={() => onAdvance('measurement_complete', 'Measurements verified manually')}
-            >
-              {advancingStage ? 'Advancing…' : 'Manually Mark Complete'}
-            </button>
-          </>
-        )}
-        {!booking && (
-          <button className={styles.nextStepSecondary} onClick={onCreateMeasurementBooking}>
-            Create Measurement Booking →
-          </button>
-        )}
+        <div className={styles.nextStepDesc}>
+          {order.linked_home_visit_id
+            ? 'An agent home visit is scheduled. The agent records the measurements via the ops app, which advances this order automatically.'
+            : 'Awaiting measurement. The agent home visit (booked at checkout) captures measurements via the ops app and advances the order automatically.'}
+        </div>
       </div>
     );
   }
@@ -403,8 +343,6 @@ export const OrderDetailPage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   // Customer measurement bookings (for linking)
-  const [customerBookings, setCustomerBookings] = React.useState<MeasurementBooking[]>([]);
-  const [bookingsLoading, setBookingsLoading] = React.useState(false);
 
   // Customer fit profiles (for "Use Saved Measurements" path)
   const [customerFitProfiles, setCustomerFitProfiles] = React.useState<CustomerMeasurementsData['profiles']>([]);
@@ -468,15 +406,10 @@ export const OrderDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Load customer measurement bookings + fit profiles at payment_confirmed stage
+  // Load customer fit profiles at payment_confirmed (for the "use saved measurements" path)
   React.useEffect(() => {
     if (!order?.user_id || order.stage !== 'payment_confirmed') return;
-    setBookingsLoading(true);
     setProfilesLoading(true);
-    measurementBookingsApi.list({ user_id: order.user_id, limit: 20 })
-      .then(r => setCustomerBookings(r.bookings ?? []))
-      .catch(() => setCustomerBookings([]))
-      .finally(() => setBookingsLoading(false));
     customerMeasurementsApi.get(order.user_id)
       .then(d => setCustomerFitProfiles(d.profiles ?? []))
       .catch(() => setCustomerFitProfiles([]))
@@ -484,20 +417,6 @@ export const OrderDetailPage: React.FC = () => {
   }, [order?.user_id, order?.stage]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-
-  const handleLinkMeasurement = async (bookingId: string) => {
-    if (!order) return;
-    setAdvancingStage(true);
-    try {
-      await ordersApi.linkMeasurement(order.uuid ?? order.id, bookingId);
-      showToast('success', 'Measurement booking linked');
-      reload();
-    } catch (e) {
-      showToast('error', 'Failed to link', e instanceof Error ? e.message : undefined);
-    } finally {
-      setAdvancingStage(false);
-    }
-  };
 
   const handleUseFitProfile = async (profileId: string) => {
     if (!order) return;
@@ -766,22 +685,19 @@ export const OrderDetailPage: React.FC = () => {
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Production Assignments</h3>
 
-            {/* Measurement booking */}
+            {/* Measurement (dark-store: fit on file or agent home visit — recorded via the ops app) */}
             <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--color-border-light)' }}>
-              <div className={styles.assignLabel}><UilRuler size={11} style={{ display: 'inline', marginRight: 4 }} />Measurement Booking</div>
-              {order.linked_measurement_booking_id ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: 'var(--color-primary)' }}>
-                    {order.linked_measurement_booking_ref ?? order.linked_measurement_booking_id.slice(0, 8)}
-                  </span>
-                  <button className={styles.linkBtn} onClick={() => navigate(`/admin/measurement-bookings/${order.linked_measurement_booking_id}`)}>
-                    View →
-                  </button>
-                </div>
+              <div className={styles.assignLabel}><UilRuler size={11} style={{ display: 'inline', marginRight: 4 }} />Measurement</div>
+              {order.fit_profile_id ? (
+                <span style={{ fontSize: 13, color: 'var(--color-primary)', fontWeight: 500 }}>✓ Measurements on file — used for production</span>
+              ) : order.linked_home_visit_id ? (
+                <span style={{ fontSize: 13, color: 'var(--color-info)' }}>
+                  Agent home visit{order.linked_home_visit_ref ? ` · ${order.linked_home_visit_ref}` : ''} — captured via the ops app
+                </span>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <UilExclamationCircle size={13} style={{ color: '#9E7340' }} />
-                  <span style={{ fontSize: 13, color: '#9E7340' }}>Not linked — schedule via "Next Step" card</span>
+                  <span style={{ fontSize: 13, color: '#9E7340' }}>No measurements yet — an agent home visit will capture them</span>
                 </div>
               )}
             </div>
@@ -897,18 +813,14 @@ export const OrderDetailPage: React.FC = () => {
           <Can cap="orders:write">
           <NextStepCard
             order={order}
-            customerBookings={customerBookings}
-            bookingsLoading={bookingsLoading}
             customerFitProfiles={customerFitProfiles}
             profilesLoading={profilesLoading}
             advancingStage={advancingStage}
             assigningCraft={assigningCraft}
             assigningQC={assigningQC}
-            onLinkMeasurement={handleLinkMeasurement}
             onAdvance={handleAdvance}
             onAssignCraft={handleAssignCraft}
             onAssignQC={handleAssignQC}
-            onCreateMeasurementBooking={() => navigate(`/admin/measurement-bookings/new?user_id=${order.user_id}&order_id=${order.uuid ?? order.id}`)}
             onUseFitProfile={handleUseFitProfile}
           />
           </Can>
