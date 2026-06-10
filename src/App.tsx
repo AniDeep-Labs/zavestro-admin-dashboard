@@ -62,6 +62,7 @@ const GarmentTypeTemplatesPage = lazyPage(() => import('./pages/admin/GarmentTyp
 const GarmentTemplateEditorPage = lazyPage(() => import('./pages/admin/GarmentTemplateEditorPage'), 'GarmentTemplateEditorPage');
 const DesignAnalyticsPage = lazyPage(() => import('./pages/admin/DesignAnalyticsPage'), 'DesignAnalyticsPage');
 const FabricsMasterPage = lazyPage(() => import('./pages/admin/FabricsMasterPage'), 'FabricsMasterPage');
+const FabricPdpPage = lazyPage(() => import('./pages/admin/FabricPdpPage'), 'FabricPdpPage');
 const DistributionPage = lazyPage(() => import('./pages/admin/DistributionPage'), 'DistributionPage');
 const RestockQueuePage = lazyPage(() => import('./pages/admin/RestockQueuePage'), 'RestockQueuePage');
 const CrossHubStockPage = lazyPage(() => import('./pages/admin/CrossHubStockPage'), 'CrossHubStockPage');
@@ -142,6 +143,7 @@ function App() {
             <Route path="design/templates/:id" element={<GarmentTemplateEditorPage />} />
             <Route path="design/analytics" element={<DesignAnalyticsPage />} />
             <Route path="procurement/fabrics" element={<FabricsMasterPage />} />
+            <Route path="procurement/fabrics/:id" element={<FabricPdpPage />} />
             <Route path="procurement/distribution" element={<DistributionPage />} />
             <Route path="procurement/restock" element={<RestockQueuePage />} />
             <Route path="procurement/stock" element={<CrossHubStockPage />} />

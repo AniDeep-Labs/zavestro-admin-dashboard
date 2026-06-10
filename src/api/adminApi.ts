@@ -1182,11 +1182,13 @@ export interface Fabric {
   id: string;
   code: string;
   name: string;
+  color_name: string | null;
   composition: string;
   weight_gsm: number | null;
   weave: string | null;
   finish: string | null;
   origin: string | null;
+  supplier: string | null;
   care_instructions: string[];
   image_keys: string[];
   price_per_meter: string | null;
@@ -1196,15 +1198,16 @@ export interface Fabric {
   listing_count?: number;
 }
 export interface FabricInput {
-  code: string;
   name: string;
+  color_name?: string | null;
   composition: string;
   weight_gsm?: number | null;
   weave?: string | null;
   finish?: string | null;
   origin?: string | null;
+  supplier?: string | null;
   care_instructions?: string[];
-  image_keys?: string[];
+  image_keys: string[]; // ≥1 required (swatch)
   price_per_meter?: number | null;
 }
 
@@ -1216,6 +1219,7 @@ export const fabricsApi = {
     const s = qs.toString();
     return req<Fabric[]>(`/api/admin/fabrics${s ? `?${s}` : ''}`);
   },
+  get: async (id: string): Promise<Fabric> => req<Fabric>(`/api/admin/fabrics/${id}`),
   create: async (input: FabricInput): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics`, { method: 'POST', body: JSON.stringify(input) }),
   update: async (id: string, input: FabricInput): Promise<Fabric> =>
