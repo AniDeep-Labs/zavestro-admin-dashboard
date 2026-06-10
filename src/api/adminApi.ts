@@ -158,6 +158,7 @@ export const ordersApi = {
       linked_measurement_booking_ref: (o.linked_measurement_booking_ref ?? null) as string | null,
       linked_home_visit_id: (o.linked_home_visit_id ?? null) as string | null,
       linked_home_visit_ref: (o.linked_home_visit_ref ?? null) as string | null,
+      fit_profile_id: (o.fit_profile_id ?? null) as string | null,
       estimated_delivery_date: (o.estimated_delivery_date ?? null) as string | null,
       on_hold_reason: (o.on_hold_reason ?? null) as string | null,
       cancellation_reason: (o.cancellation_reason ?? null) as string | null,
