@@ -7,7 +7,8 @@ import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import { Spinner } from '../../components/Spinner';
 import { BreadcrumbProvider, useBreadcrumb } from '../../contexts/BreadcrumbContext';
 import styles from './AdminLayout.module.css';
-import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBuilding, UilChartBar, UilCheckCircle, UilDashboard, UilFileAlt, UilHeadphones, UilHistory, UilLayerGroup, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSearch, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
+import { NotificationBell } from './NotificationBell';
+import { UilAngleDoubleLeft, UilAngleDoubleRight, UilAngleDown, UilAngleRight, UilBox, UilBuilding, UilChartBar, UilCheckCircle, UilDashboard, UilFileAlt, UilHeadphones, UilHistory, UilLayerGroup, UilMapMarker, UilMegaphone, UilMoon, UilProcess, UilReceipt, UilRuler, UilSearch, UilSetting, UilShoppingBag, UilSignout, UilStar, UilSun, UilTag, UilTicket, UilUsersAlt, UilWallet } from "@iconscout/react-unicons";
 
 // Role-scoped navigation (CATALOG-DARKSTORE-ARCHITECTURE §11–18): the sidebar is
 // grouped into capability-gated WORKSPACES, not a flat list. A role sees only the
@@ -43,6 +44,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: 'Design Overview', icon: <UilLayerGroup size={18} />, path: '/admin/oversight/designs', cap: 'reports:read' },
       { label: 'Listings Overview', icon: <UilTag size={18} />, path: '/admin/oversight/listings', cap: 'reports:read' },
+      { label: 'Supply Overview', icon: <UilBox size={18} />, path: '/admin/oversight/supply', cap: 'reports:read' },
     ],
   },
   {
@@ -51,8 +53,10 @@ const SECTIONS: NavSection[] = [
     roleOwned: true,
     items: [
       { label: 'Design Library', icon: <UilLayerGroup size={18} />, path: '/admin/design/library', cap: 'designs:write' },
+      { label: 'Fabrics', icon: <UilTag size={18} />, path: '/admin/design/fabrics', cap: 'designs:write' },
       { label: 'Garment Types', icon: <UilRuler size={18} />, path: '/admin/design/templates', cap: 'designs:write' },
       { label: 'Sample Review', icon: <UilCheckCircle size={18} />, path: '/admin/design/samples', cap: 'samples:write' },
+      { label: 'My Sample Requests', icon: <UilHistory size={18} />, path: '/admin/design/my-samples', cap: 'samples:write' },
       { label: 'Design Analytics', icon: <UilChartBar size={18} />, path: '/admin/design/analytics', cap: 'reports:read' },
     ],
   },
@@ -64,6 +68,8 @@ const SECTIONS: NavSection[] = [
       { label: 'Fabrics Master', icon: <UilTag size={18} />, path: '/admin/procurement/fabrics', cap: 'distribution:write' },
       { label: 'Distribution', icon: <UilProcess size={18} />, path: '/admin/procurement/distribution', cap: 'distribution:write' },
       { label: 'Restock Queue', icon: <UilHistory size={18} />, path: '/admin/procurement/restock', cap: 'distribution:write' },
+      { label: 'Cross-hub Stock', icon: <UilBox size={18} />, path: '/admin/procurement/stock', cap: 'distribution:write' },
+      { label: 'Listing Requests', icon: <UilReceipt size={18} />, path: '/admin/procurement/listing-requests', cap: 'distribution:write' },
     ],
   },
   {
@@ -71,10 +77,12 @@ const SECTIONS: NavSection[] = [
     caps: ['catalog:write', 'cms:write'],
     roleOwned: true,
     items: [
+      { label: 'Listings', icon: <UilShoppingBag size={18} />, path: '/admin/catalog/listings', cap: 'catalog:write' },
+      { label: 'Fabric for Listing', icon: <UilReceipt size={18} />, path: '/admin/catalog/listing-requests', cap: 'catalog:write' },
+      { label: 'Request Restock', icon: <UilHistory size={18} />, path: '/admin/catalog/restock', cap: 'restock:write' },
       {
-        label: 'Catalog', icon: <UilTag size={18} />, path: '/admin/catalog', cap: 'catalog:write',
+        label: 'Storefront', icon: <UilTag size={18} />, path: '/admin/catalog/collections', cap: 'catalog:write',
         children: [
-          { label: 'Products', path: '/admin/catalog/products' },
           { label: 'Collections', path: '/admin/catalog/collections' },
           { label: 'Hero Banners', path: '/admin/catalog/banners' },
           { label: 'Categories', path: '/admin/catalog/categories' },
@@ -350,8 +358,7 @@ const AdminLayoutInner: React.FC = () => {
             >
               {theme === 'dark' ? <UilSun size={18} /> : <UilMoon size={18} />}
             </button>
-            {/* Notification bell removed — there is no admin notification feed yet, and a
-                dead "coming soon" control is worse than none. Re-add when a real feed exists. */}
+            <NotificationBell />
             <div
               className={styles.adminUser}
               onClick={() => navigate('/admin/profile')}

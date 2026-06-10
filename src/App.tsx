@@ -49,6 +49,7 @@ const DesignDetailPage = lazyPage(() => import('./pages/admin/DesignDetailPage')
 const DesignEditorPage = lazyPage(() => import('./pages/admin/DesignEditorPage'), 'DesignEditorPage');
 const DesignOverviewPage = lazyPage(() => import('./pages/admin/DesignOverviewPage'), 'DesignOverviewPage');
 const ListingsOverviewPage = lazyPage(() => import('./pages/admin/ListingsOverviewPage'), 'ListingsOverviewPage');
+const SupplyOverviewPage = lazyPage(() => import('./pages/admin/SupplyOverviewPage'), 'SupplyOverviewPage');
 const InvoicesListPage = lazyPage(() => import('./pages/admin/InvoicesListPage'), 'InvoicesListPage');
 const CodReconciliationPage = lazyPage(() => import('./pages/admin/CodReconciliationPage'), 'CodReconciliationPage');
 const NotificationBlastPage = lazyPage(() => import('./pages/admin/NotificationBlastPage'), 'NotificationBlastPage');
@@ -61,9 +62,15 @@ const MeasurementBookingNewPage = lazyPage(() => import('./pages/admin/Measureme
 const GarmentTypeTemplatesPage = lazyPage(() => import('./pages/admin/GarmentTypeTemplatesPage'), 'GarmentTypeTemplatesPage');
 const GarmentTemplateEditorPage = lazyPage(() => import('./pages/admin/GarmentTemplateEditorPage'), 'GarmentTemplateEditorPage');
 const DesignAnalyticsPage = lazyPage(() => import('./pages/admin/DesignAnalyticsPage'), 'DesignAnalyticsPage');
+const DesignSampleRequestsPage = lazyPage(() => import('./pages/admin/DesignSampleRequestsPage'), 'DesignSampleRequestsPage');
 const FabricsMasterPage = lazyPage(() => import('./pages/admin/FabricsMasterPage'), 'FabricsMasterPage');
+const FabricPdpPage = lazyPage(() => import('./pages/admin/FabricPdpPage'), 'FabricPdpPage');
 const DistributionPage = lazyPage(() => import('./pages/admin/DistributionPage'), 'DistributionPage');
 const RestockQueuePage = lazyPage(() => import('./pages/admin/RestockQueuePage'), 'RestockQueuePage');
+const CrossHubStockPage = lazyPage(() => import('./pages/admin/CrossHubStockPage'), 'CrossHubStockPage');
+const ListingRequestsPage = lazyPage(() => import('./pages/admin/ListingRequestsPage'), 'ListingRequestsPage');
+const FabricAtHubPage = lazyPage(() => import('./pages/admin/FabricAtHubPage'), 'FabricAtHubPage');
+const ListingsManagePage = lazyPage(() => import('./pages/admin/ListingsManagePage'), 'ListingsManagePage');
 const ReviewsListPage = lazyPage(() => import('./pages/admin/ReviewsListPage'), 'ReviewsListPage');
 
 function NotFoundPage() {
@@ -140,11 +147,22 @@ function App() {
             <Route path="design/templates" element={<GarmentTypeTemplatesPage />} />
             <Route path="design/templates/:id" element={<GarmentTemplateEditorPage />} />
             <Route path="design/analytics" element={<DesignAnalyticsPage />} />
+            <Route path="design/fabrics" element={<FabricsMasterPage mode="design" />} />
+            <Route path="design/fabrics/:id" element={<FabricPdpPage mode="design" />} />
+            <Route path="design/my-samples" element={<DesignSampleRequestsPage />} />
             <Route path="procurement/fabrics" element={<FabricsMasterPage />} />
+            <Route path="procurement/fabrics/:id" element={<FabricPdpPage />} />
             <Route path="procurement/distribution" element={<DistributionPage />} />
             <Route path="procurement/restock" element={<RestockQueuePage />} />
+            <Route path="procurement/stock" element={<CrossHubStockPage />} />
+            <Route path="procurement/listing-requests" element={<ListingRequestsPage mode="procurement" />} />
+            <Route path="catalog/listing-requests" element={<ListingRequestsPage mode="cm" />} />
+            <Route path="catalog/restock" element={<RestockQueuePage mode="cm" />} />
+            <Route path="catalog/listings" element={<ListingsManagePage />} />
+            <Route path="procurement/track/:hubId/:fabricId" element={<FabricAtHubPage />} />
             <Route path="oversight/designs" element={<DesignOverviewPage />} />
             <Route path="oversight/listings" element={<ListingsOverviewPage />} />
+            <Route path="oversight/supply" element={<SupplyOverviewPage />} />
             <Route path="invoices" element={<InvoicesListPage />} />
             <Route path="finance/cod-reconciliation" element={<CodReconciliationPage />} />
             <Route path="notifications" element={<NotificationBlastPage />} />

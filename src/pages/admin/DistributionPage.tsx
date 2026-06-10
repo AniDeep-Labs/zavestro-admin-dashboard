@@ -1,7 +1,9 @@
 import React from 'react';
-import { distributionApi, designsApi, hubsApi } from '../../api/adminApi';
+import { useNavigate } from 'react-router-dom';
+import { distributionApi, designsApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { Distribution, DesignSummary, DesignFabricRef, Hub } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Input } from '../../components/Input/Input';
 import { Modal } from '../../components/Modal/Modal';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -9,10 +11,20 @@ import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
 import { UilPlus } from '@iconscout/react-unicons';
 
-const STATUS_LABELS: Record<string, string> = { pushed: 'Pushed', received: 'Received', cancelled: 'Cancelled' };
+const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
+const STATUS_LABELS: Record<string, string> = { pushed: 'Sent · in transit', received: 'Received · in stock', cancelled: 'Cancelled' };
 const STATUS_CSS: Record<string, string> = { pushed: 'stageWarning', received: 'stageSuccess', cancelled: 'stageNeutral' };
 
 export const DistributionPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [acting, setActing] = React.useState('');
+  const [confirm, setConfirm] = React.useState<null | { title: string; message: React.ReactNode; label: string; run: () => Promise<void> }>(null);
+  const [confirming, setConfirming] = React.useState(false);
+  const runConfirm = async () => {
+    if (!confirm) return;
+    setConfirming(true);
+    try { await confirm.run(); } finally { setConfirming(false); setConfirm(null); }
+  };
   const [rows, setRows] = React.useState<Distribution[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
@@ -61,6 +73,19 @@ export const DistributionPage: React.FC = () => {
   const openPush = () => {
     setDesignId(''); setFabrics([]); setFabricId(''); setHubId(hubs[0]?.id ?? '');
     setSampleQty('1'); setSellableQty('0'); setOpen(true);
+  };
+
+  const receive = async (r: Distribution) => {
+    setActing(r.id);
+    try {
+      const res = await distributionApi.receive(r.id);
+      toast('success', 'Received at hub', res.stocked_meters ? `${res.stocked_meters}m landed in stock.` : undefined);
+      load();
+    } catch (err) {
+      toast('error', 'Failed', err instanceof Error ? err.message : undefined);
+    } finally {
+      setActing('');
+    }
   };
 
   const push = async () => {
@@ -119,13 +144,41 @@ export const DistributionPage: React.FC = () => {
               <tr><td colSpan={7} className={styles.empty}>Nothing distributed yet. Push a design + fabric to a hub.</td></tr>
             ) : (
               rows.map((r) => (
-                <tr key={r.id}>
+                <tr
+                  key={r.id}
+                  className={r.fabric_id ? styles.row : undefined}
+                  style={r.fabric_id ? { cursor: 'pointer' } : undefined}
+                  onClick={r.fabric_id ? () => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`) : undefined}
+                >
                   <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.design_name}</td>
-                  <td style={{ color: 'var(--color-text-secondary)' }}>{r.fabric_name ?? <span style={{ opacity: 0.5 }}>hub stocks SKU</span>}</td>
+                  <td>
+                    {r.fabric_name ? (
+                      <div className={styles.fabricCell}>
+                        {swatch(r.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(r.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
+                        <div className={styles.fabricCellText}>
+                          <span>{r.fabric_name}</span>
+                          <span className={styles.fabricCellCode}>{r.fabric_code}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ opacity: 0.5 }}>hub stocks SKU</span>
+                    )}
+                  </td>
                   <td>{hubName(r.hub_id)}</td>
                   <td className={styles.total}>{Number(r.sample_qty)}</td>
                   <td className={styles.total}>{Number(r.sellable_qty)}</td>
-                  <td><span className={`${styles.stagePill} ${styles[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[r.status] ?? r.status}</span></td>
+                  <td>
+                    <div className={styles.rowActions} onClick={(e) => e.stopPropagation()}>
+                      <span className={`${styles.stagePill} ${styles[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[r.status] ?? r.status}</span>
+                      {r.status === 'pushed' && (
+                        <Button variant="ghost" size="sm" disabled={acting === r.id} onClick={() => setConfirm({
+                          title: 'Mark received?', label: 'Yes, it arrived',
+                          message: <>Confirm <strong>{Number(r.sellable_qty)}m</strong> of <strong>{r.fabric_name ?? 'fabric'}</strong> for <strong>{r.design_name}</strong> physically arrived at <strong>{hubName(r.hub_id)}</strong>. This lands it in stock and can't be undone.</>,
+                          run: () => receive(r),
+                        })}>Mark received</Button>
+                      )}
+                    </div>
+                  </td>
                   <td style={{ color: 'var(--color-text-secondary)' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
                 </tr>
               ))
@@ -170,6 +223,16 @@ export const DistributionPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title ?? ''}
+        message={confirm?.message ?? ''}
+        confirmLabel={confirm?.label}
+        loading={confirming}
+        onConfirm={runConfirm}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 };

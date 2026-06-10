@@ -1,25 +1,35 @@
 import React from 'react';
-import { fabricsApi } from '../../api/adminApi';
+import { useNavigate } from 'react-router-dom';
+import { fabricsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { Fabric, FabricInput } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { Modal } from '../../components/Modal/Modal';
+import { Spinner } from '../../components/Spinner';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
-import styles from './OrdersListPage.module.css';
-import { UilPlus } from '@iconscout/react-unicons';
+import base from './OrdersListPage.module.css';
+import s from './FabricsMasterPage.module.css';
+import { UilPlus, UilTimes, UilImagePlus } from '@iconscout/react-unicons';
 
-const EMPTY = { code: '', name: '', composition: '', weave: '', finish: '', weight_gsm: '', origin: '', price_per_meter: '', care: '' };
+const swatchUrl = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
+const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', origin: '', supplier: '', price_per_meter: '', care: '' };
 type Form = typeof EMPTY;
 
-export const FabricsMasterPage: React.FC = () => {
+export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ mode = 'procurement' }) => {
+  const navigate = useNavigate();
+  const readOnly = mode === 'design';
+  const basePath = readOnly ? '/admin/design/fabrics' : '/admin/procurement/fabrics';
   const [fabrics, setFabrics] = React.useState<Fabric[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState('');
-  const [activeFilter, setActiveFilter] = React.useState<string>('');
+  const [activeFilter, setActiveFilter] = React.useState('');
   const [open, setOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editingCode, setEditingCode] = React.useState('');
   const [form, setForm] = React.useState<Form>(EMPTY);
+  const [images, setImages] = React.useState<string[]>([]);
+  const [uploading, setUploading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
@@ -41,36 +51,51 @@ export const FabricsMasterPage: React.FC = () => {
     return () => clearTimeout(t);
   }, [load]);
 
-  const openCreate = () => { setEditingId(null); setForm(EMPTY); setOpen(true); };
+  const openCreate = () => { setEditingId(null); setEditingCode(''); setForm(EMPTY); setImages([]); setOpen(true); };
   const openEdit = (f: Fabric) => {
-    setEditingId(f.id);
+    setEditingId(f.id); setEditingCode(f.code);
     setForm({
-      code: f.code, name: f.name, composition: f.composition,
-      weave: f.weave ?? '', finish: f.finish ?? '',
-      weight_gsm: f.weight_gsm != null ? String(f.weight_gsm) : '',
-      origin: f.origin ?? '', price_per_meter: f.price_per_meter ?? '',
+      name: f.name, color_name: f.color_name ?? '', composition: f.composition,
+      weave: f.weave ?? '', finish: f.finish ?? '', weight_gsm: f.weight_gsm != null ? String(f.weight_gsm) : '',
+      origin: f.origin ?? '', supplier: f.supplier ?? '', price_per_meter: f.price_per_meter ?? '',
       care: (f.care_instructions ?? []).join(', '),
     });
+    setImages(f.image_keys ?? []);
     setOpen(true);
   };
-  const set = (k: keyof Form) => (v: string) => setForm((s) => ({ ...s, [k]: v }));
+  const set = (k: keyof Form) => (v: string) => setForm((st) => ({ ...st, [k]: v }));
+
+  const onUpload = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const room = 4 - images.length;
+    const picked = Array.from(files).slice(0, room);
+    setUploading(true);
+    try {
+      const keys = await Promise.all(picked.map((f) => uploadToR2(f, 'fabrics')));
+      setImages((x) => [...x, ...keys]);
+    } catch (e) {
+      toast('error', 'Upload failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const save = async () => {
-    if (!form.code.trim() || !form.name.trim() || !form.composition.trim()) {
-      toast('error', 'Code, name and composition are required');
-      return;
-    }
+    if (!form.name.trim() || !form.composition.trim()) { toast('error', 'Name and composition are required'); return; }
+    if (images.length === 0) { toast('error', 'At least one swatch image is required'); return; }
     setSaving(true);
     const input: FabricInput = {
-      code: form.code.trim(),
       name: form.name.trim(),
+      color_name: form.color_name.trim() || null,
       composition: form.composition.trim(),
       weave: form.weave.trim() || null,
       finish: form.finish.trim() || null,
       weight_gsm: form.weight_gsm ? Number(form.weight_gsm) : null,
       origin: form.origin.trim() || null,
+      supplier: form.supplier.trim() || null,
       price_per_meter: form.price_per_meter ? Number(form.price_per_meter) : null,
       care_instructions: form.care.split(',').map((x) => x.trim()).filter(Boolean),
+      image_keys: images,
     };
     try {
       if (editingId) await fabricsApi.update(editingId, input);
@@ -85,89 +110,116 @@ export const FabricsMasterPage: React.FC = () => {
     }
   };
 
-  const toggleActive = async (f: Fabric) => {
+  const toggleActive = async (f: Fabric, e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       await fabricsApi.setActive(f.id, !f.is_active);
       setFabrics((xs) => xs.map((x) => (x.id === f.id ? { ...x, is_active: !f.is_active } : x)));
-    } catch (e) {
-      toast('error', 'Update failed', e instanceof Error ? e.message : undefined);
+    } catch (err) {
+      toast('error', 'Update failed', err instanceof Error ? err.message : undefined);
     }
   };
 
   return (
-    <div className={styles.page}>
+    <div className={base.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
-      <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Fabrics Master</h1>
-        <Button variant="primary" onClick={openCreate}><UilPlus size={16} /> New fabric</Button>
+      <div className={base.pageHeader}>
+        <h1 className={base.title}>{readOnly ? 'Fabrics' : 'Fabrics Master'}</h1>
+        {!readOnly && <Button variant="primary" onClick={openCreate}><UilPlus size={16} /> New fabric</Button>}
       </div>
 
-      <div className={styles.filterBar}>
-        <input className={styles.searchInput} placeholder="Search name or code…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className={styles.filterSelect} value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}>
+      <div className={base.filterBar}>
+        <input className={base.searchInput} placeholder="Search name or code…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <select className={base.filterSelect} value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}>
           <option value="">All</option>
           <option value="true">Active</option>
           <option value="false">Inactive</option>
         </select>
       </div>
 
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr><th>Fabric</th><th>Code</th><th>Composition</th><th>Weave</th><th>GSM</th><th>Price/m</th><th>Used by</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}>{Array.from({ length: 8 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
-              ))
-            ) : fabrics.length === 0 ? (
-              <tr><td colSpan={8} className={styles.empty}>No fabrics. Add your first SKU.</td></tr>
-            ) : (
-              fabrics.map((f) => (
-                <tr key={f.id} className={styles.row} onClick={() => openEdit(f)} style={{ cursor: 'pointer' }}>
-                  <td className={styles.customerName} style={{ fontWeight: 500 }}>{f.name}</td>
-                  <td style={{ fontVariantNumeric: 'tabular-nums' }}>{f.code}</td>
-                  <td style={{ color: 'var(--color-text-secondary)' }}>{f.composition}</td>
-                  <td style={{ textTransform: 'capitalize' }}>{f.weave ?? '—'}</td>
-                  <td>{f.weight_gsm ?? '—'}</td>
-                  <td className={styles.total}>{f.price_per_meter ? `₹${Number(f.price_per_meter).toLocaleString('en-IN')}` : '—'}</td>
-                  <td style={{ color: 'var(--color-text-secondary)' }}>{f.design_count ?? 0} designs · {f.listing_count ?? 0} listings</td>
-                  <td onClick={(e) => { e.stopPropagation(); toggleActive(f); }}>
-                    <span className={`${styles.stagePill} ${f.is_active ? styles.stageSuccess : styles.stageNeutral}`} style={{ cursor: 'pointer' }}>
+      {loading ? (
+        <div className={s.grid}>
+          {Array.from({ length: 6 }).map((_, i) => <div key={i} className={`${s.card} ${s.cardSkeleton}`} />)}
+        </div>
+      ) : fabrics.length === 0 ? (
+        <div className={s.empty}>No fabrics yet. Add your first SKU.</div>
+      ) : (
+        <div className={s.grid}>
+          {fabrics.map((f) => {
+            const url = swatchUrl(f.image_keys?.[0]);
+            return (
+              <div key={f.id} className={s.card} onClick={() => navigate(`${basePath}/${f.id}`)}>
+                <div className={s.swatch}>
+                  {url ? <img src={url} alt={f.name} /> : <span className={s.swatchEmpty}>no swatch</span>}
+                </div>
+                <div className={s.body}>
+                  <div className={s.name}>{f.name}</div>
+                  <div className={s.code}>{f.code}{f.color_name ? ` · ${f.color_name}` : ''}</div>
+                  <div className={s.meta}>{f.composition}{f.weave ? ` · ${f.weave}` : ''}</div>
+                  <div className={s.foot}>
+                    <span className={s.price}>{f.price_per_meter ? `₹${Number(f.price_per_meter).toLocaleString('en-IN')}/m` : '—'}</span>
+                    <span
+                      className={`${base.stagePill} ${f.is_active ? base.stageSuccess : base.stageNeutral}`}
+                      onClick={readOnly ? undefined : (e) => toggleActive(f, e)}
+                      style={readOnly ? undefined : { cursor: 'pointer' }}
+                    >
                       {f.is_active ? 'Active' : 'Inactive'}
                     </span>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                  {!readOnly && <button className={s.editLink} onClick={(e) => { e.stopPropagation(); openEdit(f); }}>Edit</button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={editingId ? 'Edit fabric' : 'New fabric'}
+        title={editingId ? `Edit fabric · ${editingCode}` : 'New fabric'}
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button variant="primary" state={saving ? 'loading' : 'default'} onClick={save}>
-              {editingId ? 'Save' : 'Create'}
-            </Button>
+            <Button variant="primary" state={saving ? 'loading' : 'default'} onClick={save}>{editingId ? 'Save' : 'Create'}</Button>
           </>
         }
       >
-        <div className={styles.modalGrid}>
-          <Input label="Code *" value={form.code} onChange={set('code')} placeholder="e.g. DNM-9" />
-          <Input label="Name *" value={form.name} onChange={set('name')} placeholder="e.g. Indigo Denim" />
-          <Input label="Composition *" value={form.composition} onChange={set('composition')} placeholder="98% Cotton, 2% Elastane" />
-          <Input label="Weave" value={form.weave} onChange={set('weave')} placeholder="twill / poplin / oxford" />
-          <Input label="Finish" value={form.finish} onChange={set('finish')} placeholder="enzyme wash" />
-          <Input label="Weight (GSM)" type="number" value={form.weight_gsm} onChange={set('weight_gsm')} placeholder="320" />
-          <Input label="Origin" value={form.origin} onChange={set('origin')} placeholder="Erode, Tamil Nadu" />
-          <Input label="Price / metre (₹)" type="number" value={form.price_per_meter} onChange={set('price_per_meter')} placeholder="250" />
-          <Input label="Care (comma-separated)" value={form.care} onChange={set('care')} placeholder="Cold wash, Hang dry" />
+        <div className={s.modalBody}>
+          {/* Swatch upload (required) */}
+          <div className={s.uploadSection}>
+            <label className={s.uploadLabel}>Swatch images <span className={s.req}>· at least 1 (up to 4)</span></label>
+            <div className={s.thumbs}>
+              {images.map((k, i) => (
+                <div key={k} className={s.thumb}>
+                  <img src={swatchUrl(k)} alt={`swatch ${i + 1}`} />
+                  {i === 0 && <span className={s.heroTag}>hero</span>}
+                  <button className={s.thumbX} onClick={() => setImages((x) => x.filter((y) => y !== k))} type="button"><UilTimes size={12} /></button>
+                </div>
+              ))}
+              {images.length < 4 && (
+                <label className={s.uploadBox}>
+                  {uploading ? <Spinner /> : <><UilImagePlus size={20} /><span>Upload</span></>}
+                  <input type="file" accept="image/*" multiple hidden onChange={(e) => onUpload(e.target.files)} />
+                </label>
+              )}
+            </div>
+          </div>
+
+          {editingId ? null : <p className={s.codeNote}>Code is auto-generated (FAB-…) on save.</p>}
+
+          <div className={s.formGrid}>
+            <Input label="Name *" value={form.name} onChange={set('name')} placeholder="Indigo Denim" />
+            <Input label="Colour" value={form.color_name} onChange={set('color_name')} placeholder="Indigo" />
+            <Input label="Composition *" value={form.composition} onChange={set('composition')} placeholder="98% Cotton, 2% Elastane" />
+            <Input label="Weave" value={form.weave} onChange={set('weave')} placeholder="twill" />
+            <Input label="Finish" value={form.finish} onChange={set('finish')} placeholder="enzyme wash" />
+            <Input label="GSM" type="number" value={form.weight_gsm} onChange={set('weight_gsm')} placeholder="320" />
+            <Input label="Origin" value={form.origin} onChange={set('origin')} placeholder="Erode, Tamil Nadu" />
+            <Input label="Supplier / mill" value={form.supplier} onChange={set('supplier')} placeholder="Arvind, Erode" />
+            <Input label="Price / metre (₹)" type="number" value={form.price_per_meter} onChange={set('price_per_meter')} placeholder="250" />
+            <Input label="Care (comma-separated)" value={form.care} onChange={set('care')} placeholder="Cold wash, Hang dry" />
+          </div>
         </div>
       </Modal>
     </div>

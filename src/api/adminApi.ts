@@ -762,6 +762,8 @@ export interface SampleJob {
   updated_at: string;
   design_name: string;
   fabric_name: string;
+  fabric_code: string | null;
+  fabric_image_keys: string[] | null;
   tailor_name: string | null;
 }
 
@@ -834,6 +836,10 @@ export const sampleJobsApi = {
       method: 'POST',
       body: JSON.stringify({ body }),
     }),
+
+  // Design requests a sample (design × fabric × hub) → goes to the hub.
+  request: async (input: { design_id: string; fabric_id: string; hub_id: string }): Promise<SampleJob> =>
+    req<SampleJob>(`/api/admin/sample-jobs`, { method: 'POST', body: JSON.stringify(input) }),
 };
 
 // ─── Designs (central design library — P3 item 28) ────────────────────────────
@@ -852,6 +858,7 @@ export interface DesignSummary {
   garment_slug: string;
   reference_image_keys: string[];
   fabric_count: number;
+  fabric_swatches?: string[];
   cover_key: string | null;
   updated_at: string;
 }
@@ -860,8 +867,10 @@ export interface DesignFabricRef {
   id: string;
   name: string;
   code: string | null;
+  color_name: string | null;
   composition: string | null;
   image_keys: string[];
+  meters_per_garment: string | null;
 }
 
 export interface DesignDetail {
@@ -907,7 +916,7 @@ export interface DesignInput {
   capture_set?: unknown;
   pain_point_menu?: Record<string, unknown> | null;
   reference_image_keys?: string[];
-  fabric_ids?: string[];
+  fabrics?: { fabric_id: string; meters_per_garment?: number | null }[];
 }
 
 export interface GarmentCategoryOption {
@@ -1131,6 +1140,31 @@ export const notificationsAdminApi = {
     req<{ users_targeted: number }>(`/api/admin/notifications/blast`, { method: 'POST', body: JSON.stringify(payload) }),
 };
 
+// ─── Admin inbox (hand-off notifications) ─────────────────────────────────────
+
+export interface AdminNotification {
+  id: string;
+  category: string;
+  title: string;
+  body: string;
+  deep_link: string | null;
+  ref_id: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+export const adminInboxApi = {
+  list: async (unreadOnly = false): Promise<AdminNotification[]> =>
+    req<{ notifications: AdminNotification[]; unread_count: number }>(
+      `/api/admin/notifications${unreadOnly ? '?unread=true' : ''}`,
+    ).then((r) => r.notifications),
+  markRead: async (id: string): Promise<void> => {
+    await req(`/api/admin/notifications/${id}/read`, { method: 'POST' });
+  },
+  markAllRead: async (): Promise<void> => {
+    await req(`/api/admin/notifications/read-all`, { method: 'POST' });
+  },
+};
+
 // ─── Pincode Demand (waitlist for unserved pincodes) ─────────────────────────────
 
 export interface PincodeDemand {
@@ -1182,11 +1216,13 @@ export interface Fabric {
   id: string;
   code: string;
   name: string;
+  color_name: string | null;
   composition: string;
   weight_gsm: number | null;
   weave: string | null;
   finish: string | null;
   origin: string | null;
+  supplier: string | null;
   care_instructions: string[];
   image_keys: string[];
   price_per_meter: string | null;
@@ -1196,15 +1232,16 @@ export interface Fabric {
   listing_count?: number;
 }
 export interface FabricInput {
-  code: string;
   name: string;
+  color_name?: string | null;
   composition: string;
   weight_gsm?: number | null;
   weave?: string | null;
   finish?: string | null;
   origin?: string | null;
+  supplier?: string | null;
   care_instructions?: string[];
-  image_keys?: string[];
+  image_keys: string[]; // ≥1 required (swatch)
   price_per_meter?: number | null;
 }
 
@@ -1216,13 +1253,48 @@ export const fabricsApi = {
     const s = qs.toString();
     return req<Fabric[]>(`/api/admin/fabrics${s ? `?${s}` : ''}`);
   },
+  get: async (id: string): Promise<Fabric> => req<Fabric>(`/api/admin/fabrics/${id}`),
   create: async (input: FabricInput): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics`, { method: 'POST', body: JSON.stringify(input) }),
   update: async (id: string, input: FabricInput): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
   setActive: async (id: string, is_active: boolean): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics/${id}/active`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
+  stock: async (params: { hub_id?: string } = {}): Promise<FabricStockRow[]> =>
+    req<FabricStockRow[]>(`/api/admin/fabrics/stock${params.hub_id ? `?hub_id=${params.hub_id}` : ''}`),
+  atHub: async (hubId: string, fabricId: string): Promise<FabricAtHub> =>
+    req<FabricAtHub>(`/api/admin/fabrics/at-hub?hub_id=${hubId}&fabric_id=${fabricId}`),
 };
+
+export interface FabricMovement {
+  kind: 'distribution' | 'restock' | 'listing';
+  id: string;
+  status: string;
+  qty: string | number;
+  created_at: string;
+  updated_at: string;
+  design_name: string | null;
+  note: string | null;
+}
+export interface FabricAtHub {
+  fabric: Fabric;
+  hub_id: string;
+  hub_name: string | null;
+  stock: { available_meters: string; reserved_meters: string; updated_at: string | null };
+  movements: FabricMovement[];
+}
+
+export interface FabricStockRow {
+  hub_id: string;
+  hub_name: string;
+  fabric_id: string;
+  fabric_code: string;
+  fabric_name: string;
+  fabric_image_keys: string[] | null;
+  available_meters: string | number;
+  reserved_meters: string | number;
+  updated_at: string;
+}
 
 // ─── Distribution (procurement pushes design+fabric → hub) ────────────────────
 
@@ -1238,6 +1310,8 @@ export interface Distribution {
   updated_at: string;
   design_name: string;
   fabric_name: string | null;
+  fabric_code: string | null;
+  fabric_image_keys: string[] | null;
 }
 export interface PushDistributionInput {
   design_id: string;
@@ -1257,6 +1331,8 @@ export const distributionApi = {
   },
   push: async (input: PushDistributionInput): Promise<Distribution> =>
     req<Distribution>(`/api/admin/distribution`, { method: 'POST', body: JSON.stringify(input) }),
+  receive: async (id: string): Promise<{ id: string; stocked_meters: number }> =>
+    req(`/api/admin/distribution/${id}/receive`, { method: 'POST' }),
 };
 
 // ─── Restock (catalog_manager requests; procurement ships/fulfils) ────────────
@@ -1272,6 +1348,8 @@ export interface RestockRequest {
   created_at: string;
   updated_at: string;
   fabric_name: string;
+  fabric_code: string | null;
+  fabric_image_keys: string[] | null;
 }
 
 export const restockApi = {
@@ -1284,6 +1362,53 @@ export const restockApi = {
   },
   setStatus: async (id: string, status: 'shipped' | 'fulfilled' | 'cancelled'): Promise<{ id: string; status: string; stocked_meters: number }> =>
     req(`/api/admin/distribution/restock/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  create: async (input: { fabric_id: string; hub_id: string; qty: number; demand_note?: string }): Promise<{ id: string }> =>
+    req(`/api/admin/distribution/restock`, { method: 'POST', body: JSON.stringify(input) }),
+};
+
+// ─── Fabric-for-listing requests (CM → procurement, Stage 5) ──────────────────
+
+export type ListingRequestStatus = 'requested' | 'approved' | 'received' | 'rejected';
+export interface ListingRequest {
+  id: string;
+  design_id: string;
+  fabric_id: string;
+  hub_id: string;
+  qty: string | number;
+  status: ListingRequestStatus;
+  note: string | null;
+  created_at: string;
+  design_name: string;
+  garment_type: string;
+  fabric_name: string;
+  fabric_code: string;
+  fabric_color: string | null;
+  fabric_composition: string | null;
+  fabric_image_keys: string[] | null;
+  hub_name: string;
+}
+export interface ListingRequestInput {
+  design_id: string;
+  fabric_id: string;
+  hub_id: string;
+  qty: number;
+  note?: string;
+}
+
+export const listingRequestsApi = {
+  list: async (params: { status?: string; hub_id?: string } = {}): Promise<ListingRequest[]> => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.hub_id) qs.set('hub_id', params.hub_id);
+    const s = qs.toString();
+    return req<ListingRequest[]>(`/api/admin/listing-requests${s ? `?${s}` : ''}`);
+  },
+  create: async (input: ListingRequestInput): Promise<{ id: string }> =>
+    req(`/api/admin/listing-requests`, { method: 'POST', body: JSON.stringify(input) }),
+  decide: async (id: string, decision: 'approved' | 'rejected'): Promise<{ id: string; status: string; stocked_meters: number }> =>
+    req(`/api/admin/listing-requests/${id}`, { method: 'PATCH', body: JSON.stringify({ decision }) }),
+  receive: async (id: string): Promise<{ id: string; status: string; stocked_meters: number }> =>
+    req(`/api/admin/listing-requests/${id}/receive`, { method: 'POST' }),
 };
 
 // ─── Listings (super read-only overview) ──────────────────────────────────────
@@ -1301,6 +1426,63 @@ export interface ListingOverviewRow {
 export const listingsAdminApi = {
   overview: async (): Promise<ListingOverviewRow[]> =>
     req<ListingOverviewRow[]>(`/api/admin/listings/overview`),
+};
+
+// ─── Catalog-manager listings management ──────────────────────────────────────
+
+export interface CmListing {
+  id: string;
+  design_id: string;
+  fabric_id: string;
+  hub_id: string;
+  price: string;
+  description: string | null;
+  photo_keys: string[];
+  is_active: boolean;
+  created_at: string;
+  design_name: string;
+  garment_type: string;
+  design_image_keys: string[] | null;
+  fabric_name: string;
+  fabric_code: string;
+  fabric_color: string | null;
+  fabric_image_keys: string[] | null;
+  hub_name: string;
+}
+export interface ReadyToListSample {
+  sample_id: string;
+  design_id: string;
+  fabric_id: string;
+  hub_id: string;
+  sample_photos: string[] | null;
+  design_name: string;
+  garment_type: string;
+  design_image_keys: string[] | null;
+  fabric_name: string;
+  fabric_code: string;
+  fabric_color: string | null;
+  fabric_image_keys: string[] | null;
+  hub_name: string;
+}
+export interface CmListingInput {
+  design_id: string;
+  fabric_id: string;
+  hub_id: string;
+  price: number;
+  description?: string | null;
+  photo_keys?: string[];
+  is_active?: boolean;
+}
+
+export const cmListingsApi = {
+  list: async (): Promise<CmListing[]> => req<CmListing[]>(`/api/admin/listings`),
+  ready: async (): Promise<ReadyToListSample[]> => req<ReadyToListSample[]>(`/api/admin/listings/ready`),
+  create: async (input: CmListingInput): Promise<{ id: string }> =>
+    req(`/api/admin/listings`, { method: 'POST', body: JSON.stringify(input) }),
+  update: async (id: string, input: Partial<Omit<CmListingInput, 'design_id' | 'fabric_id' | 'hub_id'>>): Promise<CmListing> =>
+    req<CmListing>(`/api/admin/listings/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  fromSample: async (sampleId: string, input: { price: number; photo_keys?: string[]; description?: string; is_active?: boolean }): Promise<{ listing_id: string; reused: boolean }> =>
+    req(`/api/admin/sample-jobs/${sampleId}/list`, { method: 'POST', body: JSON.stringify(input) }),
 };
 
 // ─── Promo Codes ──────────────────────────────────────────────────────────────

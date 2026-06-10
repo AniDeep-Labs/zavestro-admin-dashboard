@@ -264,3 +264,83 @@
   max-width: 860px;
   background: linear-gradient(to top, var(--color-bg-primary) 60%, transparent);
 }
+
+/* fabric match — per-fabric metreage + swatch picker (P3) */
+.matchedList { display: flex; flex-direction: column; gap: var(--spacing-sm); margin-bottom: var(--spacing-md); }
+.matchedRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+}
+.matchedSwatch {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-bg-card);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-muted);
+}
+.matchedSwatch img { width: 100%; height: 100%; object-fit: cover; }
+.matchedInfo { flex: 1; min-width: 0; font-size: var(--font-size-sm); color: var(--color-text); }
+.matchedInfo em { color: var(--color-text-muted); font-style: normal; }
+.metersField { display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.metersInput {
+  width: 72px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+.matchedRemove { border: none; background: none; color: var(--color-text-muted); cursor: pointer; padding: 4px; display: flex; }
+.matchedRemove:hover { color: var(--color-error); }
+
+.fabricSearch {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  margin-bottom: var(--spacing-sm);
+}
+.fabricPicker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--spacing-sm);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.pickCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  cursor: pointer;
+  text-align: center;
+}
+.pickCard:hover { border-color: var(--color-primary); }
+.pickSwatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-bg-section);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-muted);
+}
+.pickSwatch img { width: 100%; height: 100%; object-fit: cover; }
+.pickName { font-size: var(--font-size-sm); font-weight: 500; color: var(--color-text); line-height: 1.2; }
+.pickCode { font-size: var(--font-size-xs); color: var(--color-text-muted); }

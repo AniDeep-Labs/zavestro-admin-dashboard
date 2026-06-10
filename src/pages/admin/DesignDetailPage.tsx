@@ -188,7 +188,8 @@ export const DesignDetailPage: React.FC = () => {
                     <div>
                       <div className={s.fabricName}>{f.name}</div>
                       <div className={s.fabricMeta}>
-                        {[f.code, f.composition].filter(Boolean).join(' · ')}
+                        {[f.code, f.color_name, f.composition].filter(Boolean).join(' · ')}
+                        {f.meters_per_garment ? ` · ${Number(f.meters_per_garment)}m/garment` : ''}
                       </div>
                     </div>
                   </div>
