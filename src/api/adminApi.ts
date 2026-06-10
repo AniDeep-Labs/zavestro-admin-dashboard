@@ -762,6 +762,8 @@ export interface SampleJob {
   updated_at: string;
   design_name: string;
   fabric_name: string;
+  fabric_code: string | null;
+  fabric_image_keys: string[] | null;
   tailor_name: string | null;
 }
 

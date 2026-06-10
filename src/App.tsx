@@ -61,6 +61,7 @@ const MeasurementBookingNewPage = lazyPage(() => import('./pages/admin/Measureme
 const GarmentTypeTemplatesPage = lazyPage(() => import('./pages/admin/GarmentTypeTemplatesPage'), 'GarmentTypeTemplatesPage');
 const GarmentTemplateEditorPage = lazyPage(() => import('./pages/admin/GarmentTemplateEditorPage'), 'GarmentTemplateEditorPage');
 const DesignAnalyticsPage = lazyPage(() => import('./pages/admin/DesignAnalyticsPage'), 'DesignAnalyticsPage');
+const DesignSampleRequestsPage = lazyPage(() => import('./pages/admin/DesignSampleRequestsPage'), 'DesignSampleRequestsPage');
 const FabricsMasterPage = lazyPage(() => import('./pages/admin/FabricsMasterPage'), 'FabricsMasterPage');
 const FabricPdpPage = lazyPage(() => import('./pages/admin/FabricPdpPage'), 'FabricPdpPage');
 const DistributionPage = lazyPage(() => import('./pages/admin/DistributionPage'), 'DistributionPage');
@@ -145,6 +146,7 @@ function App() {
             <Route path="design/analytics" element={<DesignAnalyticsPage />} />
             <Route path="design/fabrics" element={<FabricsMasterPage mode="design" />} />
             <Route path="design/fabrics/:id" element={<FabricPdpPage mode="design" />} />
+            <Route path="design/my-samples" element={<DesignSampleRequestsPage />} />
             <Route path="procurement/fabrics" element={<FabricsMasterPage />} />
             <Route path="procurement/fabrics/:id" element={<FabricPdpPage />} />
             <Route path="procurement/distribution" element={<DistributionPage />} />

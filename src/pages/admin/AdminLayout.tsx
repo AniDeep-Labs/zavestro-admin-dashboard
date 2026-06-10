@@ -55,6 +55,7 @@ const SECTIONS: NavSection[] = [
       { label: 'Fabrics', icon: <UilTag size={18} />, path: '/admin/design/fabrics', cap: 'designs:write' },
       { label: 'Garment Types', icon: <UilRuler size={18} />, path: '/admin/design/templates', cap: 'designs:write' },
       { label: 'Sample Review', icon: <UilCheckCircle size={18} />, path: '/admin/design/samples', cap: 'samples:write' },
+      { label: 'My Sample Requests', icon: <UilHistory size={18} />, path: '/admin/design/my-samples', cap: 'samples:write' },
       { label: 'Design Analytics', icon: <UilChartBar size={18} />, path: '/admin/design/analytics', cap: 'reports:read' },
     ],
   },
