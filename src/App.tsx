@@ -251,6 +251,10 @@ const FitFeedbackPage = lazyPage(
   () => import("./pages/admin/FitFeedbackPage"),
   "FitFeedbackPage",
 );
+const RefundsPage = lazyPage(
+  () => import("./pages/admin/RefundsPage"),
+  "RefundsPage",
+);
 
 function NotFoundPage() {
   const nav = useNav404();
@@ -420,6 +424,7 @@ function App() {
             path="finance/pnl"
             element={<FinanceReportPage mode="pnl" />}
           />
+          <Route path="finance/refunds" element={<RefundsPage />} />
           <Route path="notifications" element={<NotificationBlastPage />} />
           <Route path="pincode-waitlist" element={<PincodeWaitlistPage />} />
           <Route path="promo-codes" element={<PromoCodesPage />} />
