@@ -247,6 +247,10 @@ const ReviewsListPage = lazyPage(
   () => import("./pages/admin/ReviewsListPage"),
   "ReviewsListPage",
 );
+const FitFeedbackPage = lazyPage(
+  () => import("./pages/admin/FitFeedbackPage"),
+  "FitFeedbackPage",
+);
 
 function NotFoundPage() {
   const nav = useNav404();
@@ -336,6 +340,7 @@ function App() {
           <Route path="analytics/:section" element={<AnalyticsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="support" element={<SupportListPage />} />
+          <Route path="fit-feedback" element={<FitFeedbackPage />} />
           <Route path="support/:id" element={<TicketDetailPage />} />
           <Route path="system/app-config" element={<AppConfigPage />} />
           <Route path="system/audit-log" element={<AuditLogPage />} />
