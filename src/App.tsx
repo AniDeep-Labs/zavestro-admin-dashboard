@@ -255,6 +255,10 @@ const RefundsPage = lazyPage(
   () => import("./pages/admin/RefundsPage"),
   "RefundsPage",
 );
+const StaffManagementPage = lazyPage(
+  () => import("./pages/admin/StaffManagementPage"),
+  "StaffManagementPage",
+);
 
 function NotFoundPage() {
   const nav = useNav404();
@@ -350,6 +354,7 @@ function App() {
           <Route path="system/audit-log" element={<AuditLogPage />} />
           <Route path="system/admin-users" element={<AdminUsersManagePage />} />
           <Route path="system/service-areas" element={<ServiceAreasPage />} />
+          <Route path="system/staff" element={<StaffManagementPage />} />
           <Route path="returns" element={<ReturnsListPage />} />
           <Route path="returns/:id" element={<ReturnDetailPage />} />
           <Route path="alterations" element={<AlterationsListPage />} />

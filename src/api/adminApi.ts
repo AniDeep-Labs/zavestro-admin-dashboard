@@ -1712,6 +1712,49 @@ export const refundsApi = {
     }),
 };
 
+// ─── Ops staff management (super_admin — G-40) ────────────────────────────────
+export type StaffRole =
+  | "hub_manager"
+  | "cutting_master"
+  | "measurement_agent"
+  | "tailor"
+  | "qc_staff"
+  | "dispatch";
+export interface StaffMember {
+  id: string;
+  email: string;
+  name: string;
+  role: StaffRole;
+  phone: string | null;
+  hub_id: string | null;
+  hub_name: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+export interface CreateStaffInput {
+  email: string;
+  name: string;
+  role: StaffRole;
+  password: string;
+  hub_id?: string | null;
+}
+export const staffApi = {
+  list: (hubId?: string): Promise<StaffMember[]> =>
+    req<StaffMember[]>(
+      `/api/admin/staff-management${hubId ? `?hub_id=${encodeURIComponent(hubId)}` : ""}`,
+    ),
+  create: (input: CreateStaffInput): Promise<StaffMember> =>
+    req<StaffMember>(`/api/admin/staff-management`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  setActive: (id: string, is_active: boolean): Promise<StaffMember> =>
+    req<StaffMember>(`/api/admin/staff-management/${id}/active`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active }),
+    }),
+};
+
 // ─── Notification Blast ──────────────────────────────────────────────────────────
 
 export interface BlastPayload {
