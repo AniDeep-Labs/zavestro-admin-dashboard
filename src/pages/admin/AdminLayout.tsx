@@ -328,24 +328,18 @@ const SECTIONS: NavSection[] = [
         path: "/admin/promo-codes",
         cap: "pricing:write",
       },
-      {
-        label: "Pincode Demand",
-        icon: <UilMapMarker size={18} />,
-        path: "/admin/pincode-waitlist",
-        cap: "reports:read",
-      },
+      // G-31: "Pincode Demand" removed — it pointed at the same /admin/pincode-waitlist
+      // as "Coverage / Waitlist" in Orders & support, which finance already sees (orders:read).
     ],
   },
+  // G-32: Analytics (reports:read) + Notification Blast (cms:write) moved OUT of the
+  // super-only "Oversight · system" section into their own section, so their capability
+  // owners can actually reach them — e.g. the design team sees the fit-calibration
+  // analytics that tune their size charts. Item-level caps still gate each item.
   {
-    title: "Oversight · system",
-    caps: ["system:manage"],
+    title: "Insights & comms",
+    caps: ["reports:read", "cms:write"],
     items: [
-      {
-        label: "Hubs",
-        icon: <UilBuilding size={18} />,
-        path: "/admin/hubs",
-        cap: "system:manage",
-      },
       {
         label: "Analytics",
         icon: <UilChartBar size={18} />,
@@ -367,6 +361,18 @@ const SECTIONS: NavSection[] = [
         icon: <UilMegaphone size={18} />,
         path: "/admin/notifications",
         cap: "cms:write",
+      },
+    ],
+  },
+  {
+    title: "Oversight · system",
+    caps: ["system:manage"],
+    items: [
+      {
+        label: "Hubs",
+        icon: <UilBuilding size={18} />,
+        path: "/admin/hubs",
+        cap: "system:manage",
       },
       {
         label: "System",
@@ -404,11 +410,10 @@ const AdminLayoutInner: React.FC = () => {
   const [theme, setTheme] = React.useState(getCurrentTheme());
   const [collapsed, setCollapsed] = React.useState(false);
   const [expandedSections, setExpandedSections] = React.useState<string[]>([
-    "Catalog",
+    "Storefront",
     "Content",
     "Analytics",
     "System",
-    "Consultations",
   ]);
 
   const adminUser = getAdminUser();
