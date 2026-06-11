@@ -2114,6 +2114,10 @@ export interface CmListing {
   fabric_color: string | null;
   fabric_image_keys: string[] | null;
   hub_name: string;
+  // G-24: per-fabric shared availability at the listing's hub (derived server-side).
+  meters_per_garment?: string | number | null;
+  in_stock?: boolean;
+  available_meters?: string | number | null;
 }
 export interface ReadyToListSample {
   sample_id: string;
