@@ -274,6 +274,18 @@ const SECTIONS: NavSection[] = [
         path: "/admin/reviews",
         cap: "reviews:moderate",
       },
+      {
+        label: "Fit Feedback",
+        icon: <UilRuler size={18} />,
+        path: "/admin/fit-feedback",
+        cap: "reviews:moderate",
+      },
+      {
+        label: "Coverage / Waitlist",
+        icon: <UilMapMarker size={18} />,
+        path: "/admin/pincode-waitlist",
+        cap: "orders:read",
+      },
     ],
   },
   {

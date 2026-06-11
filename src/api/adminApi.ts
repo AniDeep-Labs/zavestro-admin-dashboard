@@ -1660,6 +1660,24 @@ export const financeApi = {
     req<PnlReport>(`/api/admin/finance/pnl${financeQs(p)}`),
 };
 
+// ─── Fit feedback (Support console — per-order fit ratings) ───────────────────
+export interface FitFeedbackEntry {
+  id: string;
+  order_id: string;
+  order_number: string | null;
+  hub_id: string | null;
+  hub_name: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  overall_fit: number;
+  fit_areas: Record<string, number>;
+  notes: string | null;
+  created_at: string;
+}
+export const fitFeedbackApi = {
+  list: (): Promise<FitFeedbackEntry[]> => req<FitFeedbackEntry[]>('/api/admin/fit-feedback'),
+};
+
 // ─── Notification Blast ──────────────────────────────────────────────────────────
 
 export interface BlastPayload {
