@@ -1675,7 +1675,41 @@ export interface FitFeedbackEntry {
   created_at: string;
 }
 export const fitFeedbackApi = {
-  list: (): Promise<FitFeedbackEntry[]> => req<FitFeedbackEntry[]>('/api/admin/fit-feedback'),
+  list: (): Promise<FitFeedbackEntry[]> =>
+    req<FitFeedbackEntry[]>("/api/admin/fit-feedback"),
+};
+
+// ─── Refunds (Finance console — disburse worklist, G-36/G-27) ─────────────────
+export interface RefundEntry {
+  id: string; // return_requests.id
+  order_id: string;
+  order_number: string;
+  hub_id: string | null;
+  hub_name: string | null;
+  refund_amount: string | number; // order payable_amount (full-amount refund)
+  payment_method: string; // 'online' | 'cod'
+  customer_name: string | null;
+  customer_phone: string | null;
+  refund_method: "razorpay" | "manual_transfer" | null;
+  refund_account_type: "upi" | "bank" | null;
+  refund_account_detail: string | null;
+  refund_status: "pending" | "initiated" | "completed";
+  refund_initiated_at: string | null;
+  refund_completed_at: string | null;
+  status: string;
+  created_at: string;
+}
+export const refundsApi = {
+  list: (status?: string): Promise<RefundEntry[]> =>
+    req<RefundEntry[]>(
+      `/api/admin/refunds${status ? `?status=${encodeURIComponent(status)}` : ""}`,
+    ),
+  // Disburse: marks a manual_transfer refund complete (reuses the existing endpoint,
+  // gated refunds:approve via write-POLICY). Money → source/bank, never wallet.
+  markComplete: (returnId: string): Promise<void> =>
+    req<void>(`/api/admin/returns/${returnId}/mark-refund-complete`, {
+      method: "POST",
+    }),
 };
 
 // ─── Notification Blast ──────────────────────────────────────────────────────────
