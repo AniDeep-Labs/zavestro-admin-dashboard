@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && cp dist/index.html dist/404.html",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "eslint . && node scripts/check-style-debt.mjs",
+    "preview": "vite preview",
+    "lint:debt": "node scripts/check-style-debt.mjs"
   },
   "dependencies": {
     "@datadog/browser-logs": "^7.0.0",

@@ -183,3 +183,24 @@
 }
 .fabricCellText { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .fabricCellCode { font-size: var(--font-size-xs); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+
+/* Saved-view chips (FABLE-ADMIN-UIUX §8C) */
+.viewChips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.viewChip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.viewChip:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.viewChipActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #FFFFFF;
+}

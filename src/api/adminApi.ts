@@ -169,6 +169,10 @@ export interface OrdersParams {
   stage?: string;
   mode?: string;
   userId?: string;
+  /** filter by payment method (e.g. 'cod') */
+  paymentMethod?: string;
+  /** in-flight orders unmoved for 48h+ (the "Stuck" saved view) */
+  stuck?: boolean;
   page?: number;
   limit?: number;
 }
@@ -186,6 +190,8 @@ export const ordersApi = {
     if (params.stage) qs.set("stage", params.stage);
     if (params.mode) qs.set("mode", params.mode);
     if (params.userId) qs.set("user_id", params.userId);
+    if (params.paymentMethod) qs.set("payment_method", params.paymentMethod);
+    if (params.stuck) qs.set("stuck", "1");
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
     return req<OrdersResponse>(`/api/admin/orders?${qs}`);

@@ -97,3 +97,11 @@ export type { ContainerProps } from './Container';
 
 export { Spacer } from './Spacer';
 export type { SpacerProps } from './Spacer';
+
+// Status vocabulary + canonical cells (FABLE-ADMIN-UIUX §2)
+export { StatusBadge, STATUS_VOCAB, statusLabel } from './StatusBadge';
+export type { StatusBadgeProps, StatusTone } from './StatusBadge';
+export { EmptyState } from './EmptyState';
+export type { EmptyStateProps } from './EmptyState';
+export { CopyId, AgeCell, MoneyCell, ageLabel } from './DataCells';
+export type { AgeCellProps } from './DataCells';

@@ -19,5 +19,22 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Style-debt guards (FABLE-ADMIN-UIUX §2): warn in-editor; the blocking
+      // gate is the ratchet in scripts/check-style-debt.mjs (npm run lint).
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: "JSXAttribute[name.name='style']",
+          message:
+            'No inline styles — use a CSS-module class with design tokens (FABLE-ADMIN-UIUX §2).',
+        },
+        {
+          selector: 'Literal[value=/#[0-9a-fA-F]{6}/]',
+          message:
+            'No raw hex colors in TS/TSX — use a var(--*) token from styles/variables.css.',
+        },
+      ],
+    },
   },
 ])
