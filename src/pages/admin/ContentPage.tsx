@@ -1,16 +1,14 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { craftspeopleApi, cmsApi } from '../../api/adminApi';
-import type { Craftsperson, LookbookItem, JournalPost, CustomerStory } from '../../api/adminApi';
+import { cmsApi } from '../../api/adminApi';
+import type { LookbookItem, JournalPost, CustomerStory } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ContentPage.module.css';
 import { UilEditAlt, UilEye, UilEyeSlash, UilPlus, UilSearch, UilTimes, UilTrashAlt } from "@iconscout/react-unicons";
 
-type Section = 'lookbook' | 'craftspeople' | 'stories' | 'journal';
-
-const asCraftspeopleArray = (data: unknown): Craftsperson[] =>
-  Array.isArray(data) ? data : [];
+// 'craftspeople' section removed (G-20): artisan-brand model retired.
+type Section = 'lookbook' | 'stories' | 'journal';
 
 function useDebounce<T>(v: T, d: number) {
   const [dv, setDv] = React.useState(v);
@@ -22,15 +20,6 @@ export const ContentPage: React.FC = () => {
   const { section = 'lookbook' } = useParams<{ section?: string }>();
   const [search, setSearch] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
-
-  // Craftspeople state
-  const [craftspeople, setCraftspeople] = React.useState<Craftsperson[]>([]);
-  const [craftLoading, setCraftLoading] = React.useState(false);
-  const [craftError, setCraftError] = React.useState('');
-  const [editTarget, setEditTarget] = React.useState<Craftsperson | null>(null);
-  const [editBio, setEditBio] = React.useState('');
-  const [editYears, setEditYears] = React.useState('');
-  const [saving, setSaving] = React.useState(false);
 
   // Lookbook state
   const [lookbookItems, setLookbookItems] = React.useState<LookbookItem[]>([]);
@@ -53,7 +42,7 @@ export const ContentPage: React.FC = () => {
   const [jpForm, setJpForm] = React.useState({ title: '', slug: '', excerpt: '', body: '', status: 'draft' as 'draft' | 'published' | 'archived' });
   const [jpSaving, setJpSaving] = React.useState(false);
 
-  const validSection = (section as Section) in { lookbook: 1, craftspeople: 1, stories: 1, journal: 1 }
+  const validSection = (section as Section) in { lookbook: 1, stories: 1, journal: 1 }
     ? (section as Section) : 'lookbook';
 
   const debouncedSearch = useDebounce(search, 300);
@@ -64,13 +53,7 @@ export const ContentPage: React.FC = () => {
 
   React.useEffect(() => {
     setSearch('');
-    if (validSection === 'craftspeople') {
-      setCraftLoading(true); setCraftError('');
-      craftspeopleApi.list()
-        .then(data => setCraftspeople(asCraftspeopleArray(data)))
-        .catch(e => setCraftError(e instanceof Error ? e.message : 'Failed to load craftspeople'))
-        .finally(() => setCraftLoading(false));
-    } else if (validSection === 'lookbook') {
+    if (validSection === 'lookbook') {
       setLookbookLoading(true);
       cmsApi.lookbook.list()
         .then(setLookbookItems)
@@ -90,25 +73,6 @@ export const ContentPage: React.FC = () => {
         .finally(() => setPostsLoading(false));
     }
   }, [validSection]);
-
-  // ── Craftspeople handlers ──────────────────────────────────────────────────
-  const openEdit = (p: Craftsperson) => {
-    setEditTarget(p); setEditBio(p.bio ?? ''); setEditYears(p.years_experience != null ? String(p.years_experience) : '');
-  };
-
-  const handleSaveCraft = async () => {
-    if (!editTarget) return;
-    setSaving(true);
-    try {
-      const updated = await craftspeopleApi.updateStory(editTarget.id, {
-        bio: editBio, years_experience: editYears ? parseInt(editYears) : undefined,
-      });
-      setCraftspeople(prev => prev.map(p => p.id === updated.id ? { ...p, bio: updated.bio, years_experience: updated.years_experience } : p));
-      setEditTarget(null);
-      showToast('success', 'Saved', editTarget.name);
-    } catch (e) { showToast('error', 'Save failed', e instanceof Error ? e.message : undefined); }
-    finally { setSaving(false); }
-  };
 
   // ── Lookbook handlers ──────────────────────────────────────────────────────
   const openLookbook = (item: LookbookItem | 'new') => {
@@ -259,14 +223,8 @@ export const ContentPage: React.FC = () => {
 
   // ── Section titles ─────────────────────────────────────────────────────────
   const TITLES: Record<Section, string> = {
-    lookbook: 'Lookbook', craftspeople: 'Craftspeople', stories: 'Customer Stories', journal: 'Journal',
+    lookbook: 'Lookbook', stories: 'Customer Stories', journal: 'Journal',
   };
-
-  // ── Craftspeople filtered list ─────────────────────────────────────────────
-  const craftspeopleList = Array.isArray(craftspeople) ? craftspeople : [];
-  const filteredCraft = craftspeopleList.filter(p =>
-    !debouncedSearch || (p.name ?? '').toLowerCase().includes(debouncedSearch.toLowerCase()) || (p.role ?? '').toLowerCase().includes(debouncedSearch.toLowerCase())
-  );
 
   const filteredLookbook = lookbookItems.filter(i =>
     !debouncedSearch || i.title.toLowerCase().includes(debouncedSearch.toLowerCase())
@@ -423,45 +381,6 @@ export const ContentPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Craftspeople ─────────────────────────────────────────────────── */}
-      {validSection === 'craftspeople' && (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead><tr><th>Name</th><th>Role</th><th>Bio</th><th>Experience</th><th>Actions</th></tr></thead>
-            <tbody>
-              {craftLoading ? Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i}>{Array.from({ length: 5 }).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
-              )) : craftError ? (
-                <tr><td colSpan={5} className={styles.empty}>
-                  <div style={{ color: 'var(--color-error)' }}>{craftError}</div>
-                  <button className={styles.actionBtn} style={{ marginTop: 8 }} onClick={() => {
-                    setCraftError(''); setCraftLoading(true);
-                    craftspeopleApi.list().then(data => setCraftspeople(asCraftspeopleArray(data))).catch(e => setCraftError(e instanceof Error ? e.message : 'Failed')).finally(() => setCraftLoading(false));
-                  }}>Retry</button>
-                </td></tr>
-              ) : filteredCraft.length === 0 ? (
-                <tr><td colSpan={5} className={styles.empty}>
-                  {craftspeopleList.length === 0 ? 'No craftspeople records found.' : 'No matches.'}
-                </td></tr>
-              ) : filteredCraft.map(p => (
-                <tr key={p.id} className={styles.row}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {p.public_photo_url && <img src={p.public_photo_url} alt={p.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />}
-                      <span style={{ fontWeight: 500 }}>{p.name}</span>
-                    </div>
-                  </td>
-                  <td>{p.role}</td>
-                  <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.bio || '—'}</td>
-                  <td>{p.years_experience != null ? `${p.years_experience} yrs` : '—'}</td>
-                  <td><button className={styles.actionBtn} onClick={() => openEdit(p)}><UilEditAlt size={13}/> Edit Story</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
       {/* ── Lookbook modal ───────────────────────────────────────────────── */}
       {lookbookModal !== null && (
         <div className={styles.modalOverlay} onClick={() => setLookbookModal(null)}>
@@ -599,30 +518,6 @@ export const ContentPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Craftspeople edit modal ───────────────────────────────────────── */}
-      {editTarget && (
-        <div className={styles.modalOverlay} onClick={() => setEditTarget(null)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Edit — {editTarget.name}</h3>
-            <div className={styles.fields}>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Bio</label>
-                <textarea className={styles.fieldInput} style={{ minHeight: 120, resize: 'vertical' }} value={editBio} onChange={e => setEditBio(e.target.value)} placeholder="Craftsperson's story and background…" />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Years of Experience</label>
-                <input type="number" className={styles.fieldInput} value={editYears} onChange={e => setEditYears(e.target.value)} min="0" />
-              </div>
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setEditTarget(null)}>Cancel</button>
-              <button className={styles.createBtn} disabled={saving} onClick={handleSaveCraft}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -10,6 +10,10 @@ import { UilRefresh, UilTimes } from "@iconscout/react-unicons";
 
 const fmtINR = (n: number) =>
   `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+// Refund latency is trust: surface aging on awaiting-disbursal rows (amber ≥ 48 h).
+const ageHours = (d: string | null) =>
+  d ? (Date.now() - new Date(d).getTime()) / 3_600_000 : 0;
+
 const fmtDate = (d: string | null) =>
   d
     ? new Date(d).toLocaleDateString("en-IN", {
@@ -267,6 +271,11 @@ export const RefundsPage: React.FC = () => {
                   </td>
                   <td className={styles.date}>
                     {fmtDate(r.refund_initiated_at)}
+                    {needsDisburse(r) && ageHours(r.refund_initiated_at) >= 48 && (
+                      <div className={s.pendingAccent}>
+                        {Math.floor(ageHours(r.refund_initiated_at) / 24)}d waiting
+                      </div>
+                    )}
                   </td>
                   <td>
                     {needsDisburse(r) ? (

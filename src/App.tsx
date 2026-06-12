@@ -183,18 +183,6 @@ const AdminProfilePage = lazyPage(
   () => import("./pages/admin/AdminProfilePage"),
   "AdminProfilePage",
 );
-const MeasurementBookingsListPage = lazyPage(
-  () => import("./pages/admin/MeasurementBookingsListPage"),
-  "MeasurementBookingsListPage",
-);
-const MeasurementBookingDetailPage = lazyPage(
-  () => import("./pages/admin/MeasurementBookingDetailPage"),
-  "MeasurementBookingDetailPage",
-);
-const MeasurementBookingNewPage = lazyPage(
-  () => import("./pages/admin/MeasurementBookingNewPage"),
-  "MeasurementBookingNewPage",
-);
 const GarmentTypeTemplatesPage = lazyPage(
   () => import("./pages/admin/GarmentTypeTemplatesPage"),
   "GarmentTypeTemplatesPage",
@@ -434,18 +422,8 @@ function App() {
           <Route path="pincode-waitlist" element={<PincodeWaitlistPage />} />
           <Route path="promo-codes" element={<PromoCodesPage />} />
           <Route path="profile" element={<AdminProfilePage />} />
-          <Route
-            path="measurement-bookings"
-            element={<MeasurementBookingsListPage />}
-          />
-          <Route
-            path="measurement-bookings/new"
-            element={<MeasurementBookingNewPage />}
-          />
-          <Route
-            path="measurement-bookings/:id"
-            element={<MeasurementBookingDetailPage />}
-          />
+          {/* measurement-bookings routes removed (G-21): System-2 model retired;
+              the backend router is unmounted — these pages 404'd on every call. */}
           <Route path="reviews" element={<ReviewsListPage />} />
           {/* Admin 404 — renders inside the sidebar layout */}
           <Route path="*" element={<NotFoundPage />} />

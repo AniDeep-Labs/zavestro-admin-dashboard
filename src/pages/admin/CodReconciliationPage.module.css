@@ -43,6 +43,13 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
+
+/* Finance confirm modal (G-28/D19) */
+.confirmBody { display: flex; flex-direction: column; gap: 14px; }
+.confirmMeta { margin: 0; font-size: var(--font-size-base); color: var(--color-text-secondary); }
+.confirmLabel { display: flex; flex-direction: column; gap: 6px; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--color-text-primary); }
+.confirmNote { margin: 0; font-size: var(--font-size-sm); color: var(--color-text-tertiary); }
+
 @media (max-width: 900px) {
   .summary { grid-template-columns: repeat(2, 1fr); }
 }

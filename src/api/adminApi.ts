@@ -1554,8 +1554,13 @@ export interface CodDeposit {
   staff_name: string;
   order_count: number;
   total_amount: number;
-  confirmed_at: string | null;
+  confirmed_at: string | null; // ops-side (hub manager) counter-confirm
   confirmed_by_name: string | null;
+  // Finance custody confirm (G-28/D19) — cash verified against the bank.
+  finance_confirmed_at: string | null;
+  finance_confirmed_by_name: string | null;
+  counted_amount: number | null;
+  variance_reason: string | null;
   created_at: string;
 }
 
@@ -1580,6 +1585,21 @@ export const codReconciliationApi = {
     req<CodDeposit[]>(
       `/api/admin/finance/cod-reconciliation?${codReconciliationQs(params)}`,
     ),
+
+  // Finance confirms a deposit against the bank (G-28/D19). A counted amount that
+  // differs from the declared total REQUIRES a variance reason (server-enforced).
+  confirm: async (
+    depositId: string,
+    countedAmount: number,
+    varianceReason?: string,
+  ): Promise<void> =>
+    req(`/api/admin/cod-deposits/${depositId}/confirm`, {
+      method: "POST",
+      body: JSON.stringify({
+        counted_amount: countedAmount,
+        ...(varianceReason ? { variance_reason: varianceReason } : {}),
+      }),
+    }),
 
   // Streams a CSV file from the server and triggers a browser download.
   downloadCsv: async (params: CodReconciliationParams = {}): Promise<void> => {
@@ -2393,6 +2413,12 @@ export const adminAuthExtApi = {
     role: string;
     hubId?: string | null;
     capabilities: string[];
+    // Own-profile fields (best-effort server-side; may be null on older backends)
+    email?: string | null;
+    name?: string | null;
+    isActive?: boolean | null;
+    lastLoginAt?: string | null;
+    hasSecurityQuestion?: boolean | null;
   }> => req("/api/admin/auth/me"),
 
   setupSecurityQuestion: async (
@@ -2439,52 +2465,8 @@ export const adminAuthExtApi = {
     }),
 };
 
-// ─── Craftspeople ─────────────────────────────────────────────────────────────
-
-export interface Craftsperson {
-  id: string;
-  name: string;
-  role: string;
-  bio: string;
-  photo_key: string | null;
-  public_photo_url: string | null;
-  years_experience: number | null;
-}
-
-const normalizeCraftspeople = (data: unknown): Craftsperson[] => {
-  if (Array.isArray(data)) return data;
-  if (!data || typeof data !== "object") return [];
-
-  const response = data as {
-    craftspeople?: unknown;
-    items?: unknown;
-    results?: unknown;
-    data?: unknown;
-  };
-
-  if (Array.isArray(response.craftspeople)) return response.craftspeople;
-  if (Array.isArray(response.items)) return response.items;
-  if (Array.isArray(response.results)) return response.results;
-  if (Array.isArray(response.data)) return response.data;
-
-  return [];
-};
-
-export const craftspeopleApi = {
-  list: async (): Promise<Craftsperson[]> => {
-    const data = await req<unknown>("/api/admin/craftspeople");
-    return normalizeCraftspeople(data);
-  },
-
-  updateStory: async (
-    id: string,
-    data: { bio?: string; years_experience?: number },
-  ): Promise<Craftsperson> =>
-    req<Craftsperson>(`/api/admin/craftspeople/${id}/story`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
-};
+// (Craftspeople API removed — G-20: the artisan-brand model is retired; hub staff
+// are managed via staffApi, and storytelling moved to the order tracker.)
 
 // ─── Hub Staff ────────────────────────────────────────────────────────────────
 
@@ -2843,263 +2825,7 @@ export const hubStaffGlobalApi = {
   },
 };
 
-// ─── Measurement Bookings ─────────────────────────────────────────────────────
-
-export interface MeasurementBookingItem {
-  id: string;
-  booking_id: string;
-  garment_type_id: string;
-  garment_type_name?: string;
-  garment_type_slug?: string;
-  garment_category?: string;
-  required_measurements?: string[];
-  measurement_labels?: Record<string, string>;
-  measurement_guide_notes?: Record<string, string>;
-  variant_label: string | null;
-  fit_preference_id: string | null;
-  fit_preference_name?: string | null;
-  fit_preference_slug?: string | null;
-  fit_notes: string | null;
-  linked_product_id: string | null;
-  measurement_status: "pending" | "in_progress" | "completed" | "skipped";
-  sort_order: number;
-  // Measurement data from garment_measurements
-  measurement_id?: string | null;
-  measurements_data?: Record<string, number> | null;
-  measurement_notes?: string | null;
-  finalized_at?: string | null;
-  taken_by_staff_id?: string | null;
-  taken_by_staff_name?: string | null;
-  // Legacy individual columns (backward compat)
-  chest?: number | null;
-  waist?: number | null;
-  hips?: number | null;
-  shoulders?: number | null;
-  sleeve_length?: number | null;
-  neck?: number | null;
-  inseam?: number | null;
-}
-
-export interface MeasurementBookingMeasurement {
-  id: string;
-  booking_item_id: string;
-  taken_by_staff_id: string | null;
-  measurements_data: Record<string, number> | null;
-  staff_notes: string | null;
-  finalized_at: string | null;
-  created_at: string;
-}
-
-export interface MeasurementBooking {
-  id: string;
-  reference_id?: string;
-  booking_ref: string;
-  user_id: string;
-  customer_name?: string;
-  customer_phone?: string;
-  customer_email?: string;
-  customer_ref?: string;
-  home_visit_id: string | null;
-  source_order_id: string | null;
-  assigned_staff_id: string | null;
-  assigned_staff_name?: string | null;
-  assigned_staff_role?: string | null;
-  assigned_staff_phone?: string | null;
-  status: "draft" | "confirmed" | "in_progress" | "completed" | "cancelled";
-  scheduled_at: string | null;
-  completed_at: string | null;
-  notes: string | null;
-  admin_notes: string | null;
-  items?: MeasurementBookingItem[];
-  item_count?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface MeasurementBookingsResponse {
-  bookings: MeasurementBooking[];
-  total: number;
-  page: number;
-  totalPages: number;
-}
-
-export interface CustomerMeasurementProfile {
-  id: string;
-  user_id: string;
-  garment_type_id: string;
-  garment_type_name: string;
-  garment_type_slug: string;
-  required_measurements: string[];
-  measurement_labels: Record<string, string>;
-  fit_preference_id: string | null;
-  fit_preference_name: string | null;
-  measurement_data: Record<string, number>;
-  source_booking_item_id: string | null;
-  source_booking_ref: string | null;
-  source_booking_id: string | null;
-  taken_at: string | null;
-  taken_by_staff_id: string | null;
-  taken_by_staff_name: string | null;
-  updated_at: string;
-}
-
-export const measurementBookingsApi = {
-  list: async (
-    params: {
-      user_id?: string;
-      status?: string;
-      date_from?: string;
-      date_to?: string;
-      page?: number;
-      limit?: number;
-    } = {},
-  ): Promise<MeasurementBookingsResponse> => {
-    const qs = new URLSearchParams();
-    if (params.user_id) qs.set("user_id", params.user_id);
-    if (params.status) qs.set("status", params.status);
-    if (params.date_from) qs.set("date_from", params.date_from);
-    if (params.date_to) qs.set("date_to", params.date_to);
-    if (params.page) qs.set("page", String(params.page));
-    if (params.limit) qs.set("limit", String(params.limit));
-    return req<MeasurementBookingsResponse>(
-      `/api/admin/measurement-bookings?${qs}`,
-    );
-  },
-
-  get: async (id: string): Promise<MeasurementBooking> =>
-    req<MeasurementBooking>(`/api/admin/measurement-bookings/${id}`),
-
-  create: async (data: {
-    user_id: string;
-    home_visit_id?: string;
-    scheduled_at?: string;
-    notes?: string;
-    admin_notes?: string;
-    items: {
-      garment_type_id: string;
-      variant_label: string;
-      fit_preference_id: string;
-      fit_notes?: string;
-      linked_product_id?: string;
-      sort_order?: number;
-    }[];
-  }): Promise<{
-    booking: MeasurementBooking;
-    items: MeasurementBookingItem[];
-  }> =>
-    req<{ booking: MeasurementBooking; items: MeasurementBookingItem[] }>(
-      "/api/admin/measurement-bookings",
-      { method: "POST", body: JSON.stringify(data) },
-    ),
-
-  update: async (
-    id: string,
-    data: {
-      status?: string;
-      notes?: string;
-      admin_notes?: string;
-      scheduled_at?: string;
-    },
-  ): Promise<MeasurementBooking> =>
-    req<MeasurementBooking>(`/api/admin/measurement-bookings/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
-
-  updateStatus: async (
-    id: string,
-    status: string,
-  ): Promise<MeasurementBooking> =>
-    req<MeasurementBooking>(`/api/admin/measurement-bookings/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ status }),
-    }),
-
-  addItem: async (
-    id: string,
-    item: {
-      garment_type_id: string;
-      variant_label: string;
-      fit_preference_id: string;
-      fit_notes?: string;
-      linked_product_id?: string;
-    },
-  ): Promise<MeasurementBookingItem> =>
-    req<MeasurementBookingItem>(`/api/admin/measurement-bookings/${id}/items`, {
-      method: "POST",
-      body: JSON.stringify(item),
-    }),
-
-  updateItem: async (
-    id: string,
-    itemId: string,
-    data: Partial<
-      Pick<
-        MeasurementBookingItem,
-        | "measurement_status"
-        | "fit_preference_id"
-        | "fit_notes"
-        | "variant_label"
-      >
-    >,
-  ): Promise<MeasurementBookingItem> =>
-    req<MeasurementBookingItem>(
-      `/api/admin/measurement-bookings/${id}/items/${itemId}`,
-      { method: "PATCH", body: JSON.stringify(data) },
-    ),
-
-  deleteItem: async (id: string, itemId: string): Promise<void> =>
-    req<void>(`/api/admin/measurement-bookings/${id}/items/${itemId}`, {
-      method: "DELETE",
-    }),
-
-  saveMeasurements: async (
-    id: string,
-    itemId: string,
-    measurements: Record<string, number>,
-    taken_by_staff_id?: string,
-    staff_notes?: string,
-  ): Promise<MeasurementBookingMeasurement> =>
-    req<MeasurementBookingMeasurement>(
-      `/api/admin/measurement-bookings/${id}/items/${itemId}/measurements`,
-      {
-        method: "POST",
-        body: JSON.stringify({ measurements, taken_by_staff_id, staff_notes }),
-      },
-    ),
-
-  finalizeItem: async (
-    id: string,
-    itemId: string,
-  ): Promise<{ finalized: boolean }> =>
-    req<{ finalized: boolean }>(
-      `/api/admin/measurement-bookings/${id}/items/${itemId}/finalize`,
-      { method: "POST" },
-    ),
-
-  assignStaff: async (
-    id: string,
-    staff_id: string | null,
-  ): Promise<MeasurementBooking> =>
-    req<MeasurementBooking>(
-      `/api/admin/measurement-bookings/${id}/assign-staff`,
-      { method: "POST", body: JSON.stringify({ staff_id }) },
-    ),
-
-  complete: async (id: string): Promise<MeasurementBooking> =>
-    req<MeasurementBooking>(`/api/admin/measurement-bookings/${id}/complete`, {
-      method: "POST",
-    }),
-};
-
-export const customerMeasurementProfilesApi = {
-  get: async (
-    userId: string,
-  ): Promise<{ profiles: CustomerMeasurementProfile[]; history: unknown[] }> =>
-    req<{ profiles: CustomerMeasurementProfile[]; history: unknown[] }>(
-      `/api/admin/users/${userId}/measurement-profiles`,
-    ),
-};
+// (Measurement-bookings API removed — G-21: System-2 retired, backend router unmounted.)
 
 // ─── Fit Profiles (self-input / quiz) ─────────────────────────────────────────
 

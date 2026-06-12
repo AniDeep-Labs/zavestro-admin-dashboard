@@ -226,8 +226,8 @@ const SECTIONS: NavSection[] = [
         path: "/admin/content",
         cap: "cms:write",
         children: [
+          // "Craftspeople" removed (G-20): artisan-brand model retired with the dark-store.
           { label: "Lookbook", path: "/admin/content/lookbook" },
-          { label: "Craftspeople", path: "/admin/content/craftspeople" },
           { label: "Stories", path: "/admin/content/stories" },
           { label: "Journal", path: "/admin/content/journal" },
         ],
