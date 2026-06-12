@@ -375,6 +375,12 @@ const SECTIONS: NavSection[] = [
         cap: "system:manage",
       },
       {
+        label: "Ops Staff",
+        icon: <UilUsersAlt size={18} />,
+        path: "/admin/system/staff",
+        cap: "staff:manage",
+      },
+      {
         label: "System",
         icon: <UilSetting size={18} />,
         path: "/admin/system",
