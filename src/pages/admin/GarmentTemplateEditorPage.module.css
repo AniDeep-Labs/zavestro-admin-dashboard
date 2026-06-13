@@ -235,3 +235,14 @@
   padding: var(--spacing-md) 0;
   background: linear-gradient(transparent, var(--color-bg) 40%);
 }
+
+/* W-10: completeness meter + dirty badge */
+.titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.dirtyBadge { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--status-qc-fg); }
+.meter {
+  margin: 8px 0 16px; padding: 8px 14px; border-radius: var(--radius-md);
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-medium);
+}
+.meterReady { background: var(--status-done-bg); border: 1px solid var(--status-done-border); color: var(--status-done-fg); }
+.meterIncomplete { background: var(--status-qc-bg); border: 1px solid var(--status-qc-border); color: var(--status-qc-fg); }
+.meterHint { font-weight: var(--font-weight-regular); opacity: 0.9; }

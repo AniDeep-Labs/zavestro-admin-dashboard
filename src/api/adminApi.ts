@@ -1414,6 +1414,10 @@ export interface DesignDetail {
   created_at: string;
   updated_at: string;
   fabrics: DesignFabricRef[];
+  // G-34 lifecycle
+  sample_count?: number;
+  has_reviewed_sample?: boolean;
+  live_hub_count?: number;
 }
 
 export interface FabricOption {

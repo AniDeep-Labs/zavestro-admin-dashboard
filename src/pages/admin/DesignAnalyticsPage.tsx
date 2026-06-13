@@ -1,12 +1,15 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { designAnalyticsApi } from '../../api/adminApi';
 import type { FitAccuracyTotals, DesignPerformanceRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { StatusBadge } from '../../components/StatusBadge';
 import styles from './OrdersListPage.module.css';
 import local from './DesignAnalyticsPage.module.css';
 
-const fitCss = (pct: number) => (pct >= 90 ? 'stageSuccess' : pct >= 75 ? 'stageWarning' : 'stageNeutral');
+// FTR-style tone: ≥90 healthy, ≥75 watch, below = problem.
+const fitTone = (pct: number) => (pct >= 90 ? 'done' : pct >= 75 ? 'qc' : 'blocked');
 
 export const DesignAnalyticsPage: React.FC = () => {
   const [totals, setTotals] = React.useState<FitAccuracyTotals | null>(null);
@@ -14,6 +17,7 @@ export const DesignAnalyticsPage: React.FC = () => {
   const [designs, setDesigns] = React.useState<DesignPerformanceRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  const navigate = useNavigate();
   const dismiss = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
 
   React.useEffect(() => {
@@ -70,19 +74,16 @@ export const DesignAnalyticsPage: React.FC = () => {
             ) : designs.length === 0 ? (
               <tr><td colSpan={5} className={styles.empty}>No delivered orders yet — performance appears once designs start selling.</td></tr>
             ) : (
+              // Drill-down (W-10): a row → that design's detail (lifecycle + fabrics + fit).
               designs.map((d) => (
-                <tr key={d.design_id}>
+                <tr key={d.design_id} className={styles.row} onClick={() => navigate(`/admin/design/library/${d.design_id}`)}>
                   <td className={styles.customerName} style={{ fontWeight: 500 }}>{d.design_name}</td>
                   <td className={styles.total} style={{ fontWeight: 600 }}>{d.units}</td>
                   <td>{d.orders}</td>
                   <td style={{ color: d.fit_issue_orders > 0 ? 'var(--color-error)' : 'var(--color-text-secondary)' }}>
                     {d.fit_issue_orders}
                   </td>
-                  <td>
-                    <span className={`${styles.stagePill} ${styles[fitCss(d.fit_accuracy_pct)]}`}>
-                      {d.fit_accuracy_pct}%
-                    </span>
-                  </td>
+                  <td><StatusBadge status={fitTone(d.fit_accuracy_pct)} label={`${d.fit_accuracy_pct}%`} size="sm" /></td>
                 </tr>
               ))
             )}

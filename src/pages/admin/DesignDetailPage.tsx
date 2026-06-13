@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { designsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { DesignDetail } from '../../api/adminApi';
+import { StatusBadge } from '../../components/StatusBadge';
 import { Spinner } from '../../components/Spinner';
 import { Button } from '../../components/Button/Button';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -112,6 +113,25 @@ export const DesignDetailPage: React.FC = () => {
             {design.gender ? ` · ${design.gender}` : ''}
             {design.fit_preset ? ` · ${design.fit_preset} fit` : ''}
           </p>
+          {/* G-34 lifecycle line */}
+          <div className={s.lifecycle}>
+            <StatusBadge
+              status={
+                (design.live_hub_count ?? 0) > 0 ? 'done'
+                  : design.has_reviewed_sample ? 'fit'
+                  : (design.sample_count ?? 0) > 0 ? 'making'
+                  : design.status === 'published' ? 'qc' : 'neutral'
+              }
+              label={
+                (design.live_hub_count ?? 0) > 0 ? `Live · ${design.live_hub_count} hub${design.live_hub_count === 1 ? '' : 's'}`
+                  : design.has_reviewed_sample ? 'Reviewed — ready to list'
+                  : (design.sample_count ?? 0) > 0 ? `Sampled (${design.sample_count})`
+                  : design.status === 'published' ? 'Published, never listed'
+                  : 'Not sampled yet'
+              }
+              size="sm"
+            />
+          </div>
         </div>
         <div className={s.headerActions}>
           <span className={`${base.stagePill} ${base[STATUS_CSS[design.status] ?? 'stageNeutral']}`}>

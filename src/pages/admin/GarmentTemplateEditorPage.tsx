@@ -6,12 +6,18 @@ import { Button } from '../../components/Button/Button';
 import { Spinner } from '../../components/Spinner';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useDirtyGuard } from '../../hooks/useDirtyGuard';
 import base from './OrdersListPage.module.css';
 import s from './GarmentTemplateEditorPage.module.css';
 import { UilArrowLeft, UilTimes, UilPlus } from '@iconscout/react-unicons';
 
 const BASE = '__base__';
 type PainRow = { tag: string; field: string; delta: string };
+
+// Snapshot of the editable state — drives the dirty indicator (compare to load).
+const snap = (
+  captureSet: string[], presets: string[], chart: ChartRow[], pains: PainRow[],
+) => JSON.stringify({ captureSet, presets, chart, pains });
 
 export const GarmentTemplateEditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +36,10 @@ export const GarmentTemplateEditorPage: React.FC = () => {
 
   const [fieldDraft, setFieldDraft] = React.useState('');
   const [presetDraft, setPresetDraft] = React.useState('');
+  // Dirty tracking via a load-time snapshot (no per-setter instrumentation).
+  const [baseline, setBaseline] = React.useState('');
+  const dirty = !loading && baseline !== '' && baseline !== snap(captureSet, presets, chart, pains);
+  useDirtyGuard(dirty);
 
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
@@ -48,11 +58,11 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         setCaptureSet(cs);
         setChart(t.chart);
         const pm = t.pain_point_menu ?? {};
-        setPains(
-          Object.entries(pm).flatMap(([tag, fd]) =>
-            Object.entries(fd).map(([field, delta]) => ({ tag, field, delta: String(delta) })),
-          ),
+        const loadedPains = Object.entries(pm).flatMap(([tag, fd]) =>
+          Object.entries(fd).map(([field, delta]) => ({ tag, field, delta: String(delta) })),
         );
+        setPains(loadedPains);
+        setBaseline(snap(cs, t.available_fit_presets ?? [], t.chart, loadedPains));
       })
       .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
@@ -136,6 +146,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         chart: cleanChart,
       });
       setTpl(saved);
+      setBaseline(snap(captureSet, presets, cleanChart, pains)); // clears dirty
       toast('success', 'Template saved');
     } catch (e) {
       toast('error', 'Save failed', e instanceof Error ? e.message : undefined);
@@ -156,11 +167,33 @@ export const GarmentTemplateEditorPage: React.FC = () => {
 
   const presetTabs = [BASE, ...presets];
 
+  // Completeness (W-10): an incomplete chart starves the fit engine (G-35 note).
+  // Ready = fields defined + ≥1 BASE chart row with measurements.
+  const baseRows = chart.filter((r) => r.fit_preset == null || r.fit_preset === BASE || r.fit_preset === '');
+  const sizedBaseRows = baseRows.filter((r) => r.size_label.trim() && Object.keys(r.measurements).length).length;
+  const ready = fields.length > 0 && sizedBaseRows > 0;
+
   return (
     <div className={base.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
       <Link to="/admin/design/templates" className={s.back}><UilArrowLeft size={16} /> Back to templates</Link>
-      <h1 className={s.title}>{tpl.name} <span className={s.sub}>· template</span></h1>
+      <div className={s.titleRow}>
+        <h1 className={s.title}>{tpl.name} <span className={s.sub}>· template</span></h1>
+        {dirty && <span className={s.dirtyBadge}>● Unsaved changes</span>}
+      </div>
+      {/* Completeness meter — incomplete charts can't drive the engine (G-35). */}
+      <div className={`${s.meter} ${ready ? s.meterReady : s.meterIncomplete}`}>
+        {ready ? '✓ Ready' : '⚠ Incomplete'} ·{' '}
+        {fields.length} field{fields.length === 1 ? '' : 's'} ·{' '}
+        {sizedBaseRows} base size{sizedBaseRows === 1 ? '' : 's'} ·{' '}
+        {presets.length} fit-preset{presets.length === 1 ? '' : 's'} ·{' '}
+        {pains.length} pain-point{pains.length === 1 ? '' : 's'}
+        {!ready && (
+          <span className={s.meterHint}>
+            {fields.length === 0 ? ' — add measurement fields' : ' — add at least one base size with values'}
+          </span>
+        )}
+      </div>
 
       {/* Measurement fields */}
       <section className={s.section}>
