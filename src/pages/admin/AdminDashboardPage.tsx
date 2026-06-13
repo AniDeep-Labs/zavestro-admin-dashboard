@@ -5,6 +5,7 @@ import { dashboardApi, hasCapability } from '../../api/adminApi';
 import type { DashboardData } from '../../api/adminApi';
 import { clearAdminToken } from '../../api/catalogApi';
 import { Sparkline, AreaTrendChart, BarMini, STAGE_COLORS, fmtINRShort } from '../../components/charts/Charts';
+import { ActionInbox } from '../../components/ActionInbox';
 import styles from './AdminDashboardPage.module.css';
 
 /* ── Inline SVG icons (Lucide-style) ── */
@@ -98,9 +99,9 @@ type Accent = 'Emerald' | 'Amber' | 'Red' | 'Gold';
 // `cap` gates each KPI to the roles that should see it (undefined = everyone).
 const kpis: { label: string; key: string; format: (v: number) => string; icon: IconKey; accent: Accent; navPath: string; cap?: string }[] = [
   { label: 'Total Orders',     key: 'totalOrders',     format: v => v.toLocaleString(),                   icon: 'Package',       accent: 'Emerald', navPath: '/admin/orders', cap: 'orders:read' },
-  { label: 'Active Orders',    key: 'activeOrders',    format: v => v.toLocaleString(),                   icon: 'Activity',      accent: 'Emerald', navPath: '/admin/orders', cap: 'orders:read' },
+  { label: 'Active Orders',    key: 'activeOrders',    format: v => v.toLocaleString(),                   icon: 'Activity',      accent: 'Emerald', navPath: '/admin/orders?view=stuck', cap: 'orders:read' },
   { label: 'GMV',              key: 'gmv',             format: v => '₹' + (v / 100000).toFixed(1) + 'L', icon: 'IndianRupee',   accent: 'Emerald', navPath: '/admin/analytics/revenue', cap: 'reports:read' },
-  { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders', cap: 'orders:read' },
+  { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders?stage=pending_payment', cap: 'orders:read' },
   { label: 'Open Tickets',     key: 'openTickets',     format: v => v.toLocaleString(),                   icon: 'Headphones',    accent: 'Red',     navPath: '/admin/support', cap: 'customers:write' },
   { label: 'New Customers',    key: 'newCustomers',    format: v => v.toLocaleString(),                   icon: 'UserPlus',      accent: 'Emerald', navPath: '/admin/users', cap: 'customers:read' },
 ];
@@ -232,6 +233,9 @@ export const AdminDashboardPage: React.FC = () => {
           ) : null}
         </div>
       )}
+
+      {/* What needs me today (role-aware) — leads the page above the vanity stats */}
+      <ActionInbox />
 
       {/* Overview — dark hero panel: title + period toggle + Filter + refresh (TailAdmin flow) */}
       <div className={styles.overviewPanel}>

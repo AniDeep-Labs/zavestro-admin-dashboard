@@ -1813,6 +1813,23 @@ export interface AdminNotification {
   is_read: boolean;
   created_at: string;
 }
+// ─── Nav badge counts / action inbox (FABLE-ADMIN-UIUX §1.2) ──────────────────
+// Keys arrive filtered by the caller's capabilities.
+export interface NavCounts {
+  samples_review?: number;
+  restock_pending?: number;
+  below_reorder?: number;
+  listings_oos?: number;
+  refunds_awaiting?: number;
+  cod_unconfirmed?: number;
+  tickets_open?: number;
+  returns_requested?: number;
+  stuck_orders?: number;
+}
+export const navCountsApi = {
+  get: async (): Promise<NavCounts> => req<NavCounts>("/api/admin/nav-counts"),
+};
+
 export const adminInboxApi = {
   list: async (unreadOnly = false): Promise<AdminNotification[]> =>
     req<{ notifications: AdminNotification[]; unread_count: number }>(
@@ -1938,10 +1955,20 @@ export const fabricsApi = {
       method: "PUT",
       body: JSON.stringify(input),
     }),
-  setActive: async (id: string, is_active: boolean): Promise<Fabric> =>
+  setActive: async (id: string, is_active: boolean, force = false): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics/${id}/active`, {
       method: "PATCH",
-      body: JSON.stringify({ is_active }),
+      body: JSON.stringify({ is_active, ...(force ? { force } : {}) }),
+    }),
+  // G-29: reorder point per fabric×hub (null clears).
+  setReorderPoint: async (
+    hub_id: string,
+    fabric_id: string,
+    reorder_meters: number | null,
+  ): Promise<void> =>
+    req(`/api/admin/fabrics/stock/reorder`, {
+      method: "PATCH",
+      body: JSON.stringify({ hub_id, fabric_id, reorder_meters }),
     }),
   stock: async (params: { hub_id?: string } = {}): Promise<FabricStockRow[]> =>
     req<FabricStockRow[]>(
@@ -1984,6 +2011,10 @@ export interface FabricStockRow {
   fabric_image_keys: string[] | null;
   available_meters: string | number;
   reserved_meters: string | number;
+  /** G-29: per-SKU×hub reorder point (null = unset) */
+  reorder_meters: string | number | null;
+  /** ₹/m from the fabrics master — stock value = available × this */
+  price_per_meter: string | number | null;
   updated_at: string;
 }
 
@@ -1997,6 +2028,8 @@ export interface Distribution {
   sample_qty: string | number;
   sellable_qty: string | number;
   status: "pushed" | "received" | "cancelled";
+  received_meters?: string | number | null;
+  variance_reason?: string | null;
   created_at: string;
   updated_at: string;
   design_name: string;
@@ -2029,8 +2062,18 @@ export const distributionApi = {
     }),
   receive: async (
     id: string,
+    // G-30: record what actually arrived; variance > 5% needs a reason.
+    opts: { actual_meters?: number; variance_reason?: string } = {},
   ): Promise<{ id: string; stocked_meters: number }> =>
-    req(`/api/admin/distribution/${id}/receive`, { method: "POST" }),
+    req(`/api/admin/distribution/${id}/receive`, {
+      method: "POST",
+      body: JSON.stringify(opts),
+    }),
+  cancel: async (id: string, reason?: string): Promise<{ id: string }> =>
+    req(`/api/admin/distribution/${id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify(reason ? { reason } : {}),
+    }),
 };
 
 // ─── Restock (catalog_manager requests; procurement ships/fulfils) ────────────
@@ -2187,6 +2230,8 @@ export interface CmListing {
   meters_per_garment?: string | number | null;
   in_stock?: boolean;
   available_meters?: string | number | null;
+  // G-26: fabric ₹/m → cost floor = price_per_meter × meters_per_garment + make + overhead.
+  price_per_meter?: string | number | null;
 }
 export interface ReadyToListSample {
   sample_id: string;

@@ -84,6 +84,7 @@
 }
 
 .navItem {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -435,4 +436,28 @@
 @media (max-width: 768px) {
   .sidebar { display: none; }
   .content { padding: 16px; }
+}
+
+/* Nav badge counts (FABLE-ADMIN-UIUX §1.2) */
+.navBadge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-error);
+  color: var(--color-on-accent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+.navBadgeDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-error);
 }

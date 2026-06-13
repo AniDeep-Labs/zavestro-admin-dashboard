@@ -63,6 +63,7 @@
   --color-warning: #E4952A;
   --color-info: #4B8DC8;
   --color-disabled: #A8A59F;
+  --color-on-accent: #FFFFFF; /* text/icon on solid accent fills (badges, primary buttons) */
 
   /* STATUS VOCABULARY TONES (StatusBadge — FABLE-ADMIN-UIUX §2.1)
      One tone per meaning: fit / making / qc / transit / done / blocked. */

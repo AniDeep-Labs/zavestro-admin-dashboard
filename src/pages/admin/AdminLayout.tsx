@@ -8,7 +8,9 @@ import {
   getAdminCapabilities,
   setAdminCapabilities,
   adminAuthExtApi,
+  navCountsApi,
 } from "../../api/adminApi";
+import type { NavCounts } from "../../api/adminApi";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary";
 import { Spinner } from "../../components/Spinner";
 import {
@@ -448,6 +450,34 @@ const AdminLayoutInner: React.FC = () => {
     };
   }, []);
 
+  // Nav badge counts (FABLE-ADMIN-UIUX §1.2) — "what needs me" per nav item.
+  // Keyed by item path; the endpoint already returns only cap-allowed keys.
+  const [navCounts, setNavCounts] = React.useState<NavCounts>({});
+  React.useEffect(() => {
+    let alive = true;
+    const load = () =>
+      navCountsApi.get().then((c) => { if (alive) setNavCounts(c); }).catch(() => {});
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+  const NAV_BADGE: Record<string, keyof NavCounts> = {
+    "/admin/orders": "stuck_orders",
+    "/admin/design/samples": "samples_review",
+    "/admin/procurement/restock": "restock_pending",
+    "/admin/procurement/stock": "below_reorder",
+    "/admin/catalog/listings": "listings_oos",
+    "/admin/finance/refunds": "refunds_awaiting",
+    "/admin/finance/cod-reconciliation": "cod_unconfirmed",
+    "/admin/support": "tickets_open",
+    "/admin/returns": "returns_requested",
+  };
+  const badgeFor = (path: string): number | undefined => {
+    const key = NAV_BADGE[path];
+    const n = key ? navCounts[key] : undefined;
+    return n && n > 0 ? n : undefined;
+  };
+
   const canSee = (item: NavItem) => !item.cap || caps.includes(item.cap);
   // Legacy `admin` = unchanged god-mode (sees all). super_admin = oversight-only:
   // role-owned operating consoles (Design, Catalog) are hidden — super gets
@@ -537,6 +567,7 @@ const AdminLayoutInner: React.FC = () => {
         </div>
       );
     }
+    const badge = badgeFor(item.path);
     return (
       <button
         key={item.path}
@@ -546,6 +577,12 @@ const AdminLayoutInner: React.FC = () => {
       >
         <span className={styles.navIcon}>{item.icon}</span>
         {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
+        {badge !== undefined &&
+          (collapsed ? (
+            <span className={styles.navBadgeDot} aria-label={`${badge} need attention`} />
+          ) : (
+            <span className={styles.navBadge}>{badge > 99 ? "99+" : badge}</span>
+          ))}
       </button>
     );
   };

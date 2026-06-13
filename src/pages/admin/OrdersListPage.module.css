@@ -204,3 +204,30 @@
   border-color: var(--color-primary);
   color: #FFFFFF;
 }
+
+/* Cross-hub stock (supply brain — G-29) */
+.stockZero { color: var(--color-error); }
+.stockLow { color: var(--status-qc-fg); }
+.reorderBtn {
+  border: 1px dashed var(--color-border);
+  background: none;
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.reorderBtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.reorderEdit { display: inline-flex; gap: 6px; align-items: center; }
+.reorderInput {
+  width: 72px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+}

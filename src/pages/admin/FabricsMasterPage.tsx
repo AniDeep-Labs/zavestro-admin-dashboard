@@ -5,6 +5,7 @@ import type { Fabric, FabricInput } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { Modal } from '../../components/Modal/Modal';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Spinner } from '../../components/Spinner';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -110,13 +111,39 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
     }
   };
 
+  // G-9: deactivating an in-use fabric 409s with the blast radius; the operator
+  // must read it and confirm before we retry with force.
+  const [forceTarget, setForceTarget] = React.useState<{ fabric: Fabric; blast: string } | null>(null);
+  const [forcing, setForcing] = React.useState(false);
+
   const toggleActive = async (f: Fabric, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await fabricsApi.setActive(f.id, !f.is_active);
       setFabrics((xs) => xs.map((x) => (x.id === f.id ? { ...x, is_active: !f.is_active } : x)));
     } catch (err) {
-      toast('error', 'Update failed', err instanceof Error ? err.message : undefined);
+      const msg = err instanceof Error ? err.message : '';
+      // we were deactivating and the server reported the blast radius (409 FABRIC_IN_USE)
+      if (f.is_active && msg.includes('in use')) {
+        setForceTarget({ fabric: f, blast: msg });
+      } else {
+        toast('error', 'Update failed', msg || undefined);
+      }
+    }
+  };
+
+  const forceDeactivate = async () => {
+    if (!forceTarget) return;
+    setForcing(true);
+    try {
+      await fabricsApi.setActive(forceTarget.fabric.id, false, true);
+      setFabrics((xs) => xs.map((x) => (x.id === forceTarget.fabric.id ? { ...x, is_active: false } : x)));
+      toast('success', 'Fabric deactivated', 'Its live listings are now unservable — review them.');
+      setForceTarget(null);
+    } catch (err) {
+      toast('error', 'Deactivate failed', err instanceof Error ? err.message : undefined);
+    } finally {
+      setForcing(false);
     }
   };
 
@@ -222,6 +249,17 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
           </div>
         </div>
       </Modal>
+
+      {/* G-9: blast-radius confirm before force-deactivating an in-use fabric */}
+      <ConfirmDialog
+        open={!!forceTarget}
+        title={`Deactivate ${forceTarget?.fabric.name ?? 'fabric'}?`}
+        message={forceTarget ? `${forceTarget.blast} This cannot be undone from here without re-activating the fabric.` : ''}
+        confirmLabel="Deactivate anyway"
+        loading={forcing}
+        onConfirm={forceDeactivate}
+        onCancel={() => setForceTarget(null)}
+      />
     </div>
   );
 };
