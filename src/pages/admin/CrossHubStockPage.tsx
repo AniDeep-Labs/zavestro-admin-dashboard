@@ -120,11 +120,14 @@ export const CrossHubStockPage: React.FC = () => {
               </td>
               <td><MoneyCell amount={value(r)} /></td>
               <td>
+                {/* below-reorder → push more (create distribution); dead stock is
+                    OVER-supply → reviewing the movement ledger is the right action,
+                    not pushing more in. */}
                 <button
                   className={styles.exportBtn}
-                  onClick={(e) => { e.stopPropagation(); createDistribution(r); }}
+                  onClick={(e) => { e.stopPropagation(); (kind === 'reorder' ? createDistribution : openLedger)(r); }}
                 >
-                  {kind === 'reorder' ? 'Create distribution →' : 'Review / restock →'}
+                  {kind === 'reorder' ? 'Create distribution →' : 'Review movement →'}
                 </button>
               </td>
             </tr>

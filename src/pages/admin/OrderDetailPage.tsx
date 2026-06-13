@@ -751,9 +751,13 @@ export const OrderDetailPage: React.FC = () => {
       showToast("error", "Add a reason for the re-measure");
       return;
     }
+    if (!order.user_id) {
+      showToast("error", "This order has no linked customer");
+      return;
+    }
     setRequestingRemeasure(true);
     try {
-      await usersApi.requestRemeasure(order.user_id ?? "", {
+      await usersApi.requestRemeasure(order.user_id, {
         reason: remeasureReason.trim(),
         order_id: order.uuid ?? order.id,
         ...(order.fit_profile_id ? { fit_profile_id: order.fit_profile_id } : {}),
