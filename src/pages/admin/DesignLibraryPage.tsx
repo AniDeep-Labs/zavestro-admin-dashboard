@@ -8,6 +8,17 @@ import base from './OrdersListPage.module.css';
 import styles from './SampleVerificationPage.module.css';
 import { UilImage, UilAngleRightB, UilLayerGroup, UilPlus } from '@iconscout/react-unicons';
 import { Button } from '../../components/Button/Button';
+import { StatusBadge } from '../../components/StatusBadge';
+
+// G-34 lifecycle chip: where is this design in its life? (sampled → reviewed → live)
+function lifecycle(d: DesignSummary): { status: string; label: string } | null {
+  if ((d.live_hub_count ?? 0) > 0)
+    return { status: 'done', label: `Live · ${d.live_hub_count} hub${d.live_hub_count === 1 ? '' : 's'}` };
+  if (d.has_reviewed_sample) return { status: 'fit', label: 'Reviewed — ready to list' };
+  if ((d.sample_count ?? 0) > 0) return { status: 'making', label: 'Sampled' };
+  if (d.status === 'published') return { status: 'qc', label: 'Never listed' }; // dead design
+  return null;
+}
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
@@ -34,6 +45,7 @@ export const DesignLibraryPage: React.FC = () => {
   const [status, setStatus] = React.useState('');
   const [gender, setGender] = React.useState('');
   const [search, setSearch] = React.useState('');
+  const [deadOnly, setDeadOnly] = React.useState(false); // G-34: published, never listed
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -83,6 +95,13 @@ export const DesignLibraryPage: React.FC = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <button
+          className={`${base.viewChip} ${deadOnly ? base.viewChipActive : ''}`}
+          onClick={() => setDeadOnly((v) => !v)}
+          title="Published designs that aren't listed at any hub"
+        >
+          Published, never listed
+        </button>
       </div>
 
       {loading ? (
@@ -97,12 +116,17 @@ export const DesignLibraryPage: React.FC = () => {
             </div>
           ))}
         </div>
-      ) : designs.length === 0 ? (
-        <div className={styles.emptyState}>No designs yet.</div>
-      ) : (
+      ) : (() => {
+        const shown = deadOnly
+          ? designs.filter((d) => d.status === 'published' && (d.live_hub_count ?? 0) === 0)
+          : designs;
+        if (shown.length === 0)
+          return <div className={styles.emptyState}>{deadOnly ? 'No published-but-unlisted designs ✓' : 'No designs yet.'}</div>;
+        return (
         <div className={styles.grid}>
-          {designs.map((d) => {
+          {shown.map((d) => {
             const cover = photoUrl(d.cover_key);
+            const lc = lifecycle(d);
             return (
               <Link key={d.id} to={`/admin/design/library/${d.id}`} className={styles.card}>
                 <div className={styles.thumb}>
@@ -127,6 +151,11 @@ export const DesignLibraryPage: React.FC = () => {
                     {d.gender ? ` · ${d.gender}` : ''}
                     {d.fit_preset ? ` · ${d.fit_preset}` : ''}
                   </div>
+                  {lc && (
+                    <div className={styles.lifecycleRow}>
+                      <StatusBadge status={lc.status} label={lc.label} size="sm" />
+                    </div>
+                  )}
                   {d.fabric_swatches && d.fabric_swatches.length > 0 && (
                     <div className={styles.swatchChips}>
                       {d.fabric_swatches.slice(0, 5).map((k, i) => (
@@ -149,7 +178,8 @@ export const DesignLibraryPage: React.FC = () => {
             );
           })}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

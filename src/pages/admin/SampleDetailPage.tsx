@@ -109,7 +109,29 @@ export const SampleDetailPage: React.FC = () => {
     try {
       await sampleJobsApi.review(sample.id);
       setSample({ ...sample, status: 'reviewed' });
-      showToast('success', 'Marked reviewed', 'The catalog manager can now list it.');
+      showToast('success', 'Approved', 'The catalog manager can now list it (D13).');
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setActing(false);
+    }
+  };
+
+  // "Needs changes" — reject with a reason (D13: a rejected sample can't be listed).
+  const [showReject, setShowReject] = React.useState(false);
+  const [rejectReason, setRejectReason] = React.useState('');
+  const rejectSample = async () => {
+    if (!sample || !rejectReason.trim()) {
+      showToast('error', 'Add what needs changing');
+      return;
+    }
+    setActing(true);
+    try {
+      await sampleJobsApi.reject(sample.id, rejectReason.trim());
+      setSample({ ...sample, status: 'rejected', rejection_reason: rejectReason.trim() });
+      setShowReject(false);
+      setRejectReason('');
+      showToast('success', 'Sent back', 'Marked needs-changes — a fresh sample can be requested.');
     } catch (e) {
       showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
     } finally {
@@ -349,8 +371,39 @@ export const SampleDetailPage: React.FC = () => {
       {sample.status === 'design_review' && (
         <div className={styles.actionBar}>
           <Button variant="primary" state={acting ? 'loading' : 'default'} onClick={markReviewed}>
-            <UilCheckCircle size={16} /> Mark reviewed
+            <UilCheckCircle size={16} /> Approve — ready to list
           </Button>
+          <Button variant="ghost" state={acting ? 'loading' : 'default'} onClick={() => setShowReject(true)}>
+            Needs changes
+          </Button>
+        </div>
+      )}
+      {sample.status === 'rejected' && sample.rejection_reason && (
+        <div className={styles.rejectedNote}>Needs changes: {sample.rejection_reason}</div>
+      )}
+
+      {showReject && (
+        <div className={styles.modalOverlay} onClick={() => setShowReject(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>What needs changing?</h3>
+            <p className={styles.modalNote}>
+              This marks the sample rejected — it can't be listed (D13). Request a fresh
+              sample once the fix is made.
+            </p>
+            <textarea
+              className={styles.rejectInput}
+              rows={3}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g., Collar sits high — re-cut to the spec; topstitch uneven on the placket"
+            />
+            <div className={styles.modalActions}>
+              <Button variant="ghost" onClick={() => setShowReject(false)}>Cancel</Button>
+              <Button variant="primary" state={acting ? 'loading' : 'default'} onClick={rejectSample}>
+                Send back
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

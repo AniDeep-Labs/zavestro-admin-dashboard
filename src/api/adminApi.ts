@@ -1329,9 +1329,16 @@ export const sampleJobsApi = {
   get: async (id: string): Promise<SampleJobDetail> =>
     req<SampleJobDetail>(`/api/admin/sample-jobs/${id}`),
 
-  // Advisory review: mark the sample 'reviewed' (non-blocking; no reject).
+  // Approve: mark the sample 'reviewed' — satisfies the D13 listing gate.
   review: async (id: string): Promise<SampleJob> =>
     req<SampleJob>(`/api/admin/sample-jobs/${id}/review`, { method: "POST" }),
+
+  // Needs changes: reject with a reason (status='rejected'; can't be listed).
+  reject: async (id: string, reason: string): Promise<SampleJob> =>
+    req<SampleJob>(`/api/admin/sample-jobs/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
 
   addComment: async (id: string, body: string): Promise<SampleComment> =>
     req<SampleComment>(`/api/admin/sample-jobs/${id}/comments`, {
@@ -1369,6 +1376,10 @@ export interface DesignSummary {
   fabric_count: number;
   fabric_swatches?: string[];
   cover_key: string | null;
+  // G-34 lifecycle
+  sample_count?: number;
+  has_reviewed_sample?: boolean;
+  live_hub_count?: number;
   updated_at: string;
 }
 
