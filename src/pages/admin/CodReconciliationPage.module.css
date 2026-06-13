@@ -53,3 +53,6 @@
 @media (max-width: 900px) {
   .summary { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* shared by Fit Outcomes (W-12) */
+.subHeading { font-size: 1.1rem; font-weight: var(--font-weight-bold); color: var(--color-text-primary); margin: 8px 0; }

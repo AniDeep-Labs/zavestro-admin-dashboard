@@ -361,6 +361,12 @@ const SECTIONS: NavSection[] = [
         ],
       },
       {
+        label: "Fit Outcomes",
+        icon: <UilRuler size={18} />,
+        path: "/admin/fit-outcomes",
+        cap: "reports:read",
+      },
+      {
         label: "Notification Blast",
         icon: <UilMegaphone size={18} />,
         path: "/admin/notifications",

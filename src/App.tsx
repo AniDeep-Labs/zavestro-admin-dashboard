@@ -183,6 +183,10 @@ const SystemHealthPage = lazyPage(
   () => import("./pages/admin/SystemHealthPage"),
   "SystemHealthPage",
 );
+const FitOutcomesPage = lazyPage(
+  () => import("./pages/admin/FitOutcomesPage"),
+  "FitOutcomesPage",
+);
 const AdminProfilePage = lazyPage(
   () => import("./pages/admin/AdminProfilePage"),
   "AdminProfilePage",
@@ -341,6 +345,7 @@ function App() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="support" element={<SupportListPage />} />
           <Route path="fit-feedback" element={<FitFeedbackPage />} />
+          <Route path="fit-outcomes" element={<FitOutcomesPage />} />
           <Route path="support/:id" element={<TicketDetailPage />} />
           <Route path="system/app-config" element={<AppConfigPage />} />
           <Route path="system/audit-log" element={<AuditLogPage />} />

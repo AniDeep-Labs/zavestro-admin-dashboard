@@ -1982,6 +1982,36 @@ export const designAnalyticsApi = {
     ),
 };
 
+// W-12 (SOLUTIONS P1): the fit-outcome / FTR master metric.
+export interface FitOutcomeSummary {
+  delivered: number;
+  perfect: number;
+  ok: number;
+  poor: number;
+  altered: number;
+  refunded: number;
+  no_response: number;
+  ftr_pct: number | null;
+  alteration_pct: number | null;
+  refund_pct: number | null;
+  response_pct: number | null;
+}
+export interface FitOutcomes {
+  overall: FitOutcomeSummary;
+  by_hub: (FitOutcomeSummary & { hub_id: string | null; hub_name: string | null })[];
+  note: string;
+}
+export const fitOutcomesApi = {
+  get: async (params: { hub_id?: string; start_date?: string; end_date?: string } = {}): Promise<FitOutcomes> => {
+    const qs = new URLSearchParams();
+    if (params.hub_id) qs.set('hub_id', params.hub_id);
+    if (params.start_date) qs.set('start_date', params.start_date);
+    if (params.end_date) qs.set('end_date', params.end_date);
+    const q = qs.toString();
+    return req<FitOutcomes>(`/api/admin/analytics/fit-outcomes${q ? `?${q}` : ''}`);
+  },
+};
+
 // ─── Fabrics Master (procurement) ─────────────────────────────────────────────
 
 export interface Fabric {
