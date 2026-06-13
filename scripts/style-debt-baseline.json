@@ -52,7 +52,7 @@
   "src/pages/admin/DistributionPage.tsx": 3,
   "src/pages/admin/FabricsMasterPage.module.css": 2,
   "src/pages/admin/FinanceReportPage.tsx": 3,
-  "src/pages/admin/FitFeedbackPage.tsx": 4,
+  "src/pages/admin/FitFeedbackPage.tsx": 3,
   "src/pages/admin/GarmentTemplateEditorPage.module.css": 1,
   "src/pages/admin/GarmentTypeTemplatesPage.tsx": 8,
   "src/pages/admin/HomeSectionsPage.tsx": 12,

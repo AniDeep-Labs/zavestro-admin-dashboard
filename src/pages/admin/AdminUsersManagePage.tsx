@@ -22,6 +22,17 @@ const ROLE_LABELS: Record<string, string> = {
   analyst: 'Analyst',
 };
 
+// W-18: human-readable capability summary per role (mirrors backend permissions.ts).
+// Shown when creating an admin so the grant is understood, not guessed.
+const ROLE_CAP_SUMMARY: Record<string, string> = {
+  design: 'Designs + fabric match, sample review/verdict, fit analytics (read).',
+  procurement: 'Fabrics master, distribution to hubs, restock fulfilment, reports.',
+  catalog_manager: 'Listings + pricing + storefront CMS (their hub), restock requests, samples.',
+  support: 'Orders (CX: notes/hold/cancel/link-fit/re-measure), customers + credits (≤₹500), returns, reviews.',
+  finance: 'Refunds, COD confirmation, invoices, settlement/P&L (read). No floor or catalog writes.',
+  super_admin: 'Everything — hubs, staff, config, break-glass overrides, DPDP erasure. Oversight, not daily ops.',
+};
+
 export const AdminUsersManagePage: React.FC = () => {
   const [users, setUsers] = React.useState<AdminUser[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -349,6 +360,8 @@ export const AdminUsersManagePage: React.FC = () => {
                   <option value="finance">Finance</option>
                   <option value="super_admin">Super Admin</option>
                 </select>
+                {/* W-18: what this role can actually do (mirrors permissions.ts) */}
+                <p className={styles.roleCaps}>{ROLE_CAP_SUMMARY[newRole]}</p>
               </div>
               {newRole !== 'super_admin' && (
                 <div className={styles.field}>

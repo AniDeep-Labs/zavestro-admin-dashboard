@@ -1,9 +1,14 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fitFeedbackApi } from '../../api/adminApi';
 import type { FitFeedbackEntry } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { StatusBadge } from '../../components/StatusBadge';
 import styles from './OrdersListPage.module.css';
+
+// Fit-Promise radar (W-17): a ≤2 rating is a fit failure that needs rescue.
+const fitTone = (n: number) => (n >= 4 ? 'done' : n <= 2 ? 'blocked' : 'qc');
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -11,6 +16,7 @@ const fmtDate = (d: string) =>
 const areaLabel = (k: string, v: number) => `${k.replace(/_/g, ' ')} ${v < 0 ? 'tight' : 'loose'}`;
 
 export const FitFeedbackPage: React.FC = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = React.useState<FitFeedbackEntry[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -19,7 +25,8 @@ export const FitFeedbackPage: React.FC = () => {
   React.useEffect(() => {
     fitFeedbackApi
       .list()
-      .then(setRows)
+      // Failures first — worst fits lead so support sees what to rescue.
+      .then((data) => setRows([...data].sort((a, b) => a.overall_fit - b.overall_fit)))
       .catch((e) =>
         setToasts((t) => [
           ...t,
@@ -46,13 +53,14 @@ export const FitFeedbackPage: React.FC = () => {
               <th>Areas off</th>
               <th>Notes</th>
               <th>Date</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 7 }).map((__, j) => (
+                  {Array.from({ length: 8 }).map((__, j) => (
                     <td key={j}>
                       <div className={styles.skeleton} />
                     </td>
@@ -61,7 +69,7 @@ export const FitFeedbackPage: React.FC = () => {
               ))
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className={styles.empty}>
+                <td colSpan={8} className={styles.empty}>
                   No fit feedback yet.
                 </td>
               </tr>
@@ -76,19 +84,7 @@ export const FitFeedbackPage: React.FC = () => {
                     </td>
                     <td>{r.hub_name ?? '—'}</td>
                     <td>
-                      <span
-                        style={{
-                          fontWeight: 700,
-                          color:
-                            r.overall_fit >= 4
-                              ? 'var(--color-primary)'
-                              : r.overall_fit <= 2
-                                ? 'var(--color-danger)'
-                                : 'inherit',
-                        }}
-                      >
-                        {r.overall_fit}/5
-                      </span>
+                      <StatusBadge status={fitTone(r.overall_fit)} label={`${r.overall_fit}/5`} size="sm" />
                     </td>
                     <td>
                       {off.length === 0 ? (
@@ -107,6 +103,17 @@ export const FitFeedbackPage: React.FC = () => {
                     </td>
                     <td style={{ maxWidth: 240, whiteSpace: 'normal' }}>{r.notes ?? '—'}</td>
                     <td className={styles.date}>{fmtDate(r.created_at)}</td>
+                    <td>
+                      {r.overall_fit <= 2 && (
+                        <button
+                          className={styles.exportBtn}
+                          onClick={() => navigate(`/admin/orders/${r.order_number ?? r.order_id}`)}
+                          title="Open the order to request a free re-measure / book an alteration"
+                        >
+                          Rescue →
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })

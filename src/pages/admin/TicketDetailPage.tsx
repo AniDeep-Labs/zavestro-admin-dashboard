@@ -439,10 +439,19 @@ export const TicketDetailPage: React.FC = () => {
                   >
                     <option value="">— Unassign —</option>
                     {adminUsers
-                      .filter((u) => u.is_active)
+                      // G-43: only support-capable roles are offered (a ticket
+                      // shouldn't land with design/procurement/finance). A current
+                      // out-of-scope assignee is still shown so it isn't dropped.
+                      .filter(
+                        (u) =>
+                          u.is_active &&
+                          (['support', 'admin', 'super_admin'].includes(u.role) ||
+                            u.id === selectedAssignee),
+                      )
                       .map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.name}
+                          {!['support', 'admin', 'super_admin'].includes(u.role) ? ' (current)' : ''}
                         </option>
                       ))}
                   </select>
