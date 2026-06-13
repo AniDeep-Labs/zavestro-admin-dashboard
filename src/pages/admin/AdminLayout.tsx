@@ -394,6 +394,7 @@ const SECTIONS: NavSection[] = [
           { label: "Audit Log", path: "/admin/system/audit-log" },
           { label: "Admin Users", path: "/admin/system/admin-users" },
           { label: "Service Areas", path: "/admin/system/service-areas" },
+          { label: "System Health", path: "/admin/system/health" },
         ],
       },
     ],

@@ -143,6 +143,8 @@ export interface SupportTicket {
   reference_id?: string;
   customer: string;
   customer_ref?: string;
+  user_id?: string | null;
+  order_id?: string | null;
   phone: string;
   subject: string;
   category: string;

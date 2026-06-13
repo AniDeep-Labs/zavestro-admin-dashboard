@@ -179,6 +179,10 @@ const ServiceAreasPage = lazyPage(
   () => import("./pages/admin/ServiceAreasPage"),
   "ServiceAreasPage",
 );
+const SystemHealthPage = lazyPage(
+  () => import("./pages/admin/SystemHealthPage"),
+  "SystemHealthPage",
+);
 const AdminProfilePage = lazyPage(
   () => import("./pages/admin/AdminProfilePage"),
   "AdminProfilePage",
@@ -342,6 +346,7 @@ function App() {
           <Route path="system/audit-log" element={<AuditLogPage />} />
           <Route path="system/admin-users" element={<AdminUsersManagePage />} />
           <Route path="system/service-areas" element={<ServiceAreasPage />} />
+          <Route path="system/health" element={<SystemHealthPage />} />
           <Route path="system/staff" element={<StaffManagementPage />} />
           <Route path="returns" element={<ReturnsListPage />} />
           <Route path="returns/:id" element={<ReturnDetailPage />} />

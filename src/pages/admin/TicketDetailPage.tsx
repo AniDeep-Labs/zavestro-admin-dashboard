@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supportApi, ordersApi } from "../../api/adminApi";
+import { supportApi, ordersApi, usersApi } from "../../api/adminApi";
 import type {
   SupportTicket,
   TicketMessage,
@@ -51,6 +51,33 @@ export const TicketDetailPage: React.FC = () => {
   const [orderQuery, setOrderQuery] = React.useState("");
   const [orderResults, setOrderResults] = React.useState<AdminOrder[]>([]);
   const [orderSearching, setOrderSearching] = React.useState(false);
+
+  // G-37 re-measure quick-action (Fit-Promise lever on the ticket)
+  const [showRemeasure, setShowRemeasure] = React.useState(false);
+  const [remeasureReason, setRemeasureReason] = React.useState("");
+  const [requestingRemeasure, setRequestingRemeasure] = React.useState(false);
+
+  const submitRemeasure = async () => {
+    if (!ticket?.user_id || !remeasureReason.trim()) {
+      showToast("error", "Add a reason for the re-measure");
+      return;
+    }
+    setRequestingRemeasure(true);
+    try {
+      await usersApi.requestRemeasure(ticket.user_id, {
+        reason: remeasureReason.trim(),
+        ...(ticket.order_id ? { order_id: ticket.order_id } : {}),
+      });
+      showToast("success", "Re-measure requested", "Ops will schedule a free agent visit.");
+      setShowRemeasure(false);
+      setRemeasureReason("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast("error", msg?.includes("already has an open") ? "Already requested" : "Failed", msg);
+    } finally {
+      setRequestingRemeasure(false);
+    }
+  };
 
   const dismissToast = (tid: string) =>
     setToasts((t) => t.filter((x) => x.id !== tid));
@@ -463,6 +490,15 @@ export const TicketDetailPage: React.FC = () => {
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Ticket Actions</h3>
             <div className={styles.actionList}>
+              {/* Fit-Promise lever (G-37): the right move for a fit complaint */}
+              {ticket.user_id && (
+                <button
+                  className={styles.assignSelfBtn}
+                  onClick={() => setShowRemeasure(true)}
+                >
+                  Request re-measure
+                </button>
+              )}
               {ticket.status !== "Resolved" && (
                 <button
                   className={styles.resolveBtn}
@@ -629,6 +665,38 @@ export const TicketDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Re-measure quick-action modal (G-37) */}
+      {showRemeasure && ticket && (
+        <div className={styles.modalOverlay} onClick={() => setShowRemeasure(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Request re-measure for {ticket.customer}</h3>
+            <p className={styles.fieldLabel}>
+              Records a free re-measure request{ticket.order_id ? " for the linked order" : ""}. Ops
+              schedules the agent visit — no charge.
+            </p>
+            <textarea
+              className={styles.fieldTextarea}
+              rows={3}
+              value={remeasureReason}
+              onChange={(e) => setRemeasureReason(e.target.value)}
+              placeholder="e.g., Customer reports the kurta was tight across the chest"
+            />
+            <div className={styles.modalActions}>
+              <button className={styles.cancelModalBtn} onClick={() => setShowRemeasure(false)}>
+                Cancel
+              </button>
+              <button
+                className={styles.assignSelfBtn}
+                disabled={!remeasureReason.trim() || requestingRemeasure}
+                onClick={submitRemeasure}
+              >
+                {requestingRemeasure ? "Requesting…" : "Request re-measure"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

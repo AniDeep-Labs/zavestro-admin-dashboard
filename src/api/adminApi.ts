@@ -673,6 +673,8 @@ function mapTicket(t: Record<string, unknown>): SupportTicket {
     reference_id: (t.reference_id ?? undefined) as string | undefined,
     customer: (t.customer_name ?? t.customer ?? "") as string,
     customer_ref: (t.customer_ref ?? undefined) as string | undefined,
+    user_id: (t.user_id ?? null) as string | null,
+    order_id: (t.order_id ?? null) as string | null,
     phone: (t.customer_phone ?? t.phone ?? "") as string,
     subject: (t.subject ?? "") as string,
     category: (t.category ?? "General") as string,
@@ -832,6 +834,28 @@ export const configApi = {
       body: JSON.stringify(entries),
     });
   },
+};
+
+// ─── System Health (super) ────────────────────────────────────────────────────
+
+export interface SystemHealth {
+  checkedAt: string;
+  environment: string;
+  core: { database: string; redis: string; schemaVersion: number | null };
+  worker: { stuckInvoices: number; status: string };
+  integrations: {
+    razorpay: { configured: boolean; webhook: boolean };
+    r2: { configured: boolean };
+    firebase: { configured: boolean };
+    sendgrid: { configured: boolean };
+    twilio: { configured: boolean };
+    delivery: { shiprocket: boolean; delhivery: boolean };
+  };
+}
+
+export const systemHealthApi = {
+  get: async (): Promise<SystemHealth> =>
+    req<SystemHealth>(`/api/admin/system-health`),
 };
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
