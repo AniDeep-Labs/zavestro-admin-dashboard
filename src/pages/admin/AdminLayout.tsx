@@ -19,6 +19,8 @@ import {
 } from "../../contexts/BreadcrumbContext";
 import styles from "./AdminLayout.module.css";
 import { NotificationBell } from "./NotificationBell";
+import { CommandPalette } from "../../components/CommandPalette";
+import type { NavTarget } from "../../components/CommandPalette";
 import {
   UilAngleDoubleLeft,
   UilAngleDoubleRight,
@@ -492,6 +494,26 @@ const AdminLayoutInner: React.FC = () => {
     .map((s) => ({ ...s, items: s.items.filter(canSee) }))
     .filter((s) => s.items.length > 0);
 
+  // ⌘K command palette (FABLE-ADMIN-UIUX §1.2) — wires the top-bar search.
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const navTargets: NavTarget[] = React.useMemo(
+    () =>
+      visibleSections.flatMap((s) =>
+        s.items.map((it) => ({ label: it.label, path: it.path, section: s.title })),
+      ),
+    [visibleSections],
+  );
+
   // Route guard: block the content area if the current path needs a capability the
   // role lacks (deep-link protection). Only enforce once caps are known (non-empty)
   // so a still-loading session isn't bounced. Backend also 403s the APIs.
@@ -636,6 +658,13 @@ const AdminLayoutInner: React.FC = () => {
 
       {/* Main area */}
       <div className={styles.main}>
+        {/* Non-production banner — someone WILL edit staging believing it's prod */}
+        {import.meta.env.MODE !== "production" && (
+          <div className={styles.envBanner}>
+            {import.meta.env.MODE === "development" ? "LOCAL DEV" : "STAGING"} —
+            not production
+          </div>
+        )}
         {/* Top bar */}
         <header className={styles.topBar}>
           <div className={styles.breadcrumb}>
@@ -682,15 +711,15 @@ const AdminLayoutInner: React.FC = () => {
               })}
           </div>
 
-          <div className={styles.topSearch}>
+          <button
+            className={styles.topSearch}
+            onClick={() => setPaletteOpen(true)}
+            aria-label="Search or jump to a page (⌘K)"
+          >
             <UilSearch size={16} className={styles.topSearchIcon} />
-            <input
-              className={styles.topSearchInput}
-              placeholder="Search or type a command…"
-              aria-label="Search"
-            />
+            <span className={styles.topSearchInput}>Search or type a command…</span>
             <span className={styles.topSearchKbd}>⌘K</span>
-          </div>
+          </button>
 
           <div className={styles.topActions}>
             <button
@@ -794,6 +823,14 @@ const AdminLayoutInner: React.FC = () => {
           </ErrorBoundary>
         </main>
       </div>
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        navTargets={navTargets}
+        canSearchOrders={caps.includes("orders:read") || adminRole === "admin"}
+        canSearchCustomers={caps.includes("customers:read") || adminRole === "admin"}
+      />
     </div>
   );
 };

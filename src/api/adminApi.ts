@@ -462,12 +462,52 @@ export const usersApi = {
       body: JSON.stringify({ amount, reason }),
     }),
 
+  // G-39: the credit ledger (entries + reason + date + running balance).
+  creditsLedger: async (
+    id: string,
+  ): Promise<{ balance: number; entries: CreditLedgerEntry[] }> =>
+    req(`/api/admin/users/${id}/credits`),
+
   addNote: async (id: string, note: string): Promise<void> =>
     req(`/api/admin/users/${id}/notes`, {
       method: "POST",
       body: JSON.stringify({ note }),
     }),
+
+  // G-37: support records a free re-measure request (ops schedules it in Phase B).
+  requestRemeasure: async (
+    id: string,
+    data: { reason: string; order_id?: string; fit_profile_id?: string },
+  ): Promise<{ id: string; status: string; created_at: string }> =>
+    req(`/api/admin/users/${id}/request-remeasure`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  remeasureRequests: async (id: string): Promise<RemeasureRequest[]> =>
+    req(`/api/admin/users/${id}/remeasure-requests`),
 };
+
+export interface CreditLedgerEntry {
+  id: string;
+  type: "credit" | "debit";
+  amount: number;
+  reason: string | null;
+  reference_id: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface RemeasureRequest {
+  id: string;
+  order_id: string | null;
+  order_number: string | null;
+  fit_profile_id: string | null;
+  reason: string;
+  status: "open" | "scheduled" | "done" | "cancelled";
+  created_at: string;
+  requested_by_name: string | null;
+}
 
 // ─── Hubs ─────────────────────────────────────────────────────────────────────
 
@@ -1799,6 +1839,11 @@ export const notificationsAdminApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  // Recipient count for the pre-send preview.
+  audienceCount: async (segment: "opted_in" | "all"): Promise<number> =>
+    req<{ count: number }>(`/api/admin/notifications/blast-audience?segment=${segment}`).then(
+      (r) => r.count,
+    ),
 };
 
 // ─── Admin inbox (hand-off notifications) ─────────────────────────────────────

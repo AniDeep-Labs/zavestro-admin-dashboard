@@ -107,3 +107,38 @@
 .issueCreditBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .confirmDeactivateBtn { height: 40px; padding: 0 20px; background: var(--color-error); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .confirmDeactivateBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Wave 4 — credit ledger (G-39), re-measure (G-37), SoD cap */
+.ledgerEntry {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: 13px;
+}
+.ledgerEntry:last-child { border-bottom: none; }
+.debit { color: var(--color-error); font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
+.ledgerReason { color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ledgerDate { color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+.remeasureOpen { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+.remeasureRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 6px 10px;
+  background: var(--status-fit-bg);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+}
+.remeasureMeta { margin-left: auto; color: var(--color-text-tertiary); }
+.capHint {
+  font-size: 12px;
+  color: var(--status-qc-fg);
+  margin: 0 0 4px;
+  padding: 6px 10px;
+  background: var(--status-qc-bg);
+  border-radius: var(--radius-sm);
+}

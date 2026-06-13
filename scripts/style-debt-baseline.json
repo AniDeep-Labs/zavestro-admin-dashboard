@@ -29,7 +29,6 @@
   "src/pages/admin/AdminResetPasswordPage.tsx": 1,
   "src/pages/admin/AdminUsersManagePage.module.css": 7,
   "src/pages/admin/AdminUsersManagePage.tsx": 5,
-  "src/pages/admin/AlterationsListPage.tsx": 1,
   "src/pages/admin/AnalyticsPage.module.css": 10,
   "src/pages/admin/AnalyticsPage.tsx": 10,
   "src/pages/admin/AppConfigPage.module.css": 11,

@@ -4,6 +4,7 @@ import {
   ordersApi,
   invoicesApi,
   customerMeasurementsApi,
+  usersApi,
 } from "../../api/adminApi";
 import type {
   AdminOrder,
@@ -531,6 +532,10 @@ export const OrderDetailPage: React.FC = () => {
 
   // Override modal
   const [showOverrideModal, setShowOverrideModal] = React.useState(false);
+  // G-37 re-measure (with this order as context)
+  const [showRemeasure, setShowRemeasure] = React.useState(false);
+  const [remeasureReason, setRemeasureReason] = React.useState("");
+  const [requestingRemeasure, setRequestingRemeasure] = React.useState(false);
   const [overrideReason, setOverrideReason] = React.useState("");
   const [overrideStage, setOverrideStage] = React.useState("");
   const [overrideChecks, setOverrideChecks] = React.useState([false, false]);
@@ -738,6 +743,33 @@ export const OrderDetailPage: React.FC = () => {
       );
     } finally {
       setOverriding(false);
+    }
+  };
+
+  const submitRemeasure = async () => {
+    if (!order || !remeasureReason.trim()) {
+      showToast("error", "Add a reason for the re-measure");
+      return;
+    }
+    setRequestingRemeasure(true);
+    try {
+      await usersApi.requestRemeasure(order.user_id ?? "", {
+        reason: remeasureReason.trim(),
+        order_id: order.uuid ?? order.id,
+        ...(order.fit_profile_id ? { fit_profile_id: order.fit_profile_id } : {}),
+      });
+      showToast("success", "Re-measure requested", "Ops will schedule a free agent visit.");
+      setShowRemeasure(false);
+      setRemeasureReason("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("already has an open") ? "Already requested" : "Failed",
+        msg,
+      );
+    } finally {
+      setRequestingRemeasure(false);
     }
   };
 
@@ -1347,9 +1379,18 @@ export const OrderDetailPage: React.FC = () => {
               >
                 {invoiceLoading ? "Loading…" : "Download Invoice"}
               </button>
+              {/* G-37: support's re-measure lever, with this order as context */}
+              <Can cap="orders:write">
+                <button
+                  className={styles.actionBtnSecondary}
+                  onClick={() => setShowRemeasure(true)}
+                >
+                  Request re-measure
+                </button>
+              </Can>
               {/* Cancel Order removed: the button was dead (no handler). The real
                   cancel flow (allowed-stage check + fabric release + refund
-                  linkage) ships with the Wave-4 support levers. */}
+                  linkage) ships later. */}
             </div>
           </div>
 
@@ -1448,6 +1489,42 @@ export const OrderDetailPage: React.FC = () => {
                 onClick={handleOverride}
               >
                 Apply Override
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Re-measure request modal (G-37) */}
+      {showRemeasure && (
+        <div className={styles.modalOverlay} onClick={() => setShowRemeasure(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Request re-measure</h3>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>
+                Reason (free agent visit; ops schedules it)
+              </label>
+              <textarea
+                className={styles.fieldTextarea}
+                placeholder="e.g., Customer reports the fit was tight at the waist on this order"
+                value={remeasureReason}
+                onChange={(e) => setRemeasureReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowRemeasure(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.applyBtn}
+                disabled={!remeasureReason.trim() || requestingRemeasure}
+                onClick={submitRemeasure}
+              >
+                {requestingRemeasure ? "Requesting…" : "Request re-measure"}
               </button>
             </div>
           </div>

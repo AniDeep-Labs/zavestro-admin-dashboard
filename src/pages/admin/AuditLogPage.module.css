@@ -94,3 +94,19 @@
 .pageBtn:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary); }
 .pageBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .pageIndicator { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
+
+/* Pinned views (break-glass) */
+.pinnedViews { display: flex; gap: 8px; margin-bottom: 12px; }
+.viewChip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+.viewChip:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.viewChipActive { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-accent); }

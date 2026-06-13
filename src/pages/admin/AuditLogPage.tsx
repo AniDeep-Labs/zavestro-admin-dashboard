@@ -6,7 +6,11 @@ import { UilAngleDown, UilAngleLeft, UilAngleRight, UilAngleUp, UilImport, UilSe
 
 const LIMIT = 50;
 
-const ACTION_TYPES = ['All', 'order_status_update', 'user_deactivate', 'config_update', 'catalog_create', 'catalog_update', 'content_publish', 'support_ticket_resolved', 'promo_create', 'bulk_status_update'];
+const ACTION_TYPES = ['All', 'update_order_stage', 'order_status_update', 'user_deactivate', 'config_update', 'catalog_create', 'catalog_update', 'content_publish', 'support_ticket_resolved', 'promo_create', 'bulk_status_update'];
+
+// Break-glass = manual stage overrides (the Wave-2 reason-required action).
+// Pinned as its own view because it's the highest-trust thing to watch (P10⑧).
+const BREAK_GLASS_ACTION = 'update_order_stage';
 
 function useDebounce<T>(value: T, delay: number): T {
   const [dv, setDv] = React.useState(value);
@@ -59,6 +63,22 @@ export const AuditLogPage: React.FC = () => {
     <div className={styles.page}>
       <h1 className={styles.title}>Audit Log</h1>
       <div className={styles.subtitle}>Read-only. Every admin write action is automatically logged with the admin's identity.</div>
+
+      {/* Pinned views (P10⑧): break-glass overrides lead — the highest-trust action */}
+      <div className={styles.pinnedViews}>
+        <button
+          className={`${styles.viewChip} ${actionFilter === 'All' ? styles.viewChipActive : ''}`}
+          onClick={() => { setActionFilter('All'); setPage(1); }}
+        >
+          All activity
+        </button>
+        <button
+          className={`${styles.viewChip} ${actionFilter === BREAK_GLASS_ACTION ? styles.viewChipActive : ''}`}
+          onClick={() => { setActionFilter(BREAK_GLASS_ACTION); setPage(1); }}
+        >
+          🔓 Break-glass overrides
+        </button>
+      </div>
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>

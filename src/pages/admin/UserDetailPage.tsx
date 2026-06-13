@@ -5,7 +5,11 @@ import type {
   AdminUser,
   AdminOrder,
   AdminFitProfile,
+  CreditLedgerEntry,
+  RemeasureRequest,
 } from "../../api/adminApi";
+import { StatusBadge } from "../../components/StatusBadge";
+import { MoneyCell } from "../../components/DataCells";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
@@ -36,6 +40,12 @@ export const UserDetailPage: React.FC = () => {
   const [fitProfiles, setFitProfiles] = React.useState<AdminFitProfile[]>([]);
   const [fitProfilesLoading, setFitProfilesLoading] = React.useState(false);
   const [selectedProfileId, setSelectedProfileId] = React.useState<string>("");
+  // G-39 ledger + G-37 re-measure
+  const [ledger, setLedger] = React.useState<CreditLedgerEntry[] | null>(null);
+  const [ledgerBalance, setLedgerBalance] = React.useState<number | null>(null);
+  const [remeasures, setRemeasures] = React.useState<RemeasureRequest[]>([]);
+  const [showRemeasure, setShowRemeasure] = React.useState(false);
+  const [remeasureReason, setRemeasureReason] = React.useState("");
 
   const dismissToast = (tid: string) =>
     setToasts((t) => t.filter((x) => x.id !== tid));
@@ -69,7 +79,42 @@ export const UserDetailPage: React.FC = () => {
       })
       .catch(() => {})
       .finally(() => setFitProfilesLoading(false));
+    loadLedger(id);
+    usersApi.remeasureRequests(id).then(setRemeasures).catch(() => {});
   }, [id]);
+
+  const loadLedger = (uid: string) =>
+    usersApi
+      .creditsLedger(uid)
+      .then((d) => {
+        setLedger(d.entries);
+        setLedgerBalance(d.balance);
+      })
+      .catch(() => setLedger([]));
+
+  const submitRemeasure = async () => {
+    if (!id || !remeasureReason.trim()) {
+      showToast("error", "Add a reason for the re-measure");
+      return;
+    }
+    setSaving(true);
+    try {
+      await usersApi.requestRemeasure(id, { reason: remeasureReason.trim() });
+      showToast("success", "Re-measure requested", "Ops will schedule a free agent visit.");
+      setShowRemeasure(false);
+      setRemeasureReason("");
+      usersApi.remeasureRequests(id).then(setRemeasures).catch(() => {});
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("already has an open") ? "Already requested" : "Failed",
+        msg,
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const activeProfile = React.useMemo(
     () => fitProfiles.find((p) => p.id === selectedProfileId) ?? null,
@@ -120,8 +165,14 @@ export const UserDetailPage: React.FC = () => {
         "Credits issued",
         `₹${creditsAmount} added to ${user.name}'s account`,
       );
+      loadLedger(user.id);
     } catch (e) {
-      showToast("error", "Failed", e instanceof Error ? e.message : undefined);
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("approved by finance") ? "Over the support cap" : "Failed",
+        msg,
+      );
     } finally {
       setSaving(false);
     }
@@ -281,7 +332,35 @@ export const UserDetailPage: React.FC = () => {
               <h3 className={styles.sectionTitle}>
                 Fit Profiles & Measurements
               </h3>
+              {/* G-37: support's #1 made-to-fit lever */}
+              <Can cap="orders:write">
+                <button
+                  className={styles.linkBtn}
+                  onClick={() => setShowRemeasure(true)}
+                >
+                  Request re-measure
+                </button>
+              </Can>
             </div>
+            {remeasures.filter((r) => r.status === "open").length > 0 && (
+              <div className={styles.remeasureOpen}>
+                {remeasures
+                  .filter((r) => r.status === "open")
+                  .map((r) => (
+                    <div key={r.id} className={styles.remeasureRow}>
+                      <StatusBadge status="open" size="sm" />
+                      <span>Re-measure requested — {r.reason}</span>
+                      <span className={styles.remeasureMeta}>
+                        {new Date(r.created_at).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                        {r.requested_by_name ? ` · ${r.requested_by_name}` : ""}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
             {fitProfilesLoading ? (
               <div className={styles.profileNote}>Loading…</div>
             ) : fitProfiles.length === 0 ? (
@@ -432,22 +511,45 @@ export const UserDetailPage: React.FC = () => {
             )}
           </div>
 
-          {/* Credits */}
+          {/* Credits ledger (G-39) */}
           <div className={styles.card}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>Credits</h3>
               <span className={styles.creditsBalance}>
-                ₹{user.credits?.toLocaleString("en-IN") ?? 0}
+                ₹{(ledgerBalance ?? user.credits ?? 0).toLocaleString("en-IN")}
               </span>
             </div>
             <div className={styles.creditsLedger}>
-              <div className={styles.ledgerRow}>
-                <span>Balance</span>
-                <span className={styles.credit}>
-                  ₹{user.credits?.toLocaleString("en-IN") ?? 0}
-                </span>
-                <span>Current</span>
-              </div>
+              {ledger === null ? (
+                <div className={styles.ledgerRow}>
+                  <span>Loading…</span>
+                </div>
+              ) : ledger.length === 0 ? (
+                <div className={styles.ledgerRow}>
+                  <span>No credit history yet.</span>
+                </div>
+              ) : (
+                ledger.map((e) => (
+                  <div key={e.id} className={styles.ledgerEntry}>
+                    <span
+                      className={e.type === "credit" ? styles.credit : styles.debit}
+                    >
+                      {e.type === "credit" ? "+" : "−"}
+                      <MoneyCell amount={e.amount} />
+                    </span>
+                    <span className={styles.ledgerReason}>
+                      {e.reason ?? "—"}
+                    </span>
+                    <span className={styles.ledgerDate}>
+                      {new Date(e.created_at).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -603,6 +705,15 @@ export const UserDetailPage: React.FC = () => {
                 rows={2}
               />
             </div>
+            {/* SoD (D19): support's inline issue caps at ₹500; above routes to finance */}
+            <Can cap="customers:write">
+              {Number(creditsAmount) > 500 && (
+                <div className={styles.capHint}>
+                  Over ₹500 — only finance can issue this. It will be rejected; ask
+                  finance to approve.
+                </div>
+              )}
+            </Can>
             <div className={styles.modalActions}>
               <button
                 className={styles.cancelModalBtn}
@@ -616,6 +727,44 @@ export const UserDetailPage: React.FC = () => {
                 onClick={handleIssueCredits}
               >
                 {saving ? "Issuing…" : "Issue Credits"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Re-measure request modal (G-37) */}
+      {showRemeasure && (
+        <div className={styles.modalOverlay} onClick={() => setShowRemeasure(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Request re-measure for {user.name}</h3>
+            <p className={styles.capHint}>
+              Records a free re-measure request. The ops team schedules an agent
+              visit — no charge to the customer.
+            </p>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>Reason (required)</label>
+              <textarea
+                className={styles.fieldTextarea}
+                value={remeasureReason}
+                onChange={(e) => setRemeasureReason(e.target.value)}
+                placeholder="e.g., Customer reports sleeves too long on last 2 orders"
+                rows={3}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowRemeasure(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.issueCreditBtn}
+                disabled={!remeasureReason.trim() || saving}
+                onClick={submitRemeasure}
+              >
+                {saving ? "Requesting…" : "Request re-measure"}
               </button>
             </div>
           </div>

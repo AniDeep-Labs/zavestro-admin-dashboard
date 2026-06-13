@@ -1,12 +1,18 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { hubsApi } from '../../api/adminApi';
-import type { Hub } from '../../api/adminApi';
+import { hubsApi, staffApi } from '../../api/adminApi';
+import type { Hub, StaffMember } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { StatusBadge } from '../../components/StatusBadge';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './HubDetailPage.module.css';
-import { UilAngleLeft, UilPower, UilSave } from "@iconscout/react-unicons";
+import { UilAngleLeft, UilPlus, UilPower, UilSave } from "@iconscout/react-unicons";
+
+const ROLE_LABELS: Record<string, string> = {
+  hub_manager: 'Hub Manager', tailor: 'Tailor', cutting_master: 'Cutting Master',
+  qc_staff: 'QC', dispatch: 'Dispatch', measurement_agent: 'Agent',
+};
 
 const EMPTY_HUB: Partial<Hub> = { name: '', city: '', state: '', address: '', pincode: '', managerName: '', managerPhone: '', status: 'Active', tailorCount: 0, activeOrders: 0, capacityUsed: 0, qcPassRate: 100 };
 
@@ -20,6 +26,8 @@ export const HubDetailPage: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  // G-41: real staff roster (replacing the dead "Recent Orders" placeholder)
+  const [roster, setRoster] = React.useState<StaffMember[] | null>(null);
 
   useBreadcrumbTitle(hub?.name || form.name || (isNew ? 'New Hub' : undefined));
 
@@ -34,6 +42,7 @@ export const HubDetailPage: React.FC = () => {
       .then(h => { setHub(h); setForm(h); })
       .catch(e => showToast('error', 'Failed to load hub', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
+    staffApi.list(id).then(setRoster).catch(() => setRoster([]));
   }, [id, isNew]);
 
   const handleFormChange = (key: keyof Hub, value: string | number) => {
@@ -181,12 +190,35 @@ export const HubDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+        {/* G-41: real staff roster (the dead "Recent Orders" placeholder is gone) */}
         <div className={styles.card}>
           <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Recent Orders</h3>
-            <button className={styles.linkBtn} onClick={() => navigate('/admin/orders')}>View All →</button>
+            <h3 className={styles.sectionTitle}>Staff roster</h3>
+            <button className={styles.linkBtn} onClick={() => navigate('/admin/system/staff')}>
+              <UilPlus size={13} /> Manage ops staff →
+            </button>
           </div>
-          <div className={styles.empty}>Navigate to Orders and filter by hub to see orders.</div>
+          {roster === null ? (
+            <div className={styles.empty}>Loading roster…</div>
+          ) : roster.length === 0 ? (
+            <div className={styles.empty}>
+              No ops staff assigned to this hub yet. Add them from Ops Staff.
+            </div>
+          ) : (
+            <table className={styles.rosterTable}>
+              <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Status</th></tr></thead>
+              <tbody>
+                {roster.map(s => (
+                  <tr key={s.id}>
+                    <td className={styles.rosterName}>{s.name}</td>
+                    <td>{ROLE_LABELS[s.role] ?? s.role}</td>
+                    <td>{s.phone ?? '—'}</td>
+                    <td><StatusBadge status={s.is_active ? 'active' : 'inactive'} size="sm" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
