@@ -84,3 +84,24 @@
 .cmsIcon { color: var(--color-text-tertiary); }
 .cmsTitle { font-family: var(--font-display); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin: 0; }
 .cmsDesc { font-size: var(--font-size-base); color: var(--color-text-tertiary); max-width: 480px; margin: 0; line-height: 1.6; }
+
+/* Inline-style burn-down (§6C) */
+.headerActions { display: flex; gap: 8px; }
+.nameCell { font-weight: 500; }
+.mutedCell { color: var(--color-text-secondary); }
+.tagsCell { font-size: 12px; color: var(--color-text-tertiary); }
+.descCell { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-secondary); }
+.storyCell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--color-text-secondary); }
+.slugCell { font-size: 12px; color: var(--color-text-tertiary); font-family: monospace; }
+.excerptCell { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-secondary); font-size: 13px; }
+.dateCell { font-size: 13px; color: var(--color-text-secondary); }
+.dangerBtn { color: var(--color-error); }
+.formGrid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .formGrid2 { grid-template-columns: 1fr; } }
+.modalMd { max-width: 560px; }
+.modalLg { max-width: 640px; }
+.mono { font-family: monospace; }
+.descTa { height: 80px; resize: vertical; }
+.storyTa { height: 100px; resize: vertical; }
+.excerptTa { height: 70px; resize: vertical; }
+.bodyTa { height: 160px; resize: vertical; }

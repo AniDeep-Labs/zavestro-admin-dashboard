@@ -1,0 +1,50 @@
+/* Cross-hub Stock — page-specific bits (shared table/filter classes stay in
+   OrdersListPage / Distribution / CodReconciliation modules). */
+
+.fabricSel {
+  flex: 0 0 auto; width: 240px; height: 38px; padding: 0 10px;
+  border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-primary); color: var(--color-text-primary);
+  font-family: var(--font-family); font-size: var(--font-size-base); outline: none; cursor: pointer;
+}
+.fabricSel:focus { border-color: var(--color-primary); }
+
+/* Fabric name → its PDP, without swallowing the row's click-to-ledger. */
+.nameLink { color: inherit; text-decoration: none; }
+.nameLink:hover { color: var(--color-primary); text-decoration: underline; }
+
+/* P8 reorder suggestion hint on the "set…" affordance. */
+.sugg { color: var(--color-text-muted); font-weight: var(--font-weight-regular); }
+
+/* ── Matrix grid (spec §294): fabric rows × hub columns, sticky fabric column ── */
+.matrix { min-width: 100%; }
+.matrix th, .matrix td { white-space: nowrap; vertical-align: top; }
+.hubCol { text-align: left; min-width: 130px; }
+/* Sticky first (fabric) column so it stays visible while hub columns scroll. */
+.stickyHead, .stickyCell {
+  position: sticky; left: 0; z-index: 2;
+  background: var(--color-bg-primary);
+  border-right: 1px solid var(--color-border);
+  min-width: 200px;
+}
+.stickyHead { z-index: 3; }
+.matrix tbody tr:hover .stickyCell { background: var(--color-bg-section); }
+
+.cellMeters {
+  background: none; border: none; padding: 0; font: inherit; cursor: pointer;
+  font-weight: var(--font-weight-semibold); color: var(--color-text); font-variant-numeric: tabular-nums;
+}
+.cellMeters:hover { text-decoration: underline; }
+.cellReserved { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-top: 1px; }
+.cellReorder { margin-top: 4px; }
+.cellEmpty { color: var(--color-text-muted); }
+
+/* Per-hub capital footer row(s). */
+.matrix tfoot td {
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-bg-section);
+  border-top: 2px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.matrix tfoot .stickyCell { background: var(--color-bg-section); color: var(--color-text); }

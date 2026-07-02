@@ -5,6 +5,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
 import { UilMapMarker, UilRefresh } from "@iconscout/react-unicons";
+import { StatusBadge } from '../../components';
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -66,9 +67,7 @@ export const PincodeWaitlistPage: React.FC = () => {
                 <td className={styles.total}>{r.total_waiting}</td>
                 <td>{r.notified}</td>
                 <td>
-                  <span className={`${styles.stagePill} ${r.is_served ? styles.stageSuccess : styles.stageWarning}`}>
-                    {r.is_served ? 'Served' : 'Not served'}
-                  </span>
+                  <StatusBadge status={r.is_served ? 'served' : 'waiting'} label={r.is_served ? 'Served' : 'Not served'} />
                 </td>
                 <td className={styles.date}>{fmtDate(r.first_signup_at)}</td>
               </tr>

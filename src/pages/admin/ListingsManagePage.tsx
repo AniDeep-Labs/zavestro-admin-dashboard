@@ -1,4 +1,5 @@
 import React from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   cmListingsApi,
   designsApi,
@@ -29,6 +30,7 @@ import {
   UilTimes,
   UilImagePlus,
   UilImage,
+  UilCopy,
 } from "@iconscout/react-unicons";
 
 const url = (k?: string) => (k && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${k}` : "");
@@ -164,6 +166,21 @@ export const ListingsManagePage: React.FC = () => {
       metersPerGarment: l.meters_per_garment,
       inStock: l.in_stock,
     });
+  // §6C: Duplicate — listings are variations; open a NEW listing (direct mode, editable
+  // design/fabric/hub pickers) pre-filled from this one, starting as a draft to review.
+  const openDuplicate = (l: CmListing) =>
+    setEditor({
+      mode: "direct",
+      design_id: l.design_id,
+      fabric_id: l.fabric_id,
+      hub_id: l.hub_id,
+      label: "",
+      fabricLabel: "",
+      price: l.price ?? "",
+      description: l.description ?? "",
+      photos: l.photo_keys ?? [],
+      isActive: false,
+    });
 
   const onUpload = async (files: FileList | null) => {
     if (!files?.length || !editor) return;
@@ -187,8 +204,11 @@ export const ListingsManagePage: React.FC = () => {
   };
 
   const [showStockWarn, setShowStockWarn] = React.useState(false);
+  const [showBelowCostWarn, setShowBelowCostWarn] = React.useState(false);
+  const [belowCostMsg, setBelowCostMsg] = React.useState("");
+  const [pendingPublish, setPendingPublish] = React.useState(false);
 
-  const save = async (publish: boolean, publishAnyway = false) => {
+  const save = async (publish: boolean, publishAnyway = false, belowCostOk = false) => {
     if (!editor) return;
     if (
       editor.mode === "direct" &&
@@ -222,6 +242,7 @@ export const ListingsManagePage: React.FC = () => {
           photo_keys: editor.photos,
           description,
           is_active,
+          allow_below_cost: belowCostOk,
         });
       } else if (editor.mode === "edit" && editor.listingId) {
         await cmListingsApi.update(editor.listingId, {
@@ -229,6 +250,7 @@ export const ListingsManagePage: React.FC = () => {
           photo_keys: editor.photos,
           description: description ?? null,
           is_active,
+          allow_below_cost: belowCostOk,
         });
       } else {
         await cmListingsApi.create({
@@ -239,6 +261,7 @@ export const ListingsManagePage: React.FC = () => {
           photo_keys: editor.photos,
           description,
           is_active,
+          allow_below_cost: belowCostOk,
         });
       }
       toast("success", publish ? "Listing published" : "Saved as draft");
@@ -246,7 +269,12 @@ export const ListingsManagePage: React.FC = () => {
       load();
     } catch (e) {
       const msg = e instanceof Error ? e.message : undefined;
-      if (msg?.includes("reviewed sample")) {
+      if (msg?.includes("cost floor") && !belowCostOk) {
+        // G-26: below the cost floor — let the CM confirm an intentional loss-leader.
+        setPendingPublish(publish);
+        setBelowCostMsg(msg);
+        setShowBelowCostWarn(true);
+      } else if (msg?.includes("reviewed sample")) {
         // D13: first listing of a design at a hub is gated on an approved sample.
         toast("error", "Sample review needed first", msg);
       } else {
@@ -273,6 +301,21 @@ export const ListingsManagePage: React.FC = () => {
       );
     }
   };
+
+  // Deep-link from the Categories page: /admin/catalog/listings?garment=<garment type>.
+  // Filters the listing grid to that garment type (the bridge between a merchandising
+  // category and its dark-store listings). Matched on the garment-type name.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const garmentFilter = searchParams.get("garment");
+  const shownListings = React.useMemo(
+    () =>
+      garmentFilter
+        ? listings.filter(
+            (l) => (l.garment_type ?? "").toLowerCase() === garmentFilter.toLowerCase(),
+          )
+        : listings,
+    [listings, garmentFilter],
+  );
 
   return (
     <div className={base.page}>
@@ -337,13 +380,23 @@ export const ListingsManagePage: React.FC = () => {
             <div className={s.oosStrip}>
               {liveOOS} live listing{liveOOS === 1 ? "" : "s"} out of stock —
               the fabric is short at the hub, so customers can't buy.{" "}
-              <a className={s.oosLink} href="/admin/catalog/restock">Request restock →</a>
+              <Link className={s.oosLink} to="/admin/catalog/restock">Request restock →</Link>
             </div>
           ) : null;
         })()}
       <h2 className={s.sectionTitle}>
         Your listings{" "}
-        {!loading && <span className={s.count}>{listings.length}</span>}
+        {!loading && <span className={s.count}>{shownListings.length}</span>}
+        {garmentFilter && (
+          <button
+            type="button"
+            className={s.filterChip}
+            onClick={() => setSearchParams({})}
+            title="Clear filter"
+          >
+            {garmentFilter} <UilTimes size={13} />
+          </button>
+        )}
       </h2>
       {loading ? (
         <div className={s.grid}>
@@ -351,13 +404,15 @@ export const ListingsManagePage: React.FC = () => {
             <div key={i} className={`${s.card} ${s.skeleton}`} />
           ))}
         </div>
-      ) : listings.length === 0 ? (
+      ) : shownListings.length === 0 ? (
         <div className={s.empty}>
-          No listings yet. List a reviewed sample above, or add one directly.
+          {garmentFilter
+            ? `No ${garmentFilter} listings yet. Create one from a reviewed sample above, or add one directly.`
+            : "No listings yet. List a reviewed sample above, or add one directly."}
         </div>
       ) : (
         <div className={s.grid}>
-          {listings.map((l) => {
+          {shownListings.map((l) => {
             const img =
               url((l.photo_keys ?? [])[0]) ||
               url((l.fabric_image_keys ?? [])[0]);
@@ -402,6 +457,14 @@ export const ListingsManagePage: React.FC = () => {
                     <span className={s.price}>
                       ₹{Number(l.price).toLocaleString("en-IN")}
                     </span>
+                    <button
+                      className={s.dupBtn}
+                      title="Duplicate as a new listing (variation)"
+                      aria-label="Duplicate listing"
+                      onClick={(e) => { e.stopPropagation(); openDuplicate(l); }}
+                    >
+                      <UilCopy size={14} />
+                    </button>
                     <span className={s.toggleWrap} onClick={(e) => toggleActive(l, e)}>
                       <StatusBadge status={l.is_active ? "live" : "draft"} />
                     </span>
@@ -604,6 +667,18 @@ export const ListingsManagePage: React.FC = () => {
         loading={saving}
         onConfirm={() => { setShowStockWarn(false); save(true, true); }}
         onCancel={() => setShowStockWarn(false)}
+      />
+
+      {/* G-26: price below the cost floor — confirm an intentional loss-leader */}
+      <ConfirmDialog
+        open={showBelowCostWarn}
+        title="Sell below cost?"
+        message={`${belowCostMsg || "This price is below the cost floor."} You'll lose margin on every sale — confirm only for a deliberate loss-leader or clearance.`}
+        confirmLabel="Sell below cost"
+        variant="danger"
+        loading={saving}
+        onConfirm={() => { setShowBelowCostWarn(false); save(pendingPublish, true, true); }}
+        onCancel={() => setShowBelowCostWarn(false)}
       />
     </div>
   );

@@ -1,0 +1,252 @@
+.center {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-lg);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: var(--spacing-lg);
+  align-items: stretch;
+  /* No top margin — PageHeader already adds spacing-lg below itself, so adding more
+     here doubled the gap between the header and the cards. */
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+.panelTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin: 0 0 var(--spacing-md);
+}
+
+.panelTitle:not(:first-child) {
+  margin-top: var(--spacing-lg);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+.fieldsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.input,
+.select {
+  height: 40px;
+  padding: 0 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input:focus,
+.select:focus {
+  border-color: var(--color-primary);
+}
+
+.actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.warn {
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+  margin: var(--spacing-sm) 0 0;
+}
+
+/* Uncalibrated garment notice — actionable, not just an error string. */
+.notice {
+  margin: var(--spacing-md) 0 0;
+  padding: var(--spacing-md);
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.noticeLink { color: var(--color-primary); font-weight: var(--font-weight-medium); }
+
+.reqMark { color: var(--color-error); }
+.inputMissing { border-color: var(--color-error); }
+
+.saved {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.savedLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.chipMain {
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  padding: 4px 6px 4px 12px;
+  cursor: pointer;
+}
+
+.chipMain:hover {
+  color: var(--color-primary);
+}
+
+.chipX {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  padding: 4px 8px 4px 4px;
+  cursor: pointer;
+}
+
+.chipX:hover {
+  color: var(--color-error);
+}
+
+/* Equal height to the input panel (grid stretch). It's a flex column so the empty
+   state can center (flex:1) and, in the filled state, the hint anchors to the bottom
+   as a footer — turning the leftover height into intentional spacing, not a gap. */
+.resultPanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl) var(--spacing-lg);
+}
+.emptyIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-section);
+  color: var(--color-text-muted);
+}
+.emptyText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 36ch;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.resultMeta {
+  font-size: var(--font-size-xs);
+  text-transform: capitalize;
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-md);
+}
+
+.specTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.specTable th,
+.specTable td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.specTable th {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Scoped under .specTable so it beats `.specTable td { text-align: left }`. */
+.specTable .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.finished {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.fabricNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-md);
+}
+.fabricNote strong { color: var(--color-text); font-weight: var(--font-weight-medium); }
+
+.resultHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  /* margin-top: auto anchors it to the card bottom; the card stretches to match the
+     input panel, so the leftover space reads as footer spacing, not a dead gap. */
+  margin: auto 0 0;
+  padding-top: var(--spacing-lg);
+  line-height: 1.5;
+}

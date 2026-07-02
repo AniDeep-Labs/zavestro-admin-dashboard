@@ -2,6 +2,19 @@
 .page { display: flex; flex-direction: column; gap: 20px; max-width: 1400px; }
 .pageHeader { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .title { font-family: var(--font-display); font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); margin: 0; }
+.subtitle { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 4px 0 0; max-width: 60ch; line-height: 1.5; }
+.formGrid { display: flex; flex-direction: column; gap: 14px; }
+.formField { display: flex; flex-direction: column; gap: 6px; }
+.formLabel { font-size: var(--font-size-xs); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); }
+.formHint { font-size: var(--font-size-xs); color: var(--color-text-muted); margin: 2px 0 0; }
+.formControl { height: 40px; padding: 0 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; width: 100%; box-sizing: border-box; }
+.formControl:focus { border-color: var(--color-primary); }
+.formActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.chipRow { display: flex; flex-wrap: wrap; gap: 6px; }
+.chipAdd { display: flex; gap: 6px; }
+.typeChip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--color-border); border-radius: var(--radius-full); padding: 3px 6px 3px 10px; font-size: var(--font-size-sm); color: var(--color-text-primary); }
+.typeChipX { border: none; background: transparent; color: var(--color-text-muted); cursor: pointer; display: flex; padding: 0 2px; }
+.typeChipX:hover { color: var(--color-error); }
 .backBtn { background: none; border: none; cursor: pointer; font-family: var(--font-family); font-size: var(--font-size-base); color: var(--color-primary); font-weight: var(--font-weight-medium); padding: 0; }
 .backBtn:hover { text-decoration: underline; }
 .card { background: var(--color-bg-primary); border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); padding: 20px; }

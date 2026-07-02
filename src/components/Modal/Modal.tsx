@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './Modal.module.css';
 
 export interface ModalProps {
@@ -36,7 +37,9 @@ export const Modal: React.FC<ModalProps> = ({
 
   if (!open) return null;
 
-  return (
+  // Portal to <body> so the fixed overlay sits at the true viewport root and dims the whole
+  // page (sidebar + topbar included) — rendering inline traps it inside the scroll container.
+  return createPortal(
     <div className={styles.overlay} onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
       <div
         className={`${styles.modal} ${styles[`size-${size}`]} ${className}`}
@@ -53,7 +56,8 @@ export const Modal: React.FC<ModalProps> = ({
         <div className={styles.body}>{children}</div>
         {footer && <div className={styles.footer}>{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

@@ -9,6 +9,7 @@ import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import base from "./OrdersListPage.module.css";
 import { UilPlus } from "@iconscout/react-unicons";
+import { StatusBadge } from "../../components";
 
 const ROLE_LABELS: Record<StaffRole, string> = {
   hub_manager: "Hub Manager",
@@ -237,11 +238,7 @@ export const StaffManagementPage: React.FC = () => {
                     )}
                   </td>
                   <td>
-                    <span
-                      className={`${base.stagePill} ${s.is_active ? base.stageSuccess : base.stageNeutral}`}
-                    >
-                      {s.is_active ? "Active" : "Inactive"}
-                    </span>
+                    <StatusBadge status={s.is_active ? 'active' : 'inactive'} />
                   </td>
                   <td>
                     <Button

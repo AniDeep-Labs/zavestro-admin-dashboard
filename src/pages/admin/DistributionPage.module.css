@@ -1,0 +1,32 @@
+.toolbar { display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); }
+.hubSel {
+  flex: 0 0 auto; width: 220px; height: 38px; padding: 0 10px;
+  border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-primary); color: var(--color-text-primary);
+  font-family: var(--font-family); font-size: var(--font-size-base); outline: none; cursor: pointer;
+}
+.hubSel:focus { border-color: var(--color-primary); }
+
+.section { margin-bottom: var(--spacing-xl); }
+.sectionTitle {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);
+  color: var(--color-text); margin: 0 0 var(--spacing-sm);
+}
+.count {
+  font-size: var(--font-size-xs); color: var(--color-text-muted);
+  background: var(--color-bg-section); border-radius: var(--radius-full); padding: 1px 8px;
+}
+
+/* push-modal hints */
+.hint { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0; }
+.hintWarn { color: var(--color-error); font-weight: var(--font-weight-medium); }
+.suggest {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  font-size: var(--font-size-sm); color: var(--color-text-secondary);
+  background: var(--color-bg-section); border-radius: var(--radius-md); padding: 8px 10px;
+}
+.useBtn {
+  background: none; border: 1px solid var(--color-primary); color: var(--color-primary);
+  border-radius: var(--radius-full); padding: 1px 10px; font: inherit; font-size: var(--font-size-xs); cursor: pointer;
+}

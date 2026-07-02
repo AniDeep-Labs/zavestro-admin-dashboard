@@ -5,6 +5,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
 import local from './DesignAnalyticsPage.module.css';
+import { StatusBadge } from '../../components';
 
 type Motion = { kind: string; fabric: string; code: string; hub: string; qty: number; state: 'In transit' | 'Awaiting procurement'; created_at: string };
 
@@ -87,7 +88,7 @@ export const SupplyOverviewPage: React.FC = () => {
                   <td>{m.hub || '—'}</td>
                   <td className={styles.total}>{m.qty}</td>
                   <td>
-                    <span className={`${styles.stagePill} ${m.state === 'In transit' ? styles.stageWarning : styles.stageNeutral}`}>{m.state}</span>
+                    <StatusBadge status={m.state === 'In transit' ? 'in_transit' : 'pending'} label={m.state} />
                   </td>
                 </tr>
               ))

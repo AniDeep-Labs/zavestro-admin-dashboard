@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { analyticsApi, hubsApi, fitAnalyticsApi } from '../../api/adminApi';
-import type { AnalyticsData, Hub, FitAnalyticsData } from '../../api/adminApi';
+import type { AnalyticsData, Hub, FitAnalyticsData, RetentionData } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { downloadCsv, datedFilename } from '../../utils/csv';
@@ -47,6 +47,8 @@ export const AnalyticsPage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [hubsLoading, setHubsLoading] = React.useState(false);
   const [hubsError, setHubsError] = React.useState('');
+  const [retention, setRetention] = React.useState<RetentionData | null>(null);
+  const [retentionLoading, setRetentionLoading] = React.useState(true);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -69,6 +71,14 @@ export const AnalyticsPage: React.FC = () => {
       .then(r => setHubs(r.hubs))
       .catch((e: Error) => setHubsError(e.message || 'Failed to load hubs'))
       .finally(() => setHubsLoading(false));
+  }, []);
+
+  React.useEffect(() => {
+    setRetentionLoading(true);
+    analyticsApi.retention()
+      .then(setRetention)
+      .catch(() => {})
+      .finally(() => setRetentionLoading(false));
   }, []);
 
   const VALID_SECTIONS = Object.keys(SECTION_TITLES) as Section[];
@@ -280,7 +290,27 @@ export const AnalyticsPage: React.FC = () => {
 
       {/* Retention */}
       {validSection === 'retention' && (
-        <EmptyState message="Retention metrics will appear once you have customers with repeat orders." />
+        retentionLoading ? (
+          <EmptyState message="Loading retention…" />
+        ) : !retention || retention.total_customers === 0 ? (
+          <EmptyState message="Retention metrics will appear once customers have delivered orders." />
+        ) : (
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Customer Retention</h2>
+            <table className={styles.table}>
+              <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+              <tbody>
+                <tr><td className={styles.productName}>Customers with a delivered order</td><td>{retention.total_customers}</td></tr>
+                <tr><td className={styles.productName}>Repeat customers (2+ orders)</td><td>{retention.repeat_customers}</td></tr>
+                <tr><td className={styles.productName}>Repeat rate</td><td>{retention.repeat_rate}%</td></tr>
+                <tr><td className={styles.productName}>Avg orders per customer</td><td>{retention.avg_orders_per_customer}</td></tr>
+                <tr><td className={styles.productName}>Customers with exactly 1 order</td><td>{retention.distribution.one}</td></tr>
+                <tr><td className={styles.productName}>Customers with exactly 2 orders</td><td>{retention.distribution.two}</td></tr>
+                <tr><td className={styles.productName}>Customers with 3+ orders</td><td>{retention.distribution.three_plus}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        )
       )}
 
     </div>

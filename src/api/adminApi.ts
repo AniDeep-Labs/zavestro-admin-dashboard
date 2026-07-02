@@ -81,14 +81,17 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
       throw err;
     }
     let msg = `Error ${res.status}`;
+    let details: unknown;
     try {
       const b = await res.json();
       msg = b.message || b.error?.message || b.error || msg;
+      details = b.error?.details ?? b.details;
     } catch {
       /* */
     }
-    const err = new Error(msg) as Error & { status: number };
+    const err = new Error(msg) as Error & { status: number; details?: unknown };
     err.status = res.status;
+    err.details = details;
     console.error(
       `[adminApi] ${init.method ?? "GET"} ${path} → ${res.status}:`,
       msg,
@@ -462,13 +465,24 @@ export const usersApi = {
       body: JSON.stringify({ amount, reason }),
     }),
 
+  // W-5: submit a credit ABOVE support's inline cap for finance to approve.
+  requestCredit: async (id: string, amount: number, reason: string): Promise<void> =>
+    req(`/api/admin/users/${id}/credit-requests`, {
+      method: "POST",
+      body: JSON.stringify({ amount, reason }),
+    }),
+
   // G-39: the credit ledger (entries + reason + date + running balance).
   creditsLedger: async (
     id: string,
   ): Promise<{ balance: number; entries: CreditLedgerEntry[] }> =>
     req(`/api/admin/users/${id}/credits`),
 
-  addNote: async (id: string, note: string): Promise<void> =>
+  // W-11: the readable internal-notes thread (customer_notes).
+  notes: async (id: string): Promise<CustomerNote[]> =>
+    req(`/api/admin/users/${id}/notes`),
+
+  addNote: async (id: string, note: string): Promise<CustomerNote> =>
     req(`/api/admin/users/${id}/notes`, {
       method: "POST",
       body: JSON.stringify({ note }),
@@ -495,6 +509,13 @@ export interface CreditLedgerEntry {
   reason: string | null;
   reference_id: string | null;
   expires_at: string | null;
+  created_at: string;
+}
+
+export interface CustomerNote {
+  id: string;
+  body: string;
+  author_name: string | null;
   created_at: string;
 }
 
@@ -792,9 +813,21 @@ export interface AnalyticsData {
   period: string;
 }
 
+export interface RetentionData {
+  total_customers: number;
+  repeat_customers: number;
+  repeat_rate: number;
+  avg_orders_per_customer: number;
+  distribution: { one: number; two: number; three_plus: number };
+}
+
 export const analyticsApi = {
   get: async (period = "month"): Promise<AnalyticsData> =>
     req<AnalyticsData>(`/api/admin/analytics?period=${period}`),
+
+  // W-18: repeat-customer retention metrics (all-time).
+  retention: async (): Promise<RetentionData> =>
+    req<RetentionData>(`/api/admin/analytics/retention`),
 };
 
 // ─── App Config ───────────────────────────────────────────────────────────────
@@ -939,6 +972,25 @@ function mapCollection(c: Record<string, unknown>): Collection {
     subtitle: (c.subtitle as string) ?? "",
     bg_color_1: (c.bg_color_1 as string) ?? "",
     bg_color_2: (c.bg_color_2 as string) ?? "",
+    is_featured: (c.is_featured as boolean) ?? false,
+    card_layout: (c.card_layout as string) ?? "full_image",
+    hero_layout: (c.hero_layout as string) ?? "full_image",
+    card_aspect: (c.card_aspect as number) ?? 0.8,
+    hero_aspect: (c.hero_aspect as number) ?? 2.4,
+    card_focal_x: (c.card_focal_x as number) ?? 50,
+    card_focal_y: (c.card_focal_y as number) ?? 50,
+    hero_focal_x: (c.hero_focal_x as number) ?? 50,
+    hero_focal_y: (c.hero_focal_y as number) ?? 50,
+    image_fit: ((c.image_fit as string) ?? "cover") as "cover" | "contain",
+    image_zoom: (c.image_zoom as number) ?? 100,
+    text_position: ((c.text_position as string) ?? "bottom") as "left" | "center" | "bottom",
+    text_color: ((c.text_color as string) ?? "light") as "light" | "dark",
+    overlay: (c.overlay as number) ?? 40,
+    gradient_angle: (c.gradient_angle as number) ?? 135,
+    gradient_solid: (c.gradient_solid as boolean) ?? false,
+    logo_key: (c.logo_key as string | null) ?? null,
+    cta_text: (c.cta_text as string) ?? "Explore",
+    compose_style: (c.compose_style as Record<string, unknown>) ?? {},
   };
 }
 
@@ -1037,9 +1089,90 @@ export interface Banner {
   starts_at: string | null;
   ends_at: string | null;
   image_only: boolean;
+  layout: BannerLayout;
+  text_position: BannerTextPosition;
+  text_color: BannerTextColor;
+  overlay: number;
+  badge_text: string | null;
+  focal_x: number;
+  focal_y: number;
+  image_fit: BannerImageFit;
+  image_zoom: number;
+  mode_mobile: BannerMode;
+  mode_web: BannerMode;
+  image_mobile: string | null;
+  image_web: string | null;
+  focal_x_mobile: number;
+  focal_y_mobile: number;
+  focal_x_web: number;
+  focal_y_web: number;
+  layout_mobile: BannerLayout;
+  layout_web: BannerLayout;
+  aspect_mobile: number;
+  aspect_web: number;
+  logo_key: string | null;
+  show_ad: boolean;
+  thumb_keys: string[];
+  pills: string[];
+  gradient_angle: number;
+  gradient_solid: boolean;
+  cta_style: BannerCtaStyle;
+  compose_style: BannerComposeStyle;
   created_at: string;
   updated_at: string;
 }
+
+export type BannerCtaStyle = "auto" | "arrow" | "pill" | "none";
+
+export interface BannerComposeStyle {
+  free?: boolean;
+  font?: "sans" | "serif" | "display";
+  scale?: number;
+  x?: number;
+  y?: number;
+  align?: "left" | "center" | "right";
+  headlineColor?: string;
+  ctaBg?: string;
+  ctaColor?: string;
+  weight?: number;
+  tracking?: number;
+  /** Legacy single free-design canvas (shared). Kept as a fallback for old records. */
+  canvas?: unknown;
+  /** Per-surface free-design canvases (Canva-style). Banner: mobile/web. Collection: card/hero. */
+  canvas_mobile?: unknown;
+  canvas_web?: unknown;
+  canvas_card?: unknown;
+  canvas_hero?: unknown;
+  /** How this banner enters when it becomes the active carousel slide. */
+  transition?: "fade" | "slide" | "zoom";
+}
+
+export type BannerMode = "upload" | "compose" | "canvas";
+
+export type BannerLayout =
+  | "full_image"
+  | "split"
+  | "text_cutout"
+  | "centered"
+  | "offer_badge"
+  | "minimal"
+  | "image_only"
+  | "editorial"
+  | "lookbook"
+  | "bottom_bar"
+  | "card"
+  | "story"
+  | "diagonal"
+  | "framed"
+  | "poster"
+  | "showcase"
+  | "spotlight"
+  | "curated"
+  | "triptych";
+
+export type BannerTextPosition = "left" | "center" | "bottom";
+export type BannerTextColor = "light" | "dark";
+export type BannerImageFit = "cover" | "contain";
 
 export type BannerPayload = Partial<
   Omit<Banner, "id" | "created_at" | "updated_at">
@@ -1169,6 +1302,7 @@ export interface ReturnRequest {
   reason: string;
   review_note?: string;
   refund_amount?: number;
+  payable_amount?: number | string; // order total; pg numeric → string over the wire
   created_at: string;
   updated_at: string;
 }
@@ -1201,6 +1335,33 @@ export const returnsApi = {
     req<ReturnRequest>(`/api/admin/returns/${id}/override`, {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+
+  // Admin/support raises a return on the customer's behalf (e.g. a phone call).
+  // Reuses the customer service: delivered-only, reason routes the outcome,
+  // COD refunds need an account, duplicate-per-order blocked. Gated orders:write.
+  create: async (data: {
+    user_id: string;
+    order_id: string;
+    reason: string;
+    description?: string;
+    refund_account_type?: "upi" | "bank";
+    refund_account_detail?: string;
+  }): Promise<ReturnRequest> =>
+    req<ReturnRequest>(`/api/admin/returns`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Approve a return → initiates the refund (money action). Finance only
+  // (refunds:approve); the return must already be defect-confirmed.
+  approve: async (id: string, note?: string, refundAmount?: number): Promise<{ message: string }> =>
+    req<{ message: string }>(`/api/admin/returns/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({
+        ...(note ? { note } : {}),
+        ...(refundAmount !== undefined ? { refund_amount: refundAmount } : {}),
+      }),
     }),
 };
 
@@ -1238,6 +1399,20 @@ export const alterationsApi = {
 
   get: async (id: string): Promise<AlterationRequest> =>
     req<AlterationRequest>(`/api/admin/alterations/${id}`),
+
+  // Admin/support raises an alteration on the customer's behalf (e.g. a phone
+  // call). The backend reuses the customer service: order must be delivered &
+  // belong to the user, fee policy applies, duplicate-open is blocked.
+  create: async (data: {
+    user_id: string;
+    order_id: string;
+    description: string;
+    areas?: string[];
+  }): Promise<AlterationRequest> =>
+    req<AlterationRequest>(`/api/admin/alterations`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
 
 // ─── Sample jobs (design verify gate — P3 item 28) ────────────────────────────
@@ -1254,7 +1429,8 @@ export interface SampleJob {
     | "design_review"
     | "reviewed"
     | "approved"
-    | "rejected";
+    | "rejected"
+    | "cancelled";
   assigned_tailor_id: string | null;
   photo_keys: string[];
   rejection_reason: string | null;
@@ -1265,6 +1441,7 @@ export interface SampleJob {
   fabric_code: string | null;
   fabric_image_keys: string[] | null;
   tailor_name: string | null;
+  hub_name: string | null;
 }
 
 export interface SampleComment {
@@ -1308,7 +1485,7 @@ export interface SampleJobDetail {
     weave: string | null;
     finish: string | null;
     weight_gsm: number | null;
-    care_instructions: string | null;
+    care_instructions: string[] | null;
     origin: string | null;
     price_per_meter: string | null;
     image_keys: string[];
@@ -1356,6 +1533,10 @@ export const sampleJobsApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+
+  // Cancel a still-'requested' sample (design's My Sample Requests).
+  cancel: async (id: string): Promise<SampleJob> =>
+    req<SampleJob>(`/api/admin/sample-jobs/${id}/cancel`, { method: "POST" }),
 };
 
 // ─── Designs (central design library — P3 item 28) ────────────────────────────
@@ -1371,6 +1552,7 @@ export interface DesignSummary {
   meters_per_garment: string | null;
   status: DesignStatus;
   garment_type: string;
+  design_garment_type?: string | null; // the cut (e.g. "casual shirt")
   garment_slug: string;
   reference_image_keys: string[];
   fabric_count: number;
@@ -1380,6 +1562,8 @@ export interface DesignSummary {
   sample_count?: number;
   has_reviewed_sample?: boolean;
   live_hub_count?: number;
+  avg_fit?: number | null;
+  created_at?: string;
   updated_at: string;
 }
 
@@ -1391,6 +1575,29 @@ export interface DesignFabricRef {
   composition: string | null;
   image_keys: string[];
   meters_per_garment: string | null;
+  price_per_meter: string | null;
+  hubs: { hub_name: string; available_meters: number | string }[];
+}
+export interface DesignSampleRef {
+  id: string;
+  status: string;
+  created_at: string;
+  rejection_reason: string | null;
+  hub_name: string | null;
+}
+export interface DesignListingRef {
+  id: string;
+  price: string | number;
+  is_active: boolean;
+  hub_name: string;
+  fabric_name: string | null;
+}
+export interface DesignFitSummary {
+  responded: number;
+  good_fit: number;
+  ftr: number | null;
+  avg_fit: number | null;
+  recent: { id: string; overall_fit: number; notes: string | null; created_at: string }[];
 }
 
 export interface DesignDetail {
@@ -1400,20 +1607,28 @@ export interface DesignDetail {
   style: string | null;
   fit_preset: string | null;
   meters_per_garment: string | null;
+  meters_by_size?: Record<string, number> | null; // size_label → metres (INVENTORY-FABRIC-MODEL §1)
   status: DesignStatus;
-  garment_type: string;
+  garment_type: string; // the CATEGORY name (e.g. "Top wear") — display label
+  design_garment_type?: string | null; // the specific TYPE the design is (e.g. "formal shirt")
+  category_garment_types?: string[] | null; // types this category can produce
   garment_slug: string;
   garment_category_id: string;
   tech_pack: Record<string, unknown> | null;
   capture_set: unknown;
   pain_point_menu: Record<string, unknown> | null;
   reference_image_keys: string[];
+  spec_sheet_key?: string | null;
   template_capture_set: unknown;
   template_pain_point_menu: Record<string, unknown> | null;
   template_fit_presets: string[] | null;
   created_at: string;
   updated_at: string;
   fabrics: DesignFabricRef[];
+  // detail tabs (spec §4 DesignDetail)
+  samples: DesignSampleRef[];
+  listings: DesignListingRef[];
+  fit: DesignFitSummary;
   // G-34 lifecycle
   sample_count?: number;
   has_reviewed_sample?: boolean;
@@ -1432,14 +1647,17 @@ export interface FabricOption {
 export interface DesignInput {
   name: string;
   garment_category_id: string;
+  garment_type?: string | null;
   gender?: string;
   style?: string | null;
   fit_preset?: string | null;
   meters_per_garment?: number;
+  meters_by_size?: Record<string, number>; // size_label → metres (INVENTORY-FABRIC-MODEL §1)
   tech_pack?: Record<string, unknown> | null;
   capture_set?: unknown;
   pain_point_menu?: Record<string, unknown> | null;
   reference_image_keys?: string[];
+  spec_sheet_key?: string | null;
   fabrics?: { fabric_id: string; meters_per_garment?: number | null }[];
 }
 
@@ -1450,7 +1668,21 @@ export interface GarmentCategoryOption {
   body_region: string | null;
   capture_set: unknown;
   pain_point_menu: Record<string, unknown> | null;
+  body_shape_menu?: Record<string, Record<string, number>> | null;
+  tolerances?: Record<string, number> | null;
   available_fit_presets: string[] | null;
+  // Presets the ENGINE can actually run (have a garment_fit_preset row). Derived
+  // server-side; use THIS for the engine tester, not the authored column above.
+  calibrated_fit_presets?: string[] | null;
+  garment_types?: string[] | null;
+  used_by_designs?: number;
+}
+
+export interface CreateGarmentCategoryInput {
+  name: string;
+  body_region: "upper" | "lower";
+  garment_types?: string[];
+  description?: string | null;
 }
 
 export interface ChartRow {
@@ -1465,14 +1697,40 @@ export interface GarmentTemplate {
   body_region: string | null;
   capture_set: string[] | null;
   pain_point_menu: Record<string, Record<string, number>> | null;
+  body_shape_menu?: Record<string, Record<string, number>> | null;
+  tolerances?: Record<string, number> | null;
+  seam_allowance_cm?: number | null;
+  hem_allowance_cm?: number | null;
   available_fit_presets: string[] | null;
+  garment_types?: string[] | null;
+  fit_presets?: FitPresetDef[] | null;
+  length_bands?: LengthBand[] | null;
   chart: ChartRow[];
+  used_by_designs?: number;
+  used_by_orders?: number;
+}
+export interface FitPresetDef {
+  fit_preset: string;
+  params: Record<string, number>;
+}
+export interface LengthBand {
+  length_field?: string;
+  height_min_cm: number;
+  length_value: number;
 }
 export interface GarmentTemplateInput {
   capture_set: string[];
   pain_point_menu: Record<string, Record<string, number>>;
+  body_shape_menu?: Record<string, Record<string, number>>;
+  tolerances?: Record<string, number>;
+  seam_allowance_cm?: number;
+  hem_allowance_cm?: number;
   available_fit_presets: string[];
+  garment_types?: string[];
+  fit_presets?: FitPresetDef[];
+  length_bands?: LengthBand[];
   chart: ChartRow[];
+  note?: string; // "what changed" one-liner → audit trail
 }
 
 export interface DesignOverviewRow {
@@ -1493,6 +1751,9 @@ export const designsApi = {
       garment_category_id?: string;
       gender?: string;
       q?: string;
+      limit?: number;
+      offset?: number;
+      sort?: "newest" | "best_fit";
     } = {},
   ): Promise<DesignSummary[]> => {
     const qs = new URLSearchParams();
@@ -1501,6 +1762,9 @@ export const designsApi = {
       qs.set("garment_category_id", params.garment_category_id);
     if (params.gender) qs.set("gender", params.gender);
     if (params.q) qs.set("q", params.q);
+    if (params.limit != null) qs.set("limit", String(params.limit));
+    if (params.offset != null) qs.set("offset", String(params.offset));
+    if (params.sort) qs.set("sort", params.sort);
     const q = qs.toString();
     return req<DesignSummary[]>(`/api/admin/designs${q ? `?${q}` : ""}`);
   },
@@ -1513,6 +1777,29 @@ export const designsApi = {
 
   garmentCategories: async (): Promise<GarmentCategoryOption[]> =>
     req<GarmentCategoryOption[]>(`/api/admin/designs/garment-categories`),
+
+  // Step 3: the finished-garment standard chart for a (category, fit) — shown inline in the
+  // design editor so the designer sees the sizing/grading the garment will follow.
+  fitChart: async (
+    categoryId: string,
+    fit: string,
+  ): Promise<{ slug: string; fit: string; chart: Record<string, number | string>[] }> =>
+    req(
+      `/api/admin/designs/garment-categories/${categoryId}/fit-chart?fit=${encodeURIComponent(fit)}`,
+    ),
+
+  createGarmentCategory: async (
+    input: CreateGarmentCategoryInput,
+  ): Promise<GarmentCategoryOption> =>
+    req<GarmentCategoryOption>(`/api/admin/designs/garment-categories`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  deleteGarmentCategory: async (id: string): Promise<{ deleted: boolean }> =>
+    req<{ deleted: boolean }>(`/api/admin/designs/garment-categories/${id}`, {
+      method: "DELETE",
+    }),
 
   overview: async (): Promise<DesignOverviewRow[]> =>
     req<DesignOverviewRow[]>(`/api/admin/designs/overview`),
@@ -1551,7 +1838,47 @@ export const designsApi = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+
+  // G-81: engine preview — run this garment-type's chart+preset(+pain-points) against
+  // a sample body and return the finished spec (validate a chart before it ships).
+  sizePreview: async (input: SizePreviewInput): Promise<SizePreviewResult> =>
+    req<SizePreviewResult>(`/api/admin/designs/size-preview`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
 };
+
+export interface SizePreviewInput {
+  garment_category_slug: string;
+  fit_preset: string;
+  usual_size?: number;
+  height_cm?: number;
+  inseam?: number; // desired finished length (preferred over height) for bottoms
+  waist?: number;
+  hip?: number;
+  thigh?: number;
+  knee?: number;
+  chest?: number;
+  shoulder?: number;
+  neck?: number;
+  sleeve?: number;
+  bicep?: number;
+  shirt_length?: number;
+  bust?: number;
+  underbust?: number;
+  length?: number;
+  adjustments?: Record<string, number>;
+  body_shapes?: Record<string, number>; // shape_key → intensity (0..1.5)
+  stretch_pct?: number; // fabric: reduces ease
+  shrinkage_pct?: number; // fabric: enlarges cut
+}
+export interface SizePreviewResult {
+  garment: string;
+  region: string;
+  fit_preset: string;
+  type: string;
+  spec: Record<string, number>;
+}
 
 export interface BodyMeasurement {
   id: string;
@@ -1586,11 +1913,14 @@ export interface Invoice {
   status: string;
   pdf_key: string | null;
   created_at: string;
+  payable_amount?: string | number | null;
+  hub_name?: string | null;
 }
 
 export interface InvoicesResponse {
   invoices: Invoice[];
   total: number;
+  total_invoiced?: number;
   page: number;
   limit: number;
 }
@@ -1600,6 +1930,8 @@ export const invoicesApi = {
     params: {
       orderId?: string;
       status?: string;
+      hub_id?: string;
+      month?: string;
       page?: number;
       limit?: number;
     } = {},
@@ -1607,6 +1939,8 @@ export const invoicesApi = {
     const qs = new URLSearchParams();
     if (params.orderId) qs.set("orderId", params.orderId);
     if (params.status) qs.set("status", params.status);
+    if (params.hub_id) qs.set("hub_id", params.hub_id);
+    if (params.month) qs.set("month", params.month);
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
     return req<InvoicesResponse>(`/api/admin/invoices?${qs}`);
@@ -1646,7 +1980,16 @@ export interface CodDeposit {
   finance_confirmed_by_name: string | null;
   counted_amount: number | null;
   variance_reason: string | null;
+  variance_resolved_at?: string | null;
+  variance_resolved_by_name?: string | null;
+  variance_resolution?: string | null;
   created_at: string;
+}
+export interface CodDepositOrder {
+  id: string;
+  order_number: string;
+  payable_amount: string | number;
+  customer_name: string | null;
 }
 
 export interface CodReconciliationParams {
@@ -1686,6 +2029,17 @@ export const codReconciliationApi = {
       }),
     }),
 
+  // Close an open variance with a resolution note (spec §398 — persists until resolved).
+  resolveVariance: async (depositId: string, resolution: string): Promise<void> =>
+    req(`/api/admin/cod-deposits/${depositId}/resolve-variance`, {
+      method: "POST",
+      body: JSON.stringify({ resolution }),
+    }),
+
+  // Orders covered by a deposit (the expandable row list).
+  orders: async (depositId: string): Promise<CodDepositOrder[]> =>
+    req<CodDepositOrder[]>(`/api/admin/cod-deposits/${depositId}/orders`),
+
   // Streams a CSV file from the server and triggers a browser download.
   downloadCsv: async (params: CodReconciliationParams = {}): Promise<void> => {
     const qs = codReconciliationQs(params);
@@ -1724,9 +2078,18 @@ export interface SettlementHub {
   refunded: number;
   net_settled: number;
 }
+export interface SettlementDay {
+  day: string;
+  orders: number;
+  gross_online: number;
+  refunded: number;
+  net_settled: number;
+}
 export interface SettlementReport {
   method: string;
   hubs: SettlementHub[];
+  by_day?: SettlementDay[];
+  variance_tracked?: boolean;
   totals: { gross_online: number; refunded: number; net_settled: number };
 }
 export interface PnlHub {
@@ -1798,11 +2161,13 @@ export interface RefundEntry {
   refund_method: "razorpay" | "manual_transfer" | null;
   refund_account_type: "upi" | "bank" | null;
   refund_account_detail: string | null;
-  refund_status: "pending" | "initiated" | "completed";
+  refund_status: "pending" | "initiated" | "completed" | "failed";
+  refund_failure_reason?: string | null;
   refund_initiated_at: string | null;
   refund_completed_at: string | null;
   status: string;
   created_at: string;
+  customer_id?: string | null;
 }
 export const refundsApi = {
   list: (status?: string): Promise<RefundEntry[]> =>
@@ -1905,13 +2270,51 @@ export interface NavCounts {
   below_reorder?: number;
   listings_oos?: number;
   refunds_awaiting?: number;
+  refund_approvals_pending?: number;
+  credit_approvals_pending?: number;
   cod_unconfirmed?: number;
+  cod_variances_open?: number;
   tickets_open?: number;
   returns_requested?: number;
   stuck_orders?: number;
 }
 export const navCountsApi = {
   get: async (): Promise<NavCounts> => req<NavCounts>("/api/admin/nav-counts"),
+};
+
+// W-5: the finance credit-approval queue.
+export interface CreditRequest {
+  id: string;
+  user_id: string;
+  amount: number;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  review_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+  customer_name: string;
+  customer_phone: string;
+  customer_ref: string | null;
+  requested_by_name: string | null;
+  reviewed_by_name: string | null;
+}
+export const creditApprovalsApi = {
+  list: async (status = "pending"): Promise<CreditRequest[]> => {
+    const r = await req<{ requests: CreditRequest[] }>(
+      `/api/admin/credit-requests?status=${encodeURIComponent(status)}`,
+    );
+    return r?.requests ?? [];
+  },
+  approve: async (id: string, note?: string): Promise<{ message: string }> =>
+    req(`/api/admin/credit-requests/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify(note ? { note } : {}),
+    }),
+  reject: async (id: string, note?: string): Promise<{ message: string }> =>
+    req(`/api/admin/credit-requests/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify(note ? { note } : {}),
+    }),
 };
 
 export const adminInboxApi = {
@@ -1973,12 +2376,29 @@ export interface DesignPerformanceRow {
   fit_accuracy_pct: number;
 }
 
+export interface AnalyticsFilterParams {
+  hub_id?: string;
+  garment_category_id?: string;
+  start_date?: string;
+  end_date?: string;
+}
+const analyticsQs = (f?: AnalyticsFilterParams): string => {
+  if (!f) return '';
+  const p = new URLSearchParams();
+  if (f.hub_id) p.set('hub_id', f.hub_id);
+  if (f.garment_category_id) p.set('garment_category_id', f.garment_category_id);
+  if (f.start_date) p.set('start_date', f.start_date);
+  if (f.end_date) p.set('end_date', f.end_date);
+  const s = p.toString();
+  return s ? `?${s}` : '';
+};
+
 export const designAnalyticsApi = {
-  fitAccuracy: async (): Promise<FitAccuracy> =>
-    req<FitAccuracy>(`/api/admin/analytics/fit-accuracy`),
-  designPerformance: async (): Promise<{ designs: DesignPerformanceRow[] }> =>
+  fitAccuracy: async (f?: AnalyticsFilterParams): Promise<FitAccuracy> =>
+    req<FitAccuracy>(`/api/admin/analytics/fit-accuracy${analyticsQs(f)}`),
+  designPerformance: async (f?: AnalyticsFilterParams): Promise<{ designs: DesignPerformanceRow[] }> =>
     req<{ designs: DesignPerformanceRow[] }>(
-      `/api/admin/analytics/design-performance`,
+      `/api/admin/analytics/design-performance${analyticsQs(f)}`,
     ),
 };
 
@@ -2025,13 +2445,25 @@ export interface Fabric {
   finish: string | null;
   origin: string | null;
   supplier: string | null;
+  supplier_city?: string | null;
+  supplier_lead_time_days?: number | null;
+  supplier_moq_note?: string | null;
   care_instructions: string[];
   image_keys: string[];
   price_per_meter: string | null;
+  fabric_type?: string | null;
+  stretch_pct?: number | string | null;
+  shrinkage_pct?: number | string | null;
   is_active: boolean;
   created_at: string;
   design_count?: number;
   listing_count?: number;
+  // procurement master stock rollup (listFabrics)
+  total_available?: number;
+  total_reserved?: number;
+  low_somewhere?: boolean;
+  stock_value?: number | null;
+  stock?: { hub_id: string; hub_name: string; available_meters: number; reserved_meters: number }[];
 }
 export interface FabricInput {
   name: string;
@@ -2042,18 +2474,25 @@ export interface FabricInput {
   finish?: string | null;
   origin?: string | null;
   supplier?: string | null;
+  supplier_city?: string | null;
+  supplier_lead_time_days?: number | null;
+  supplier_moq_note?: string | null;
   care_instructions?: string[];
   image_keys: string[]; // ≥1 required (swatch)
   price_per_meter?: number | null;
+  fabric_type?: string | null;
+  stretch_pct?: number | null;
+  shrinkage_pct?: number | null;
 }
 
 export const fabricsApi = {
   list: async (
-    params: { q?: string; active?: boolean } = {},
+    params: { q?: string; active?: boolean; low?: boolean } = {},
   ): Promise<Fabric[]> => {
     const qs = new URLSearchParams();
     if (params.q) qs.set("q", params.q);
     if (params.active !== undefined) qs.set("active", String(params.active));
+    if (params.low) qs.set("low", "true");
     const s = qs.toString();
     return req<Fabric[]>(`/api/admin/fabrics${s ? `?${s}` : ""}`);
   },
@@ -2069,6 +2508,8 @@ export const fabricsApi = {
       method: "PUT",
       body: JSON.stringify(input),
     }),
+  remove: async (id: string): Promise<{ deleted: boolean }> =>
+    req<{ deleted: boolean }>(`/api/admin/fabrics/${id}`, { method: "DELETE" }),
   setActive: async (id: string, is_active: boolean, force = false): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics/${id}/active`, {
       method: "PATCH",
@@ -2092,7 +2533,43 @@ export const fabricsApi = {
     req<FabricAtHub>(
       `/api/admin/fabrics/at-hub?hub_id=${hubId}&fabric_id=${fabricId}`,
     ),
+  // Phase 3 — central procurement pool (received/allocated/available per SKU).
+  centralStock: async (): Promise<CentralStockRow[]> =>
+    req<CentralStockRow[]>(`/api/admin/fabrics/central`),
+  receiveCentral: async (input: { fabric_id: string; meters: number; note?: string }): Promise<CentralStockRow[]> =>
+    req<CentralStockRow[]>(`/api/admin/fabrics/central/receive`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  adjustCentral: async (input: { fabric_id: string; meters: number; note: string }): Promise<CentralStockRow[]> =>
+    req<CentralStockRow[]>(`/api/admin/fabrics/central/adjust`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  centralReceipts: async (fabricId: string): Promise<CentralReceipt[]> =>
+    req<CentralReceipt[]>(`/api/admin/fabrics/central/receipts?fabric_id=${fabricId}`),
 };
+
+export interface CentralReceipt {
+  id: string;
+  meters: string | number;
+  kind: "receive" | "adjust";
+  note: string | null;
+  created_at: string;
+  created_by_name: string | null;
+}
+
+export interface CentralStockRow {
+  fabric_id: string;
+  fabric_code: string | null;
+  fabric_name: string;
+  fabric_image_keys: string[] | null;
+  price_per_meter: string | number | null;
+  received_meters: string | number;
+  allocated_meters: string | number;
+  available_meters: string | number;
+  updated_at: string;
+}
 
 export interface FabricMovement {
   kind: "distribution" | "restock" | "listing";
@@ -2104,6 +2581,13 @@ export interface FabricMovement {
   design_name: string | null;
   note: string | null;
 }
+// True stock-movement ledger (mig 120): every available_meters change with running balance.
+export interface FabricStockMovement {
+  kind: string; // received | reserved | released | reconciled | in | out
+  delta_meters: string | number; // signed
+  balance_after: string | number; // running balance
+  created_at: string;
+}
 export interface FabricAtHub {
   fabric: Fabric;
   hub_id: string;
@@ -2111,9 +2595,11 @@ export interface FabricAtHub {
   stock: {
     available_meters: string;
     reserved_meters: string;
+    reorder_meters?: string | number | null;
     updated_at: string | null;
   };
-  movements: FabricMovement[];
+  movements: FabricMovement[]; // distribution/restock/listing REQUEST events (context)
+  stock_movements?: FabricStockMovement[]; // actual stock in/out with running balance
 }
 
 export interface FabricStockRow {
@@ -2127,9 +2613,19 @@ export interface FabricStockRow {
   reserved_meters: string | number;
   /** G-29: per-SKU×hub reorder point (null = unset) */
   reorder_meters: string | number | null;
+  /** G-29 P8: suggested reorder point = demand during lead time (null = no demand yet) */
+  reorder_suggestion?: string | number | null;
   /** ₹/m from the fabrics master — stock value = available × this */
   price_per_meter: string | number | null;
   updated_at: string;
+  /** INV-3: listings this fabric feeds at the hub + garments available per listing (shared stock). */
+  listings?: {
+    listing_id: string;
+    design_name: string;
+    is_active: boolean;
+    per_garment_meters: number;
+    garments_available: number | null;
+  }[];
 }
 
 // ─── Distribution (procurement pushes design+fabric → hub) ────────────────────
@@ -2146,13 +2642,14 @@ export interface Distribution {
   variance_reason?: string | null;
   created_at: string;
   updated_at: string;
-  design_name: string;
+  design_name: string | null;
   fabric_name: string | null;
   fabric_code: string | null;
   fabric_image_keys: string[] | null;
 }
 export interface PushDistributionInput {
-  design_id: string;
+  /** design-scoped push: set. Plain fabric restock: omit (fabric_id then required). */
+  design_id?: string | null;
   fabric_id?: string | null;
   hub_id: string;
   sample_qty?: number;
@@ -2245,7 +2742,8 @@ export type ListingRequestStatus =
   | "requested"
   | "approved"
   | "received"
-  | "rejected";
+  | "rejected"
+  | "cancelled";
 export interface ListingRequest {
   id: string;
   design_id: string;
@@ -2254,7 +2752,12 @@ export interface ListingRequest {
   qty: string | number;
   status: ListingRequestStatus;
   note: string | null;
+  /** procurement's reason when rejected */
+  decision_note?: string | null;
+  /** G-10: latest sample outcome for this design+fabric (null = no sample yet) */
+  sample_status?: string | null;
   created_at: string;
+  updated_at?: string;
   design_name: string;
   garment_type: string;
   fabric_name: string;
@@ -2292,15 +2795,18 @@ export const listingRequestsApi = {
   decide: async (
     id: string,
     decision: "approved" | "rejected",
+    reason?: string,
   ): Promise<{ id: string; status: string; stocked_meters: number }> =>
     req(`/api/admin/listing-requests/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ decision }),
+      body: JSON.stringify({ decision, ...(reason ? { reason } : {}) }),
     }),
   receive: async (
     id: string,
   ): Promise<{ id: string; status: string; stocked_meters: number }> =>
     req(`/api/admin/listing-requests/${id}/receive`, { method: "POST" }),
+  cancel: async (id: string): Promise<{ id: string; status: string }> =>
+    req(`/api/admin/listing-requests/${id}/cancel`, { method: "POST" }),
 };
 
 // ─── Listings (super read-only overview) ──────────────────────────────────────
@@ -2370,6 +2876,7 @@ export interface CmListingInput {
   description?: string | null;
   photo_keys?: string[];
   is_active?: boolean;
+  allow_below_cost?: boolean; // G-26: confirm an intentional below-cost price
 }
 
 export const cmListingsApi = {
@@ -2394,6 +2901,7 @@ export const cmListingsApi = {
       photo_keys?: string[];
       description?: string;
       is_active?: boolean;
+      allow_below_cost?: boolean;
     },
   ): Promise<{ listing_id: string; reused: boolean }> =>
     req(`/api/admin/sample-jobs/${sampleId}/list`, {
@@ -3002,11 +3510,29 @@ export interface AdminFitProfile {
   is_default: boolean;
   measurements: Record<string, number | null>;
   created_at: string;
+  flagged_at: string | null;
+  flagged_reason: string | null;
 }
 
 export const fitProfilesAdminApi = {
   list: async (userId: string): Promise<AdminFitProfile[]> =>
     req<AdminFitProfile[]>(`/api/admin/users/${userId}/fit-profiles`),
+
+  // Support flags a saved fit profile as incorrect (+ optionally fire a re-measure).
+  flag: async (
+    userId: string,
+    profileId: string,
+    body: { reason: string; request_remeasure?: boolean },
+  ): Promise<{ flagged: boolean; remeasure_created: boolean }> =>
+    req(`/api/admin/users/${userId}/fit-profiles/${profileId}/flag`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  unflag: async (userId: string, profileId: string): Promise<{ flagged: boolean }> =>
+    req(`/api/admin/users/${userId}/fit-profiles/${profileId}/unflag`, {
+      method: "POST",
+    }),
 };
 
 // ─── Customer Lookup ──────────────────────────────────────────────────────────
@@ -3036,29 +3562,50 @@ export interface ProductCategory {
   name: string;
   slug: string;
   mode: string | null;
+  gender?: string | null;
   is_active: boolean;
   image_url: string | null;
+  parent_id?: string | null;
+  garment_category_id?: string | null;
+  display_order?: number;
+  product_count?: number;
+}
+
+export interface CategoryPayload {
+  name?: string;
+  slug?: string;
+  gender?: "men" | "women" | "unisex";
+  is_active?: boolean;
+  parent_id?: string | null;
+  garment_category_id?: string | null;
+  display_order?: number;
+  image_key?: string;
 }
 
 export const categoriesAdminApi = {
+  // NOTE: `req` already unwraps the response `{ data }` envelope and returns the inner
+  // value, so these must NOT access `.data` again (that double-unwrap is what made the
+  // list silently return []). They return the unwrapped value directly.
   list: async (): Promise<ProductCategory[]> => {
-    const result = await req<{ data: ProductCategory[] }>(
-      "/api/catalog/admin/categories",
-    );
-    return result?.data ?? [];
+    return (await req<ProductCategory[]>("/api/catalog/admin/categories")) ?? [];
   },
-  updateImage: async (
-    id: string,
-    imageKey: string | null,
-  ): Promise<ProductCategory> => {
-    const result = await req<{ data: ProductCategory }>(
-      `/api/catalog/admin/categories/${id}/image`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ image_key: imageKey }),
-      },
-    );
-    return result.data;
+  create: async (payload: CategoryPayload & { name: string; slug: string }): Promise<ProductCategory> => {
+    return req<ProductCategory>("/api/catalog/admin/categories", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  update: async (id: string, payload: CategoryPayload): Promise<ProductCategory> => {
+    return req<ProductCategory>(`/api/catalog/admin/categories/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateImage: async (id: string, imageKey: string | null): Promise<ProductCategory> => {
+    return req<ProductCategory>(`/api/catalog/admin/categories/${id}/image`, {
+      method: "PATCH",
+      body: JSON.stringify({ image_key: imageKey }),
+    });
   },
 };
 

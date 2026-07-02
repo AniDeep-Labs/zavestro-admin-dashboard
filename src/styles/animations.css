@@ -179,3 +179,35 @@
   );
   background-size: 1000px 100%;
 }
+
+/* ── Canvas banner motion (cnv*) — entrance + ambient Ken Burns.
+   Referenced by name from inline styles in canvas/CanvasRender.tsx. ── */
+@keyframes cnvFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cnvSlideUp { from { opacity: 0; transform: translateY(24%); } to { opacity: 1; transform: translateY(0); } }
+@keyframes cnvSlideDown { from { opacity: 0; transform: translateY(-24%); } to { opacity: 1; transform: translateY(0); } }
+@keyframes cnvSlideLeft { from { opacity: 0; transform: translateX(24%); } to { opacity: 1; transform: translateX(0); } }
+@keyframes cnvSlideRight { from { opacity: 0; transform: translateX(-24%); } to { opacity: 1; transform: translateX(0); } }
+@keyframes cnvZoom { from { opacity: 0; transform: scale(0.84); } to { opacity: 1; transform: scale(1); } }
+@keyframes cnvRise { from { opacity: 0; transform: translateY(48%); } to { opacity: 1; transform: translateY(0); } }
+@keyframes cnvPop { 0% { opacity: 0; transform: scale(0.5); } 70% { opacity: 1; transform: scale(1.06); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes cnvKenZoomIn { from { transform: scale(1); } to { transform: scale(1.14); } }
+@keyframes cnvKenZoomOut { from { transform: scale(1.14); } to { transform: scale(1); } }
+@keyframes cnvKenPanLeft { from { transform: scale(1.12) translateX(3%); } to { transform: scale(1.12) translateX(-3%); } }
+@keyframes cnvKenPanRight { from { transform: scale(1.12) translateX(-3%); } to { transform: scale(1.12) translateX(3%); } }
+
+/* Respect reduced-motion — neutralise canvas entrance + ambient keyframes so
+   elements appear in their final state instead of animating. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes cnvFade {}
+  @keyframes cnvSlideUp {}
+  @keyframes cnvSlideDown {}
+  @keyframes cnvSlideLeft {}
+  @keyframes cnvSlideRight {}
+  @keyframes cnvZoom {}
+  @keyframes cnvRise {}
+  @keyframes cnvPop {}
+  @keyframes cnvKenZoomIn {}
+  @keyframes cnvKenZoomOut {}
+  @keyframes cnvKenPanLeft {}
+  @keyframes cnvKenPanRight {}
+}

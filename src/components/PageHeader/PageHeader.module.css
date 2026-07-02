@@ -1,0 +1,66 @@
+.header {
+  /* No margin-bottom: every page that uses PageHeader wraps it in a flex/grid `gap`
+     container (the admin .page columns + DetailShell grid), so the container's gap
+     already spaces the header from the content. A margin here doubled that gap. */
+}
+
+.above {
+  margin-bottom: var(--spacing-sm);
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.lead {
+  min-width: 0;
+}
+
+.eyebrow {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: 4px;
+}
+
+.title {
+  font-family: var(--font-display, var(--font-family));
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: 1.15;
+  margin: 0;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: var(--spacing-xs) 0 0;
+  max-width: 70ch;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .title { font-size: var(--font-size-2xl); }
+  .actions { width: 100%; }
+}

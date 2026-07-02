@@ -5,6 +5,8 @@ import {
   invoicesApi,
   customerMeasurementsApi,
   usersApi,
+  alterationsApi,
+  returnsApi,
 } from "../../api/adminApi";
 import type {
   AdminOrder,
@@ -18,6 +20,7 @@ import type { ToastData } from "../../components/Toast/Toast";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
 import { Can } from "../../components/Can/Can";
 import { StatusBadge, statusLabel } from "../../components/StatusBadge";
+import { PageHeader, DetailShell } from "../../components";
 import styles from "./OrderDetailPage.module.css";
 import {
   UilAngleLeft,
@@ -535,6 +538,13 @@ export const OrderDetailPage: React.FC = () => {
   // G-37 re-measure (with this order as context)
   const [showRemeasure, setShowRemeasure] = React.useState(false);
   const [remeasureReason, setRemeasureReason] = React.useState("");
+  const [showAlteration, setShowAlteration] = React.useState(false);
+  const [alterationDesc, setAlterationDesc] = React.useState("");
+  const [requestingAlteration, setRequestingAlteration] = React.useState(false);
+  const [showReturn, setShowReturn] = React.useState(false);
+  const [returnReason, setReturnReason] = React.useState("defective");
+  const [returnDesc, setReturnDesc] = React.useState("");
+  const [requestingReturn, setRequestingReturn] = React.useState(false);
   const [requestingRemeasure, setRequestingRemeasure] = React.useState(false);
   const [overrideReason, setOverrideReason] = React.useState("");
   const [overrideStage, setOverrideStage] = React.useState("");
@@ -777,6 +787,81 @@ export const OrderDetailPage: React.FC = () => {
     }
   };
 
+  const submitAlteration = async () => {
+    if (!order?.user_id) {
+      showToast("error", "This order has no linked customer");
+      return;
+    }
+    if (!alterationDesc.trim()) {
+      showToast("error", "Describe the alteration needed");
+      return;
+    }
+    setRequestingAlteration(true);
+    try {
+      await alterationsApi.create({
+        user_id: order.user_id,
+        order_id: order.uuid ?? order.id,
+        description: alterationDesc.trim(),
+      });
+      showToast("success", "Alteration requested", "First alteration on the order is free.");
+      setShowAlteration(false);
+      setAlterationDesc("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("already exists")
+          ? "An alteration is already open on this order"
+          : msg?.includes("delivered")
+            ? "Only delivered orders can be altered"
+            : "Failed",
+        msg,
+      );
+    } finally {
+      setRequestingAlteration(false);
+    }
+  };
+
+  const RETURN_REASONS = [
+    { v: "defective", l: "Defective / quality issue → refund" },
+    { v: "wrong_item", l: "Wrong item received → refund" },
+    { v: "wrong_measurements", l: "Fit / measurements wrong → alteration" },
+    { v: "changed_mind", l: "Changed mind → declined" },
+    { v: "other", l: "Other → manual review" },
+  ];
+
+  const submitReturn = async () => {
+    if (!order?.user_id) {
+      showToast("error", "This order has no linked customer");
+      return;
+    }
+    setRequestingReturn(true);
+    try {
+      await returnsApi.create({
+        user_id: order.user_id,
+        order_id: order.uuid ?? order.id,
+        reason: returnReason,
+        description: returnDesc.trim() || undefined,
+      });
+      showToast("success", "Return started", "Ops will inspect; finance approves any refund.");
+      setShowReturn(false);
+      setReturnDesc("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("already exists")
+          ? "A return is already open on this order"
+          : msg?.includes("delivered")
+            ? "Only delivered orders can be returned"
+            : "Failed",
+        msg,
+      );
+    } finally {
+      setRequestingReturn(false);
+    }
+  };
+
   const handleGenerateInvoice = async () => {
     if (!order) return;
     setInvoiceGenerating(true);
@@ -910,34 +995,32 @@ export const OrderDetailPage: React.FC = () => {
   const offPath = !(normStage in STAGE_IDX);
   const currentIdx = STAGE_IDX[normStage] ?? STAGE_IDX[OFFPATH_NEAR[normStage]] ?? -1;
 
-  return (
-    <div className={styles.page}>
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button
-        className={styles.backBtn}
-        onClick={() => navigate("/admin/orders")}
-      >
-        <UilAngleLeft size={15} /> Back to Orders
-      </button>
-
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className={styles.card}>
-        <div className={styles.orderHeader}>
-          <div>
-            <div className={styles.orderId}>
-              {order.id}
-              {order.reference_id && (
-                <span className={styles.refBadge}>{order.reference_id}</span>
-              )}
-            </div>
-            <div className={styles.orderMeta}>
-              Created {order.created}
-              {order.customer_ref && (
-                <span className={styles.refChip}>{order.customer_ref}</span>
-              )}
-            </div>
-          </div>
-          <div className={styles.badges}>
+  // ── Canon header (W-11): order identity + status/mode chips; the customer/hub
+  //    strip and the stage stepper stay full-width in the header slot (which
+  //    spans both DetailShell columns). The SSE-fed timeline stays bespoke. ──
+  const header = (
+    <>
+      <PageHeader
+        above={
+          <button
+            className={styles.backBtn}
+            onClick={() => navigate("/admin/orders")}
+          >
+            <UilAngleLeft size={15} /> Back to Orders
+          </button>
+        }
+        eyebrow="Order"
+        title={
+          <>
+            {order.id}
+            {order.reference_id && (
+              <span className={styles.refBadge}>{order.reference_id}</span>
+            )}
+          </>
+        }
+        subtitle={`Created ${order.created}`}
+        meta={
+          <>
             <span className={`${styles.pill} ${styles.pillGreen}`}>
               {order.mode}
             </span>
@@ -945,9 +1028,16 @@ export const OrderDetailPage: React.FC = () => {
             {order.on_hold_reason && (
               <span className={styles.holdPill}>⏸ On Hold</span>
             )}
-          </div>
-        </div>
-        <div className={styles.customerRow}>
+            {order.customer_ref && (
+              <span className={styles.refChip}>{order.customer_ref}</span>
+            )}
+          </>
+        }
+      />
+
+      <div className={styles.headerExtras}>
+        <div className={styles.card}>
+          <div className={styles.customerRow}>
           <span className={styles.customerLabel}>Customer</span>
           <span className={styles.customerName}>{order.customer}</span>
           <span className={styles.customerPhone}>{order.phone}</span>
@@ -966,7 +1056,7 @@ export const OrderDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Stage stepper ────────────────────────────────────────────────────── */}
+      {/* ── Stage stepper ──────────────────────────────────────────────────── */}
       <div className={styles.card}>
         <div className={styles.journeyHeader}>
           <h3 className={styles.sectionTitle}>Order Journey</h3>
@@ -996,9 +1086,207 @@ export const OrderDetailPage: React.FC = () => {
           })}
         </div>
       </div>
+      </div>
+    </>
+  );
 
-      <div className={styles.twoCol}>
-        <div className={styles.main}>
+  // ── Canon right rail (W-11 DetailShell aside): ops break-glass · delivery ·
+  //    admin actions · cancellation — relocated verbatim from the old sidebar. ──
+  const aside = (
+    <>
+      {/* NEXT STEP — the ops-FLOOR action card (advance stage, assign tailor/QC).
+          G-23: these belong to the Ops app (Phase B); until then they're gated to
+          super_admin (system:manage) as break-glass. Support is CX-only and no
+          longer sees this. */}
+      <Can cap="system:manage">
+        <NextStepCard
+          order={order}
+          customerFitProfiles={customerFitProfiles}
+          profilesLoading={profilesLoading}
+          advancingStage={advancingStage}
+          assigningCraft={assigningCraft}
+          assigningQC={assigningQC}
+          onAdvance={handleAdvance}
+          onAssignCraft={handleAssignCraft}
+          onAssignQC={handleAssignQC}
+          onUseFitProfile={handleUseFitProfile}
+        />
+      </Can>
+
+      {/* Delivery date + hold reason — support CX (orders:write) */}
+      <Can cap="orders:write">
+        <div className={styles.card}>
+          <h3 className={styles.sectionTitle}>Delivery</h3>
+          <div className={styles.deliveryBlock}>
+            <div className={styles.metaLabel}>Est. Delivery Date</div>
+            {editingDelivery ? (
+              <div className={styles.inlineEdit}>
+                <input
+                  type="date"
+                  className={styles.inlineInput}
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                />
+                <button
+                  className={styles.inlineSave}
+                  disabled={savingDelivery}
+                  onClick={handleSaveDelivery}
+                >
+                  {savingDelivery ? "…" : "Save"}
+                </button>
+                <button
+                  className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
+                  onClick={() => {
+                    setEditingDelivery(false);
+                    setDeliveryDate(order.estimated_delivery_date ?? "");
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className={styles.inlineEdit}>
+                <span className={styles.metaValue}>
+                  {order.estimated_delivery_date ?? "—"}
+                </span>
+                <button
+                  className={styles.linkBtn}
+                  onClick={() => setEditingDelivery(true)}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+          <div>
+            <div className={styles.metaLabel}>On Hold Reason</div>
+            {editingHold ? (
+              <div className={styles.holdEditCol}>
+                <textarea
+                  className={styles.fieldTextarea}
+                  rows={2}
+                  placeholder="Leave empty to clear hold…"
+                  value={holdReason}
+                  onChange={(e) => setHoldReason(e.target.value)}
+                />
+                <div className={styles.holdEditRow}>
+                  <button
+                    className={styles.inlineSave}
+                    disabled={savingHold}
+                    onClick={handleSaveHold}
+                  >
+                    {savingHold ? "…" : "Save"}
+                  </button>
+                  <button
+                    className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
+                    onClick={() => {
+                      setEditingHold(false);
+                      setHoldReason(order.on_hold_reason ?? "");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.inlineEdit}>
+                <span
+                  className={`${styles.metaValue} ${order.on_hold_reason ? styles.holdValue : styles.holdValueNone}`}
+                >
+                  {order.on_hold_reason ?? "Not on hold"}
+                </span>
+                <button
+                  className={styles.linkBtn}
+                  onClick={() => setEditingHold(true)}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </Can>
+
+      {/* Admin actions — Override is super-only break-glass (G-23); invoice +
+          cancel stay available to support (orders:write) / finance. */}
+      <div className={styles.card}>
+        <h3 className={styles.sectionTitle}>Admin Actions</h3>
+        <div className={styles.actionList}>
+          <Can cap="system:manage">
+            <button
+              className={styles.overrideBtn}
+              onClick={() => setShowOverrideModal(true)}
+            >
+              Override Stage
+            </button>
+          </Can>
+          <button
+            className={styles.actionBtnSecondary}
+            disabled={invoiceGenerating}
+            onClick={handleGenerateInvoice}
+          >
+            {invoiceGenerating ? "Queuing…" : "Generate Invoice"}
+          </button>
+          <button
+            className={styles.actionBtnSecondary}
+            disabled={invoiceLoading}
+            onClick={handleDownloadInvoice}
+          >
+            {invoiceLoading ? "Loading…" : "Download Invoice"}
+          </button>
+          {/* G-37: support's re-measure lever, with this order as context */}
+          <Can cap="orders:write">
+            <button
+              className={styles.actionBtnSecondary}
+              onClick={() => setShowRemeasure(true)}
+            >
+              Request re-measure
+            </button>
+          </Can>
+          {/* Alteration & return — only on a delivered order (backend enforces it too) */}
+          {order.stage === "delivered" && (
+            <Can cap="orders:write">
+              <button
+                className={styles.actionBtnSecondary}
+                onClick={() => setShowAlteration(true)}
+              >
+                Request alteration
+              </button>
+            </Can>
+          )}
+          {order.stage === "delivered" && (
+            <Can cap="orders:write">
+              <button
+                className={styles.actionBtnSecondary}
+                onClick={() => setShowReturn(true)}
+              >
+                Start a return
+              </button>
+            </Can>
+          )}
+          {/* Cancel Order removed: the button was dead (no handler). The real
+              cancel flow (allowed-stage check + fabric release + refund
+              linkage) ships later. */}
+        </div>
+      </div>
+
+      {order.cancellation_reason && (
+        <div className={styles.card}>
+          <h3 className={`${styles.sectionTitle} ${styles.sectionTitleError}`}>
+            Cancellation
+          </h3>
+          <div className={styles.cancelReasonText}>
+            {order.cancellation_reason}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <DetailShell header={header} aside={aside}>
           {/* ── Items ──────────────────────────────────────────────────────── */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Items</h3>
@@ -1239,177 +1527,7 @@ export const OrderDetailPage: React.FC = () => {
               ))
             )}
           </div>
-        </div>
-
-        {/* ── Sidebar ────────────────────────────────────────────────────────── */}
-        <div className={styles.sidebar}>
-          {/* NEXT STEP — the ops-FLOOR action card (advance stage, assign tailor/QC).
-              G-23: these belong to the Ops app (Phase B); until then they're gated to
-              super_admin (system:manage) as break-glass. Support is CX-only and no
-              longer sees this. */}
-          <Can cap="system:manage">
-            <NextStepCard
-              order={order}
-              customerFitProfiles={customerFitProfiles}
-              profilesLoading={profilesLoading}
-              advancingStage={advancingStage}
-              assigningCraft={assigningCraft}
-              assigningQC={assigningQC}
-              onAdvance={handleAdvance}
-              onAssignCraft={handleAssignCraft}
-              onAssignQC={handleAssignQC}
-              onUseFitProfile={handleUseFitProfile}
-            />
-          </Can>
-
-          {/* Delivery date + hold reason — support CX (orders:write) */}
-          <Can cap="orders:write">
-            <div className={styles.card}>
-              <h3 className={styles.sectionTitle}>Delivery</h3>
-              <div className={styles.deliveryBlock}>
-                <div className={styles.metaLabel}>Est. Delivery Date</div>
-                {editingDelivery ? (
-                  <div className={styles.inlineEdit}>
-                    <input
-                      type="date"
-                      className={styles.inlineInput}
-                      value={deliveryDate}
-                      onChange={(e) => setDeliveryDate(e.target.value)}
-                    />
-                    <button
-                      className={styles.inlineSave}
-                      disabled={savingDelivery}
-                      onClick={handleSaveDelivery}
-                    >
-                      {savingDelivery ? "…" : "Save"}
-                    </button>
-                    <button
-                      className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
-                      onClick={() => {
-                        setEditingDelivery(false);
-                        setDeliveryDate(order.estimated_delivery_date ?? "");
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className={styles.inlineEdit}>
-                    <span className={styles.metaValue}>
-                      {order.estimated_delivery_date ?? "—"}
-                    </span>
-                    <button
-                      className={styles.linkBtn}
-                      onClick={() => setEditingDelivery(true)}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div>
-                <div className={styles.metaLabel}>On Hold Reason</div>
-                {editingHold ? (
-                  <div className={styles.holdEditCol}>
-                    <textarea
-                      className={styles.fieldTextarea}
-                      rows={2}
-                      placeholder="Leave empty to clear hold…"
-                      value={holdReason}
-                      onChange={(e) => setHoldReason(e.target.value)}
-                    />
-                    <div className={styles.holdEditRow}>
-                      <button
-                        className={styles.inlineSave}
-                        disabled={savingHold}
-                        onClick={handleSaveHold}
-                      >
-                        {savingHold ? "…" : "Save"}
-                      </button>
-                      <button
-                        className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
-                        onClick={() => {
-                          setEditingHold(false);
-                          setHoldReason(order.on_hold_reason ?? "");
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.inlineEdit}>
-                    <span
-                      className={`${styles.metaValue} ${order.on_hold_reason ? styles.holdValue : styles.holdValueNone}`}
-                    >
-                      {order.on_hold_reason ?? "Not on hold"}
-                    </span>
-                    <button
-                      className={styles.linkBtn}
-                      onClick={() => setEditingHold(true)}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </Can>
-
-          {/* Admin actions — Override is super-only break-glass (G-23); invoice +
-              cancel stay available to support (orders:write) / finance. */}
-          <div className={styles.card}>
-            <h3 className={styles.sectionTitle}>Admin Actions</h3>
-            <div className={styles.actionList}>
-              <Can cap="system:manage">
-                <button
-                  className={styles.overrideBtn}
-                  onClick={() => setShowOverrideModal(true)}
-                >
-                  Override Stage
-                </button>
-              </Can>
-              <button
-                className={styles.actionBtnSecondary}
-                disabled={invoiceGenerating}
-                onClick={handleGenerateInvoice}
-              >
-                {invoiceGenerating ? "Queuing…" : "Generate Invoice"}
-              </button>
-              <button
-                className={styles.actionBtnSecondary}
-                disabled={invoiceLoading}
-                onClick={handleDownloadInvoice}
-              >
-                {invoiceLoading ? "Loading…" : "Download Invoice"}
-              </button>
-              {/* G-37: support's re-measure lever, with this order as context */}
-              <Can cap="orders:write">
-                <button
-                  className={styles.actionBtnSecondary}
-                  onClick={() => setShowRemeasure(true)}
-                >
-                  Request re-measure
-                </button>
-              </Can>
-              {/* Cancel Order removed: the button was dead (no handler). The real
-                  cancel flow (allowed-stage check + fabric release + refund
-                  linkage) ships later. */}
-            </div>
-          </div>
-
-          {order.cancellation_reason && (
-            <div className={styles.card}>
-              <h3 className={`${styles.sectionTitle} ${styles.sectionTitleError}`}>
-                Cancellation
-              </h3>
-              <div className={styles.cancelReasonText}>
-                {order.cancellation_reason}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      </DetailShell>
 
       {/* ── Override modal ────────────────────────────────────────────────────── */}
       {showOverrideModal && (
@@ -1529,6 +1647,90 @@ export const OrderDetailPage: React.FC = () => {
                 onClick={submitRemeasure}
               >
                 {requestingRemeasure ? "Requesting…" : "Request re-measure"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Request alteration on this (delivered) order */}
+      {showAlteration && (
+        <div className={styles.modalOverlay} onClick={() => setShowAlteration(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Request alteration</h3>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>
+                What needs altering (first alteration on the order is free)
+              </label>
+              <textarea
+                className={styles.fieldTextarea}
+                placeholder="e.g., Take in 1cm at the chest; shorten sleeves by 2cm"
+                value={alterationDesc}
+                onChange={(e) => setAlterationDesc(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowAlteration(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.applyBtn}
+                disabled={!alterationDesc.trim() || requestingAlteration}
+                onClick={submitAlteration}
+              >
+                {requestingAlteration ? "Requesting…" : "Request alteration"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Start a return on this (delivered) order */}
+      {showReturn && (
+        <div className={styles.modalOverlay} onClick={() => setShowReturn(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Start a return</h3>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>Reason (routes the outcome)</label>
+              <select
+                className={styles.fieldSelect}
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+              >
+                {RETURN_REASONS.map((r) => (
+                  <option key={r.v} value={r.v}>
+                    {r.l}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>Details (optional)</label>
+              <textarea
+                className={styles.fieldTextarea}
+                placeholder="What did the customer report?"
+                value={returnDesc}
+                onChange={(e) => setReturnDesc(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowReturn(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.applyBtn}
+                disabled={requestingReturn}
+                onClick={submitReturn}
+              >
+                {requestingReturn ? "Starting…" : "Start return"}
               </button>
             </div>
           </div>

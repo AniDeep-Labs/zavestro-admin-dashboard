@@ -1,16 +1,20 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { alterationsApi } from '../../api/adminApi';
-import type { AlterationRequest } from '../../api/adminApi';
+import { alterationsApi, ordersApi } from '../../api/adminApi';
+import type { AlterationRequest, AdminOrder, CustomerLookupResult } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { StatusBadge, statusLabel } from '../../components/StatusBadge';
 import { AgeCell } from '../../components/DataCells';
 import { EmptyState } from '../../components/EmptyState';
 import { Drawer } from '../../components/Drawer/Drawer';
+import { Modal } from '../../components/Modal/Modal';
+import { Button } from '../../components/Button/Button';
+import { Textarea } from '../../components/Textarea/Textarea';
+import { CustomerQuickLookup } from '../../components/CustomerQuickLookup/CustomerQuickLookup';
 import styles from './OrdersListPage.module.css';
 import d from './AlterationsListPage.module.css';
-import { UilAngleLeft, UilAngleRight, UilSearch, UilTimes } from "@iconscout/react-unicons";
+import { UilAngleLeft, UilAngleRight, UilSearch, UilTimes, UilPlus } from "@iconscout/react-unicons";
 
 const STATUSES = ['pending', 'in_progress', 'completed', 'cancelled'];
 const AGING_DAYS = 5; // P1 alteration TAT target — surfaced where support lives
@@ -37,6 +41,16 @@ export const AlterationsListPage: React.FC = () => {
   const [peek, setPeek] = React.useState<AlterationRequest | null>(null);
   const debouncedSearch = useDebounce(search, 350);
 
+  // Create-on-behalf flow (search customer → pick delivered order → describe)
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [refreshTick, setRefreshTick] = React.useState(0);
+  const [selCustomer, setSelCustomer] = React.useState<CustomerLookupResult | null>(null);
+  const [custOrders, setCustOrders] = React.useState<AdminOrder[]>([]);
+  const [loadingOrders, setLoadingOrders] = React.useState(false);
+  const [selOrderId, setSelOrderId] = React.useState("");
+  const [createDesc, setCreateDesc] = React.useState("");
+  const [creating, setCreating] = React.useState(false);
+
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
@@ -47,7 +61,50 @@ export const AlterationsListPage: React.FC = () => {
       .then(r => { setAlterations(r.alterations); setTotal(r.total); })
       .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-  }, [statusFilter, page]);
+  }, [statusFilter, page, refreshTick]);
+
+  // When a customer is chosen in the create modal, load their DELIVERED orders.
+  React.useEffect(() => {
+    if (!selCustomer) { setCustOrders([]); setSelOrderId(""); return; }
+    setLoadingOrders(true);
+    ordersApi.list({ userId: selCustomer.id, limit: 20 })
+      .then(r => setCustOrders(r.orders.filter(o => o.stage === 'delivered')))
+      .catch(() => setCustOrders([]))
+      .finally(() => setLoadingOrders(false));
+  }, [selCustomer]);
+
+  const resetCreate = () => {
+    setShowCreate(false);
+    setSelCustomer(null);
+    setCustOrders([]);
+    setSelOrderId("");
+    setCreateDesc("");
+  };
+
+  const handleCreate = async () => {
+    if (!selCustomer || !selOrderId || !createDesc.trim()) {
+      showToast('error', 'Pick a customer, a delivered order and describe the alteration');
+      return;
+    }
+    setCreating(true);
+    try {
+      await alterationsApi.create({
+        user_id: selCustomer.id,
+        order_id: selOrderId,
+        description: createDesc.trim(),
+      });
+      showToast('success', 'Alteration created', 'First alteration on the order is free.');
+      resetCreate();
+      setRefreshTick(t => t + 1);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast('error',
+        msg?.includes('already exists') ? 'An alteration is already open on this order' : 'Failed',
+        msg);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const filtered = debouncedSearch
     ? alterations.filter(a =>
@@ -73,6 +130,9 @@ export const AlterationsListPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Alterations</h1>
+        <Button size="sm" onClick={() => setShowCreate(true)}>
+          <UilPlus size={15} /> New alteration
+        </Button>
       </div>
 
       <div className={styles.filterBar}>
@@ -160,6 +220,66 @@ export const AlterationsListPage: React.FC = () => {
           </div>
         )}
       </Drawer>
+
+      {/* Create on behalf — search customer → pick delivered order → describe */}
+      <Modal open={showCreate} onClose={resetCreate} title="New alteration request">
+        <div className={d.createForm}>
+          <label className={d.createLabel}>Customer</label>
+          <CustomerQuickLookup
+            selectedCustomer={selCustomer}
+            onSelect={setSelCustomer}
+            onClear={() => setSelCustomer(null)}
+          />
+
+          {selCustomer && (
+            <>
+              <label className={d.createLabel}>Delivered order</label>
+              {loadingOrders ? (
+                <p className={d.createHint}>Loading orders…</p>
+              ) : custOrders.length === 0 ? (
+                <p className={d.createHint}>
+                  This customer has no delivered orders — an alteration needs one.
+                </p>
+              ) : (
+                <select
+                  className={styles.filterSelect}
+                  value={selOrderId}
+                  onChange={(e) => setSelOrderId(e.target.value)}
+                >
+                  <option value="">Select an order…</option>
+                  {custOrders.map((o) => (
+                    <option key={o.uuid ?? o.id} value={o.uuid ?? o.id}>
+                      {o.reference_id ?? o.id} · ₹{o.total.toLocaleString("en-IN")} · {o.created}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <label className={d.createLabel}>What needs altering</label>
+              <Textarea
+                value={createDesc}
+                onChange={setCreateDesc}
+                placeholder="e.g., Take in 1cm at the chest; shorten sleeves by 2cm"
+                rows={3}
+              />
+            </>
+          )}
+
+          <div className={d.createActions}>
+            <Button variant="ghost" size="sm" onClick={resetCreate}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCreate}
+              disabled={!selCustomer || !selOrderId || !createDesc.trim() || creating}
+              state={creating ? "loading" : "default"}
+            >
+              Create alteration
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

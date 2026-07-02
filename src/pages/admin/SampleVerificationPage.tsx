@@ -1,127 +1,127 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { sampleJobsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { SampleJob } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { Alert, AgeCell } from '../../components';
+import { SampleProgress, isTerminalSample } from './SampleProgress';
 import base from './OrdersListPage.module.css';
-import styles from './SampleVerificationPage.module.css';
-import { UilImage, UilAngleRightB } from '@iconscout/react-unicons';
+import s from './SampleVerificationPage.module.css';
+import { UilImage } from '@iconscout/react-unicons';
 
-const STATUS_LABELS: Record<string, string> = {
-  requested: 'Requested',
-  cutting: 'Cutting',
-  stitching: 'Stitching',
-  design_review: 'Awaiting Review',
-  reviewed: 'Reviewed',
-  approved: 'Approved',
-  rejected: 'Rejected',
-};
-const STATUS_CSS: Record<string, string> = {
-  requested: 'stageNeutral',
-  cutting: 'stageBlue',
-  stitching: 'stageBlue',
-  design_review: 'stageWarning',
-  reviewed: 'stageSuccess',
-  approved: 'stageSuccess',
-  rejected: 'stageNeutral',
+const thumbUrl = (j: SampleJob) => {
+  const key = j.photo_keys?.[0] || j.fabric_image_keys?.[0];
+  return key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '';
 };
 
-const photoUrl = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
+// Stage groupings (FABLE §4C): the design team reviews `design_review`; everything
+// before it is still being made at the hub; everything after is disposed.
+const AWAITING = ['design_review'];
+const REVIEWED = ['reviewed', 'approved', 'rejected', 'cancelled'];
 
-export const SampleVerificationPage: React.FC = () => {
-  const [statusFilter, setStatusFilter] = React.useState('design_review');
+export const SampleVerificationPage: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
+  const navigate = useNavigate();
   const [samples, setSamples] = React.useState<SampleJob[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
-  const dismissToast = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
-  const showToast = (type: ToastData['type'], title: string, msg?: string) =>
+  const dismiss = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
+  const toast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
 
   React.useEffect(() => {
     setLoading(true);
     sampleJobsApi
-      .list({ status: statusFilter || undefined })
+      .list({})
       .then(setSamples)
-      .catch((e) => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
+      .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-  }, [statusFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  return (
-    <div className={base.page}>
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <div className={base.pageHeader}>
-        <h1 className={base.title}>Sample Review</h1>
-      </div>
+  const byOldest = (a: SampleJob, b: SampleJob) => +new Date(a.created_at) - +new Date(b.created_at);
+  const byNewest = (a: SampleJob, b: SampleJob) => +new Date(b.updated_at) - +new Date(a.updated_at);
 
-      <div className={base.filterBar}>
-        <select
-          className={base.filterSelect}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="design_review">Awaiting Review</option>
-          <option value="reviewed">Reviewed</option>
-          <option value="">All Statuses</option>
-        </select>
-      </div>
+  const awaiting = samples.filter((j) => AWAITING.includes(j.status)).sort(byOldest);
+  const inProgress = samples.filter((j) => ['requested', 'cutting', 'stitching'].includes(j.status)).sort(byOldest);
+  const reviewed = samples.filter((j) => REVIEWED.includes(j.status)).sort(byNewest);
 
-      {loading ? (
-        <div className={styles.grid}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className={`${styles.card} ${styles.cardSkeleton}`}>
-              <div className={styles.thumbSkeleton} />
-              <div className={styles.cardBody}>
-                <div className={styles.lineSkeleton} />
-                <div className={`${styles.lineSkeleton} ${styles.lineShort}`} />
-              </div>
-            </div>
-          ))}
+  const row = (j: SampleJob) => (
+    <tr key={j.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${j.id}`)}>
+      <td>
+        <div className={s.sampleCell}>
+          {thumbUrl(j) ? <img className={s.thumb} src={thumbUrl(j)} alt="" /> : <div className={s.thumb}><UilImage size={16} /></div>}
+          <div className={s.sampleText}>
+            <span className={s.designName}>{j.design_name}</span>
+            <span className={s.fabric}>{j.fabric_name}</span>
+          </div>
         </div>
-      ) : samples.length === 0 ? (
-        <div className={styles.emptyState}>No samples in this state.</div>
-      ) : (
-        <div className={styles.grid}>
-          {samples.map((s) => {
-            const hero = photoUrl(s.photo_keys[0]);
-            return (
-              <Link key={s.id} to={`/admin/design/samples/${s.id}`} className={styles.card}>
-                <div className={styles.thumb}>
-                  {hero ? (
-                    <img src={hero} alt={s.design_name} />
-                  ) : (
-                    <div className={styles.thumbEmpty}>
-                      <UilImage size={28} />
-                      <span>No photo</span>
-                    </div>
-                  )}
-                  <span
-                    className={`${base.stagePill} ${base[STATUS_CSS[s.status] ?? 'stageNeutral']} ${styles.cardPill}`}
-                  >
-                    {STATUS_LABELS[s.status] ?? s.status}
-                  </span>
-                  {s.photo_keys.length > 1 && (
-                    <span className={styles.photoCount}>{s.photo_keys.length} photos</span>
-                  )}
-                </div>
-                <div className={styles.cardBody}>
-                  <div className={styles.cardTitle}>{s.design_name}</div>
-                  <div className={styles.cardSub}>{s.fabric_name}</div>
-                  <div className={styles.cardMeta}>
-                    <span>{s.tailor_name ?? 'Unassigned'}</span>
-                    <span className={styles.reviewLink}>
-                      Review <UilAngleRightB size={14} />
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+      </td>
+      <td>{j.hub_name ?? '—'}</td>
+      <td>{j.tailor_name ?? <span className={s.muted}>Unassigned</span>}</td>
+      <td><AgeCell since={j.created_at} warnAfterH={isTerminalSample(j.status) ? Infinity : 120} alertAfterH={isTerminalSample(j.status) ? Infinity : 240} /></td>
+      <td><SampleProgress status={j.status} /></td>
+    </tr>
+  );
+
+  const skeleton = (
+    <tbody>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <tr key={i}>{Array.from({ length: 5 }).map((__, j) => <td key={j}><div className={base.skeleton} /></td>)}</tr>
+      ))}
+    </tbody>
+  );
+
+  const section = (title: string, list: SampleJob[], emptyMsg: string, muted = false) => (
+    <section className={s.section}>
+      <h2 className={`${s.sectionTitle} ${muted ? s.sectionMuted : ''}`}>
+        {title} <span className={s.count}>{loading ? '' : list.length}</span>
+      </h2>
+      <div className={base.tableWrap}>
+        <table className={base.table}>
+          <thead><tr><th>Sample</th><th>Hub</th><th>Maker</th><th>Age</th><th>Stage</th></tr></thead>
+          {loading ? skeleton : (
+            <tbody>
+              {list.length === 0 ? (
+                <tr><td colSpan={5} className={base.empty}>{emptyMsg}</td></tr>
+              ) : list.map(row)}
+            </tbody>
+          )}
+        </table>
+      </div>
+    </section>
+  );
+
+  const body = (
+    <>
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
+      {!embedded && (
+        <div className={base.pageHeader}>
+          <div>
+            <h1 className={base.title}>Sample Review</h1>
+            <p className={s.subtitle}>Your verdict gates the first listing per hub (D13) — approve only what's right to wear.</p>
+          </div>
         </div>
       )}
-    </div>
+      {embedded && (
+        <p className={s.subtitle}>Your verdict gates the first listing per hub (D13) — approve only what's right to wear.</p>
+      )}
+
+      {/* G-3 honest reality: nothing in this queue moves automatically yet. */}
+      <Alert
+        type="info"
+        title="Samples don't progress automatically yet"
+        message="They're cut, stitched and submitted by hub staff manually — this queue moves when the ops floor app ships."
+      />
+
+      {section('Awaiting your review', awaiting, 'No samples awaiting review ✓')}
+      {inProgress.length > 0 && section('In progress at hub', inProgress, '', true)}
+      {section('Reviewed', reviewed, 'Nothing reviewed yet.', true)}
+    </>
   );
+
+  return embedded ? body : <div className={base.page}>{body}</div>;
 };
 
 export default SampleVerificationPage;

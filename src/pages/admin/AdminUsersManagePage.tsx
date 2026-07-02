@@ -15,11 +15,9 @@ const ROLE_LABELS: Record<string, string> = {
   catalog_manager: 'Catalog Manager',
   support: 'Support',
   finance: 'Finance',
-  // legacy roles — kept for displaying existing accounts
+  pricing_manager: 'Pricing & Promotions',
+  // legacy role — kept for displaying existing god-mode accounts (not creatable)
   admin: 'Admin',
-  merchandiser: 'Merchandiser',
-  pricing_manager: 'Pricing',
-  analyst: 'Analyst',
 };
 
 // W-18: human-readable capability summary per role (mirrors backend permissions.ts).
@@ -30,6 +28,7 @@ const ROLE_CAP_SUMMARY: Record<string, string> = {
   catalog_manager: 'Listings + pricing + storefront CMS (their hub), restock requests, samples.',
   support: 'Orders (CX: notes/hold/cancel/link-fit/re-measure), customers + credits (≤₹500), returns, reviews.',
   finance: 'Refunds, COD confirmation, invoices, settlement/P&L (read). No floor or catalog writes.',
+  pricing_manager: 'Brand-wide promo codes + business analytics (read). Global. Does NOT set listing prices — that is the catalog manager (per hub).',
   super_admin: 'Everything — hubs, staff, config, break-glass overrides, DPDP erasure. Oversight, not daily ops.',
 };
 
@@ -50,7 +49,7 @@ export const AdminUsersManagePage: React.FC = () => {
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');
-  type AdminRole = 'super_admin' | 'design' | 'procurement' | 'catalog_manager' | 'support' | 'finance';
+  type AdminRole = 'super_admin' | 'design' | 'procurement' | 'catalog_manager' | 'support' | 'finance' | 'pricing_manager';
   const [newRole, setNewRole] = React.useState<AdminRole>('catalog_manager');
   const [newHubId, setNewHubId] = React.useState('');
   const [creating, setCreating] = React.useState(false);
@@ -109,8 +108,9 @@ export const AdminUsersManagePage: React.FC = () => {
     }
     setCreating(true);
     try {
-      // super_admin must stay global (no hub); others may be hub-scoped.
-      const hubId = newRole === 'super_admin' ? null : (newHubId || null);
+      // super_admin + pricing_manager are global (oversight / brand-wide promos);
+      // others may be hub-scoped.
+      const hubId = newRole === 'super_admin' || newRole === 'pricing_manager' ? null : (newHubId || null);
       const created = await catalogApi.createAdmin({ name: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole, hubId });
       setUsers(prev => [...prev, created]);
       setShowCreate(false);
@@ -356,6 +356,7 @@ export const AdminUsersManagePage: React.FC = () => {
                   <option value="design">Design (central)</option>
                   <option value="procurement">Procurement (central)</option>
                   <option value="catalog_manager">Catalog Manager (per-hub)</option>
+                  <option value="pricing_manager">Pricing &amp; Promotions (central)</option>
                   <option value="support">Support</option>
                   <option value="finance">Finance</option>
                   <option value="super_admin">Super Admin</option>
@@ -363,7 +364,7 @@ export const AdminUsersManagePage: React.FC = () => {
                 {/* W-18: what this role can actually do (mirrors permissions.ts) */}
                 <p className={styles.roleCaps}>{ROLE_CAP_SUMMARY[newRole]}</p>
               </div>
-              {newRole !== 'super_admin' && (
+              {newRole !== 'super_admin' && newRole !== 'pricing_manager' && (
                 <div className={styles.field}>
                   <label className={styles.fieldLabel}>Hub Scope</label>
                   <select className={styles.fieldInput} value={newHubId} onChange={e => setNewHubId(e.target.value)}>

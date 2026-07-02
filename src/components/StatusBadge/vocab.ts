@@ -45,7 +45,7 @@ export const STATUS_VOCAB: Record<string, VocabEntry> = {
   // ── Sample jobs ──
   requested: { label: 'Requested', tone: 'pending' },
   stitching: { label: 'Stitching', tone: 'making' },
-  design_review: { label: 'Design review', tone: 'qc' },
+  design_review: { label: 'Awaiting review', tone: 'qc' },
   reviewed: { label: 'Reviewed', tone: 'done' },
   approved: { label: 'Approved', tone: 'done' },
   rejected: { label: 'Rejected', tone: 'blocked' },
@@ -58,6 +58,12 @@ export const STATUS_VOCAB: Record<string, VocabEntry> = {
   refund_completed: { label: 'Refund completed', tone: 'done' },
   initiated: { label: 'Initiated', tone: 'pending' },
   completed: { label: 'Completed', tone: 'done' },
+  // Return lifecycle (ops → finance): inspect → confirm → approve → refund
+  agent_visit_scheduled: { label: 'Agent visit scheduled', tone: 'transit' },
+  garment_picked_up: { label: 'Picked up', tone: 'transit' },
+  defect_under_review: { label: 'Defect under review', tone: 'qc' },
+  defect_confirmed: { label: 'Defect confirmed — awaiting refund', tone: 'pending' },
+  defect_rejected: { label: 'Defect rejected', tone: 'blocked' },
 
   // ── Distribution / stock movement ──
   pushed: { label: 'In transit', tone: 'transit' },
@@ -77,6 +83,20 @@ export const STATUS_VOCAB: Record<string, VocabEntry> = {
   inactive: { label: 'Inactive', tone: 'neutral' },
   draft: { label: 'Draft', tone: 'neutral' },
   live: { label: 'Live', tone: 'done' },
+
+  // ── Invoices ──
+  generated: { label: 'Generated', tone: 'done' },
+  pending_generation: { label: 'Pending generation', tone: 'pending' },
+  // ── Returns (extra) ──
+  under_review: { label: 'Under review', tone: 'qc' },
+  // ── Design library lifecycle ──
+  published: { label: 'Published', tone: 'done' },
+  archived: { label: 'Archived', tone: 'neutral' },
+  // ── Catalog / generic on/off (boolean-backed pills) ──
+  served: { label: 'Served', tone: 'done' },
+  waiting: { label: 'Waiting', tone: 'pending' },
+  configured: { label: 'Configured', tone: 'done' },
+  incomplete: { label: 'Incomplete', tone: 'pending' },
 };
 
 /** Human label for a status key — single source for dropdowns, CSV exports, pills. */

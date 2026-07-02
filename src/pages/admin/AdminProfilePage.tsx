@@ -4,6 +4,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AppConfigPage.module.css';
 import { UilEye, UilEyeSlash, UilKeySkeletonAlt, UilQuestionCircle, UilShield } from "@iconscout/react-unicons";
+import { StatusBadge } from '../../components';
 
 const SECURITY_QUESTIONS = [
   "What was the name of your first pet?",
@@ -228,9 +229,7 @@ export const AdminProfilePage: React.FC = () => {
               {profile?.is_active != null && (
                 <div>
                   <div className={styles.metaLabel}>Status</div>
-                  <span className={`${styles.statusPill} ${profile.is_active ? styles.statusActive : styles.statusDeactivated}`}>
-                    {profile.is_active ? 'Active' : 'Inactive'}
-                  </span>
+                  <StatusBadge status={profile.is_active ? 'active' : 'inactive'} />
                 </div>
               )}
             </div>

@@ -22,6 +22,29 @@
   color: var(--color-text);
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-lg);
+}
+.titleRow .title { margin-bottom: 0; }
+
+.dirtyBadge {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--status-qc-fg);
+}
+
+.templateLink {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+.templateLink:hover { text-decoration: underline; }
+
 .form {
   display: flex;
   flex-direction: column;
@@ -252,6 +275,22 @@
   color: var(--color-primary);
 }
 
+/* Spec-sheet attachment (P6 tech pack) */
+.specBlock { margin-top: var(--spacing-lg); }
+.specFile {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: var(--spacing-sm);
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+  color: var(--color-text-secondary);
+}
+.specLink { color: var(--color-primary); text-decoration: none; font-weight: var(--font-weight-medium); }
+.specLink:hover { text-decoration: underline; }
+
 /* sticky action bar */
 .actionBar {
   position: sticky;
@@ -301,6 +340,40 @@
 .matchedRemove { border: none; background: none; color: var(--color-text-muted); cursor: pointer; padding: 4px; display: flex; }
 .matchedRemove:hover { color: var(--color-error); }
 
+.sizeHint { font-size: var(--font-size-sm); color: var(--color-text-muted); margin: 0 0 12px; max-width: 64ch; }
+.refReminder {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  max-width: 64ch;
+  line-height: 1.5;
+}
+.refReminder strong { color: var(--color-text); }
+.sizeRows { display: flex; flex-direction: column; gap: 8px; }
+.sizeRow { display: flex; align-items: center; gap: 10px; }
+.sizeLabelInput {
+  width: 130px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+.sizeActions { display: flex; gap: 8px; margin-top: 12px; }
+.sizeAddBtn {
+  display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-secondary); color: var(--color-text); cursor: pointer;
+  font-size: var(--font-size-sm); font-family: inherit;
+}
+.sizeAddBtn:hover { background: var(--color-bg-tertiary); }
+
 .fabricSearch {
   width: 100%;
   border: 1px solid var(--color-border);
@@ -344,3 +417,195 @@
 .pickSwatch img { width: 100%; height: 100%; object-fit: cover; }
 .pickName { font-size: var(--font-size-sm); font-weight: 500; color: var(--color-text); line-height: 1.2; }
 .pickCode { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+
+/* Step 3: inline standard finished-garment chart (read-only) under the fit picker. */
+.fitChart { margin-top: var(--spacing-md); }
+.fitChartCaption {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  margin: 0 0 var(--spacing-sm);
+}
+.fitChartCaption span { color: var(--color-text-muted); font-weight: 400; }
+.fitChartScroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.fitChartTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+.fitChartTable th,
+.fitChartTable td {
+  padding: 6px var(--spacing-sm);
+  text-align: right;
+  border-bottom: 1px solid var(--color-border);
+}
+.fitChartTable th {
+  text-transform: capitalize;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg-section);
+  position: sticky;
+  top: 0;
+}
+.fitChartTable th:first-child,
+.fitChartTable td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.fitChartTable tbody tr:last-child td { border-bottom: none; }
+.fitChartEmpty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  background: var(--color-bg-section);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin: 0;
+}
+
+/* Consolidated "Fabric needed" — base/average field above the per-size table. */
+.baseMetersRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+.baseMetersRow .fieldLabel { margin: 0; }
+
+/* ── Stepped wizard (design create/edit in a modal) ── */
+.wizardModal { width: 100%; }
+.wizSteps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+.wizStep {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.wizStep:hover { background: var(--color-bg-section); }
+.wizStepNum {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+.wizStepActive { color: var(--color-text); font-weight: 600; }
+.wizStepActive .wizStepNum { border-color: var(--color-primary); color: var(--color-primary); }
+.wizStepDone { color: var(--color-text); }
+.wizStepDone .wizStepNum {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #fff;
+}
+.wizBody { min-height: 340px; }
+.wizFooter {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+.wizFooterRight { display: flex; align-items: center; gap: var(--spacing-md); }
+
+/* Review step summary */
+.reviewGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px var(--spacing-xl);
+  margin: var(--spacing-md) 0 0;
+}
+.reviewRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.reviewRow dt { color: var(--color-text-muted); font-size: var(--font-size-sm); margin: 0; }
+.reviewRow dd { color: var(--color-text); font-weight: 500; margin: 0; text-align: right; }
+@media (max-width: 640px) {
+  .reviewGrid { grid-template-columns: 1fr; }
+}
+
+/* Read-only inherited tags (capture-set / pain-points in the Details step). */
+.roTags { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin: var(--spacing-xs) 0 var(--spacing-md); }
+.roTag {
+  padding: 3px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-section);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+/* Collapsed "advanced / production" block (fabric consumption). */
+.advanced {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-lg);
+}
+.advanced > summary {
+  cursor: pointer;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  list-style: revert;
+}
+.advanced[open] > summary { border-bottom: 1px solid var(--color-border); margin-bottom: var(--spacing-md); }
+.advanced > section { padding: 0 var(--spacing-md) var(--spacing-md); }
+
+/* #6: cover badge + "set as cover" pill on reference thumbnails. */
+.refThumbCover { border-color: var(--color-success); border-width: 2px; }
+.coverBadge {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-success);
+  color: #fff;
+}
+.refThumb .setCoverBtn {
+  top: auto;
+  right: auto;
+  bottom: 2px;
+  left: 2px;
+  width: auto;
+  height: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.6);
+}
+.refThumb .setCoverBtn:hover { background: var(--color-primary); }

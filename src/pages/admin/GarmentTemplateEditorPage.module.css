@@ -155,6 +155,9 @@
   outline: none;
   border-color: var(--color-primary);
 }
+/* Cell-level validation (FABLE §4C) — amber = descending run; red = non-positive. */
+.cellWarn { border-color: var(--status-qc-border); background: var(--status-qc-bg); color: var(--status-qc-fg); }
+.cellErr  { border-color: var(--color-error); color: var(--color-error); font-weight: 600; }
 .iconBtn {
   display: inline-flex;
   border: none;
@@ -228,6 +231,7 @@
 
 .actionBar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: var(--spacing-sm);
   position: sticky;
@@ -235,6 +239,26 @@
   padding: var(--spacing-md) 0;
   background: linear-gradient(transparent, var(--color-bg) 40%);
 }
+.noteInput {
+  margin-right: auto;
+  flex: 1 1 auto;
+  max-width: 420px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 8px 11px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+.noteInput:focus { outline: none; border-color: var(--color-primary); }
+
+.usedBy {
+  margin: -4px 0 16px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+.usedByWarn { color: var(--status-qc-fg); }
 
 /* W-10: completeness meter + dirty badge */
 .titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -246,3 +270,268 @@
 .meterReady { background: var(--status-done-bg); border: 1px solid var(--status-done-border); color: var(--status-done-fg); }
 .meterIncomplete { background: var(--status-qc-bg); border: 1px solid var(--status-qc-border); color: var(--status-qc-fg); }
 .meterHint { font-weight: var(--font-weight-regular); opacity: 0.9; }
+
+/* G-81 engine preview panel */
+.previewControls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: var(--spacing-md); }
+.pvSelect {
+  padding: 8px 11px; border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg); color: var(--color-text); font-family: inherit; font-size: var(--font-size-sm);
+}
+.pvAnchor { display: flex; flex-direction: column; gap: 4px; }
+.pvAnchor span { font-size: var(--font-size-xs); color: var(--color-text-muted); text-transform: capitalize; }
+.pvAnchor .cell { width: 92px; }
+.pvResult { margin-top: var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-md); background: var(--color-bg-section); max-width: 420px; }
+.pvResultHead { font-weight: var(--font-weight-semibold); color: var(--color-text); margin-bottom: var(--spacing-sm); }
+
+/* Fit-preset definition editor — name + ease constants per preset */
+.presetList { display: flex; flex-direction: column; gap: var(--spacing-md); margin-bottom: var(--spacing-md); }
+.presetRow { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-md); background: var(--color-bg-section); }
+.presetHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm); }
+.presetName { font-weight: var(--font-weight-semibold); color: var(--color-text); text-transform: capitalize; }
+.presetRemove { border: none; background: transparent; color: var(--color-text-muted); cursor: pointer; display: flex; padding: 2px; }
+.presetRemove:hover { color: var(--color-error); }
+.presetParams { display: flex; flex-wrap: wrap; gap: var(--spacing-md); }
+.presetParam { display: flex; flex-direction: column; gap: 4px; }
+.presetParamLabel { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.presetParamInput { width: 96px; height: 36px; padding: 0 10px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; box-sizing: border-box; }
+.presetParamInput:focus { border-color: var(--color-primary); }
+
+/* Grade-rule generator */
+.sectionHead { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); flex-wrap: wrap; }
+.gradeForm { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.gradeLabel { font-size: var(--font-size-xs); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); }
+.gradeText { height: 40px; padding: 0 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; box-sizing: border-box; }
+.gradeText:focus { border-color: var(--color-primary); }
+.gradeActions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Plain-language "what is this page" intro box. */
+.intro {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin: 0 0 var(--spacing-md);
+  max-width: 760px;
+}
+
+/* Stage group headers + collapsible advanced block (page reorg). */
+.groupHeader {
+  font-family: var(--font-display, inherit);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text);
+  margin: var(--spacing-xl) 0 var(--spacing-sm);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+.groupHeader:first-of-type { border-top: none; padding-top: 0; margin-top: var(--spacing-md); }
+.advanced {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-md);
+  background: var(--color-bg-card, transparent);
+}
+.advanced > summary {
+  cursor: pointer;
+  padding: var(--spacing-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  list-style: revert;
+}
+.advanced[open] > summary { border-bottom: 1px solid var(--color-border); }
+.advanced > section { border: none; margin: 0; }
+
+/* Ease inputs: plain "what it does" hint + an "in" unit inside the field. */
+.easeHint { font-size: 11px; color: var(--color-text-muted); line-height: 1.3; max-width: 160px; }
+.easeInputWrap { position: relative; display: inline-flex; align-items: center; width: 96px; }
+.easeInputWrap .presetParamInput { width: 96px; padding-right: 26px; }
+.easeUnit { position: absolute; right: 10px; font-size: 12px; color: var(--color-text-muted); pointer-events: none; }
+.presetParam { min-width: 150px; }
+
+/* ── Layout polish (overrides) ── */
+/* Solid sticky save bar so it reads as a real toolbar instead of floating over content. */
+.actionBar {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.07);
+}
+/* base.page already adds 20px gap between children — drop the section's own margin so it
+   isn't double-spaced and sparse. */
+.section { margin-bottom: 0; }
+/* Consistent width with the sections (was narrower than them). */
+.intro { max-width: none; }
+.groupHeader { margin-top: var(--spacing-lg); }
+
+/* ── Two-column: sticky status rail (right) ── */
+.rail {
+  position: sticky;
+  top: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+.railCard {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+}
+.railReady { border-color: var(--color-success); }
+.railCardTitle {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: var(--spacing-sm);
+}
+.railStatus { font-weight: 600; font-size: var(--font-size-base); margin-bottom: var(--spacing-sm); }
+.railReady .railStatus { color: var(--color-success); }
+.railIncomplete .railStatus { color: var(--color-secondary-darker, #9E7340); }
+.railChecklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.railChecklist li { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.railDone { color: var(--color-text); }
+.railTick { width: 16px; text-align: center; color: var(--color-text-muted); font-weight: 700; }
+.railDone .railTick { color: var(--color-success); }
+.railHint { font-size: var(--font-size-xs); color: var(--color-text-muted); margin: var(--spacing-sm) 0 0; line-height: 1.4; }
+.railStat { font-size: var(--font-size-sm); color: var(--color-text-secondary); padding: 1px 0; }
+.railStat strong { color: var(--color-text); }
+
+/* ── Box polish: clearer card headers, tidier tables & uniform inputs ── */
+.section {
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg) var(--spacing-xl);
+}
+.sectionTitle { font-size: var(--font-size-lg); margin-bottom: 6px; line-height: 1.3; }
+.hint { line-height: 1.5; }
+
+/* tables: small-caps header on a tint, subtle row hover, centred numbers */
+.chart thead th {
+  background: var(--color-bg-section);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+.chart tbody tr { transition: background 0.12s ease; }
+.chart tbody tr:hover { background: var(--color-bg-section); }
+.chart td { padding: 6px 10px; }
+.cell { text-align: center; }
+
+/* uniform input height across the page */
+.cell,
+.sizeInput,
+.painTag,
+.painField,
+.painDelta { height: 36px; box-sizing: border-box; }
+
+/* preset rows feel like clean sub-cards */
+.presetRow {
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+}
+
+/* ═══ Cohesive cosmetic pass ═══ */
+
+/* Cards: soft elevation + lighter border for a premium, less-boxy feel. */
+.section {
+  border-color: var(--color-border-light, var(--color-border));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+.railCard {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-color: var(--color-border-light, var(--color-border));
+}
+
+/* Stage headers read as clean section dividers (not stacked boxes). */
+.groupHeader {
+  border-top: none;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 0 var(--spacing-sm);
+  margin: var(--spacing-xl) 0 var(--spacing-md);
+  letter-spacing: 0.2px;
+  color: var(--color-text);
+}
+.groupHeader:first-of-type { margin-top: var(--spacing-sm); }
+
+/* One focus treatment everywhere — a soft green ring. */
+.cell:focus,
+.sizeInput:focus,
+.painTag:focus,
+.painField:focus,
+.painDelta:focus,
+.presetParamInput:focus,
+.chipInput:focus,
+.gradeText:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(31, 107, 79, 0.14);
+}
+
+/* Refined chips + the dashed "add" affordance. */
+.chip { background: var(--color-bg-section); border-color: var(--color-border); }
+.chipInput { transition: border-color 0.12s ease; }
+.chipInput:focus { border-style: solid; }
+
+/* Section title + description tighten into one header unit. */
+.sectionTitle { margin-bottom: 4px; }
+.hint:first-of-type { margin-top: 0; }
+
+/* The intro callout: soft accent so it reads as guidance, not a plain box. */
+.intro {
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+}
+
+/* Per-fit tabs on the size chart: pill group with a clear active state. */
+.tabs { background: var(--color-bg-section); padding: 4px; border-radius: var(--radius-full); display: inline-flex; gap: 2px; }
+.tab { border: none; background: transparent; }
+.tabActive { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+
+/* ── Tighter rhythm ── */
+.section { padding: var(--spacing-md) var(--spacing-lg); }
+.groupHeader { margin: var(--spacing-md) 0 var(--spacing-sm); padding-bottom: 6px; }
+.groupHeader:first-of-type { margin-top: 0; }
+.hint { margin-bottom: var(--spacing-sm); }
+.intro { padding: var(--spacing-sm) var(--spacing-md); margin-bottom: var(--spacing-sm); }
+
+/* Fix: restore a clear active tab (a later .tab override had cancelled its background). */
+.tab { color: var(--color-text-secondary); }
+.tabActive { background: var(--color-primary); color: #fff; }
+.tabActive:hover { color: #fff; }
+
+/* #4: keep the preview anchor labels exactly as written (no auto-capitalising "(Cm)"). */
+.pvAnchor span { text-transform: none; }
+/* #5: a little breathing room so the last content clears the sticky save bar. */
+.actionBar { margin-top: var(--spacing-lg); }
+
+/* Body-region chip in the title (read-only / locked at creation). */
+.regionChip {
+  display: inline-block;
+  margin-left: var(--spacing-sm);
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+  vertical-align: middle;
+}
+/* Optional rail item — neutral, not a "missing" ○. */
+.railOptional { color: var(--color-text-muted); }
+.railOptional .railTick { color: var(--color-text-muted); }
+.railMuted { color: var(--color-text-muted); font-size: var(--font-size-xs); }

@@ -77,6 +77,13 @@
 .profileName { font-family: var(--font-display); font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); margin-bottom: 6px; }
 .profileDetails { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--color-text-secondary); }
 .profileDetailRow { display: inline-flex; align-items: baseline; gap: 4px; }
+/* W-11: vertical contact list for the DetailShell aside Contact card. */
+.contactList { display: flex; flex-direction: column; gap: 12px; }
+/* Fit-profile "flag incorrect" (support CX lever). */
+.flagBadge { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(215, 91, 91, 0.12); color: var(--color-error); font-weight: 500; }
+.profileActions { display: flex; gap: 14px; margin-top: 14px; }
+.flagNote { font-size: 12px; color: var(--color-error); margin-top: 8px; }
+.checkboxRow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; }
 .profileDetailLabel { font-size: 11px; font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-tertiary); }
 .statusActive { background: rgba(31, 107, 79,0.1); color: #1F6B4F; display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
 .statusDeactivated { background: rgba(215, 91, 91,0.08); color: var(--color-error); display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
@@ -142,3 +149,5 @@
   background: var(--status-qc-bg);
   border-radius: var(--radius-sm);
 }
+
+.sectionHeaderActions { display: flex; align-items: center; gap: 14px; }

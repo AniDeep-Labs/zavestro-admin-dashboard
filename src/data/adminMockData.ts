@@ -191,6 +191,26 @@ export interface Collection {
   subtitle?: string;
   bg_color_1?: string;
   bg_color_2?: string;
+  is_featured?: boolean;
+  // Collection studio — design the card + landing hero.
+  card_layout?: string;
+  hero_layout?: string;
+  card_aspect?: number;
+  hero_aspect?: number;
+  card_focal_x?: number;
+  card_focal_y?: number;
+  hero_focal_x?: number;
+  hero_focal_y?: number;
+  image_fit?: 'cover' | 'contain';
+  image_zoom?: number;
+  text_position?: 'left' | 'center' | 'bottom';
+  text_color?: 'light' | 'dark';
+  overlay?: number;
+  gradient_angle?: number;
+  gradient_solid?: boolean;
+  logo_key?: string | null;
+  cta_text?: string;
+  compose_style?: Record<string, unknown>;
 }
 
 
