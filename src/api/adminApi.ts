@@ -2098,6 +2098,9 @@ export interface PnlHub {
   orders: number;
   revenue: number;
   fabric_cost: number;
+  guarantee_cost: number;
+  delivery_cost: number;
+  payment_fees: number;
   refunds: number;
   profit: number;
 }
@@ -2106,8 +2109,16 @@ export interface PnlReport {
   totals: {
     revenue: number;
     fabric_cost: number;
+    guarantee_cost: number;
+    delivery_cost: number;
+    payment_fees: number;
     refunds: number;
     profit: number;
+  };
+  estimates: {
+    payment_fee_rate_pct: number;
+    delivery_cost_per_order: number;
+    alteration_cost: number;
   };
   note: string;
 }

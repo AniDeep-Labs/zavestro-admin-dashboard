@@ -25,9 +25,9 @@ const fmtINR = (n: number) =>
 const fmtDay = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
-const SummaryCard: React.FC<{ label: string; value?: number; loading: boolean; accent?: boolean }> = ({ label, value, loading, accent }) => (
+const SummaryCard: React.FC<{ label: string; value?: number; loading: boolean; accent?: boolean; est?: boolean }> = ({ label, value, loading, accent, est }) => (
   <div className={s.summaryCard}>
-    <div className={s.summaryLabel}>{label}</div>
+    <div className={s.summaryLabel}>{label}{est && <span className={s.estTag}>est.</span>}</div>
     <div className={`${s.summaryValue}${accent ? ` ${s.pendingAccent}` : ""}`}>
       {loading || value === undefined ? "—" : fmtINR(value)}
     </div>
@@ -98,6 +98,9 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
           { header: "Orders", value: (h) => h.orders },
           { header: "Revenue", value: (h) => h.revenue },
           { header: "Fabric cost", value: (h) => h.fabric_cost },
+          { header: "Guarantee (est)", value: (h) => h.guarantee_cost },
+          { header: "Delivery (est)", value: (h) => h.delivery_cost },
+          { header: "Payment fees", value: (h) => h.payment_fees },
           { header: "Refunds", value: (h) => h.refunds },
           { header: "Profit", value: (h) => h.profit },
         ],
@@ -151,6 +154,9 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
           <>
             <SummaryCard label="Revenue" value={pnl?.totals.revenue} loading={loading} />
             <SummaryCard label="Fabric cost" value={pnl?.totals.fabric_cost} loading={loading} />
+            <SummaryCard label="Guarantee" value={pnl?.totals.guarantee_cost} loading={loading} est />
+            <SummaryCard label="Delivery" value={pnl?.totals.delivery_cost} loading={loading} est />
+            <SummaryCard label="Payment fees" value={pnl?.totals.payment_fees} loading={loading} />
             <SummaryCard label="Refunds" value={pnl?.totals.refunds} loading={loading} accent />
             <SummaryCard label="Profit" value={pnl?.totals.profit} loading={loading} />
           </>
@@ -218,13 +224,19 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
           </>
         )
       ) : loading ? (
-        <div className={styles.tableWrap}><table className={styles.table}><tbody>{skeletonRows(6)}</tbody></table></div>
+        <div className={styles.tableWrap}><table className={styles.table}><tbody>{skeletonRows(9)}</tbody></table></div>
       ) : pnlEmpty ? (
         <EmptyState title="No P&L data in this window" body="Per-hub revenue and cost lines will appear here once there are orders in range." />
       ) : (
         <div className={styles.tableWrap}>
           <table className={styles.table}>
-            <thead><tr><th>Hub</th><th>Orders</th><th>Revenue</th><th>Fabric cost</th><th>Refunds</th><th>Profit</th></tr></thead>
+            <thead><tr>
+              <th>Hub</th><th>Orders</th><th>Revenue</th><th>Fabric cost</th>
+              <th title="Estimate: free/waived alterations × configured per-alteration cost">Guarantee<span className={s.estTag}>est.</span></th>
+              <th title="Estimate: delivered orders × configured per-order delivery cost">Delivery<span className={s.estTag}>est.</span></th>
+              <th title="Razorpay fee rate on captured online payments">Payment fees</th>
+              <th>Refunds</th><th>Profit</th>
+            </tr></thead>
             <tbody>
               {pnl!.hubs.map((h, i) => (
                 <tr key={h.hub_id ?? i} className={styles.row}>
@@ -232,6 +244,9 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                   <td>{h.orders}</td>
                   <td>{fmtINR(h.revenue)}</td>
                   <td>{fmtINR(h.fabric_cost)}</td>
+                  <td>{fmtINR(h.guarantee_cost)}</td>
+                  <td>{fmtINR(h.delivery_cost)}</td>
+                  <td>{fmtINR(h.payment_fees)}</td>
                   <td>{fmtINR(h.refunds)}</td>
                   <td className={styles.total}>{fmtINR(h.profit)}</td>
                 </tr>
@@ -240,6 +255,9 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                 <td>Total</td><td />
                 <td>{fmtINR(pnl!.totals.revenue)}</td>
                 <td>{fmtINR(pnl!.totals.fabric_cost)}</td>
+                <td>{fmtINR(pnl!.totals.guarantee_cost)}</td>
+                <td>{fmtINR(pnl!.totals.delivery_cost)}</td>
+                <td>{fmtINR(pnl!.totals.payment_fees)}</td>
                 <td>{fmtINR(pnl!.totals.refunds)}</td>
                 <td className={styles.total}>{fmtINR(pnl!.totals.profit)}</td>
               </tr>

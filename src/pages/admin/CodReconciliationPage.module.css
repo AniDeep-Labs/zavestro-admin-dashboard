@@ -27,6 +27,18 @@
   margin-top: 4px;
 }
 .pendingAccent { color: #B45309; }
+/* "est." marker on P&L lines computed from configurable constants (delivery, guarantee)
+   rather than ingested actuals — honest about which numbers are exact vs estimated. */
+.estTag {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  vertical-align: middle;
+}
 /* Width-capped wrapper beats the global `input[type=date]{width:100%}` — the input
    fills the 168px wrapper instead of stretching the whole row. */
 .dateWrap { flex: 0 0 auto; width: 168px; display: inline-flex; }
