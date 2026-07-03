@@ -6,6 +6,7 @@ import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { downloadCsv, datedFilename } from "../../utils/csv";
 import { StatusBadge } from "../../components";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./UsersListPage.module.css";
 import {
   UilAngleLeft,
@@ -41,6 +42,7 @@ export const UsersListPage: React.FC = () => {
   const [error, setError] = React.useState("");
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [exporting, setExporting] = React.useState(false);
+  const [confirmExport, setConfirmExport] = React.useState(false);
   const debouncedSearch = useDebounce(search, 350);
 
   const dismissToast = (id: string) =>
@@ -72,8 +74,11 @@ export const UsersListPage: React.FC = () => {
   }, [debouncedSearch, statusFilter, page]);
 
   // Exports ALL customers matching the current filters (not just the current page).
+  // full=true pulls UNMASKED contact PII — the server audits this as a deliberate
+  // bulk-PII export (G-97). Gated behind a confirm so it's never a stray one-click dump.
   const exportCSV = async () => {
     if (exporting) return;
+    setConfirmExport(false);
     setExporting(true);
     try {
       const all: AdminUser[] = [];
@@ -83,6 +88,7 @@ export const UsersListPage: React.FC = () => {
           status: statusFilter || undefined,
           page: p,
           limit: 100,
+          full: true,
         });
         all.push(...r.users);
         if (p >= r.totalPages || r.users.length === 0) break;
@@ -126,7 +132,7 @@ export const UsersListPage: React.FC = () => {
         <div style={{ display: "flex", gap: 8 }}>
           <button
             className={styles.exportBtn}
-            onClick={exportCSV}
+            onClick={() => setConfirmExport(true)}
             disabled={exporting}
           >
             <UilImport size={14} /> {exporting ? "Exporting…" : "Export CSV"}
@@ -278,6 +284,16 @@ export const UsersListPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmExport}
+        title="Export customer contact details?"
+        message={`This downloads the full name, phone and email for ${total} customer${total === 1 ? "" : "s"} matching the current filters. Bulk exports of personal data are recorded in the audit log.`}
+        confirmLabel="Export CSV"
+        loading={exporting}
+        onConfirm={exportCSV}
+        onCancel={() => setConfirmExport(false)}
+      />
     </div>
   );
 };

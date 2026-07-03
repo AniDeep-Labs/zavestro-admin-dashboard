@@ -251,7 +251,11 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
     fit_preset: 'fitPreset',
   };
 
-  const save = async (publish: boolean) => {
+  // T0-5: when the server blocks a material edit on a live/approved design (409
+  // DESIGN_LOCKED), we confirm the re-sample consequence and retry with acknowledge.
+  const [lockConfirm, setLockConfirm] = React.useState<{ publish: boolean } | null>(null);
+
+  const save = async (publish: boolean, acknowledge = false) => {
     // Client-side per-field validation (errors render at the field, not as a toast).
     const fe: Record<string, string> = {};
     if (!name.trim()) fe.name = 'Give the design a name.';
@@ -281,12 +285,20 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
     setSaving(publish ? 'publish' : 'draft');
     try {
       const input = buildInput();
-      let saved = isEdit && id ? await designsApi.update(id, input) : await designsApi.create(input);
-      if (publish) saved = await designsApi.setStatus(saved.id, 'published');
+      const saved = isEdit && id
+        ? await designsApi.update(id, input, acknowledge)
+        : await designsApi.create(input);
+      if (publish) await designsApi.setStatus(saved.id, 'published');
       setBaseline(snap()); // clears the dirty guard so closing doesn't prompt
       toast('success', publish ? 'Design published' : 'Saved as draft');
       setTimeout(() => { onSaved?.(); onClose(); }, 600);
     } catch (e) {
+      // T0-5: the design is live/approved and this edit re-triggers sampling — confirm first.
+      if ((e as { code?: string }).code === 'DESIGN_LOCKED') {
+        setSaving('');
+        setLockConfirm({ publish });
+        return;
+      }
       // Map server validation issues back onto the offending fields (§225).
       const msg = e instanceof Error ? e.message : '';
       const details = (e as { details?: unknown }).details;
@@ -851,6 +863,18 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
         variant="danger"
         onConfirm={() => { const go = pendingExit; setPendingExit(null); go?.(); }}
         onCancel={() => setPendingExit(null)}
+      />
+
+      {/* T0-5: the design already has an approved sample or a live listing. */}
+      <ConfirmDialog
+        open={lockConfirm !== null}
+        title="This design is already live"
+        message="It has an approved sample or a live listing. Saving these changes re-opens its sample review — the previous approval no longer stands, and it must be re-sampled before it's trusted again. Proceed?"
+        confirmLabel="Save & re-open review"
+        cancelLabel="Keep editing"
+        variant="danger"
+        onConfirm={() => { const p = lockConfirm?.publish ?? false; setLockConfirm(null); save(p, true); }}
+        onCancel={() => setLockConfirm(null)}
       />
     </>
   );

@@ -15,7 +15,7 @@ import { UilPlus, UilTimes, UilImagePlus, UilImage, UilTrashAlt, UilAngleUp, Uil
 import { StatusBadge, Select, CopyId, MoneyCell } from '../../components';
 
 const swatchUrl = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
-const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', origin: '', supplier: '', supplier_city: '', supplier_lead_time: '', supplier_moq: '', price_per_meter: '', care: '', fabric_type: 'woven', stretch_pct: '', shrinkage_pct: '' };
+const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', width_cm: '', origin: '', supplier: '', supplier_city: '', supplier_lead_time: '', supplier_moq: '', price_per_meter: '', care: '', fabric_type: 'woven', stretch_pct: '', shrinkage_pct: '' };
 type Form = typeof EMPTY;
 
 export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ mode = 'procurement' }) => {
@@ -72,6 +72,7 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
     setForm({
       name: f.name, color_name: f.color_name ?? '', composition: f.composition,
       weave: f.weave ?? '', finish: f.finish ?? '', weight_gsm: f.weight_gsm != null ? String(f.weight_gsm) : '',
+      width_cm: f.width_cm != null ? String(f.width_cm) : '',
       origin: f.origin ?? '', supplier: f.supplier ?? '',
       supplier_city: f.supplier_city ?? '',
       supplier_lead_time: f.supplier_lead_time_days != null ? String(f.supplier_lead_time_days) : '',
@@ -113,6 +114,7 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
       weave: form.weave.trim() || null,
       finish: form.finish.trim() || null,
       weight_gsm: form.weight_gsm ? Number(form.weight_gsm) : null,
+      width_cm: form.width_cm ? Number(form.width_cm) : null,
       origin: form.origin.trim() || null,
       supplier: form.supplier.trim() || null,
       supplier_city: form.supplier_city.trim() || null,
@@ -444,6 +446,7 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
             <Input label="Weave" value={form.weave} onChange={set('weave')} placeholder="twill" />
             <Input label="Finish" value={form.finish} onChange={set('finish')} placeholder="enzyme wash" />
             <Input label="GSM" type="number" value={form.weight_gsm} onChange={set('weight_gsm')} placeholder="320" />
+            <Input label="Width (cm)" type="number" value={form.width_cm} onChange={set('width_cm')} placeholder="112 (44″) · 150 (58″)" />
             <Input label="Origin" value={form.origin} onChange={set('origin')} placeholder="Erode, Tamil Nadu" />
             <Input label="Supplier / mill" value={form.supplier} onChange={set('supplier')} placeholder="Arvind" />
             <Input label="Supplier city" value={form.supplier_city} onChange={set('supplier_city')} placeholder="Erode" />

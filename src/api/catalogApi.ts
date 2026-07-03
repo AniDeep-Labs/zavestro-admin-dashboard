@@ -390,6 +390,14 @@ export const catalogApi = {
       body: JSON.stringify({ is_active: isActive }),
     }).then(res => res.data),
 
+  // T0-1: assign a real role to an admin (approve a `pending` self-registration or fix a
+  // role). The legacy god-mode `admin` is rejected server-side; super_admin stays global.
+  changeAdminRole: (id: string, role: string, hubId?: string | null): Promise<AdminUser> =>
+    request<{ success: boolean; data: AdminUser }>(`/api/admin/auth/users/${id}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role, hubId: hubId ?? null }),
+    }).then(res => res.data),
+
   forgotPassword: (email: string): Promise<{ requested: boolean; token?: string }> =>
     request<{ success: boolean; data: { requested: boolean; token?: string } }>('/api/admin/auth/forgot-password', {
       method: 'POST',

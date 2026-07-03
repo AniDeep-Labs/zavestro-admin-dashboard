@@ -82,16 +82,19 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     let msg = `Error ${res.status}`;
     let details: unknown;
+    let code: string | undefined;
     try {
       const b = await res.json();
       msg = b.message || b.error?.message || b.error || msg;
       details = b.error?.details ?? b.details;
+      code = b.error?.code ?? b.code;
     } catch {
       /* */
     }
-    const err = new Error(msg) as Error & { status: number; details?: unknown };
+    const err = new Error(msg) as Error & { status: number; details?: unknown; code?: string };
     err.status = res.status;
     err.details = details;
+    err.code = code;
     console.error(
       `[adminApi] ${init.method ?? "GET"} ${path} → ${res.status}:`,
       msg,
@@ -374,6 +377,8 @@ export interface UsersParams {
   city?: string;
   page?: number;
   limit?: number;
+  /** G-97: request unmasked contact PII (the audited CSV export). Masked by default. */
+  full?: boolean;
 }
 export interface UsersResponse {
   users: AdminUser[];
@@ -410,6 +415,7 @@ export const usersApi = {
     if (params.status) qs.set("status", params.status);
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
+    if (params.full) qs.set("full", "1");
     const raw = await req<{
       users: Record<string, unknown>[];
       total: number;
@@ -1827,10 +1833,12 @@ export const designsApi = {
       body: JSON.stringify(input),
     }),
 
-  update: async (id: string, input: DesignInput): Promise<DesignDetail> =>
+  // T0-5: `acknowledge` opts into re-triggering sampling when the design already has an
+  // approved sample / live listing. Without it the server 409s (code DESIGN_LOCKED).
+  update: async (id: string, input: DesignInput, acknowledge = false): Promise<DesignDetail> =>
     req<DesignDetail>(`/api/admin/designs/${id}`, {
       method: "PUT",
-      body: JSON.stringify(input),
+      body: JSON.stringify(acknowledge ? { ...input, acknowledge: true } : input),
     }),
 
   setStatus: async (id: string, status: DesignStatus): Promise<DesignDetail> =>
@@ -2465,6 +2473,7 @@ export interface Fabric {
   fabric_type?: string | null;
   stretch_pct?: number | string | null;
   shrinkage_pct?: number | string | null;
+  width_cm?: number | string | null; // T0-6: usable width (drives width-aware consumption)
   is_active: boolean;
   created_at: string;
   design_count?: number;
@@ -2494,6 +2503,7 @@ export interface FabricInput {
   fabric_type?: string | null;
   stretch_pct?: number | null;
   shrinkage_pct?: number | null;
+  width_cm?: number | null; // T0-6
 }
 
 export const fabricsApi = {
@@ -3559,13 +3569,32 @@ export interface CustomerLookupResult {
   is_active: boolean;
 }
 
+export interface CustomerVerifyClaim {
+  name?: string;
+  phone?: string;
+  city?: string;
+  email?: string;
+}
+
 export const customerLookupApi = {
-  search: async (q: string): Promise<CustomerLookupResult[]> => {
+  // G-93: `masked` (the Call Console) asks the server to withhold contact PII in the
+  // search list — full PII is only released by verify() on a matching caller claim.
+  search: async (q: string, masked = false): Promise<CustomerLookupResult[]> => {
     const result = await req<{ customers: CustomerLookupResult[] }>(
-      `/api/admin/customers/lookup?q=${encodeURIComponent(q)}`,
+      `/api/admin/customers/lookup?q=${encodeURIComponent(q)}${masked ? "&verify=1" : ""}`,
     );
     return result?.customers ?? [];
   },
+  // G-93: server-side caller-identity verification. Returns the full customer record
+  // ONLY when the submitted claim matches; otherwise { verified: false }.
+  verify: async (
+    id: string,
+    claim: CustomerVerifyClaim,
+  ): Promise<{ verified: boolean; customer?: CustomerLookupResult }> =>
+    req<{ verified: boolean; customer?: CustomerLookupResult }>(
+      `/api/admin/customers/${id}/verify`,
+      { method: "POST", body: JSON.stringify(claim) },
+    ),
 };
 
 export interface ProductCategory {
