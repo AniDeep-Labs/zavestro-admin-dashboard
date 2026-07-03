@@ -3559,13 +3559,32 @@ export interface CustomerLookupResult {
   is_active: boolean;
 }
 
+export interface CustomerVerifyClaim {
+  name?: string;
+  phone?: string;
+  city?: string;
+  email?: string;
+}
+
 export const customerLookupApi = {
-  search: async (q: string): Promise<CustomerLookupResult[]> => {
+  // G-93: `masked` (the Call Console) asks the server to withhold contact PII in the
+  // search list — full PII is only released by verify() on a matching caller claim.
+  search: async (q: string, masked = false): Promise<CustomerLookupResult[]> => {
     const result = await req<{ customers: CustomerLookupResult[] }>(
-      `/api/admin/customers/lookup?q=${encodeURIComponent(q)}`,
+      `/api/admin/customers/lookup?q=${encodeURIComponent(q)}${masked ? "&verify=1" : ""}`,
     );
     return result?.customers ?? [];
   },
+  // G-93: server-side caller-identity verification. Returns the full customer record
+  // ONLY when the submitted claim matches; otherwise { verified: false }.
+  verify: async (
+    id: string,
+    claim: CustomerVerifyClaim,
+  ): Promise<{ verified: boolean; customer?: CustomerLookupResult }> =>
+    req<{ verified: boolean; customer?: CustomerLookupResult }>(
+      `/api/admin/customers/${id}/verify`,
+      { method: "POST", body: JSON.stringify(claim) },
+    ),
 };
 
 export interface ProductCategory {

@@ -10,6 +10,8 @@ interface Props {
   onClear?: () => void;
   autoFocus?: boolean;
   label?: string;
+  /** G-93: ask the server to mask contact PII in the result list (Call Console). */
+  masked?: boolean;
 }
 
 export const CustomerQuickLookup: React.FC<Props> = ({
@@ -19,6 +21,7 @@ export const CustomerQuickLookup: React.FC<Props> = ({
   onClear,
   autoFocus,
   label,
+  masked = false,
 }) => {
   const [query, setQuery] = React.useState('');
   const [results, setResults] = React.useState<CustomerLookupResult[]>([]);
@@ -33,7 +36,7 @@ export const CustomerQuickLookup: React.FC<Props> = ({
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const data = await customerLookupApi.search(query.trim());
+        const data = await customerLookupApi.search(query.trim(), masked);
         setResults(data);
         setOpen(true);
       } catch { /* ignore */ }

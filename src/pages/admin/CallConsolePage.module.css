@@ -272,6 +272,17 @@
 .amountInput:focus {
   border-color: var(--color-primary);
 }
+/* G-93 caller-verification claim fields */
+.fieldLabel {
+  display: block;
+  margin: 10px 0 4px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.fieldLabel:first-of-type {
+  margin-top: 4px;
+}
 .selectRow {
   display: flex;
   gap: var(--spacing-sm);

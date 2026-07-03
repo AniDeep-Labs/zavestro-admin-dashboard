@@ -1,6 +1,13 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { usersApi, ordersApi, supportApi, alterationsApi, returnsApi } from "../../api/adminApi";
+import {
+  usersApi,
+  ordersApi,
+  supportApi,
+  alterationsApi,
+  returnsApi,
+  customerLookupApi,
+} from "../../api/adminApi";
 import type {
   CustomerLookupResult,
   AdminUser,
@@ -9,7 +16,13 @@ import type {
   RemeasureRequest,
 } from "../../api/adminApi";
 import { CustomerQuickLookup } from "../../components/CustomerQuickLookup/CustomerQuickLookup";
-import { PageHeader, DetailShell, StatusBadge, EmptyState, ActivityLog } from "../../components";
+import {
+  PageHeader,
+  DetailShell,
+  StatusBadge,
+  EmptyState,
+  ActivityLog,
+} from "../../components";
 import type { ActivityEntry } from "../../components";
 import { Can } from "../../components/Can/Can";
 import { Button } from "../../components/Button/Button";
@@ -32,21 +45,20 @@ import {
   UilProcess,
 } from "@iconscout/react-unicons";
 
-const CATEGORIES = ["Fit issue", "Delivery", "Payment / refund", "Order change", "General"];
+const CATEGORIES = [
+  "Fit issue",
+  "Delivery",
+  "Payment / refund",
+  "Order change",
+  "General",
+];
 const PRIORITIES = ["Low", "Medium", "High"];
 // W-5: above this, a wallet credit is submitted to finance (matches the backend cap).
 const SUPPORT_CREDIT_CAP = 500;
 
-// ── PII masking (DPDP): nothing sensitive is shown until the caller is verified ──
-const maskPhone = (p?: string | null) => {
-  const d = (p ?? "").replace(/\D/g, "");
-  return d.length >= 4 ? `••• ••• ${d.slice(-4)}` : "••••";
-};
-const maskEmail = (e?: string | null) => {
-  if (!e || !e.includes("@")) return "•••";
-  const [u, domain] = e.split("@");
-  return `${u.slice(0, 1)}•••@${domain}`;
-};
+// G-93: PII masking is now SERVER-side. The lookup returns masked contact fields
+// (verify=1); the real values arrive only from customerLookupApi.verify() on a
+// matching caller claim — so the browser never holds full PII pre-verification.
 
 interface Detail {
   user: AdminUser | null;
@@ -61,11 +73,17 @@ export const CallConsolePage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const toast = (type: ToastData["type"], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
-  const dismiss = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
+  const dismiss = (id: string) =>
+    setToasts((t) => t.filter((x) => x.id !== id));
 
-  // Caller + verification
-  const [customer, setCustomer] = React.useState<CustomerLookupResult | null>(null);
-  const [checks, setChecks] = React.useState({ name: false, phone: false, place: false });
+  // Caller + verification. The agent enters what the CALLER states; the server
+  // matches it and releases full PII only on success (G-93).
+  const [customer, setCustomer] = React.useState<CustomerLookupResult | null>(
+    null,
+  );
+  const [claimName, setClaimName] = React.useState("");
+  const [claimCity, setClaimCity] = React.useState("");
+  const [claimEmail, setClaimEmail] = React.useState("");
   const [verified, setVerified] = React.useState(false);
 
   // 360 context (loaded after verification)
@@ -96,8 +114,14 @@ export const CallConsolePage: React.FC = () => {
   const [wrapping, setWrapping] = React.useState(false);
 
   const nowTime = () =>
-    new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-  const logActivity = (title: string, tone: ActivityEntry["tone"] = "neutral") =>
+    new Date().toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  const logActivity = (
+    title: string,
+    tone: ActivityEntry["tone"] = "neutral",
+  ) =>
     setCallLog((l) => [
       ...l,
       { id: `${Date.now()}-${l.length}`, at: nowTime(), title, tone },
@@ -105,7 +129,9 @@ export const CallConsolePage: React.FC = () => {
 
   const resetCall = () => {
     setCustomer(null);
-    setChecks({ name: false, phone: false, place: false });
+    setClaimName("");
+    setClaimCity("");
+    setClaimEmail("");
     setVerified(false);
     setDetail(null);
     setProblemOrderId("");
@@ -126,7 +152,9 @@ export const CallConsolePage: React.FC = () => {
 
   const onSelectCustomer = (c: CustomerLookupResult) => {
     setCustomer(c);
-    setChecks({ name: false, phone: false, place: false });
+    setClaimName("");
+    setClaimCity("");
+    setClaimEmail("");
     setVerified(false);
     setDetail(null);
     setCallLog([]);
@@ -134,25 +162,54 @@ export const CallConsolePage: React.FC = () => {
     setWrapSummary("");
   };
 
-  const canVerify = checks.name && (checks.phone || checks.place);
+  // Need the name plus one factor that isn't the caller's own number (city or email).
+  const canVerify =
+    !!claimName.trim() && (!!claimCity.trim() || !!claimEmail.trim());
 
   const verify = async () => {
     if (!customer || !canVerify) return;
-    setVerified(true);
-    logActivity("Identity verified (agent-confirmed)", "done");
-    // Log the verification for audit (best-effort; failure shouldn't block the call).
-    usersApi
-      .addNote(customer.id, "Identity verified on inbound call (agent-confirmed).")
-      .catch(() => {});
-    setLoadingDetail(true);
+    setBusy("verify");
     try {
-      const [user, ordersRes, ticketsRes, remeasures, credits] = await Promise.all([
-        usersApi.get(customer.id).catch(() => null),
-        ordersApi.list({ userId: customer.id, limit: 8 }).catch(() => ({ orders: [] as AdminOrder[] })),
-        supportApi.list({ search: customer.phone }).catch(() => ({ tickets: [] as SupportTicket[] })),
-        usersApi.remeasureRequests(customer.id).catch(() => [] as RemeasureRequest[]),
-        usersApi.creditsLedger(customer.id).catch(() => ({ balance: 0, entries: [] })),
-      ]);
+      // Server checks the caller's claim against the record and only returns full PII
+      // on a match — the verification is no longer a client-side boolean (G-93).
+      const res = await customerLookupApi.verify(customer.id, {
+        name: claimName.trim(),
+        city: claimCity.trim() || undefined,
+        email: claimEmail.trim() || undefined,
+      });
+      if (!res.verified || !res.customer) {
+        logActivity(
+          "Identity verification failed — details did not match",
+          "neutral",
+        );
+        toast(
+          "error",
+          "Could not verify the caller",
+          "The details don't match our records. Do not share account information.",
+        );
+        return;
+      }
+      const full = res.customer;
+      setCustomer(full); // full PII, released by the server on a verified match
+      setVerified(true);
+      logActivity("Identity verified (server-checked)", "done");
+      setLoadingDetail(true);
+      const [user, ordersRes, ticketsRes, remeasures, credits] =
+        await Promise.all([
+          usersApi.get(full.id).catch(() => null),
+          ordersApi
+            .list({ userId: full.id, limit: 8 })
+            .catch(() => ({ orders: [] as AdminOrder[] })),
+          supportApi
+            .list({ search: full.phone })
+            .catch(() => ({ tickets: [] as SupportTicket[] })),
+          usersApi
+            .remeasureRequests(full.id)
+            .catch(() => [] as RemeasureRequest[]),
+          usersApi
+            .creditsLedger(full.id)
+            .catch(() => ({ balance: 0, entries: [] })),
+        ]);
       setDetail({
         user,
         orders: ordersRes.orders ?? [],
@@ -162,8 +219,15 @@ export const CallConsolePage: React.FC = () => {
         remeasures,
         balance: credits.balance ?? 0,
       });
+    } catch (e) {
+      toast(
+        "error",
+        "Verification failed",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setLoadingDetail(false);
+      setBusy(null);
     }
   };
 
@@ -183,15 +247,30 @@ export const CallConsolePage: React.FC = () => {
         priority,
         order_id: problemOrderId || undefined,
         messages: [
-          { sender: "admin", body: message.trim(), timestamp: new Date().toISOString() },
+          {
+            sender: "admin",
+            body: message.trim(),
+            timestamp: new Date().toISOString(),
+          },
         ],
       });
-      toast("success", "Ticket logged", `#${t.reference_id ?? t.id} created from the call.`);
-      logActivity(`Ticket #${t.reference_id ?? t.id.slice(0, 8)} created`, "transit");
+      toast(
+        "success",
+        "Ticket logged",
+        `#${t.reference_id ?? t.id} created from the call.`,
+      );
+      logActivity(
+        `Ticket #${t.reference_id ?? t.id.slice(0, 8)} created`,
+        "transit",
+      );
       setSubject("");
       setMessage("");
     } catch (e) {
-      toast("error", "Couldn't create ticket", e instanceof Error ? e.message : undefined);
+      toast(
+        "error",
+        "Couldn't create ticket",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setCreating(false);
     }
@@ -208,12 +287,20 @@ export const CallConsolePage: React.FC = () => {
         reason: remeasureReason.trim(),
         ...(problemOrderId ? { order_id: problemOrderId } : {}),
       });
-      toast("success", "Re-measure requested", "Ops will schedule a free agent visit.");
+      toast(
+        "success",
+        "Re-measure requested",
+        "Ops will schedule a free agent visit.",
+      );
       logActivity("Re-measure requested (free visit)", "fit");
       setRemeasureReason("");
     } catch (e) {
       const msg = e instanceof Error ? e.message : undefined;
-      toast("error", msg?.includes("already has an open") ? "Already requested" : "Failed", msg);
+      toast(
+        "error",
+        msg?.includes("already has an open") ? "Already requested" : "Failed",
+        msg,
+      );
     } finally {
       setBusy(null);
     }
@@ -230,11 +317,19 @@ export const CallConsolePage: React.FC = () => {
       // W-5: over the support cap → submit to finance instead of failing.
       if (amt > SUPPORT_CREDIT_CAP) {
         await usersApi.requestCredit(customer.id, amt, creditReason.trim());
-        toast("success", "Sent to finance", `₹${amt} credit submitted for finance approval.`);
+        toast(
+          "success",
+          "Sent to finance",
+          `₹${amt} credit submitted for finance approval.`,
+        );
         logActivity(`Credit ₹${amt} requested (finance approval)`, "pending");
       } else {
         await usersApi.issueCredits(customer.id, amt, creditReason.trim());
-        toast("success", "Wallet credit issued", `₹${amt} added to the customer's wallet.`);
+        toast(
+          "success",
+          "Wallet credit issued",
+          `₹${amt} added to the customer's wallet.`,
+        );
         logActivity(`Wallet credit issued (₹${amt})`, "done");
         if (detail) setDetail({ ...detail, balance: detail.balance + amt });
       }
@@ -242,7 +337,13 @@ export const CallConsolePage: React.FC = () => {
       setCreditReason("");
     } catch (e) {
       const msg = e instanceof Error ? e.message : undefined;
-      toast("error", msg?.includes("awaiting finance") ? "Already pending" : "Couldn't process credit", msg);
+      toast(
+        "error",
+        msg?.includes("awaiting finance")
+          ? "Already pending"
+          : "Couldn't process credit",
+        msg,
+      );
     } finally {
       setBusy(null);
     }
@@ -264,7 +365,11 @@ export const CallConsolePage: React.FC = () => {
         order_id: problemOrderId,
         description: alterationDesc.trim(),
       });
-      toast("success", "Alteration requested", "First alteration on the order is free.");
+      toast(
+        "success",
+        "Alteration requested",
+        "First alteration on the order is free.",
+      );
       logActivity("Alteration requested", "making");
       setAlterationDesc("");
     } catch (e) {
@@ -304,7 +409,10 @@ export const CallConsolePage: React.FC = () => {
           ? "Logged — change-of-mind returns aren't accepted."
           : "Ops will inspect; finance approves the refund.",
       );
-      logActivity(`Return started (${returnReason.replace(/_/g, " ")})`, "transit");
+      logActivity(
+        `Return started (${returnReason.replace(/_/g, " ")})`,
+        "transit",
+      );
       setReturnDesc("");
     } catch (e) {
       const msg = e instanceof Error ? e.message : undefined;
@@ -346,7 +454,11 @@ export const CallConsolePage: React.FC = () => {
       toast("success", "Call logged", "Outcome saved to the customer record.");
       resetCall();
     } catch (e) {
-      toast("error", "Couldn't log the call", e instanceof Error ? e.message : undefined);
+      toast(
+        "error",
+        "Couldn't log the call",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setWrapping(false);
     }
@@ -390,9 +502,10 @@ export const CallConsolePage: React.FC = () => {
             </div>
             <h2 className={styles.searchTitle}>Who's calling?</h2>
             <p className={styles.searchHint}>
-              Search by the number they're calling from, their ZC-ID, name or email.
+              Search by the number they're calling from, their ZC-ID, name or
+              email.
             </p>
-            <CustomerQuickLookup onSelect={onSelectCustomer} autoFocus />
+            <CustomerQuickLookup onSelect={onSelectCustomer} autoFocus masked />
           </div>
         </div>
       </div>
@@ -402,7 +515,9 @@ export const CallConsolePage: React.FC = () => {
   const u = detail?.user;
   // Alteration & return need a DELIVERED order — gate the actions on the selected
   // order's stage so we never enable a button that the backend will reject.
-  const selectedOrder = detail?.orders.find((o) => (o.uuid ?? o.id) === problemOrderId);
+  const selectedOrder = detail?.orders.find(
+    (o) => (o.uuid ?? o.id) === problemOrderId,
+  );
   const selDelivered = selectedOrder?.stage === "delivered";
   const orderPicked = Boolean(problemOrderId);
 
@@ -410,7 +525,9 @@ export const CallConsolePage: React.FC = () => {
   const callerCard = (
     <div className={styles.card}>
       <div className={styles.callerTop}>
-        <div className={styles.avatar}>{(customer.name || "?").charAt(0).toUpperCase()}</div>
+        <div className={styles.avatar}>
+          {(customer.name || "?").charAt(0).toUpperCase()}
+        </div>
         <div className={styles.callerName}>
           <div className={styles.name}>{customer.name || "Unknown caller"}</div>
           <div className={styles.sub}>
@@ -429,17 +546,18 @@ export const CallConsolePage: React.FC = () => {
         )}
       </div>
       <dl className={styles.facts}>
+        {/* Values are masked by the SERVER pre-verify; verify() swaps in the full record. */}
         <div>
           <dt>Phone</dt>
-          <dd>{verified ? customer.phone : maskPhone(customer.phone)}</dd>
+          <dd>{customer.phone}</dd>
         </div>
         <div>
           <dt>Email</dt>
-          <dd>{verified ? customer.email || "—" : maskEmail(customer.email)}</dd>
+          <dd>{customer.email || "—"}</dd>
         </div>
         <div>
           <dt>City</dt>
-          <dd>{verified ? customer.city || "—" : `${(customer.city || "•").charAt(0)}•••`}</dd>
+          <dd>{customer.city || "—"}</dd>
         </div>
         {verified && u && (
           <div>
@@ -468,34 +586,39 @@ export const CallConsolePage: React.FC = () => {
         <div className={styles.card}>
           <h3 className={styles.cardTitle}>Verify the caller</h3>
           <p className={styles.cardHint}>
-            Confirm at least their name and one more detail before opening their record.
+            Ask the caller for their details and enter them below. Contact info
+            stays masked until the server confirms they match the account.
           </p>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={checks.name}
-              onChange={(e) => setChecks((c) => ({ ...c, name: e.target.checked }))}
-            />
-            Stated their full name correctly
+          <label className={styles.fieldLabel}>
+            Full name (as the caller states it)
           </label>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={checks.phone}
-              onChange={(e) => setChecks((c) => ({ ...c, phone: e.target.checked }))}
-            />
-            Confirmed the registered phone (last 4: {maskPhone(customer.phone).slice(-4)})
-          </label>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={checks.place}
-              onChange={(e) => setChecks((c) => ({ ...c, place: e.target.checked }))}
-            />
-            Confirmed city or a recent order
-          </label>
-          <Button fullWidth onClick={verify} disabled={!canVerify}>
-            <UilCheckCircle size={15} /> Mark identity verified
+          <input
+            className={styles.field}
+            value={claimName}
+            onChange={(e) => setClaimName(e.target.value)}
+            placeholder="e.g. Priya Menon"
+          />
+          <label className={styles.fieldLabel}>City on the account</label>
+          <input
+            className={styles.field}
+            value={claimCity}
+            onChange={(e) => setClaimCity(e.target.value)}
+            placeholder="e.g. Bangalore"
+          />
+          <label className={styles.fieldLabel}>…or registered email</label>
+          <input
+            className={styles.field}
+            value={claimEmail}
+            onChange={(e) => setClaimEmail(e.target.value)}
+            placeholder="e.g. name@example.in"
+          />
+          <Button
+            fullWidth
+            onClick={verify}
+            disabled={!canVerify || busy === "verify"}
+          >
+            <UilCheckCircle size={15} />{" "}
+            {busy === "verify" ? "Verifying…" : "Verify & reveal"}
           </Button>
         </div>
       ) : (
@@ -505,7 +628,9 @@ export const CallConsolePage: React.FC = () => {
               <h3 className={styles.cardTitle}>
                 <UilRulerCombined size={15} /> Request re-measure
               </h3>
-              <p className={styles.cardHint}>Free agent visit for a fit complaint.</p>
+              <p className={styles.cardHint}>
+                Free agent visit for a fit complaint.
+              </p>
               <Textarea
                 value={remeasureReason}
                 onChange={setRemeasureReason}
@@ -544,7 +669,11 @@ export const CallConsolePage: React.FC = () => {
               <Button
                 size="sm"
                 onClick={doAlteration}
-                disabled={!selDelivered || !alterationDesc.trim() || busy === "alteration"}
+                disabled={
+                  !selDelivered ||
+                  !alterationDesc.trim() ||
+                  busy === "alteration"
+                }
                 state={busy === "alteration" ? "loading" : "default"}
               >
                 Request alteration
@@ -616,17 +745,22 @@ export const CallConsolePage: React.FC = () => {
               />
               {Number(creditAmount) > SUPPORT_CREDIT_CAP && (
                 <p className={styles.cardHint}>
-                  Over the ₹{SUPPORT_CREDIT_CAP} cap — goes to finance for approval.
+                  Over the ₹{SUPPORT_CREDIT_CAP} cap — goes to finance for
+                  approval.
                 </p>
               )}
               <Button
                 size="sm"
                 variant="secondary"
                 onClick={doCredit}
-                disabled={!creditAmount || !creditReason.trim() || busy === "credit"}
+                disabled={
+                  !creditAmount || !creditReason.trim() || busy === "credit"
+                }
                 state={busy === "credit" ? "loading" : "default"}
               >
-                {Number(creditAmount) > SUPPORT_CREDIT_CAP ? "Request finance approval" : "Issue credit"}
+                {Number(creditAmount) > SUPPORT_CREDIT_CAP
+                  ? "Request finance approval"
+                  : "Issue credit"}
               </Button>
             </div>
           </Can>
@@ -641,9 +775,9 @@ export const CallConsolePage: React.FC = () => {
       <UilLock size={30} />
       <h2 className={styles.gateTitle}>Verify before you proceed</h2>
       <p className={styles.gateText}>
-        Confirm the caller's identity using the checklist on the right. Their orders,
-        measurements and contact details stay hidden until you do — this protects the
-        customer's data on an unverified call.
+        Confirm the caller's identity using the checklist on the right. Their
+        orders, measurements and contact details stay hidden until you do — this
+        protects the customer's data on an unverified call.
       </p>
     </div>
   ) : (
@@ -681,7 +815,11 @@ export const CallConsolePage: React.FC = () => {
         {loadingDetail ? (
           <p className={styles.cardHint}>Loading…</p>
         ) : !detail || detail.orders.length === 0 ? (
-          <EmptyState title="No orders yet" body="This customer hasn't placed an order." size="compact" />
+          <EmptyState
+            title="No orders yet"
+            body="This customer hasn't placed an order."
+            size="compact"
+          />
         ) : (
           <div className={styles.rows}>
             {detail.orders.map((o) => {
@@ -690,13 +828,21 @@ export const CallConsolePage: React.FC = () => {
                 <button
                   key={o.id}
                   className={`${styles.orderRow} ${active ? styles.orderRowActive : ""}`}
-                  onClick={() => setProblemOrderId(active ? "" : (o.uuid ?? o.id))}
+                  onClick={() =>
+                    setProblemOrderId(active ? "" : (o.uuid ?? o.id))
+                  }
                 >
-                  <span className={styles.orderRef}>{o.reference_id ?? o.id.slice(0, 8)}</span>
+                  <span className={styles.orderRef}>
+                    {o.reference_id ?? o.id.slice(0, 8)}
+                  </span>
                   <StatusBadge status={o.stage} size="sm" />
-                  <span className={styles.orderTotal}>₹{o.total.toLocaleString("en-IN")}</span>
+                  <span className={styles.orderTotal}>
+                    ₹{o.total.toLocaleString("en-IN")}
+                  </span>
                   <span className={styles.orderDate}>{o.created}</span>
-                  {active && <span className={styles.pickedTag}>this call</span>}
+                  {active && (
+                    <span className={styles.pickedTag}>this call</span>
+                  )}
                 </button>
               );
             })}
@@ -707,7 +853,8 @@ export const CallConsolePage: React.FC = () => {
             className={styles.linkBtn}
             onClick={() => navigate(`/admin/orders/${problemOrderId}`)}
           >
-            <UilExternalLinkAlt size={13} /> Open full order page (tracking, refund approval, edits)
+            <UilExternalLinkAlt size={13} /> Open full order page (tracking,
+            refund approval, edits)
           </button>
         )}
       </div>
@@ -773,7 +920,10 @@ export const CallConsolePage: React.FC = () => {
         <h3 className={styles.cardTitle}>
           <UilHistory size={15} /> This call
         </h3>
-        <ActivityLog entries={callLog} emptyText="No actions yet — anything you do shows here." />
+        <ActivityLog
+          entries={callLog}
+          emptyText="No actions yet — anything you do shows here."
+        />
       </div>
 
       {/* Wrap up — record the outcome, then reset for the next caller */}
@@ -782,7 +932,8 @@ export const CallConsolePage: React.FC = () => {
           <UilClipboardNotes size={15} /> Wrap up the call
         </h3>
         <p className={styles.cardHint}>
-          Record the outcome — it's saved to the customer record with everything done this call.
+          Record the outcome — it's saved to the customer record with everything
+          done this call.
         </p>
         <select
           className={styles.select}
