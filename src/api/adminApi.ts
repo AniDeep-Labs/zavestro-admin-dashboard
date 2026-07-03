@@ -374,6 +374,8 @@ export interface UsersParams {
   city?: string;
   page?: number;
   limit?: number;
+  /** G-97: request unmasked contact PII (the audited CSV export). Masked by default. */
+  full?: boolean;
 }
 export interface UsersResponse {
   users: AdminUser[];
@@ -410,6 +412,7 @@ export const usersApi = {
     if (params.status) qs.set("status", params.status);
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
+    if (params.full) qs.set("full", "1");
     const raw = await req<{
       users: Record<string, unknown>[];
       total: number;
