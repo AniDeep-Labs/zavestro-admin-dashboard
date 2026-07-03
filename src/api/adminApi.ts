@@ -82,16 +82,19 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     let msg = `Error ${res.status}`;
     let details: unknown;
+    let code: string | undefined;
     try {
       const b = await res.json();
       msg = b.message || b.error?.message || b.error || msg;
       details = b.error?.details ?? b.details;
+      code = b.error?.code ?? b.code;
     } catch {
       /* */
     }
-    const err = new Error(msg) as Error & { status: number; details?: unknown };
+    const err = new Error(msg) as Error & { status: number; details?: unknown; code?: string };
     err.status = res.status;
     err.details = details;
+    err.code = code;
     console.error(
       `[adminApi] ${init.method ?? "GET"} ${path} → ${res.status}:`,
       msg,
@@ -1830,10 +1833,12 @@ export const designsApi = {
       body: JSON.stringify(input),
     }),
 
-  update: async (id: string, input: DesignInput): Promise<DesignDetail> =>
+  // T0-5: `acknowledge` opts into re-triggering sampling when the design already has an
+  // approved sample / live listing. Without it the server 409s (code DESIGN_LOCKED).
+  update: async (id: string, input: DesignInput, acknowledge = false): Promise<DesignDetail> =>
     req<DesignDetail>(`/api/admin/designs/${id}`, {
       method: "PUT",
-      body: JSON.stringify(input),
+      body: JSON.stringify(acknowledge ? { ...input, acknowledge: true } : input),
     }),
 
   setStatus: async (id: string, status: DesignStatus): Promise<DesignDetail> =>
