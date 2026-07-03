@@ -54,6 +54,12 @@ export const AdminUsersManagePage: React.FC = () => {
   const [newHubId, setNewHubId] = React.useState('');
   const [creating, setCreating] = React.useState(false);
 
+  // T0-1: approving a self-registered `pending` account requires assigning a real role
+  // (the account is created capless). Per-user role/hub selection for the pending cards.
+  const [approveRole, setApproveRole] = React.useState<Record<string, AdminRole | ''>>({});
+  const [approveHub, setApproveHub] = React.useState<Record<string, string>>({});
+  const [approving, setApproving] = React.useState<string | null>(null);
+
   // Hubs for the hub-scoping selectors
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [hubSaving, setHubSaving] = React.useState<string | null>(null);
@@ -80,6 +86,31 @@ export const AdminUsersManagePage: React.FC = () => {
       showToast('success', user.is_active ? 'Account deactivated' : 'Account activated');
     } catch (err) {
       showToast('error', 'Failed', err instanceof Error ? err.message : '');
+    }
+  };
+
+  // T0-1: assign the chosen role FIRST, then activate — the account is never
+  // active-but-capless, and never silently god-mode.
+  const handleApprovePending = async (user: AdminUser) => {
+    const role = approveRole[user.id];
+    if (!role) {
+      showToast('error', 'Choose a role', 'Pick the role this person should have before approving.');
+      return;
+    }
+    const hubScoped = role !== 'super_admin' && role !== 'pricing_manager';
+    const hubId = hubScoped ? approveHub[user.id] || null : null;
+    setApproving(user.id);
+    try {
+      await catalogApi.changeAdminRole(user.id, role, hubId);
+      const updated = await catalogApi.setAdminActive(user.id, true);
+      setUsers(prev =>
+        prev.map(u => (u.id === user.id ? { ...u, ...updated, role, hub_id: hubId } : u)),
+      );
+      showToast('success', 'Approved', `${user.email} is now ${ROLE_LABELS[role] ?? role}`);
+    } catch (err) {
+      showToast('error', 'Failed to approve', err instanceof Error ? err.message : '');
+    } finally {
+      setApproving(null);
     }
   };
 
@@ -183,11 +214,59 @@ export const AdminUsersManagePage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className={styles.cardActions}>
-                  <button className={styles.activateBtn} onClick={() => handleToggleActive(user)}>
-                    Activate
-                  </button>
-                </div>
+                {user.role === 'pending' ? (
+                  // Self-registered, capless: super must assign a real role before activating.
+                  <div className={styles.cardActions}>
+                    <select
+                      className={styles.fieldInput}
+                      value={approveRole[user.id] ?? ''}
+                      onChange={e =>
+                        setApproveRole(r => ({ ...r, [user.id]: e.target.value as AdminRole | '' }))
+                      }
+                      aria-label="Assign role"
+                    >
+                      <option value="">Choose role…</option>
+                      <option value="design">Design (central)</option>
+                      <option value="procurement">Procurement (central)</option>
+                      <option value="catalog_manager">Catalog Manager (per-hub)</option>
+                      <option value="pricing_manager">Pricing &amp; Promotions (central)</option>
+                      <option value="support">Support</option>
+                      <option value="finance">Finance</option>
+                      <option value="super_admin">Super Admin</option>
+                    </select>
+                    {(() => {
+                      const role = approveRole[user.id];
+                      const hubScoped = role && role !== 'super_admin' && role !== 'pricing_manager';
+                      return hubScoped ? (
+                        <select
+                          className={styles.fieldInput}
+                          value={approveHub[user.id] ?? ''}
+                          onChange={e => setApproveHub(h => ({ ...h, [user.id]: e.target.value }))}
+                          aria-label="Assign hub"
+                        >
+                          <option value="">Global (no hub)</option>
+                          {hubs.map(h => (
+                            <option key={h.id} value={h.id}>{h.name}</option>
+                          ))}
+                        </select>
+                      ) : null;
+                    })()}
+                    <button
+                      className={styles.activateBtn}
+                      disabled={!approveRole[user.id] || approving === user.id}
+                      onClick={() => handleApprovePending(user)}
+                    >
+                      {approving === user.id ? 'Approving…' : 'Approve & activate'}
+                    </button>
+                  </div>
+                ) : (
+                  // Deactivated account that already has a real role — just reactivate.
+                  <div className={styles.cardActions}>
+                    <button className={styles.activateBtn} onClick={() => handleToggleActive(user)}>
+                      Reactivate
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
