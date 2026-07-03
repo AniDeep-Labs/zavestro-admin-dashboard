@@ -2473,6 +2473,7 @@ export interface Fabric {
   fabric_type?: string | null;
   stretch_pct?: number | string | null;
   shrinkage_pct?: number | string | null;
+  width_cm?: number | string | null; // T0-6: usable width (drives width-aware consumption)
   is_active: boolean;
   created_at: string;
   design_count?: number;
@@ -2502,6 +2503,7 @@ export interface FabricInput {
   fabric_type?: string | null;
   stretch_pct?: number | null;
   shrinkage_pct?: number | null;
+  width_cm?: number | null; // T0-6
 }
 
 export const fabricsApi = {
