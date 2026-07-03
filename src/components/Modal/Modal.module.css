@@ -41,6 +41,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* Pin the header so it stays visible while the modal body scrolls
+     (the .modal is the scroll container). The footer/save-bar is already sticky. */
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background-color: var(--color-bg-primary);
+  border-top-left-radius: var(--radius-2xl);
+  border-top-right-radius: var(--radius-2xl);
 }
 
 .title {

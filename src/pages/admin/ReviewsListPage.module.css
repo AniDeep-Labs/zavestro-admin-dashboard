@@ -1,0 +1,17 @@
+.checkCol { width: 36px; text-align: center; }
+.bulkBar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin-bottom: 12px;
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.bulkCount { font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
+.bulkApprove, .bulkReject, .bulkClear {
+  padding: 6px 14px; border-radius: var(--radius-md); border: none;
+  font-family: inherit; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); cursor: pointer;
+}
+.bulkApprove { background: var(--color-primary); color: var(--color-on-accent); }
+.bulkReject { background: var(--color-error); color: var(--color-on-accent); }
+.bulkClear { background: none; color: var(--color-text-secondary); margin-left: auto; }
+.bulkApprove:disabled, .bulkReject:disabled { opacity: 0.6; cursor: default; }

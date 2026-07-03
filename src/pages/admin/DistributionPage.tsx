@@ -1,47 +1,57 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { distributionApi, designsApi, hubsApi, R2_PUBLIC_URL } from '../../api/adminApi';
-import type { Distribution, DesignSummary, DesignFabricRef, Hub } from '../../api/adminApi';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { distributionApi, designsApi, hubsApi, fabricsApi, R2_PUBLIC_URL } from '../../api/adminApi';
+import type { Distribution, DesignSummary, DesignFabricRef, Hub, CentralStockRow, FabricStockRow, Fabric } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Input } from '../../components/Input/Input';
 import { Modal } from '../../components/Modal/Modal';
+import { StatusBadge, PageHeader, EmptyState, Alert } from '../../components';
+import { AgeCell } from '../../components/DataCells';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import s from './DistributionPage.module.css';
 import { UilPlus } from '@iconscout/react-unicons';
 
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
-const STATUS_LABELS: Record<string, string> = { pushed: 'Sent · in transit', received: 'Received · in stock', cancelled: 'Cancelled' };
-const STATUS_CSS: Record<string, string> = { pushed: 'stageWarning', received: 'stageSuccess', cancelled: 'stageNeutral' };
+const numv = (v: string | number | null | undefined) => (v == null ? 0 : Number(v));
 
 export const DistributionPage: React.FC = () => {
   const navigate = useNavigate();
-  const [acting, setActing] = React.useState('');
-  const [confirm, setConfirm] = React.useState<null | { title: string; message: React.ReactNode; label: string; run: () => Promise<void> }>(null);
-  const [confirming, setConfirming] = React.useState(false);
-  const runConfirm = async () => {
-    if (!confirm) return;
-    setConfirming(true);
-    try { await confirm.run(); } finally { setConfirming(false); setConfirm(null); }
-  };
+  const [sp, setSp] = useSearchParams();
   const [rows, setRows] = React.useState<Distribution[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [hubFilter, setHubFilter] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
+  // central available (fabric_id → m) + per-hub stock (`${hub}-${fabric}` → row), for the push modal
+  const [central, setCentral] = React.useState<Record<string, number>>({});
+  const [hubStock, setHubStock] = React.useState<Record<string, FabricStockRow>>({});
+
   // push modal
+  const NO_DESIGN = '__none__'; // sentinel: plain fabric restock (no design)
   const [open, setOpen] = React.useState(false);
   const [designId, setDesignId] = React.useState('');
   const [fabrics, setFabrics] = React.useState<DesignFabricRef[]>([]);
+  const [allFabrics, setAllFabrics] = React.useState<Fabric[]>([]);
   const [fabricId, setFabricId] = React.useState('');
   const [hubId, setHubId] = React.useState('');
   const [sampleQty, setSampleQty] = React.useState('1');
   const [sellableQty, setSellableQty] = React.useState('0');
   const [pushing, setPushing] = React.useState(false);
+
+  // receive (G-30)
+  const [receiveTarget, setReceiveTarget] = React.useState<Distribution | null>(null);
+  const [actualMeters, setActualMeters] = React.useState('');
+  const [varianceReason, setVarianceReason] = React.useState('');
+  const [receiving, setReceiving] = React.useState(false);
+
+  // cancel (with reason)
+  const [cancelTarget, setCancelTarget] = React.useState<Distribution | null>(null);
+  const [cancelReason, setCancelReason] = React.useState('');
+  const [cancelling, setCancelling] = React.useState(false);
 
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
@@ -50,23 +60,50 @@ export const DistributionPage: React.FC = () => {
   const load = React.useCallback(() => {
     setLoading(true);
     distributionApi
-      .list({ status: statusFilter || undefined, hub_id: hubFilter || undefined })
+      .list({ hub_id: hubFilter || undefined })
       .then(setRows)
       .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-  }, [statusFilter, hubFilter]);
+  }, [hubFilter]);
 
   React.useEffect(() => { load(); }, [load]);
   React.useEffect(() => {
     hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
     designsApi.list({ status: 'published' }).then(setDesigns).catch(() => {});
+    fabricsApi.centralStock().then((cs: CentralStockRow[]) => {
+      const m: Record<string, number> = {};
+      cs.forEach((c) => { m[c.fabric_id] = numv(c.available_meters); });
+      setCentral(m);
+    }).catch(() => {});
+    fabricsApi.stock().then((st: FabricStockRow[]) => {
+      const m: Record<string, FabricStockRow> = {};
+      st.forEach((r) => { m[`${r.hub_id}-${r.fabric_id}`] = r; });
+      setHubStock(m);
+    }).catch(() => {});
+    fabricsApi.list({ active: true }).then(setAllFabrics).catch(() => {});
   }, []);
 
-  const hubName = (id: string) => hubs.find((h) => h.id === id)?.name ?? '—';
-
-  // when a design is picked, pull its matched fabrics
+  // Deep-link from Cross-hub Stock "Create distribution →": open the push modal with the hub
+  // preset and, for a plain restock, the fabric preselected (no design needed — G-29 close).
+  const prefillApplied = React.useRef(false);
   React.useEffect(() => {
-    if (!designId) { setFabrics([]); setFabricId(''); return; }
+    if (prefillApplied.current) return;
+    const hub = sp.get('hub_id');
+    const fab = sp.get('fabric_id');
+    if (hub && hubs.length > 0) {
+      prefillApplied.current = true;
+      setHubId(hub);
+      if (fab) { setDesignId(NO_DESIGN); setFabricId(fab); setSampleQty('0'); setSellableQty('0'); }
+      setOpen(true);
+      sp.delete('hub_id'); sp.delete('fabric_id'); setSp(sp, { replace: true });
+    }
+  }, [sp, hubs, setSp]);
+
+  const hubName = (id: string) => hubs.find((h) => h.id === id)?.name ?? '—';
+  const restockMode = designId === NO_DESIGN;
+
+  React.useEffect(() => {
+    if (!designId || designId === NO_DESIGN) { setFabrics([]); if (designId !== NO_DESIGN) setFabricId(''); return; }
     designsApi.get(designId).then((d) => { setFabrics(d.fabrics); setFabricId(d.fabrics[0]?.id ?? ''); }).catch(() => setFabrics([]));
   }, [designId]);
 
@@ -75,31 +112,75 @@ export const DistributionPage: React.FC = () => {
     setSampleQty('1'); setSellableQty('0'); setOpen(true);
   };
 
-  const receive = async (r: Distribution) => {
-    setActing(r.id);
+  // ── push validation against central (caught here, not at the hub's receive) ──
+  const shipTotal = (Number(sellableQty) || 0) + (Number(sampleQty) || 0);
+  const centralAvail = fabricId in central ? central[fabricId] : null; // null = not centrally tracked
+  const overPush = centralAvail != null && shipTotal > centralAvail;
+  const gapRow = fabricId && hubId ? hubStock[`${hubId}-${fabricId}`] : undefined;
+  const reorderGap = gapRow && gapRow.reorder_meters != null && numv(gapRow.available_meters) < numv(gapRow.reorder_meters)
+    ? numv(gapRow.reorder_meters) - numv(gapRow.available_meters) : 0;
+
+  const openReceive = (r: Distribution) => {
+    setReceiveTarget(r);
+    setActualMeters(String(Number(r.sellable_qty)));
+    setVarianceReason('');
+  };
+
+  const handleReceive = async () => {
+    if (!receiveTarget) return;
+    const pushed = Number(receiveTarget.sellable_qty);
+    const actual = Number(actualMeters);
+    if (!Number.isFinite(actual) || actual < 0) { toast('error', 'Enter the received meters'); return; }
+    const variancePct = pushed > 0 ? Math.abs(actual - pushed) / pushed : 0;
+    if (variancePct > 0.05 && !varianceReason.trim()) {
+      toast('error', 'Variance reason required', `Received ${actual}m vs pushed ${pushed}m`);
+      return;
+    }
+    setReceiving(true);
     try {
-      const res = await distributionApi.receive(r.id);
+      const res = await distributionApi.receive(receiveTarget.id, {
+        actual_meters: actual,
+        ...(varianceReason.trim() ? { variance_reason: varianceReason.trim() } : {}),
+      });
       toast('success', 'Received at hub', res.stocked_meters ? `${res.stocked_meters}m landed in stock.` : undefined);
+      setReceiveTarget(null);
       load();
     } catch (err) {
       toast('error', 'Failed', err instanceof Error ? err.message : undefined);
     } finally {
-      setActing('');
+      setReceiving(false);
+    }
+  };
+
+  const doCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    try {
+      await distributionApi.cancel(cancelTarget.id, cancelReason.trim() || undefined);
+      toast('success', 'Distribution cancelled');
+      setCancelTarget(null); setCancelReason('');
+      load();
+    } catch (err) {
+      toast('error', 'Cancel failed', err instanceof Error ? err.message : undefined);
+    } finally {
+      setCancelling(false);
     }
   };
 
   const push = async () => {
-    if (!designId || !hubId) { toast('error', 'Pick a design and a hub'); return; }
+    if (!designId || !hubId) { toast('error', restockMode ? 'Pick a hub' : 'Pick a design and a hub'); return; }
+    if (restockMode && !fabricId) { toast('error', 'Pick a fabric to restock'); return; }
+    if (overPush) { toast('error', 'Not enough central stock', `Central has ${centralAvail}m; you're pushing ${shipTotal}m.`); return; }
     setPushing(true);
     try {
       await distributionApi.push({
-        design_id: designId,
+        design_id: restockMode ? null : designId,
         fabric_id: fabricId || null,
         hub_id: hubId,
-        sample_qty: Number(sampleQty) || 0,
+        sample_qty: restockMode ? 0 : (Number(sampleQty) || 0),
         sellable_qty: Number(sellableQty) || 0,
       });
-      toast('success', 'Pushed to hub', 'The hub will receive and stock it.');
+      toast('success', restockMode ? 'Restock pushed to hub' : 'Pushed to hub', 'The hub will receive and stock it.');
       setOpen(false);
       load();
     } catch (e) {
@@ -109,27 +190,59 @@ export const DistributionPage: React.FC = () => {
     }
   };
 
-  return (
-    <div className={styles.page}>
-      <ToastContainer toasts={toasts} onDismiss={dismiss} />
-      <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Distribution</h1>
-        <Button variant="primary" onClick={openPush}><UilPlus size={16} /> Push to hub</Button>
-      </div>
+  const inTransit = rows.filter((r) => r.status === 'pushed');
+  const received = rows.filter((r) => r.status === 'received');
+  const cancelled = rows.filter((r) => r.status === 'cancelled');
 
-      <div className={styles.filterBar}>
-        <select className={styles.filterSelect} value={hubFilter} onChange={(e) => setHubFilter(e.target.value)}>
-          <option value="">All hubs</option>
-          {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-        </select>
-        <select className={styles.filterSelect} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">All statuses</option>
-          <option value="pushed">Pushed</option>
-          <option value="received">Received</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </div>
+  const renderRow = (r: Distribution) => (
+    <tr
+      key={r.id}
+      className={r.fabric_id ? styles.row : undefined}
+      style={r.fabric_id ? { cursor: 'pointer' } : undefined}
+      onClick={r.fabric_id ? () => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`) : undefined}
+    >
+      <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.design_name ?? <span style={{ opacity: 0.6 }}>Plain restock</span>}</td>
+      <td>
+        {r.fabric_name ? (
+          <div className={styles.fabricCell}>
+            {swatch(r.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(r.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
+            <div className={styles.fabricCellText}>
+              <span>{r.fabric_name}</span>
+              <span className={styles.fabricCellCode}>{r.fabric_code}</span>
+            </div>
+          </div>
+        ) : (
+          <span style={{ opacity: 0.5 }}>hub stocks SKU</span>
+        )}
+      </td>
+      <td>{hubName(r.hub_id)}</td>
+      <td className={styles.total}>{Number(r.sample_qty)}</td>
+      <td className={styles.total}>{Number(r.sellable_qty)}</td>
+      <td>
+        <div className={styles.rowActions} onClick={(e) => e.stopPropagation()}>
+          <StatusBadge
+            status={r.status}
+            title={r.variance_reason ?? undefined}
+            label={r.status === 'received' && r.received_meters != null && Number(r.received_meters) !== Number(r.sellable_qty)
+              ? `Received ${Number(r.received_meters)}m of ${Number(r.sellable_qty)}m`
+              : undefined}
+          />
+          {r.status === 'pushed' && <AgeCell since={r.created_at} warnAfterH={120} alertAfterH={240} />}
+          {r.status === 'pushed' && (
+            <>
+              <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => openReceive(r)}>Receive…</Button>
+              <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => { setCancelTarget(r); setCancelReason(''); }}>Cancel</Button>
+            </>
+          )}
+        </div>
+      </td>
+      <td style={{ color: 'var(--color-text-secondary)' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
+    </tr>
+  );
 
+  const section = (title: string, list: Distribution[], emptyMsg: string) => (
+    <section className={s.section}>
+      <h2 className={s.sectionTitle}>{title} {!loading && <span className={s.count}>{list.length}</span>}</h2>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
@@ -137,56 +250,52 @@ export const DistributionPage: React.FC = () => {
           </thead>
           <tbody>
             {loading ? (
-              Array.from({ length: 8 }).map((_, i) => (
+              Array.from({ length: 3 }).map((_, i) => (
                 <tr key={i}>{Array.from({ length: 7 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
               ))
-            ) : rows.length === 0 ? (
-              <tr><td colSpan={7} className={styles.empty}>Nothing distributed yet. Push a design + fabric to a hub.</td></tr>
-            ) : (
-              rows.map((r) => (
-                <tr
-                  key={r.id}
-                  className={r.fabric_id ? styles.row : undefined}
-                  style={r.fabric_id ? { cursor: 'pointer' } : undefined}
-                  onClick={r.fabric_id ? () => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`) : undefined}
-                >
-                  <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.design_name}</td>
-                  <td>
-                    {r.fabric_name ? (
-                      <div className={styles.fabricCell}>
-                        {swatch(r.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(r.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
-                        <div className={styles.fabricCellText}>
-                          <span>{r.fabric_name}</span>
-                          <span className={styles.fabricCellCode}>{r.fabric_code}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <span style={{ opacity: 0.5 }}>hub stocks SKU</span>
-                    )}
-                  </td>
-                  <td>{hubName(r.hub_id)}</td>
-                  <td className={styles.total}>{Number(r.sample_qty)}</td>
-                  <td className={styles.total}>{Number(r.sellable_qty)}</td>
-                  <td>
-                    <div className={styles.rowActions} onClick={(e) => e.stopPropagation()}>
-                      <span className={`${styles.stagePill} ${styles[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>{STATUS_LABELS[r.status] ?? r.status}</span>
-                      {r.status === 'pushed' && (
-                        <Button variant="ghost" size="sm" disabled={acting === r.id} onClick={() => setConfirm({
-                          title: 'Mark received?', label: 'Yes, it arrived',
-                          message: <>Confirm <strong>{Number(r.sellable_qty)}m</strong> of <strong>{r.fabric_name ?? 'fabric'}</strong> for <strong>{r.design_name}</strong> physically arrived at <strong>{hubName(r.hub_id)}</strong>. This lands it in stock and can't be undone.</>,
-                          run: () => receive(r),
-                        })}>Mark received</Button>
-                      )}
-                    </div>
-                  </td>
-                  <td style={{ color: 'var(--color-text-secondary)' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
-                </tr>
-              ))
-            )}
+            ) : list.length === 0 ? (
+              <tr><td colSpan={7} className={styles.empty}>{emptyMsg}</td></tr>
+            ) : list.map(renderRow)}
           </tbody>
         </table>
       </div>
+    </section>
+  );
 
+  return (
+    <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
+      <PageHeader
+        eyebrow="Procurement · Supply"
+        title="Distribution"
+        subtitle="Push a published design's fabric from central stock to a hub; the hub receives it into stock."
+        actions={<Button variant="primary" onClick={openPush}><UilPlus size={16} /> Push to hub</Button>}
+      />
+
+      <Alert
+        type="info"
+        title="Receiving is normally the hub's job"
+        message="In the live flow, hub staff confirm receipt in the ops app. Until that ships, procurement can record receipt here on their behalf."
+      />
+
+      <div className={s.toolbar}>
+        <select className={s.hubSel} value={hubFilter} onChange={(e) => setHubFilter(e.target.value)}>
+          <option value="">All hubs</option>
+          {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+        </select>
+      </div>
+
+      {!loading && rows.length === 0 ? (
+        <EmptyState title="Nothing distributed yet" body="Push a published design + fabric to a hub to get started." action={{ label: 'Push to hub', onClick: openPush }} />
+      ) : (
+        <>
+          {section('In transit', inTransit, 'Nothing in transit.')}
+          {section('Received', received, 'Nothing received yet.')}
+          {cancelled.length > 0 && section('Cancelled', cancelled, '')}
+        </>
+      )}
+
+      {/* Push */}
       <Modal
         open={open}
         onClose={() => setOpen(false)}
@@ -194,7 +303,7 @@ export const DistributionPage: React.FC = () => {
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button variant="primary" state={pushing ? 'loading' : 'default'} onClick={push}>Push</Button>
+            <Button variant="primary" state={pushing ? 'loading' : 'default'} disabled={overPush} onClick={push}>Push</Button>
           </>
         }
       >
@@ -202,37 +311,111 @@ export const DistributionPage: React.FC = () => {
           <label className={styles.fieldLabel}>Design
             <select className={styles.filterSelect} value={designId} onChange={(e) => setDesignId(e.target.value)}>
               <option value="">Select a published design…</option>
+              <option value={NO_DESIGN}>— No design · plain fabric restock —</option>
               {designs.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.garment_type}</option>)}
             </select>
           </label>
           <label className={styles.fieldLabel}>Fabric
-            <select className={styles.filterSelect} value={fabricId} onChange={(e) => setFabricId(e.target.value)} disabled={!designId}>
-              <option value="">{designId ? (fabrics.length ? 'Hub already stocks the SKU' : 'No matched fabrics') : 'Pick a design first'}</option>
-              {fabrics.map((f) => <option key={f.id} value={f.id}>{f.name}{f.code ? ` (${f.code})` : ''}</option>)}
-            </select>
+            {restockMode ? (
+              <select className={styles.filterSelect} value={fabricId} onChange={(e) => setFabricId(e.target.value)}>
+                <option value="">Select a fabric…</option>
+                {allFabrics.map((f) => <option key={f.id} value={f.id}>{f.name}{f.code ? ` (${f.code})` : ''}</option>)}
+              </select>
+            ) : (
+              <select className={styles.filterSelect} value={fabricId} onChange={(e) => setFabricId(e.target.value)} disabled={!designId}>
+                <option value="">{designId ? (fabrics.length ? 'Hub already stocks the SKU' : 'No matched fabrics') : 'Pick a design first'}</option>
+                {fabrics.map((f) => <option key={f.id} value={f.id}>{f.name}{f.code ? ` (${f.code})` : ''}</option>)}
+              </select>
+            )}
           </label>
+          {fabricId && (
+            <p className={s.hint}>
+              Central available: <strong>{centralAvail != null ? `${centralAvail.toLocaleString('en-IN')} m` : 'not tracked centrally'}</strong>
+            </p>
+          )}
           <label className={styles.fieldLabel}>Hub
             <select className={styles.filterSelect} value={hubId} onChange={(e) => setHubId(e.target.value)}>
               <option value="">Select a hub…</option>
               {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
             </select>
           </label>
-          <div className={styles.modalGrid}>
-            <Input label="Sample metres" type="number" value={sampleQty} onChange={setSampleQty} />
-            <Input label="Sellable metres" type="number" value={sellableQty} onChange={setSellableQty} />
-          </div>
+          {reorderGap > 0 && (
+            <div className={s.suggest}>
+              Hub is {reorderGap.toLocaleString('en-IN')} m below its reorder point.
+              <button type="button" className={s.useBtn} onClick={() => setSellableQty(String(reorderGap))}>Use {reorderGap} m</button>
+            </div>
+          )}
+          {restockMode ? (
+            <Input label="Metres to send" type="number" value={sellableQty} onChange={setSellableQty} />
+          ) : (
+            <div className={styles.modalGrid}>
+              <Input label="Sample metres" type="number" value={sampleQty} onChange={setSampleQty} />
+              <Input label="Sellable metres" type="number" value={sellableQty} onChange={setSellableQty} />
+            </div>
+          )}
+          {overPush && (
+            <p className={`${s.hint} ${s.hintWarn}`}>
+              Pushing {shipTotal} m {restockMode ? '' : `(sample ${Number(sampleQty) || 0} + sellable ${Number(sellableQty) || 0}) `}exceeds central available ({centralAvail} m). Receive more into Central Stock first.
+            </p>
+          )}
         </div>
       </Modal>
 
-      <ConfirmDialog
-        open={!!confirm}
-        title={confirm?.title ?? ''}
-        message={confirm?.message ?? ''}
-        confirmLabel={confirm?.label}
-        loading={confirming}
-        onConfirm={runConfirm}
-        onCancel={() => setConfirm(null)}
-      />
+      {/* Receive (G-30) */}
+      <Modal
+        open={receiveTarget !== null}
+        onClose={() => !receiving && setReceiveTarget(null)}
+        title="Receive at hub"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setReceiveTarget(null)} disabled={receiving}>Cancel</Button>
+            <Button variant="primary" state={receiving ? 'loading' : 'default'} onClick={handleReceive}>Confirm receipt</Button>
+          </>
+        }
+      >
+        {receiveTarget && (
+          <div className={styles.modalStack}>
+            <p className={styles.fabricCellCode}>
+              {receiveTarget.design_name ?? 'Plain restock'} · {receiveTarget.fabric_name ?? 'fabric'} → {hubName(receiveTarget.hub_id)} · pushed {Number(receiveTarget.sellable_qty)}m
+            </p>
+            <Input label="Actually received (meters)" type="number" value={actualMeters} onChange={setActualMeters} />
+            {Number(receiveTarget.sellable_qty) > 0 &&
+              Math.abs(Number(actualMeters) - Number(receiveTarget.sellable_qty)) / Number(receiveTarget.sellable_qty) > 0.05 && (
+              <Input
+                label="Variance reason (required — differs >5% from pushed)"
+                value={varianceReason}
+                onChange={setVarianceReason}
+                placeholder="e.g. 2m short — supplier roll ran out"
+              />
+            )}
+            <p className={styles.fabricCellCode}>The received meters land in the hub's stock and can't be undone here.</p>
+          </div>
+        )}
+      </Modal>
+
+      {/* Cancel (with reason) */}
+      <Modal
+        open={cancelTarget !== null}
+        onClose={() => !cancelling && setCancelTarget(null)}
+        title="Cancel this distribution?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setCancelTarget(null)} disabled={cancelling}>Keep</Button>
+            <Button variant="primary" state={cancelling ? 'loading' : 'default'} onClick={doCancel}>Yes, cancel it</Button>
+          </>
+        }
+      >
+        {cancelTarget && (
+          <div className={styles.modalStack}>
+            <p className={s.hint}>
+              The push of <strong>{Number(cancelTarget.sellable_qty)}m</strong> of <strong>{cancelTarget.fabric_name ?? 'fabric'}</strong> to <strong>{hubName(cancelTarget.hub_id)}</strong> will be cancelled. No stock moves — it never arrived.
+            </p>
+            <Input label="Reason (optional)" value={cancelReason} onChange={setCancelReason} placeholder="e.g. wrong hub, lost in transit" />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

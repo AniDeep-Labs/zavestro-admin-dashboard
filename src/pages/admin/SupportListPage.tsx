@@ -4,6 +4,7 @@ import { supportApi, usersApi } from "../../api/adminApi";
 import type { SupportTicket, AdminUser } from "../../api/adminApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
+import { StatusBadge } from "../../components";
 import styles from "./SupportListPage.module.css";
 import {
   UilAngleLeft,
@@ -33,11 +34,12 @@ const priorityCss: Record<string, string> = {
   Medium: "priorityMedium",
   Low: "priorityLow",
 };
-const statusCss: Record<string, string> = {
-  Open: "statusOpen",
-  "In Progress": "statusProgress",
-  Resolved: "statusResolved",
-  Closed: "statusClosed",
+// Map the ticket display status to the canonical StatusBadge key (tone + wording).
+const TICKET_KEY: Record<string, string> = {
+  Open: "open",
+  "In Progress": "in_progress",
+  Resolved: "resolved",
+  Closed: "closed",
 };
 
 export const SupportListPage: React.FC = () => {
@@ -132,6 +134,8 @@ export const SupportListPage: React.FC = () => {
       const newTicket = await supportApi.create({
         customer_name: form.customerName,
         customer_phone: form.customerPhone,
+        // Link to the looked-up customer so the ticket's CX levers work.
+        ...(selectedCustomer ? { user_id: selectedCustomer.id } : {}),
         subject: form.subject,
         category: form.category,
         priority: form.priority,
@@ -378,11 +382,7 @@ export const SupportListPage: React.FC = () => {
                     </span>
                   </td>
                   <td>
-                    <span
-                      className={`${styles.statusPill} ${styles[statusCss[t.status]]}`}
-                    >
-                      {t.status}
-                    </span>
+                    <StatusBadge status={TICKET_KEY[t.status] ?? t.status} label={t.status} />
                   </td>
                   <td className={t.assignedTo ? "" : styles.unassigned}>
                     {t.assignedTo ?? "— Unassigned"}

@@ -5,10 +5,65 @@
   color: var(--color-text-secondary);
   text-decoration: none;
   font-size: var(--font-size-sm);
-  margin-bottom: var(--spacing-md);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  align-self: flex-start;
 }
 .back:hover {
   color: var(--color-primary);
+}
+
+.designLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.designLink:hover { text-decoration: underline; }
+
+/* "Being made" placeholder shown in the stitched slot before a sample exists. */
+.makingBox {
+  height: 340px;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-border);
+  background: var(--color-bg-section);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  text-align: center;
+  padding: var(--spacing-lg);
+}
+.makingText {
+  margin: 0;
+  max-width: 32ch;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.idleNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-warning, var(--color-error));
+  font-weight: var(--font-weight-medium);
+}
+
+/* D13 gate context next to the verdict actions. */
+.gateNote {
+  margin-right: auto;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 46ch;
 }
 
 .center {
@@ -24,7 +79,6 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
 }
 .title {
   margin: 0;
@@ -53,27 +107,57 @@
   border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
   color: var(--color-error);
   font-size: var(--font-size-sm);
-  margin-bottom: var(--spacing-lg);
 }
 
-.layout {
+/* Neutral terminal-state banner (a cancellation isn't an error — it's just dead). */
+.cancelBanner {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+/* Comparison strip — stitched sample beside the design reference, capped so portrait
+   garment photos don't blow the page open. Left-aligned at a sensible size. */
+.compare {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: var(--spacing-xl);
+  grid-template-columns: repeat(2, minmax(0, 460px));
+  gap: var(--spacing-lg);
   align-items: start;
 }
-@media (max-width: 900px) {
-  .layout {
+.compareSingle {
+  grid-template-columns: minmax(0, 460px);
+}
+@media (max-width: 720px) {
+  .compare {
     grid-template-columns: 1fr;
   }
 }
 
-/* ── galleries ── */
-.media {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xl);
+/* Spec cards flow into as many columns as fit, so the page fills evenly instead of
+   one tall image column next to a short spec column. */
+.specGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--spacing-lg);
+  align-items: start;
 }
+
+/* Slim full-width placeholder note (not a card). */
+.measuredNote {
+  margin: 0;
+  padding: var(--spacing-md);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+.measuredNote strong { color: var(--color-text); }
 .gallery {
   display: flex;
   flex-direction: column;
@@ -89,7 +173,7 @@
 }
 .hero {
   display: block;
-  aspect-ratio: 4 / 3;
+  height: 340px;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--color-bg-section);
@@ -101,8 +185,9 @@
   object-fit: cover;
   display: block;
 }
+/* Matches the hero height so an empty gallery aligns beside a filled one. */
 .galleryEmpty {
-  aspect-ratio: 4 / 3;
+  height: 340px;
   border-radius: var(--radius-lg);
   border: 1px dashed var(--color-border);
   background: var(--color-bg-section);
@@ -229,10 +314,11 @@
 .actionBar {
   position: sticky;
   bottom: 0;
-  margin-top: var(--spacing-xl);
   padding: var(--spacing-md) 0;
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--spacing-md);
   background: linear-gradient(to top, var(--color-bg-primary), transparent);
 }
@@ -260,7 +346,6 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  margin-top: var(--spacing-lg);
 }
 .commentList {
   display: flex;
@@ -343,3 +428,14 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
 }
+
+/* ── Needs-changes (reject) modal body — rendered inside the shared Modal ── */
+.rejectForm { display: flex; flex-direction: column; gap: 12px; }
+.modalNote { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0; }
+.rejectInput {
+  width: 100%; box-sizing: border-box; padding: 10px 12px;
+  border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-primary); color: var(--color-text-primary);
+  font-family: var(--font-family); font-size: var(--font-size-base); resize: vertical;
+}
+.rejectInput:focus { border-color: var(--color-primary); outline: none; }

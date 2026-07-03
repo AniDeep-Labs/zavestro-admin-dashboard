@@ -1,0 +1,53 @@
+.cust {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+.sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+.amount {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+.reason {
+  max-width: 280px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+.actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+/* Review modal */
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-width: 380px;
+}
+.modalLead {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+.reasonBox {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+}

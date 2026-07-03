@@ -12,6 +12,7 @@ export const NotificationBlastPage: React.FC = () => {
   });
   const [confirming, setConfirming] = React.useState(false);
   const [sending, setSending] = React.useState(false);
+  const [audienceCount, setAudienceCount] = React.useState<number | null>(null);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -19,6 +20,15 @@ export const NotificationBlastPage: React.FC = () => {
 
   const set = <K extends keyof BlastPayload>(k: K, v: BlastPayload[K]) => setForm(f => ({ ...f, [k]: v }));
   const valid = form.subject.trim() && form.headline.trim() && form.body.trim();
+
+  const openConfirm = () => {
+    setAudienceCount(null);
+    setConfirming(true);
+    notificationsAdminApi
+      .audienceCount(form.segment ?? 'opted_in')
+      .then(setAudienceCount)
+      .catch(() => setAudienceCount(null));
+  };
 
   const send = async () => {
     setSending(true);
@@ -80,7 +90,7 @@ export const NotificationBlastPage: React.FC = () => {
           </div>
         </div>
         <div className={styles.modalActions} style={{ marginTop: 18 }}>
-          <button className={styles.createBtn} disabled={!valid} onClick={() => setConfirming(true)}>
+          <button className={styles.createBtn} disabled={!valid} onClick={openConfirm}>
             <UilMessage size={14} /> Review & Send
           </button>
         </div>
@@ -91,8 +101,13 @@ export const NotificationBlastPage: React.FC = () => {
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <div className={styles.modalTitle}><UilExclamationTriangle size={16} style={{ verticalAlign: -2, marginRight: 6, color: '#B45309' }} />Send this blast?</div>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, lineHeight: 1.5 }}>
-              This will queue <strong>{form.segment === 'all' ? 'all active customers' : 'all opted-in customers'}</strong> to receive
-              “<strong>{form.headline}</strong>” via in-app inbox, email, and push. This cannot be recalled once sent.
+              This will queue{' '}
+              <strong>
+                {audienceCount === null
+                  ? form.segment === 'all' ? 'all active customers' : 'all opted-in customers'
+                  : `~${audienceCount.toLocaleString('en-IN')} ${form.segment === 'all' ? 'active' : 'opted-in'} customer${audienceCount === 1 ? '' : 's'}`}
+              </strong>{' '}
+              to receive “<strong>{form.headline}</strong>” via in-app inbox, email, and push. This cannot be recalled once sent.
             </p>
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} disabled={sending} onClick={() => setConfirming(false)}>Cancel</button>

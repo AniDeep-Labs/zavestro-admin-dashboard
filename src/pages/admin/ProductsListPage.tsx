@@ -6,6 +6,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ProductsListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilPlus, UilSearch, UilTimes } from "@iconscout/react-unicons";
+import { StatusBadge } from '../../components';
 
 const LIMIT = 20;
 
@@ -23,7 +24,9 @@ export const ProductsListPage: React.FC = () => {
   const location = useLocation();
   const [search, setSearch] = React.useState('');
   const [modeFilter, setModeFilter] = React.useState('');
-  const [categoryFilter, setCategoryFilter] = React.useState('');
+  const [categoryFilter, setCategoryFilter] = React.useState(
+    () => new URLSearchParams(location.search).get('category') ?? '',
+  );
   const [statusFilter, setStatusFilter] = React.useState('');
   const [page, setPage] = React.useState(1);
 
@@ -235,13 +238,7 @@ export const ProductsListPage: React.FC = () => {
                     {product.delivery_days_min}–{product.delivery_days_max} days
                   </td>
                   <td>
-                    <span className={`${styles.statusPill} ${
-                      product.status === 'active' ? styles.statusActive
-                        : product.status === 'draft' ? styles.statusDraft
-                        : styles.statusArchived
-                    }`}>
-                      {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
-                    </span>
+                    <StatusBadge status={product.status} />
                   </td>
                   <td className={styles.date}>
                     {product.updated_at

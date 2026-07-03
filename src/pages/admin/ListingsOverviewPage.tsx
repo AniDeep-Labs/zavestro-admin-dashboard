@@ -4,6 +4,7 @@ import type { ListingOverviewRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import { StatusBadge } from '../../components';
 
 export const ListingsOverviewPage: React.FC = () => {
   const [rows, setRows] = React.useState<ListingOverviewRow[]>([]);
@@ -68,9 +69,7 @@ export const ListingsOverviewPage: React.FC = () => {
                   <td>{r.hub_name}</td>
                   <td className={styles.total} style={{ fontWeight: 600 }}>₹{Number(r.price).toLocaleString('en-IN')}</td>
                   <td>
-                    <span className={`${styles.stagePill} ${r.is_active ? styles.stageSuccess : styles.stageNeutral}`}>
-                      {r.is_active ? 'Live' : 'Hidden'}
-                    </span>
+                    <StatusBadge status={r.is_active ? 'live' : 'inactive'} label={r.is_active ? 'Live' : 'Hidden'} />
                   </td>
                 </tr>
               ))

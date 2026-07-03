@@ -4,17 +4,7 @@ import type { DesignOverviewRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Draft',
-  published: 'Published',
-  archived: 'Archived',
-};
-const STATUS_CSS: Record<string, string> = {
-  draft: 'stageWarning',
-  published: 'stageSuccess',
-  archived: 'stageNeutral',
-};
+import { StatusBadge } from '../../components';
 
 export const DesignOverviewPage: React.FC = () => {
   const [rows, setRows] = React.useState<DesignOverviewRow[]>([]);
@@ -78,9 +68,7 @@ export const DesignOverviewPage: React.FC = () => {
                   </td>
                   <td className={styles.total} style={{ fontWeight: 600 }}>{r.units_sold}</td>
                   <td>
-                    <span className={`${styles.stagePill} ${styles[STATUS_CSS[r.status] ?? 'stageNeutral']}`}>
-                      {STATUS_LABELS[r.status] ?? r.status}
-                    </span>
+                    <StatusBadge status={r.status} />
                   </td>
                 </tr>
               ))

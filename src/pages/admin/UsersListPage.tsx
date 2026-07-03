@@ -5,6 +5,7 @@ import type { AdminUser } from "../../api/adminApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { downloadCsv, datedFilename } from "../../utils/csv";
+import { StatusBadge } from "../../components";
 import styles from "./UsersListPage.module.css";
 import {
   UilAngleLeft,
@@ -242,11 +243,7 @@ export const UsersListPage: React.FC = () => {
                   </td>
                   <td className={styles.date}>{u.joined}</td>
                   <td>
-                    <span
-                      className={`${styles.statusPill} ${u.status === "Active" ? styles.statusActive : styles.statusDeactivated}`}
-                    >
-                      {u.status}
-                    </span>
+                    <StatusBadge status={u.status === "Active" ? 'active' : 'inactive'} label={u.status} />
                   </td>
                 </tr>
               ))

@@ -5,22 +5,20 @@ import type { ReturnRequest } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
+import { StatusBadge } from '../../components';
+import { Can } from '../../components/Can/Can';
 import styles from './OrdersListPage.module.css';
+import d from './ReturnDetailPage.module.css';
 import { UilAngleLeft } from "@iconscout/react-unicons";
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending', approved: 'Approved', rejected: 'Rejected', under_review: 'Under Review',
-};
 
 export const ReturnDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [ret, setRet] = React.useState<ReturnRequest | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [saving, setSaving] = React.useState(false);
-  const [reviewStatus, setReviewStatus] = React.useState('approved');
-  const [reviewNote, setReviewNote] = React.useState('');
-  const [refundAmount, setRefundAmount] = React.useState('');
+  const [approving, setApproving] = React.useState(false);
+  const [approveNote, setApproveNote] = React.useState('');
+  const [refundAmt, setRefundAmt] = React.useState(''); // G-54(A): blank = full refund
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
@@ -37,20 +35,27 @@ export const ReturnDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handleReview = async () => {
+  const handleApprove = async () => {
     if (!ret) return;
-    setSaving(true);
+    const payable = Number(ret.payable_amount ?? 0);
+    const amt = refundAmt.trim() ? Number(refundAmt) : undefined;
+    if (amt !== undefined && (!Number.isFinite(amt) || amt <= 0 || amt > payable)) {
+      showToast('error', 'Invalid amount', `Enter an amount between ₹0 and the order total ₹${payable}, or leave blank for a full refund.`);
+      return;
+    }
+    setApproving(true);
     try {
-      const updated = await returnsApi.review(ret.id, {
-        status: reviewStatus,
-        review_note: reviewNote || undefined,
-        refund_amount: refundAmount ? Number(refundAmount) : undefined,
-      });
-      setRet(updated);
-      showToast('success', 'Return reviewed', `Status set to ${STATUS_LABELS[reviewStatus] ?? reviewStatus}`);
+      await returnsApi.approve(ret.id, approveNote.trim() || undefined, amt);
+      showToast('success', 'Refund initiated', amt && amt < payable ? `Partial refund of ₹${amt} initiated.` : 'Full refund initiated to the original payment method.');
+      const fresh = await returnsApi.get(ret.id);
+      setRet(fresh);
+      setApproveNote('');
+      setRefundAmt('');
     } catch (e) {
-      showToast('error', 'Review failed', e instanceof Error ? e.message : undefined);
-    } finally { setSaving(false); }
+      showToast('error', 'Could not approve', e instanceof Error ? e.message : undefined);
+    } finally {
+      setApproving(false);
+    }
   };
 
   if (loading) return <div className={styles.page}><div>Loading return…</div></div>;
@@ -61,7 +66,10 @@ export const ReturnDetailPage: React.FC = () => {
     </div>
   );
 
-  const isReviewed = ret.status === 'approved' || ret.status === 'rejected';
+  const refundDone = ret.status === 'refund_initiated' || ret.status === 'refunded';
+  const rejected = ret.status === 'defect_rejected' || ret.status === 'rejected';
+  const awaitingApproval = ret.status === 'defect_confirmed';
+  const payable = Number(ret.payable_amount ?? 0);
 
   return (
     <div className={styles.page}>
@@ -76,7 +84,7 @@ export const ReturnDetailPage: React.FC = () => {
               <div><div className={styles.metaLabel}>Order</div><div className={styles.metaValue}>{ret.order_number}</div></div>
               <div><div className={styles.metaLabel}>Customer</div><div className={styles.metaValue}>{ret.customer_name}</div></div>
               <div><div className={styles.metaLabel}>Phone</div><div className={styles.metaValue}>{ret.customer_phone}</div></div>
-              <div><div className={styles.metaLabel}>Current Status</div><div className={styles.metaValue}>{STATUS_LABELS[ret.status] ?? ret.status}</div></div>
+              <div><div className={styles.metaLabel}>Status</div><div className={styles.metaValue}><StatusBadge status={ret.status} /></div></div>
               <div><div className={styles.metaLabel}>Submitted</div><div className={styles.metaValue}>{new Date(ret.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
             </div>
             <div style={{ marginTop: 16 }}>
@@ -91,39 +99,69 @@ export const ReturnDetailPage: React.FC = () => {
             )}
           </div>
 
-          {!isReviewed && (
-            <div className={styles.card}>
-              <h3 className={styles.sectionTitle}>Review Return</h3>
-              <div className={styles.fields}>
-                <div className={styles.field}>
-                  <label className={styles.metaLabel}>Decision</label>
-                  <select className={styles.fieldSelect} value={reviewStatus} onChange={e => setReviewStatus(e.target.value)}>
-                    <option value="approved">Approve</option>
-                    <option value="rejected">Reject</option>
-                    <option value="under_review">Mark Under Review</option>
-                  </select>
-                </div>
-                {reviewStatus === 'approved' && (
+          {/* Refund — status-driven. A return is approved (and the refund initiated)
+              only once ops has confirmed the defect; finance does the money action. */}
+          <div className={styles.card}>
+            <h3 className={styles.sectionTitle}>Refund</h3>
+
+            {refundDone ? (
+              <p className={d.refundDone}>
+                <StatusBadge status={ret.status} /> &nbsp;Refund has been initiated to the original
+                payment method. It settles via the payment provider.
+              </p>
+            ) : rejected ? (
+              <p className={d.refundNote}>This return was rejected — no refund is due.</p>
+            ) : awaitingApproval ? (
+              <Can
+                cap="refunds:approve"
+                fallback={
+                  <p className={d.refundNote}>
+                    The defect is confirmed. A finance teammate (refunds:approve) approves the refund.
+                  </p>
+                }
+              >
+                <div className={styles.fields}>
+                  <p className={d.refundNote}>
+                    Ops has confirmed the defect. Approving initiates the refund to the customer's
+                    original payment method.
+                  </p>
                   <div className={styles.field}>
-                    <label className={styles.metaLabel}>Refund Amount (₹)</label>
-                    <input className={styles.fieldInput} type="number" value={refundAmount} onChange={e => setRefundAmount(e.target.value)} placeholder="Leave blank to refund full amount" />
+                    <label className={styles.metaLabel}>Refund amount (blank = full ₹{payable})</label>
+                    <input
+                      type="number" step="1" min="0" max={payable}
+                      className={styles.fieldInput}
+                      value={refundAmt}
+                      onChange={e => setRefundAmt(e.target.value)}
+                      placeholder={`Full refund: ₹${payable}`}
+                    />
                   </div>
-                )}
-                <div className={styles.field}>
-                  <label className={styles.metaLabel}>Review Note</label>
-                  <textarea className={styles.fieldTextarea} rows={3} value={reviewNote} onChange={e => setReviewNote(e.target.value)} placeholder="Optional note to the customer…" />
+                  <div className={styles.field}>
+                    <label className={styles.metaLabel}>Note (optional)</label>
+                    <textarea
+                      className={styles.fieldTextarea}
+                      rows={2}
+                      value={approveNote}
+                      onChange={e => setApproveNote(e.target.value)}
+                      placeholder="e.g., Defect verified against photos; full refund due"
+                    />
+                  </div>
+                  <button
+                    className={styles.addBtn}
+                    disabled={approving}
+                    onClick={handleApprove}
+                    style={{ alignSelf: 'flex-end' }}
+                  >
+                    {approving ? 'Initiating…' : 'Approve & initiate refund'}
+                  </button>
                 </div>
-                <button
-                  className={styles.addBtn}
-                  disabled={saving}
-                  onClick={handleReview}
-                  style={{ alignSelf: 'flex-end' }}
-                >
-                  {saving ? 'Saving…' : 'Submit Review'}
-                </button>
-              </div>
-            </div>
-          )}
+              </Can>
+            ) : (
+              <p className={d.refundNote}>
+                Awaiting ops inspection. Once the garment is picked up and the defect is confirmed,
+                finance can approve the refund here.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

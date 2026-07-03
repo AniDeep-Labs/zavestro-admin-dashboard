@@ -2,15 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> Verified-against-code: 2026-06-13. If this file is >30 days old, re-verify before trusting it.
+
 ## Project Overview
 
-Zavestro is a made-to-order clothing brand (not a marketplace). This is the internal **admin dashboard** used by hub managers and ops staff to manage orders, customers, hubs, and catalog. Built with React 19 + TypeScript + Vite 8. No backend integration yet — all data is mocked.
+Zavestro is a made-to-order clothing brand (dark-store model: the brand designs, stocks fabric per hub, and stitches to each customer's saved measurements). This repo is the **internal admin dashboard** — a React SPA with **6 capability-gated role consoles**: `super_admin` (oversight-only), `design`, `procurement`, `catalog_manager` (per-hub), `finance`, `support`. All pages call the **real backend** (`zavestro-backend`) via `src/api/adminApi.ts` + `src/api/catalogApi.ts`. There is **no mock data** anywhere.
+
+Authoritative docs (in `../zavestro-documentation/`): `00-MASTER-PLAN.md` (role model + gap register) · `FABLE-ADMIN-UIUX.md` (the page-by-page design spec + build order — follow it for any UI work) · `ADMIN-ROLE-AUDIT.md` (per-role audit).
 
 ## Commands
 
 ```bash
 npm run dev       # Start dev server
-npm run build     # TypeScript check + Vite production build
+npm run build     # TypeScript check + Vite production build  ← run before any PR
 npm run lint      # ESLint
 npm run preview   # Preview production build
 ```
@@ -18,46 +22,32 @@ npm run preview   # Preview production build
 ## Architecture
 
 ### Stack
-- **React 19** with TypeScript (strict mode, ES2023 target)
-- **Vite 8** with Oxc-based React transform
-- **React Router v7** — all routes in `src/App.tsx`
-- **CSS Modules** + CSS custom properties (design tokens) — no CSS-in-JS, no Tailwind
-- **Onest** font via Google Fonts CDN (weights 400, 500, 600, 700)
+- **React 19** + TypeScript (strict), **Vite 8**, **React Router v7** — all routes in `src/App.tsx` (admin routes nested under `<AdminLayout>`; lazy-loaded per page via `lazyPage`)
+- **CSS Modules** + CSS custom properties (`src/styles/variables.css`) — no CSS-in-JS, no Tailwind
+- **Onest** font; light/dark via `data-theme="dark"` on `<html>` (`src/utils/theme.ts`, localStorage `zavestro-theme`)
+- Sentry/Datadog wired (vendor chunks)
 
-### Design System (`src/styles/`)
-- `variables.css` — All tokens: colors, spacing, typography, shadows, radii, z-index, transitions, breakpoints
-- Light/dark mode via `data-theme="dark"` on `<html>`. Theme persists in localStorage (`zavestro-theme`)
-- Primary: Emerald (#1F6B4F light / #8FBCA8 dark), Secondary: Gold (#D4A574)
-- `src/utils/theme.ts` — `initTheme()`, `toggleTheme()`, `setTheme()`
+### RBAC (read this before touching nav or pages)
+- `AdminLayout.tsx` defines `SECTIONS`: capability-gated nav workspaces. A section shows if the user holds any of its `caps`; items gate on `cap`. `roleOwned` sections (Design, Catalog) are **hidden from super_admin** (oversight-only — deep-links blocked too); `superOnly` sections show only to super_admin. Legacy `admin` role = god-mode.
+- Capabilities come from `adminAuthExtApi.me()` (refreshed on mount, cached in localStorage). Backend enforces independently — frontend `<Can cap="…">` is UX, not security.
+- Floor actions on OrderDetail (advance/override/assign) are `system:manage` break-glass only (G-23); support is CX-only via `orders:write`.
 
-### Component Library (`src/components/`)
-33 component directories, all barrel-exported from `src/components/index.ts`. Every component:
-- Uses CSS Modules (`.module.css`)
-- References design tokens via `var(--*)` — never hardcoded values
-- Supports dark mode automatically through CSS variable swapping
-- Key components: Button (5 variants), Card/StatCard, Input/Select/Checkbox/Radio/Toggle/Textarea, FileUpload (drag & drop), Modal/Drawer/Popover, Table (generic typed with sorting), Tabs, Toast (with createToast helper), Navbar/Sidebar, Avatar/AvatarGroup, Spinner/Skeleton, Grid/Container/Spacer
+### Pages (`src/pages/admin/` — ~60 pages, one `.tsx` + usually one `.module.css`)
+Role ownership and the per-page spec live in `FABLE-ADMIN-UIUX.md` §3–§8. Notable:
+- `OrderDetailPage.tsx` (~1,450 lines) — order story + CX verbs + break-glass; SSE live updates.
+- `GarmentTemplateEditorPage.tsx` — the fit engine's size-chart/capture-set/pain-point authoring. Handle with care.
+- `ProductsListPage/ProductEditPage` — **LEGACY** catalog editor for the live legacy customer flow. Do not delete until the P5 cutover completes; do not invest in it either.
+- Deleted (do not recreate): MeasurementBooking* pages (System-2 retired), GarmentTypesPage (was unrouted), craftspeople content section + `craftspeopleApi` (artisan model retired), Luxe* (model scrapped).
 
-### State Management
-- `src/context/OrderContext.tsx` — useReducer + Context for multi-step customer order flow
-- Hook: `useOrder()` returns `{state, dispatch}`
-- Actions: SET_FABRIC_SOURCE, SET_SELECTED_FABRIC, SET_OWN_FABRIC, SET_DESIGN, SET_MEASUREMENT_METHOD, SET_MEASUREMENT, SET_TAILOR, SET_FABRIC_METERS, SET_COUPON, SET_STEP, RESET
-
-### Pages (`src/pages/`)
-- `customer/` — 12 pages: CustomerLayout + 11 screens (home, fabric catalog, own fabric, designs, design detail, measurements, self-measure, tailor selection, order summary, order confirmation, order tracking)
-- Each page has a `.tsx` + `.module.css` pair
-
-### Mock Data (`src/data/mockData.ts`)
-Typed interfaces: Fabric, Design, Tailor, Order, MeasurementField. All with sample data arrays.
-
-### Routing (`src/App.tsx`)
-All customer routes nested under `<CustomerLayout>` within `<OrderProvider>`. Pattern: `/path` for list pages, `/path/:id` for detail pages.
+### Components (`src/components/` — 33 dirs, barrel-exported from `index.ts`)
+Button/IconButton, Card/StatCard, Input/Select/Checkbox/Radio/Toggle/Textarea, SearchInput, FileUpload, Alert, Badge, Toast (`createToast`), Tooltip, Navbar/Sidebar, Breadcrumb, Tabs, Modal/ConfirmationModal, ConfirmDialog, Drawer, Popover, Table (generic, typed, sortable), Skeleton, Spinner, Avatar, Grid/Container/Spacer, Can, ErrorBoundary, CustomerQuickLookup, StaffAssignmentDropdown.
 
 ## Conventions
 
-- **Barrel exports** — every component directory has `index.ts`; pages import from `../../components`
-- **CSS Modules only** — class names via `styles.className`, compose with template literals
-- **No inline styles** except dynamic values (e.g., Spacer dimensions)
-- **Mock data** — typed interfaces first, then sample arrays; no API calls
-- **File naming** — PascalCase for components/pages, camelCase for utilities
-- **Responsive** — mobile-first; use CSS custom property breakpoints
-- **Accessibility** — WCAG AAA target; semantic HTML, aria attributes, keyboard navigation
+- **CSS Modules only**; design-token `var(--*)` values — never hardcoded colors. Inline `style={{}}` is legacy debt being burned down (worst remaining: OrderDetail) — never add new ones.
+- **Status colors/labels:** use the canonical status vocabulary (FABLE-ADMIN-UIUX §2.1). Per-page `STATUS_CSS`/`stagePill` maps are debt scheduled for replacement by `StatusBadge` — don't add new copies.
+- **New pages copy a canonical page** (list → OrdersListPage pattern, worklist → RefundsPage, detail → OrderDetailPage post-repair, form → DesignEditorPage); never invent a one-off layout.
+- Every list/detail ships loading (Skeleton) / empty (with next action) / error (server's message + retry) states.
+- Barrel imports from `../../components`; PascalCase components, camelCase utils.
+- Deep-links carry context (e.g. `?search=<phone>`); back must preserve list filters (URL-synced state).
+- Run `npm run build` before declaring any change done — it's the type gate.

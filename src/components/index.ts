@@ -97,3 +97,26 @@ export type { ContainerProps } from './Container';
 
 export { Spacer } from './Spacer';
 export type { SpacerProps } from './Spacer';
+
+// Status vocabulary + canonical cells (FABLE-ADMIN-UIUX §2)
+export { StatusBadge, STATUS_VOCAB, statusLabel } from './StatusBadge';
+export type { StatusBadgeProps, StatusTone } from './StatusBadge';
+export { EmptyState } from './EmptyState';
+export type { EmptyStateProps } from './EmptyState';
+export { CopyId, AgeCell, MoneyCell, ageLabel } from './DataCells';
+export type { AgeCellProps } from './DataCells';
+
+// Structural canon (W-11) - shared page scaffolding so every page assembles
+// from the same parts. See FABLE-ADMIN-UIUX 2.3-2.8.
+export { PageHeader } from './PageHeader';
+export type { PageHeaderProps } from './PageHeader';
+export { FilterBar } from './FilterBar';
+export type { FilterBarProps } from './FilterBar';
+export { DetailShell } from './DetailShell';
+export type { DetailShellProps } from './DetailShell';
+export { PeekDrawer } from './PeekDrawer';
+export type { PeekDrawerProps } from './PeekDrawer';
+export { ActivityLog } from './ActivityLog';
+export type { ActivityLogProps, ActivityEntry } from './ActivityLog';
+export { NotesPanel } from './NotesPanel';
+export type { NotesPanelProps, NoteEntry } from './NotesPanel';

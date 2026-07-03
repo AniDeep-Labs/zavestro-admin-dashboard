@@ -75,6 +75,10 @@ const TicketDetailPage = lazyPage(
   () => import("./pages/admin/TicketDetailPage"),
   "TicketDetailPage",
 );
+const CallConsolePage = lazyPage(
+  () => import("./pages/admin/CallConsolePage"),
+  "CallConsolePage",
+);
 const PromoCodesPage = lazyPage(
   () => import("./pages/admin/PromoCodesPage"),
   "PromoCodesPage",
@@ -100,7 +104,9 @@ const CollectionEditPage = lazyPage(
   "CollectionEditPage",
 );
 const BannersPage = lazyPage(
-  () => import("./pages/admin/BannersPage"),
+  // BannersPage also exports the reusable BannerHero renderer + helpers; narrow the
+  // module to just the page component so the (components-only) generic is satisfied.
+  () => import("./pages/admin/BannersPage") as Promise<{ BannersPage: ComponentType<object> }>,
   "BannersPage",
 );
 const CategoriesPage = lazyPage(
@@ -123,10 +129,6 @@ const AlterationsListPage = lazyPage(
   () => import("./pages/admin/AlterationsListPage"),
   "AlterationsListPage",
 );
-const SampleVerificationPage = lazyPage(
-  () => import("./pages/admin/SampleVerificationPage"),
-  "SampleVerificationPage",
-);
 const SampleDetailPage = lazyPage(
   () => import("./pages/admin/SampleDetailPage"),
   "SampleDetailPage",
@@ -138,10 +140,6 @@ const DesignLibraryPage = lazyPage(
 const DesignDetailPage = lazyPage(
   () => import("./pages/admin/DesignDetailPage"),
   "DesignDetailPage",
-);
-const DesignEditorPage = lazyPage(
-  () => import("./pages/admin/DesignEditorPage"),
-  "DesignEditorPage",
 );
 const DesignOverviewPage = lazyPage(
   () => import("./pages/admin/DesignOverviewPage"),
@@ -179,21 +177,17 @@ const ServiceAreasPage = lazyPage(
   () => import("./pages/admin/ServiceAreasPage"),
   "ServiceAreasPage",
 );
+const SystemHealthPage = lazyPage(
+  () => import("./pages/admin/SystemHealthPage"),
+  "SystemHealthPage",
+);
+const FitOutcomesPage = lazyPage(
+  () => import("./pages/admin/FitOutcomesPage"),
+  "FitOutcomesPage",
+);
 const AdminProfilePage = lazyPage(
   () => import("./pages/admin/AdminProfilePage"),
   "AdminProfilePage",
-);
-const MeasurementBookingsListPage = lazyPage(
-  () => import("./pages/admin/MeasurementBookingsListPage"),
-  "MeasurementBookingsListPage",
-);
-const MeasurementBookingDetailPage = lazyPage(
-  () => import("./pages/admin/MeasurementBookingDetailPage"),
-  "MeasurementBookingDetailPage",
-);
-const MeasurementBookingNewPage = lazyPage(
-  () => import("./pages/admin/MeasurementBookingNewPage"),
-  "MeasurementBookingNewPage",
 );
 const GarmentTypeTemplatesPage = lazyPage(
   () => import("./pages/admin/GarmentTypeTemplatesPage"),
@@ -207,9 +201,13 @@ const DesignAnalyticsPage = lazyPage(
   () => import("./pages/admin/DesignAnalyticsPage"),
   "DesignAnalyticsPage",
 );
-const DesignSampleRequestsPage = lazyPage(
-  () => import("./pages/admin/DesignSampleRequestsPage"),
-  "DesignSampleRequestsPage",
+const EngineTesterPage = lazyPage(
+  () => import("./pages/admin/EngineTesterPage"),
+  "EngineTesterPage",
+);
+const SamplesPage = lazyPage(
+  () => import("./pages/admin/SamplesPage"),
+  "SamplesPage",
 );
 const FabricsMasterPage = lazyPage(
   () => import("./pages/admin/FabricsMasterPage"),
@@ -243,6 +241,14 @@ const ListingsManagePage = lazyPage(
   () => import("./pages/admin/ListingsManagePage"),
   "ListingsManagePage",
 );
+const FabricStockPage = lazyPage(
+  () => import("./pages/admin/FabricStockPage"),
+  "FabricStockPage",
+);
+const CentralStockPage = lazyPage(
+  () => import("./pages/admin/CentralStockPage"),
+  "CentralStockPage",
+);
 const ReviewsListPage = lazyPage(
   () => import("./pages/admin/ReviewsListPage"),
   "ReviewsListPage",
@@ -254,6 +260,10 @@ const FitFeedbackPage = lazyPage(
 const RefundsPage = lazyPage(
   () => import("./pages/admin/RefundsPage"),
   "RefundsPage",
+);
+const CreditApprovalsPage = lazyPage(
+  () => import("./pages/admin/CreditApprovalsPage"),
+  "CreditApprovalsPage",
 );
 const StaffManagementPage = lazyPage(
   () => import("./pages/admin/StaffManagementPage"),
@@ -333,6 +343,10 @@ function App() {
           <Route path="hubs" element={<HubsListPage />} />
           <Route path="hubs/new" element={<HubDetailPage />} />
           <Route path="hubs/:id" element={<HubDetailPage />} />
+          {/* Catalog has no index page of its own (it's split into Listings/Categories/etc.)
+              — redirect the bare segment to Listings so the "Catalog" breadcrumb / a typed
+              URL doesn't 404. (content + analytics already have bare routes.) */}
+          <Route path="catalog" element={<Navigate to="/admin/catalog/listings" replace />} />
           <Route path="catalog/products" element={<ProductsListPage />} />
           <Route path="catalog/products/:id" element={<ProductEditPage />} />
           <Route path="catalog/collections" element={<CollectionsListPage />} />
@@ -348,25 +362,27 @@ function App() {
           <Route path="analytics/:section" element={<AnalyticsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="support" element={<SupportListPage />} />
+          <Route path="support/call" element={<CallConsolePage />} />
           <Route path="fit-feedback" element={<FitFeedbackPage />} />
+          <Route path="fit-outcomes" element={<FitOutcomesPage />} />
           <Route path="support/:id" element={<TicketDetailPage />} />
           <Route path="system/app-config" element={<AppConfigPage />} />
           <Route path="system/audit-log" element={<AuditLogPage />} />
           <Route path="system/admin-users" element={<AdminUsersManagePage />} />
           <Route path="system/service-areas" element={<ServiceAreasPage />} />
+          <Route path="system/health" element={<SystemHealthPage />} />
           <Route path="system/staff" element={<StaffManagementPage />} />
           <Route path="returns" element={<ReturnsListPage />} />
           <Route path="returns/:id" element={<ReturnDetailPage />} />
           <Route path="alterations" element={<AlterationsListPage />} />
-          <Route path="design/samples" element={<SampleVerificationPage />} />
+          <Route path="design/samples" element={<SamplesPage />} />
           <Route path="design/samples/:id" element={<SampleDetailPage />} />
           <Route path="design/library" element={<DesignLibraryPage />} />
-          <Route path="design/library/new" element={<DesignEditorPage />} />
+          {/* New/edit open the wizard modal OVER the library/detail (page stays behind, dimmed). */}
+          <Route path="design/library/new" element={<DesignLibraryPage autoNew />} />
           <Route path="design/library/:id" element={<DesignDetailPage />} />
-          <Route
-            path="design/library/:id/edit"
-            element={<DesignEditorPage />}
-          />
+          <Route path="design/library/:id/cut-sheet" element={<DesignDetailPage autoCutSheet />} />
+          <Route path="design/library/:id/edit" element={<DesignDetailPage autoEdit />} />
           <Route
             path="design/templates"
             element={<GarmentTypeTemplatesPage />}
@@ -376,6 +392,7 @@ function App() {
             element={<GarmentTemplateEditorPage />}
           />
           <Route path="design/analytics" element={<DesignAnalyticsPage />} />
+          <Route path="design/engine-tester" element={<EngineTesterPage />} />
           <Route
             path="design/fabrics"
             element={<FabricsMasterPage mode="design" />}
@@ -384,10 +401,9 @@ function App() {
             path="design/fabrics/:id"
             element={<FabricPdpPage mode="design" />}
           />
-          <Route
-            path="design/my-samples"
-            element={<DesignSampleRequestsPage />}
-          />
+          {/* Legacy path — the two sample pages are now one tabbed Samples page. Keep the
+              route so old deep-links (?design=) + the CM nav entry still resolve. */}
+          <Route path="design/my-samples" element={<SamplesPage />} />
           <Route path="procurement/fabrics" element={<FabricsMasterPage />} />
           <Route path="procurement/fabrics/:id" element={<FabricPdpPage />} />
           <Route
@@ -409,6 +425,8 @@ function App() {
             element={<RestockQueuePage mode="cm" />}
           />
           <Route path="catalog/listings" element={<ListingsManagePage />} />
+          <Route path="catalog/fabric-stock" element={<FabricStockPage />} />
+          <Route path="procurement/central-stock" element={<CentralStockPage />} />
           <Route
             path="procurement/track/:hubId/:fabricId"
             element={<FabricAtHubPage />}
@@ -430,22 +448,13 @@ function App() {
             element={<FinanceReportPage mode="pnl" />}
           />
           <Route path="finance/refunds" element={<RefundsPage />} />
+          <Route path="finance/credit-approvals" element={<CreditApprovalsPage />} />
           <Route path="notifications" element={<NotificationBlastPage />} />
           <Route path="pincode-waitlist" element={<PincodeWaitlistPage />} />
           <Route path="promo-codes" element={<PromoCodesPage />} />
           <Route path="profile" element={<AdminProfilePage />} />
-          <Route
-            path="measurement-bookings"
-            element={<MeasurementBookingsListPage />}
-          />
-          <Route
-            path="measurement-bookings/new"
-            element={<MeasurementBookingNewPage />}
-          />
-          <Route
-            path="measurement-bookings/:id"
-            element={<MeasurementBookingDetailPage />}
-          />
+          {/* measurement-bookings routes removed (G-21): System-2 model retired;
+              the backend router is unmounted — these pages 404'd on every call. */}
           <Route path="reviews" element={<ReviewsListPage />} />
           {/* Admin 404 — renders inside the sidebar layout */}
           <Route path="*" element={<NotFoundPage />} />

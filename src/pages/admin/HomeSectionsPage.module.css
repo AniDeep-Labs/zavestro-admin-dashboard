@@ -1,0 +1,61 @@
+.page { padding: 1.5rem; }
+
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.title { margin: 0; font-size: 22px; }
+.subtitle { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 13px; }
+.headerActions { display: flex; gap: 8px; }
+
+.btnPrimary {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
+  background: var(--color-primary); color: #fff; border: none; border-radius: 8px;
+  cursor: pointer; font-size: 14px;
+}
+.btnGhost {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
+  background: transparent; border: 1px solid var(--color-border); border-radius: 8px;
+  cursor: pointer; font-size: 14px; color: var(--color-text-primary);
+}
+
+.empty { color: var(--color-text-secondary); }
+
+.tableWrap { overflow-x: auto; border-radius: 8px; }
+.table {
+  width: 100%; min-width: 640px; border-collapse: collapse; background: var(--color-bg-card);
+  border-radius: 8px; overflow: hidden;
+}
+.headRow { background: var(--color-bg-secondary); }
+.cell {
+  padding: 10px 12px; border-bottom: 1px solid var(--color-border-light);
+  font-size: 14px; text-align: left;
+}
+.orderNum { margin-right: 8px; }
+
+.iconBtn {
+  background: transparent; border: none; cursor: pointer; padding: 4px;
+  color: var(--color-text-secondary);
+}
+.iconBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.inp {
+  width: 100%; padding: 7px 9px; border: 1px solid var(--color-border);
+  border-radius: 6px; font-size: 14px; margin-bottom: 4px;
+  background: var(--color-bg-primary); color: var(--color-text-primary);
+  box-sizing: border-box;
+}
+.checkLabel { cursor: pointer; }
+
+.lbl {
+  display: block; font-size: 12px; font-weight: 600; margin: 10px 0 4px;
+  color: var(--color-text-tertiary);
+}
+
+.overlay {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal {
+  background: var(--color-bg-card); padding: 24px; border-radius: 12px;
+  width: 420px; max-width: 90vw;
+}
+.modalTitle { margin-top: 0; font-size: 18px; }
+.modalActions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }

@@ -8,7 +8,9 @@ import {
   getAdminCapabilities,
   setAdminCapabilities,
   adminAuthExtApi,
+  navCountsApi,
 } from "../../api/adminApi";
+import type { NavCounts } from "../../api/adminApi";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary";
 import { Spinner } from "../../components/Spinner";
 import {
@@ -17,11 +19,14 @@ import {
 } from "../../contexts/BreadcrumbContext";
 import styles from "./AdminLayout.module.css";
 import { NotificationBell } from "./NotificationBell";
+import { CommandPalette } from "../../components/CommandPalette";
+import type { NavTarget } from "../../components/CommandPalette";
 import {
   UilAngleDoubleLeft,
   UilAngleDoubleRight,
   UilAngleDown,
   UilAngleRight,
+  UilBolt,
   UilBox,
   UilBuilding,
   UilChartBar,
@@ -29,6 +34,7 @@ import {
   UilDashboard,
   UilFileAlt,
   UilHeadphones,
+  UilPhone,
   UilHistory,
   UilLayerGroup,
   UilMapMarker,
@@ -58,7 +64,9 @@ interface NavItem {
   icon: React.ReactNode;
   path: string;
   cap?: string;
+  caps?: string[]; // visible if the user holds ANY of these (overrides `cap`)
   children?: { label: string; path: string }[];
+  hidden?: boolean; // kept in code (routes/page intact) but never shown in nav — for dormant, unowned surfaces
 }
 interface NavSection {
   title: string;
@@ -129,22 +137,24 @@ const SECTIONS: NavSection[] = [
         cap: "designs:write",
       },
       {
-        label: "Sample Review",
-        icon: <UilCheckCircle size={18} />,
-        path: "/admin/design/samples",
-        cap: "samples:write",
+        label: "Engine Tester",
+        icon: <UilBolt size={18} />,
+        path: "/admin/design/engine-tester",
+        cap: "fit:read",
       },
       {
-        label: "My Sample Requests",
-        icon: <UilHistory size={18} />,
-        path: "/admin/design/my-samples",
+        // One nav home for the sampling pipeline — the page has Requests + Review tabs
+        // (Review shows only with designs:write). Replaces the two confusable entries.
+        label: "Samples",
+        icon: <UilCheckCircle size={18} />,
+        path: "/admin/design/samples",
         cap: "samples:write",
       },
       {
         label: "Design Analytics",
         icon: <UilChartBar size={18} />,
         path: "/admin/design/analytics",
-        cap: "reports:read",
+        cap: "fit:read",
       },
     ],
   },
@@ -157,6 +167,12 @@ const SECTIONS: NavSection[] = [
         label: "Fabrics Master",
         icon: <UilTag size={18} />,
         path: "/admin/procurement/fabrics",
+        cap: "distribution:write",
+      },
+      {
+        label: "Central Stock",
+        icon: <UilLayerGroup size={18} />,
+        path: "/admin/procurement/central-stock",
         cap: "distribution:write",
       },
       {
@@ -203,6 +219,23 @@ const SECTIONS: NavSection[] = [
         cap: "catalog:write",
       },
       {
+        // The CM's pipeline step BETWEEN fabric and listing: request a sample (design×fabric)
+        // for the design team to review. The CM holds `samples:write` (backend expects them to
+        // REQUEST samples — sample-jobs.admin.routes §73), but the request page lived only under
+        // the `designs:write` Design console → the CM couldn't reach it. Surfaced here in the
+        // CM's own pipeline. (Same page; the design-only "Sample Review"/verdict stays gated.)
+        label: "Sample Requests",
+        icon: <UilBox size={18} />,
+        path: "/admin/design/my-samples",
+        cap: "samples:write",
+      },
+      {
+        label: "Fabric Stock",
+        icon: <UilLayerGroup size={18} />,
+        path: "/admin/catalog/fabric-stock",
+        cap: "catalog:write",
+      },
+      {
         label: "Request Restock",
         icon: <UilHistory size={18} />,
         path: "/admin/catalog/restock",
@@ -221,16 +254,36 @@ const SECTIONS: NavSection[] = [
         ],
       },
       {
+        // HIDDEN from nav (2026-06-26, founder-approved). Content (Lookbook/Stories/Journal)
+        // is a ghost CMS — no storefront route/fetch and no public endpoint renders it — and
+        // it's brand content with no owner in the role model (CM had it by cap accident). Per
+        // FABLE-ADMIN-UIUX §367/§573: "keep dormant; hide unowned children." Routes (App.tsx),
+        // the ContentPage, and cmsApi stay INTACT (deep-link still works); flip `hidden` off
+        // and re-gate `cap` to the marketing-owner role when one exists.
         label: "Content",
         icon: <UilFileAlt size={18} />,
         path: "/admin/content",
         cap: "cms:write",
+        hidden: true,
         children: [
           { label: "Lookbook", path: "/admin/content/lookbook" },
-          { label: "Craftspeople", path: "/admin/content/craftspeople" },
           { label: "Stories", path: "/admin/content/stories" },
           { label: "Journal", path: "/admin/content/journal" },
         ],
+      },
+    ],
+  },
+  {
+    // Brand-wide promotions — pricing_manager's home (pricing:write). Per-hub listing
+    // PRICE belongs to catalog_manager (§6A); this role owns promo codes only.
+    title: "Promotions",
+    caps: ["pricing:write"],
+    items: [
+      {
+        label: "Promo Codes",
+        icon: <UilTicket size={18} />,
+        path: "/admin/promo-codes",
+        cap: "pricing:write",
       },
     ],
   },
@@ -269,6 +322,12 @@ const SECTIONS: NavSection[] = [
         cap: "customers:write",
       },
       {
+        label: "Call console",
+        icon: <UilPhone size={18} />,
+        path: "/admin/support/call",
+        cap: "customers:write",
+      },
+      {
         label: "Reviews",
         icon: <UilStar size={18} />,
         path: "/admin/reviews",
@@ -290,7 +349,7 @@ const SECTIONS: NavSection[] = [
   },
   {
     title: "Finance",
-    caps: ["refunds:approve", "pricing:write"],
+    caps: ["refunds:approve", "finance:read"],
     items: [
       {
         label: "Invoices",
@@ -311,22 +370,22 @@ const SECTIONS: NavSection[] = [
         cap: "refunds:approve",
       },
       {
+        label: "Credit approvals",
+        icon: <UilWallet size={18} />,
+        path: "/admin/finance/credit-approvals",
+        cap: "refunds:approve",
+      },
+      {
         label: "Online Settlement",
         icon: <UilReceipt size={18} />,
         path: "/admin/finance/settlement",
-        cap: "reports:read",
+        cap: "finance:read",
       },
       {
         label: "Per-Hub P&L",
         icon: <UilChartBar size={18} />,
         path: "/admin/finance/pnl",
-        cap: "reports:read",
-      },
-      {
-        label: "Promo Codes",
-        icon: <UilTicket size={18} />,
-        path: "/admin/promo-codes",
-        cap: "pricing:write",
+        cap: "finance:read",
       },
       // G-31: "Pincode Demand" removed — it pointed at the same /admin/pincode-waitlist
       // as "Coverage / Waitlist" in Orders & support, which finance already sees (orders:read).
@@ -338,7 +397,10 @@ const SECTIONS: NavSection[] = [
   // analytics that tune their size charts. Item-level caps still gate each item.
   {
     title: "Insights & comms",
-    caps: ["reports:read", "cms:write"],
+    // fit:read lets the design team into the section for Fit Outcomes only;
+    // the company Analytics item below stays reports:read (design can't see it).
+    // pricing:write = the promotions owner (pricing_manager) for the blast (G-86).
+    caps: ["reports:read", "pricing:write", "fit:read"],
     items: [
       {
         label: "Analytics",
@@ -357,10 +419,16 @@ const SECTIONS: NavSection[] = [
         ],
       },
       {
+        label: "Fit Outcomes",
+        icon: <UilRuler size={18} />,
+        path: "/admin/fit-outcomes",
+        caps: ["fit:read", "reports:read"], // design (fit) + finance/super (oversight)
+      },
+      {
         label: "Notification Blast",
         icon: <UilMegaphone size={18} />,
         path: "/admin/notifications",
-        cap: "cms:write",
+        cap: "pricing:write", // G-86: promotions owner (pricing_manager), not catalog_manager
       },
     ],
   },
@@ -390,6 +458,7 @@ const SECTIONS: NavSection[] = [
           { label: "Audit Log", path: "/admin/system/audit-log" },
           { label: "Admin Users", path: "/admin/system/admin-users" },
           { label: "Service Areas", path: "/admin/system/service-areas" },
+          { label: "System Health", path: "/admin/system/health" },
         ],
       },
     ],
@@ -406,6 +475,13 @@ const ALL_ITEMS: NavItem[] = [HOME, ...SECTIONS.flatMap((s) => s.items)];
 const ROLE_OWNED_PATHS: string[] = SECTIONS.filter((s) => s.roleOwned).flatMap(
   (s) => s.items.map((it) => it.path),
 );
+
+// Breadcrumb segment → display label, for URL segments whose path slug differs
+// from the human label shown in the nav (e.g. /admin/users is the "Customers"
+// workspace). Without this the breadcrumb just title-cases the slug → "Users".
+const BREADCRUMB_SEGMENT_LABELS: Record<string, string> = {
+  users: "Customers",
+};
 
 // Inner component rendered inside BreadcrumbProvider so useBreadcrumb() reads
 // the correct context value (entity titles set by detail pages).
@@ -448,7 +524,37 @@ const AdminLayoutInner: React.FC = () => {
     };
   }, []);
 
-  const canSee = (item: NavItem) => !item.cap || caps.includes(item.cap);
+  // Nav badge counts (FABLE-ADMIN-UIUX §1.2) — "what needs me" per nav item.
+  // Keyed by item path; the endpoint already returns only cap-allowed keys.
+  const [navCounts, setNavCounts] = React.useState<NavCounts>({});
+  React.useEffect(() => {
+    let alive = true;
+    const load = () =>
+      navCountsApi.get().then((c) => { if (alive) setNavCounts(c); }).catch(() => {});
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+  const NAV_BADGE: Record<string, keyof NavCounts> = {
+    "/admin/orders": "stuck_orders",
+    "/admin/design/samples": "samples_review",
+    "/admin/procurement/restock": "restock_pending",
+    "/admin/procurement/stock": "below_reorder",
+    "/admin/catalog/listings": "listings_oos",
+    "/admin/finance/refunds": "refunds_awaiting",
+    "/admin/finance/cod-reconciliation": "cod_unconfirmed",
+    "/admin/support": "tickets_open",
+    "/admin/returns": "returns_requested",
+  };
+  const badgeFor = (path: string): number | undefined => {
+    const key = NAV_BADGE[path];
+    const n = key ? navCounts[key] : undefined;
+    return n && n > 0 ? n : undefined;
+  };
+
+  const canSee = (item: NavItem) =>
+    !item.hidden &&
+    (item.caps ? item.caps.some((c) => caps.includes(c)) : !item.cap || caps.includes(item.cap));
   // Legacy `admin` = unchanged god-mode (sees all). super_admin = oversight-only:
   // role-owned operating consoles (Design, Catalog) are hidden — super gets
   // read-only overviews instead. Other roles: capability-gated as usual.
@@ -456,11 +562,36 @@ const AdminLayoutInner: React.FC = () => {
     if (adminRole === "admin") return true;
     if (section.superOnly) return adminRole === "super_admin";
     if (adminRole === "super_admin" && section.roleOwned) return false;
+    // super_admin (oversight): show a section if it holds the cap for ANY item in it;
+    // the item-level `canSee` filter then shows only those. This is what lets super
+    // SEE Finance's read-only Settlement/P&L (reports:read) while the refunds/promo
+    // operating items (refunds:approve / pricing:write — which super lacks) stay hidden.
+    if (adminRole === "super_admin") return section.items.some(canSee);
     return section.caps.some((c) => caps.includes(c));
   };
   const visibleSections = SECTIONS.filter(canSeeSection)
     .map((s) => ({ ...s, items: s.items.filter(canSee) }))
     .filter((s) => s.items.length > 0);
+
+  // ⌘K command palette (FABLE-ADMIN-UIUX §1.2) — wires the top-bar search.
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const navTargets: NavTarget[] = React.useMemo(
+    () =>
+      visibleSections.flatMap((s) =>
+        s.items.map((it) => ({ label: it.label, path: it.path, section: s.title })),
+      ),
+    [visibleSections],
+  );
 
   // Route guard: block the content area if the current path needs a capability the
   // role lacks (deep-link protection). Only enforce once caps are known (non-empty)
@@ -537,6 +668,7 @@ const AdminLayoutInner: React.FC = () => {
         </div>
       );
     }
+    const badge = badgeFor(item.path);
     return (
       <button
         key={item.path}
@@ -546,6 +678,12 @@ const AdminLayoutInner: React.FC = () => {
       >
         <span className={styles.navIcon}>{item.icon}</span>
         {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
+        {badge !== undefined &&
+          (collapsed ? (
+            <span className={styles.navBadgeDot} aria-label={`${badge} need attention`} />
+          ) : (
+            <span className={styles.navBadge}>{badge > 99 ? "99+" : badge}</span>
+          ))}
       </button>
     );
   };
@@ -599,6 +737,13 @@ const AdminLayoutInner: React.FC = () => {
 
       {/* Main area */}
       <div className={styles.main}>
+        {/* Non-production banner — someone WILL edit staging believing it's prod */}
+        {import.meta.env.MODE !== "production" && (
+          <div className={styles.envBanner}>
+            {import.meta.env.MODE === "development" ? "LOCAL DEV" : "STAGING"} —
+            not production
+          </div>
+        )}
         {/* Top bar */}
         <header className={styles.topBar}>
           <div className={styles.breadcrumb}>
@@ -618,8 +763,9 @@ const AdminLayoutInner: React.FC = () => {
                   label = "…";
                 } else {
                   label =
+                    BREADCRUMB_SEGMENT_LABELS[part] ??
                     part.charAt(0).toUpperCase() +
-                    part.slice(1).replace(/-/g, " ");
+                      part.slice(1).replace(/-/g, " ");
                 }
                 return (
                   <span key={i}>
@@ -645,15 +791,15 @@ const AdminLayoutInner: React.FC = () => {
               })}
           </div>
 
-          <div className={styles.topSearch}>
+          <button
+            className={styles.topSearch}
+            onClick={() => setPaletteOpen(true)}
+            aria-label="Search or jump to a page (⌘K)"
+          >
             <UilSearch size={16} className={styles.topSearchIcon} />
-            <input
-              className={styles.topSearchInput}
-              placeholder="Search or type a command…"
-              aria-label="Search"
-            />
+            <span className={styles.topSearchInput}>Search or type a command…</span>
             <span className={styles.topSearchKbd}>⌘K</span>
-          </div>
+          </button>
 
           <div className={styles.topActions}>
             <button
@@ -757,6 +903,14 @@ const AdminLayoutInner: React.FC = () => {
           </ErrorBoundary>
         </main>
       </div>
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        navTargets={navTargets}
+        canSearchOrders={caps.includes("orders:read") || adminRole === "admin"}
+        canSearchCustomers={caps.includes("customers:read") || adminRole === "admin"}
+      />
     </div>
   );
 };

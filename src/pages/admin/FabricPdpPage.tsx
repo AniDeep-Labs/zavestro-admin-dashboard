@@ -9,6 +9,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import base from './OrdersListPage.module.css';
 import s from './FabricPdpPage.module.css';
 import { UilArrowLeft, UilImage } from '@iconscout/react-unicons';
+import { StatusBadge } from '../../components';
 
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 
@@ -23,7 +24,8 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
   const backPath = isDesign ? '/admin/design/fabrics' : '/admin/procurement/fabrics';
   const [fabric, setFabric] = React.useState<Fabric | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [active, setActive] = React.useState(0);
+  const active = 0;
+  const [imgBroken, setImgBroken] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const dismiss = (t: string) => setToasts((x) => x.filter((y) => y.id !== t));
 
@@ -81,59 +83,66 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
       <Link to={backPath} className={s.back}><UilArrowLeft size={16} /> {isDesign ? 'Back to Fabrics' : 'Back to Fabrics Master'}</Link>
 
-      <div className={s.layout}>
-        {/* Gallery */}
-        <div className={s.gallery}>
-          {imgs.length === 0 ? (
-            <div className={s.heroEmpty}><UilImage size={32} /><span>No swatch image</span></div>
+      <div className={s.col}>
+        {/* Header — swatch thumbnail + identity */}
+        <div className={s.header}>
+          {imgs.length === 0 || imgBroken ? (
+            <div className={s.swatchEmpty}><UilImage size={26} /></div>
           ) : (
-            <>
-              <a href={imgs[active]} target="_blank" rel="noreferrer" className={s.hero}>
-                <img src={imgs[active]} alt={fabric.name} />
-              </a>
-              {imgs.length > 1 && (
-                <div className={s.thumbs}>
-                  {imgs.map((u, i) => (
-                    <button key={u} type="button" className={`${s.thumb} ${i === active ? s.thumbActive : ''}`} onClick={() => setActive(i)}>
-                      <img src={u} alt={`${fabric.name} ${i + 1}`} />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
+            <a href={imgs[active]} target="_blank" rel="noreferrer" className={s.swatch}>
+              <img src={imgs[active]} alt={fabric.name} onError={() => setImgBroken(true)} />
+            </a>
           )}
+          <div className={s.identity}>
+            <div className={s.codeRow}>
+              <span className={s.code}>{fabric.code}</span>
+              <StatusBadge status={fabric.is_active ? 'active' : 'inactive'} />
+            </div>
+            <h1 className={s.name}>{fabric.name}{fabric.color_name ? <span className={s.color}> · {fabric.color_name}</span> : null}</h1>
+            {fabric.price_per_meter && <div className={s.price}>₹{Number(fabric.price_per_meter).toLocaleString('en-IN')}<span> / metre</span></div>}
+          </div>
         </div>
 
-        {/* Details */}
-        <div className={s.details}>
-          <div className={s.codeRow}>
-            <span className={s.code}>{fabric.code}</span>
-            <span className={`${base.stagePill} ${fabric.is_active ? base.stageSuccess : base.stageNeutral}`}>
-              {fabric.is_active ? 'Active' : 'Inactive'}
-            </span>
-          </div>
-          <h1 className={s.name}>{fabric.name}{fabric.color_name ? <span className={s.color}> · {fabric.color_name}</span> : null}</h1>
-          {fabric.price_per_meter && <div className={s.price}>₹{Number(fabric.price_per_meter).toLocaleString('en-IN')}<span> / metre</span></div>}
-
+        {/* Specifications */}
+        <div className={s.card}>
+          <h4 className={s.cardTitle}>Specifications</h4>
           <dl className={s.specs}>
             <Spec label="Composition" value={fabric.composition} />
             <Spec label="Weave" value={fabric.weave} />
             <Spec label="Finish" value={fabric.finish} />
             <Spec label="Weight" value={fabric.weight_gsm ? `${fabric.weight_gsm} gsm` : null} />
+            <Spec label="Stretch" value={Number(fabric.stretch_pct ?? 0) > 0 ? `${Number(fabric.stretch_pct)}%` : null} />
+            <Spec label="Shrinkage" value={Number(fabric.shrinkage_pct ?? 0) > 0 ? `${Number(fabric.shrinkage_pct)}%` : null} />
             <Spec label="Origin" value={fabric.origin} />
             <Spec label="Supplier / mill" value={fabric.supplier} />
             <Spec label="Care" value={fabric.care_instructions?.length ? fabric.care_instructions.join(' · ') : null} />
           </dl>
+        </div>
 
-          <div className={s.usedBy}>
+        {/* Hub stock + usage */}
+        <div className={s.card}>
+          <h4 className={s.cardTitle}>Hub stock</h4>
+          {(fabric.stock?.length ?? 0) === 0 ? (
+            <p className={s.stockEmpty}>Not stocked at any hub yet.</p>
+          ) : (
+            fabric.stock!.map((st) => (
+              <div key={st.hub_id} className={s.stockRow}>
+                <span className={s.stockHub}>{st.hub_name}</span>
+                <span className={s.stockMeters}>
+                  <strong>{st.available_meters} m</strong>
+                  {st.reserved_meters > 0 ? <span className={s.stockReserved}> · {st.reserved_meters} reserved</span> : null}
+                </span>
+              </div>
+            ))
+          )}
+          <div className={s.usedByLine}>
             Used by <strong>{fabric.design_count ?? 0}</strong> design{(fabric.design_count ?? 0) === 1 ? '' : 's'} · <strong>{fabric.listing_count ?? 0}</strong> listing{(fabric.listing_count ?? 0) === 1 ? '' : 's'}
           </div>
         </div>
-      </div>
 
       {isDesign && (
-        <section className={s.useFabric}>
-          <h3 className={s.useTitle}>Use this fabric in a design</h3>
+        <section className={s.card}>
+          <h4 className={s.cardTitle}>Use this fabric in a design</h4>
           <label className={s.useField}>Design
             <select value={selDesign} onChange={(e) => setSelDesign(e.target.value)}>
               <option value="">Select a published design…</option>
@@ -170,6 +179,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
           </div>
         </section>
       )}
+      </div>
     </div>
   );
 };

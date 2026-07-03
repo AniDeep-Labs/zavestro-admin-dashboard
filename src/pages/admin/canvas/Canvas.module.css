@@ -1,0 +1,82 @@
+/* Canvas board — container-query context so element font sizes (cqw) scale.
+   Entrance + ambient keyframes (cnv*) live in src/styles/animations.css (global,
+   so the inline-style names in CanvasRender resolve). */
+.board { position: relative; width: 100%; overflow: hidden; container-type: inline-size; }
+.bgImg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bgScrim { position: absolute; inset: 0; }
+
+/* ── Editor ─────────────────────────────────────────────────────────────── */
+.editor { display: grid; grid-template-columns: 210px 1fr 260px; gap: 0; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; height: 64vh; min-height: 460px; background: var(--color-bg-card); }
+@media (max-width: 980px) { .editor { grid-template-columns: 1fr; height: auto; } }
+
+/* Left: layers + add */
+.left { border-right: 1px solid var(--color-border); display: flex; flex-direction: column; min-height: 0; }
+.toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; border-bottom: 1px solid var(--color-border); }
+.toolBtn { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 6px; font-size: 12px; font-weight: 600; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-bg-primary); color: var(--color-text-primary); cursor: pointer; }
+.toolBtn:hover { border-color: var(--color-primary, #1F6B4F); color: var(--color-primary, #1F6B4F); }
+.layersHead { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-tertiary); padding: 10px 12px 4px; }
+.tplHead { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-tertiary); padding: 10px 12px 4px; }
+.tplRow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 10px 10px; border-bottom: 1px solid var(--color-border); }
+.tplChip { padding: 7px 6px; font-size: 11px; font-weight: 600; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-bg-primary); color: var(--color-text-secondary); cursor: pointer; text-align: center; line-height: 1.2; }
+.tplChip:hover { border-color: var(--color-primary, #1F6B4F); color: var(--color-primary, #1F6B4F); }
+.layers { flex: 1; overflow-y: auto; padding: 0 8px 8px; display: flex; flex-direction: column-reverse; gap: 3px; }
+.layer { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 6px; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; border: 1px solid transparent; }
+.layer:hover { background: var(--color-bg-secondary); }
+.layerSel { background: rgba(31,107,79,0.1); border-color: var(--color-primary, #1F6B4F); color: var(--color-text-primary); }
+.layerType { width: 16px; text-align: center; opacity: 0.7; }
+.layerName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layerHidden { opacity: 0.4; text-decoration: line-through; }
+.layerIcon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; color: var(--color-text-secondary); font-size: 11px; cursor: pointer; border-radius: 4px; padding: 0; }
+.layerIcon:hover { background: var(--color-bg-secondary); }
+.layerEmpty { font-size: 12px; color: var(--color-text-tertiary); padding: 12px; text-align: center; }
+
+/* Center: toolbar + art-board stage */
+.center { display: flex; flex-direction: column; min-width: 0; }
+/* Toolbar must never wrap its buttons into a vertical "breadcrumb" column: buttons
+   stay fixed-size and the hint truncates with an ellipsis when space is tight. */
+.topbar { display: flex; align-items: center; gap: 4px; padding: 7px 10px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-card); flex-wrap: nowrap; overflow: hidden; }
+.tbBtn { flex: 0 0 auto; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg-primary); color: var(--color-text-primary); font-size: 14px; cursor: pointer; }
+.tbBtn:hover:not(:disabled) { border-color: var(--color-primary, #1F6B4F); color: var(--color-primary, #1F6B4F); }
+.tbBtn:disabled { opacity: 0.35; cursor: not-allowed; }
+.tbDiv { width: 1px; height: 20px; background: var(--color-border); margin: 0 4px; }
+.tbHint { margin-left: auto; font-size: 11px; color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tbZoom { font-size: 11px; font-weight: 600; color: var(--color-text-secondary); min-width: 40px; text-align: center; }
+.guideV { position: absolute; top: 0; bottom: 0; width: 1px; background: #ff4da6; z-index: 4; pointer-events: none; }
+.guideH { position: absolute; left: 0; right: 0; height: 1px; background: #ff4da6; z-index: 4; pointer-events: none; }
+.stage { background: repeating-conic-gradient(var(--color-bg-secondary) 0% 25%, var(--color-bg-primary) 0% 50%) 50% / 18px 18px; display: flex; align-items: center; justify-content: center; padding: 22px; overflow: auto; flex: 1; }
+.stageInner { width: 100%; max-width: 720px; box-shadow: 0 8px 30px rgba(0,0,0,0.18); }
+
+.boardEmpty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 24px; pointer-events: none; color: #fff; }
+.boardEmptyTitle { font-size: 15px; font-weight: 700; opacity: 0.92; }
+.boardEmptySub { font-size: 12px; line-height: 1.45; max-width: 320px; opacity: 0.78; }
+
+.elBox { position: absolute; cursor: move; }
+.inlineEdit { position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: rgba(255,255,255,0.08); resize: none; padding: 2px; font-size: 4cqw; font-weight: 800; line-height: 1.05; outline: 2px solid var(--color-primary, #1F6B4F); box-sizing: border-box; }
+.elSelected { outline: 1.5px solid var(--color-primary, #1F6B4F); outline-offset: 1px; }
+.handle { position: absolute; width: 11px; height: 11px; background: #fff; border: 1.5px solid var(--color-primary, #1F6B4F); border-radius: 2px; z-index: 5; }
+.hNW { left: -6px; top: -6px; cursor: nwse-resize; }
+.hNE { right: -6px; top: -6px; cursor: nesw-resize; }
+.hSW { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.hSE { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.rotHandle { position: absolute; left: 50%; top: -26px; transform: translateX(-50%); width: 13px; height: 13px; border-radius: 50%; background: #fff; border: 1.5px solid var(--color-primary, #1F6B4F); cursor: grab; z-index: 5; }
+
+/* Right: properties */
+.props { border-left: 1px solid var(--color-border); padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.propsHead { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-tertiary); margin: 0; }
+.row { display: flex; flex-direction: column; gap: 5px; }
+.rowLbl { font-size: 11px; font-weight: 600; color: var(--color-text-tertiary); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.in { width: 100%; height: 32px; padding: 0 8px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg-primary); color: var(--color-text-primary); font-size: 13px; box-sizing: border-box; }
+.ta { width: 100%; padding: 7px 8px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg-primary); color: var(--color-text-primary); font-size: 13px; box-sizing: border-box; resize: vertical; font-family: inherit; }
+.colorRow { display: flex; gap: 6px; align-items: center; }
+.swatch { width: 34px; height: 30px; border: none; border-radius: 6px; cursor: pointer; flex-shrink: 0; }
+.seg { display: inline-flex; border: 1px solid var(--color-border); border-radius: 7px; overflow: hidden; }
+.segBtn { flex: 1; border: none; background: var(--color-bg-primary); color: var(--color-text-secondary); font-size: 12px; font-weight: 600; padding: 7px 8px; cursor: pointer; border-right: 1px solid var(--color-border); }
+.segBtn:last-child { border-right: none; }
+.segOn { background: var(--color-primary, #1F6B4F); color: #fff; }
+.range { width: 100%; accent-color: var(--color-primary, #1F6B4F); }
+.delBtn { margin-top: 4px; padding: 8px; border: 1px solid var(--color-error); color: var(--color-error); background: transparent; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.dupBtn { padding: 8px; border: 1px solid var(--color-border); color: var(--color-text-secondary); background: transparent; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.propActions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hint { font-size: 11px; color: var(--color-text-tertiary); }
+.hidden { display: none; }

@@ -4,6 +4,7 @@ import type { AdminReview } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import rs from './ReviewsListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilSearch, UilStar, UilTimes } from "@iconscout/react-unicons";
 
 const LIMIT = 25;
@@ -30,6 +31,8 @@ export const ReviewsListPage: React.FC = () => {
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [actionId, setActionId] = React.useState<string | null>(null);
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [bulkRunning, setBulkRunning] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
@@ -57,12 +60,40 @@ export const ReviewsListPage: React.FC = () => {
       await reviewsApi.moderate(id, approve);
       setReviews(prev => prev.filter(r => r.id !== id));
       setTotal(prev => Math.max(0, prev - 1));
+      setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
       showToast('success', approve ? 'Review approved' : 'Review rejected');
     } catch (e) {
       showToast('error', 'Action failed', e instanceof Error ? e.message : undefined);
     } finally {
       setActionId(null);
     }
+  };
+
+  const toggle = (id: string) =>
+    setSelected(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  const toggleAll = () =>
+    setSelected(prev => (prev.size === filtered.length ? new Set() : new Set(filtered.map(r => r.id))));
+
+  const bulkModerate = async (approve: boolean) => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkRunning(true);
+    let ok = 0;
+    for (const id of ids) {
+      try {
+        await reviewsApi.moderate(id, approve);
+        ok++;
+      } catch { /* keep going; report the count */ }
+    }
+    setReviews(prev => prev.filter(r => !selected.has(r.id)));
+    setTotal(prev => Math.max(0, prev - ok));
+    setSelected(new Set());
+    setBulkRunning(false);
+    showToast(ok === ids.length ? 'success' : 'info', `${ok}/${ids.length} ${approve ? 'approved' : 'rejected'}`);
   };
 
   return (
@@ -90,10 +121,32 @@ export const ReviewsListPage: React.FC = () => {
         </button>
       </div>
 
+      {/* BulkBar (FABLE-ADMIN-UIUX §2.2) — appears on multi-select */}
+      {selected.size > 0 && (
+        <div className={rs.bulkBar}>
+          <span className={rs.bulkCount}>{selected.size} selected</span>
+          <button className={rs.bulkApprove} disabled={bulkRunning} onClick={() => bulkModerate(true)}>
+            {bulkRunning ? 'Working…' : 'Approve selected'}
+          </button>
+          <button className={rs.bulkReject} disabled={bulkRunning} onClick={() => bulkModerate(false)}>
+            Reject selected
+          </button>
+          <button className={rs.bulkClear} onClick={() => setSelected(new Set())}>Clear</button>
+        </div>
+      )}
+
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
             <tr>
+              <th className={rs.checkCol}>
+                <input
+                  type="checkbox"
+                  checked={filtered.length > 0 && selected.size === filtered.length}
+                  onChange={toggleAll}
+                  aria-label="Select all"
+                />
+              </th>
               <th>Customer</th>
               <th>Product</th>
               <th>Rating</th>
@@ -107,7 +160,7 @@ export const ReviewsListPage: React.FC = () => {
             {loading
               ? Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 7 }).map((__, j) => (
+                    {Array.from({ length: 8 }).map((__, j) => (
                       <td key={j}><div className={styles.skeleton} /></td>
                     ))}
                   </tr>
@@ -115,11 +168,14 @@ export const ReviewsListPage: React.FC = () => {
               : filtered.length === 0
               ? (
                 <tr>
-                  <td colSpan={7} className={styles.empty}>No pending reviews.</td>
+                  <td colSpan={8} className={styles.empty}>No pending reviews.</td>
                 </tr>
               )
               : filtered.map(r => (
                 <tr key={r.id} className={styles.row}>
+                  <td className={rs.checkCol} onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label="Select review" />
+                  </td>
                   <td><div className={styles.customerName}>{r.user_name}</div></td>
                   <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {r.product_name}

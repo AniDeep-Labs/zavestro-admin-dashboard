@@ -77,6 +77,13 @@
 .profileName { font-family: var(--font-display); font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); margin-bottom: 6px; }
 .profileDetails { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--color-text-secondary); }
 .profileDetailRow { display: inline-flex; align-items: baseline; gap: 4px; }
+/* W-11: vertical contact list for the DetailShell aside Contact card. */
+.contactList { display: flex; flex-direction: column; gap: 12px; }
+/* Fit-profile "flag incorrect" (support CX lever). */
+.flagBadge { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(215, 91, 91, 0.12); color: var(--color-error); font-weight: 500; }
+.profileActions { display: flex; gap: 14px; margin-top: 14px; }
+.flagNote { font-size: 12px; color: var(--color-error); margin-top: 8px; }
+.checkboxRow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; }
 .profileDetailLabel { font-size: 11px; font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-tertiary); }
 .statusActive { background: rgba(31, 107, 79,0.1); color: #1F6B4F; display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
 .statusDeactivated { background: rgba(215, 91, 91,0.08); color: var(--color-error); display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
@@ -107,3 +114,40 @@
 .issueCreditBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .confirmDeactivateBtn { height: 40px; padding: 0 20px; background: var(--color-error); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .confirmDeactivateBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Wave 4 — credit ledger (G-39), re-measure (G-37), SoD cap */
+.ledgerEntry {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: 13px;
+}
+.ledgerEntry:last-child { border-bottom: none; }
+.debit { color: var(--color-error); font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
+.ledgerReason { color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ledgerDate { color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+.remeasureOpen { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+.remeasureRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 6px 10px;
+  background: var(--status-fit-bg);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+}
+.remeasureMeta { margin-left: auto; color: var(--color-text-tertiary); }
+.capHint {
+  font-size: 12px;
+  color: var(--status-qc-fg);
+  margin: 0 0 4px;
+  padding: 6px 10px;
+  background: var(--status-qc-bg);
+  border-radius: var(--radius-sm);
+}
+
+.sectionHeaderActions { display: flex; align-items: center; gap: 14px; }

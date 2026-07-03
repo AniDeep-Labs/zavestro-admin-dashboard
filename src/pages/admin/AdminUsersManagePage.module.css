@@ -312,3 +312,4 @@
 .fieldLabel { font-size: 13px; font-weight: var(--font-weight-medium); color: var(--color-text-secondary); }
 .fieldInput { height: 40px; padding: 0 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; width: 100%; box-sizing: border-box; }
 .fieldInput:focus { border-color: var(--color-primary); }
+.roleCaps { margin: 6px 0 0; font-size: var(--font-size-sm); color: var(--color-text-secondary); line-height: 1.4; }

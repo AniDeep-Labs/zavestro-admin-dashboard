@@ -1,12 +1,19 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { hubsApi } from '../../api/adminApi';
-import type { Hub } from '../../api/adminApi';
+import { hubsApi, staffApi, fabricsApi } from '../../api/adminApi';
+import type { Hub, StaffMember, FabricStockRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { StatusBadge } from '../../components/StatusBadge';
+import { PageHeader, Tabs } from '../../components';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './HubDetailPage.module.css';
-import { UilAngleLeft, UilPower, UilSave } from "@iconscout/react-unicons";
+import { UilAngleLeft, UilPlus, UilPower, UilSave } from "@iconscout/react-unicons";
+
+const ROLE_LABELS: Record<string, string> = {
+  hub_manager: 'Hub Manager', tailor: 'Tailor', cutting_master: 'Cutting Master',
+  qc_staff: 'QC', dispatch: 'Dispatch', measurement_agent: 'Agent',
+};
 
 const EMPTY_HUB: Partial<Hub> = { name: '', city: '', state: '', address: '', pincode: '', managerName: '', managerPhone: '', status: 'Active', tailorCount: 0, activeOrders: 0, capacityUsed: 0, qcPassRate: 100 };
 
@@ -20,6 +27,10 @@ export const HubDetailPage: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  // G-41: real staff roster (replacing the dead "Recent Orders" placeholder)
+  const [roster, setRoster] = React.useState<StaffMember[] | null>(null);
+  // W-18: per-hub fabric stock for the Capacity & Stock tab.
+  const [stock, setStock] = React.useState<FabricStockRow[] | null>(null);
 
   useBreadcrumbTitle(hub?.name || form.name || (isNew ? 'New Hub' : undefined));
 
@@ -34,6 +45,8 @@ export const HubDetailPage: React.FC = () => {
       .then(h => { setHub(h); setForm(h); })
       .catch(e => showToast('error', 'Failed to load hub', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
+    staffApi.list(id).then(setRoster).catch(() => setRoster([]));
+    fabricsApi.stock({ hub_id: id }).then(setStock).catch(() => setStock([]));
   }, [id, isNew]);
 
   const handleFormChange = (key: keyof Hub, value: string | number) => {
@@ -124,71 +137,133 @@ export const HubDetailPage: React.FC = () => {
 
   if (!hub) return <div className={styles.page}><button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><UilAngleLeft size={15}/> Back</button><div>Hub not found.</div></div>;
 
-  /* ── EDIT / DETAIL MODE (super-admin oversight) ── */
+  /* ── EDIT / DETAIL MODE (super-admin oversight) — canon tabbed shell (W-18) ── */
+  const num = (v: string | number | null) => Number(v) || 0;
+
+  const detailsContent = (
+    <div className={styles.card}>
+      <h3 className={styles.sectionTitle}>Hub Details</h3>
+      <div className={styles.formGrid}>
+        {([
+          { key: 'address', label: 'Address' },
+          { key: 'pincode', label: 'Pincode' },
+          { key: 'managerName', label: 'Hub Manager' },
+          { key: 'managerPhone', label: 'Contact' },
+        ] as Array<{ key: keyof Hub; label: string }>).map(f => (
+          <div key={f.key} className={styles.formField}>
+            <label className={styles.metaLabel}>{f.label}</label>
+            <input type="text" className={styles.fieldInput}
+              value={(form[f.key] as string) ?? ''}
+              onChange={e => handleFormChange(f.key, e.target.value)} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const stockContent = (
+    <>
+      <div className={styles.card}>
+        <h3 className={styles.sectionTitle}>Performance &amp; capacity</h3>
+        <div className={styles.perfGrid}>
+          <div className={styles.perfCard}><div className={styles.perfValue}>{hub.activeOrders}</div><div className={styles.perfLabel}>Active Orders</div></div>
+          <div className={styles.perfCard}><div className={styles.perfValue}>{hub.capacityUsed}%</div><div className={styles.perfLabel}>Capacity Used</div></div>
+          <div className={styles.perfCard}><div className={styles.perfValue}>{hub.qcPassRate}%</div><div className={styles.perfLabel}>QC Pass Rate</div></div>
+          <div className={styles.perfCard}><div className={styles.perfValue}>{hub.tailorCount}</div><div className={styles.perfLabel}>Tailors</div></div>
+        </div>
+      </div>
+      <div className={styles.card}>
+        <h3 className={styles.sectionTitle}>Fabric stock at this hub</h3>
+        {stock === null ? (
+          <div className={styles.empty}>Loading stock…</div>
+        ) : stock.length === 0 ? (
+          <div className={styles.empty}>No fabric stock recorded at this hub yet.</div>
+        ) : (
+          <table className={styles.rosterTable}>
+            <thead><tr><th>Fabric</th><th>Code</th><th>Available (m)</th><th>Reserved (m)</th><th>Reorder (m)</th><th>Stock value</th></tr></thead>
+            <tbody>
+              {stock.map(st => (
+                <tr key={st.fabric_id}>
+                  <td className={styles.rosterName}>{st.fabric_name}</td>
+                  <td>{st.fabric_code}</td>
+                  <td>{num(st.available_meters)}</td>
+                  <td>{num(st.reserved_meters)}</td>
+                  <td>{st.reorder_meters == null ? '—' : num(st.reorder_meters)}</td>
+                  <td>{st.price_per_meter == null ? '—' : `₹${(num(st.available_meters) * num(st.price_per_meter)).toLocaleString('en-IN')}`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
+  );
+
+  const rosterContent = (
+    <div className={styles.card}>
+      <div className={styles.sectionHeader}>
+        <h3 className={styles.sectionTitle}>Staff roster</h3>
+        <button className={styles.linkBtn} onClick={() => navigate('/admin/system/staff')}>
+          <UilPlus size={13} /> Manage ops staff →
+        </button>
+      </div>
+      {roster === null ? (
+        <div className={styles.empty}>Loading roster…</div>
+      ) : roster.length === 0 ? (
+        <div className={styles.empty}>
+          No ops staff assigned to this hub yet. Add them from Ops Staff.
+        </div>
+      ) : (
+        <table className={styles.rosterTable}>
+          <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Status</th></tr></thead>
+          <tbody>
+            {roster.map(s => (
+              <tr key={s.id}>
+                <td className={styles.rosterName}>{s.name}</td>
+                <td>{ROLE_LABELS[s.role] ?? s.role}</td>
+                <td>{s.phone ?? '—'}</td>
+                <td><StatusBadge status={s.is_active ? 'active' : 'inactive'} size="sm" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><UilAngleLeft size={15}/> Back to Hubs</button>
-
-      <div className={styles.hubHeader}>
-        <div>
-          <h1 className={styles.hubName}>{hub.name}</h1>
-          <div className={styles.hubSub}>{[hub.city, hub.state].filter(Boolean).join(', ')}</div>
-        </div>
-        <div className={styles.hubActions}>
-          <button className={styles.editBtn} disabled={saving} onClick={handleSave}><UilSave size={14}/> {saving ? 'Saving…' : 'Save Changes'}</button>
-          <button className={styles.deactivateBtn} onClick={async () => {
-            try {
-              const updated = await hubsApi.update(hub.id, { status: hub.status === 'Active' ? 'Inactive' : 'Active' });
-              setHub(updated); setForm(updated);
-              showToast('success', `Hub ${updated.status.toLowerCase()}`);
-            } catch (e) { showToast('error', 'Failed', e instanceof Error ? e.message : undefined); }
-          }}>
-            {hub.status === 'Active' ? <><UilPower size={14}/> Deactivate Hub</> : <><UilPower size={14}/> Activate Hub</>}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        above={<button className={styles.backBtn} onClick={() => navigate('/admin/hubs')}><UilAngleLeft size={15}/> Back to Hubs</button>}
+        title={hub.name}
+        subtitle={[hub.city, hub.state].filter(Boolean).join(', ')}
+        meta={<StatusBadge status={hub.status.toLowerCase()} label={hub.status} />}
+        actions={
+          <>
+            <button className={styles.editBtn} disabled={saving} onClick={handleSave}><UilSave size={14}/> {saving ? 'Saving…' : 'Save Changes'}</button>
+            <button className={styles.deactivateBtn} onClick={async () => {
+              try {
+                const updated = await hubsApi.update(hub.id, { status: hub.status === 'Active' ? 'Inactive' : 'Active' });
+                setHub(updated); setForm(updated);
+                showToast('success', `Hub ${updated.status.toLowerCase()}`);
+              } catch (e) { showToast('error', 'Failed', e instanceof Error ? e.message : undefined); }
+            }}>
+              {hub.status === 'Active' ? <><UilPower size={14}/> Deactivate Hub</> : <><UilPower size={14}/> Activate Hub</>}
+            </button>
+          </>
+        }
+      />
 
       {hub.status === 'Inactive' && <div className={styles.inactiveBanner}>This hub is inactive. It is not accepting new orders.</div>}
 
-      <div className={styles.tabContent}>
-        <div className={styles.twoCol}>
-          <div className={styles.card}>
-            <h3 className={styles.sectionTitle}>Hub Details</h3>
-            <div className={styles.formGrid}>
-              {([
-                { key: 'address', label: 'Address' },
-                { key: 'pincode', label: 'Pincode' },
-                { key: 'managerName', label: 'Hub Manager' },
-                { key: 'managerPhone', label: 'Contact' },
-              ] as Array<{ key: keyof Hub; label: string }>).map(f => (
-                <div key={f.key} className={styles.formField}>
-                  <label className={styles.metaLabel}>{f.label}</label>
-                  <input type="text" className={styles.fieldInput}
-                    value={(form[f.key] as string) ?? ''}
-                    onChange={e => handleFormChange(f.key, e.target.value)} />
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className={styles.card}>
-            <h3 className={styles.sectionTitle}>Performance</h3>
-            <div className={styles.perfGrid}>
-              <div className={styles.perfCard}><div className={styles.perfValue}>{hub.activeOrders}</div><div className={styles.perfLabel}>Active Orders</div></div>
-              <div className={styles.perfCard}><div className={styles.perfValue}>{hub.capacityUsed}%</div><div className={styles.perfLabel}>Capacity Used</div></div>
-              <div className={styles.perfCard}><div className={styles.perfValue}>{hub.qcPassRate}%</div><div className={styles.perfLabel}>QC Pass Rate</div></div>
-              <div className={styles.perfCard}><div className={styles.perfValue}>{hub.tailorCount}</div><div className={styles.perfLabel}>Tailors</div></div>
-            </div>
-          </div>
-        </div>
-        <div className={styles.card}>
-          <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Recent Orders</h3>
-            <button className={styles.linkBtn} onClick={() => navigate('/admin/orders')}>View All →</button>
-          </div>
-          <div className={styles.empty}>Navigate to Orders and filter by hub to see orders.</div>
-        </div>
-      </div>
+      <Tabs
+        tabs={[
+          { id: 'details', label: 'Details', content: detailsContent },
+          { id: 'stock', label: 'Capacity & Stock', content: stockContent },
+          { id: 'roster', label: 'Staff roster', content: rosterContent },
+        ]}
+      />
     </div>
   );
 };

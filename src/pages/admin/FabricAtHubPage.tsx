@@ -1,33 +1,39 @@
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { fabricsApi, R2_PUBLIC_URL } from '../../api/adminApi';
-import type { FabricAtHub, FabricMovement } from '../../api/adminApi';
+import type { FabricAtHub, FabricMovement, FabricStockMovement } from '../../api/adminApi';
 import { Spinner } from '../../components/Spinner';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import baseCss from './OrdersListPage.module.css';
 import s from './FabricAtHubPage.module.css';
+import kpi from './CodReconciliationPage.module.css';
 import { UilArrowLeft, UilImage } from '@iconscout/react-unicons';
+import { StatusBadge } from '../../components';
 
 const url = (k?: string) => (k && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${k}` : '');
 
 const KIND_LABEL: Record<string, string> = { distribution: 'Distributed', restock: 'Restock', listing: 'Fabric for listing' };
-// is the metre actually in stock at this hub for this movement's status?
-const STATUS_META: Record<string, { label: string; css: string }> = {
-  pushed: { label: 'Sent · in transit', css: 'stageWarning' },
-  received: { label: 'Received · in stock', css: 'stageSuccess' },
-  requested: { label: 'Requested', css: 'stageNeutral' },
-  shipped: { label: 'Sent · in transit', css: 'stageWarning' },
-  fulfilled: { label: 'Received · in stock', css: 'stageSuccess' },
-  approved: { label: 'Sent · in transit', css: 'stageWarning' },
-  cancelled: { label: 'Cancelled', css: 'stageNeutral' },
-  rejected: { label: 'Rejected', css: 'stageNeutral' },
+// Movement status → canonical StatusBadge key (for tone) + flow-specific label.
+const STATUS_META: Record<string, { key: string; label: string }> = {
+  pushed: { key: 'in_transit', label: 'Sent · in transit' },
+  received: { key: 'received', label: 'Received · in stock' },
+  requested: { key: 'requested', label: 'Requested' },
+  shipped: { key: 'in_transit', label: 'Sent · in transit' },
+  fulfilled: { key: 'received', label: 'Received · in stock' },
+  approved: { key: 'in_transit', label: 'Sent · in transit' },
+  cancelled: { key: 'cancelled', label: 'Cancelled' },
+  rejected: { key: 'rejected', label: 'Rejected' },
 };
 
 export const FabricAtHubPage: React.FC = () => {
   const { hubId, fabricId } = useParams<{ hubId: string; fabricId: string }>();
+  const navigate = useNavigate();
+  // Back to wherever we came from (Cross-hub Stock OR a Distribution row), not always stock.
+  const goBack = () => (window.history.length > 1 ? navigate(-1) : navigate('/admin/procurement/stock'));
   const [data, setData] = React.useState<FabricAtHub | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [imgBroken, setImgBroken] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const dismiss = (t: string) => setToasts((x) => x.filter((y) => y.id !== t));
 
@@ -45,15 +51,48 @@ export const FabricAtHubPage: React.FC = () => {
 
   const f = data.fabric;
   const hero = url(f.image_keys?.[0]);
+  const avail = Number(data.stock.available_meters);
+  const reserved = Number(data.stock.reserved_meters);
+  const ppm = f.price_per_meter != null ? Number(f.price_per_meter) : null;
+  const capital = ppm != null ? Math.round(avail * ppm) : null;
+  const reorder = data.stock.reorder_meters != null ? Number(data.stock.reorder_meters) : null;
+  const belowReorder = reorder != null && avail < reorder;
+
+  // True stock ledger (mig 120): in/out with running balance.
+  const STOCK_KIND: Record<string, { label: string; tone: string }> = {
+    received: { label: 'Received', tone: 'received' },
+    in: { label: 'Stock in', tone: 'received' },
+    released: { label: 'Released', tone: 'active' },
+    reserved: { label: 'Reserved', tone: 'qc' },
+    reconciled: { label: 'Reconciled (cut)', tone: 'in_transit' },
+    out: { label: 'Stock out', tone: 'qc' },
+  };
+  const ledgerRow = (m: FabricStockMovement, i: number) => {
+    const meta = STOCK_KIND[m.kind] ?? { label: m.kind, tone: m.kind };
+    const delta = Number(m.delta_meters);
+    return (
+      <div key={`sm-${i}`} className={s.move}>
+        <div className={s.moveDot} />
+        <div className={s.moveBody}>
+          <div className={s.moveTop}>
+            <StatusBadge status={meta.tone} label={meta.label} size="sm" />
+            <strong>{delta > 0 ? `+${delta}` : delta}m</strong>
+          </div>
+          <div className={s.moveMeta}>balance after: <strong>{Number(m.balance_after)}m</strong></div>
+          <div className={s.moveTime}>{new Date(m.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+        </div>
+      </div>
+    );
+  };
   const line = (m: FabricMovement) => {
-    const meta = STATUS_META[m.status] ?? { label: m.status, css: 'stageNeutral' };
+    const meta = STATUS_META[m.status] ?? { key: m.status, label: m.status };
     return (
       <div key={`${m.kind}-${m.id}`} className={s.move}>
         <div className={s.moveDot} />
         <div className={s.moveBody}>
           <div className={s.moveTop}>
             <strong>{KIND_LABEL[m.kind] ?? m.kind}</strong>
-            <span className={`${baseCss.stagePill} ${baseCss[meta.css]}`}>{meta.label}</span>
+            <StatusBadge status={meta.key} label={meta.label} />
           </div>
           <div className={s.moveMeta}>
             {Number(m.qty)}m{m.design_name ? ` · for ${m.design_name}` : ''}
@@ -68,27 +107,76 @@ export const FabricAtHubPage: React.FC = () => {
   return (
     <div className={baseCss.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
-      <Link to="/admin/procurement/stock" className={s.back}><UilArrowLeft size={16} /> Back to stock</Link>
+      <button type="button" onClick={goBack} className={s.back}><UilArrowLeft size={16} /> Back to stock</button>
 
       <div className={s.head}>
-        <div className={s.swatch}>{hero ? <img src={hero} alt={f.name} /> : <UilImage size={28} />}</div>
+        <div className={s.swatch}>{hero && !imgBroken ? <img src={hero} alt={f.name} onError={() => setImgBroken(true)} /> : <UilImage size={28} />}</div>
         <div className={s.headInfo}>
           <div className={s.code}>{f.code}{f.color_name ? ` · ${f.color_name}` : ''}</div>
-          <h1 className={s.name}>{f.name}</h1>
+          <h1 className={s.name}>
+            <Link to={`/admin/procurement/fabrics/${fabricId}`} className={s.nameLink}>{f.name}</Link>
+          </h1>
           <div className={s.sub}>{f.composition}{f.weave ? ` · ${f.weave}` : ''} · at <strong>{data.hub_name}</strong></div>
-        </div>
-        <div className={s.stockBox}>
-          <div className={s.stockNum}>{Number(data.stock.available_meters)}<span>m</span></div>
-          <div className={s.stockLabel}>available{Number(data.stock.reserved_meters) > 0 ? ` · ${Number(data.stock.reserved_meters)}m reserved` : ''}</div>
         </div>
       </div>
 
-      <h3 className={s.sectionTitle}>Movement timeline</h3>
-      {data.movements.length === 0 ? (
-        <div className={s.empty}>No movements recorded for this fabric at this hub.</div>
-      ) : (
-        <div className={s.timeline}>{data.movements.map(line)}</div>
-      )}
+      <div className={kpi.summary}>
+        <div className={kpi.summaryCard}>
+          <div className={kpi.summaryLabel}>Available</div>
+          <div className={kpi.summaryValue}>{avail.toLocaleString('en-IN')} m</div>
+        </div>
+        <div className={kpi.summaryCard}>
+          <div className={kpi.summaryLabel}>Reserved</div>
+          <div className={kpi.summaryValue}>{reserved.toLocaleString('en-IN')} m</div>
+        </div>
+        <div className={kpi.summaryCard}>
+          <div className={kpi.summaryLabel}>Capital (avail)</div>
+          <div className={kpi.summaryValue}>{capital != null ? `₹${capital.toLocaleString('en-IN')}` : '—'}</div>
+        </div>
+        <div className={kpi.summaryCard}>
+          <div className={kpi.summaryLabel}>Reorder at</div>
+          <div className={`${kpi.summaryValue} ${belowReorder ? s.belowReorder : ''}`}>
+            {reorder != null ? `${reorder.toLocaleString('en-IN')} m` : '—'}{belowReorder ? ' · low' : ''}
+          </div>
+        </div>
+      </div>
+
+      <div className={s.cols}>
+        <section>
+          <h3 className={s.sectionTitle}>Stock ledger <span className={s.sectionHint}>· every metre in &amp; out, with running balance</span></h3>
+          {!data.stock_movements || data.stock_movements.length === 0 ? (
+            avail > 0 ? (
+              // Stock exists but predates the movement ledger — show it as an opening balance
+              // so the ledger reconciles with the on-hand figure instead of contradicting it.
+              <div className={s.timeline}>
+                <div className={s.move}>
+                  <div className={s.moveDot} />
+                  <div className={s.moveBody}>
+                    <div className={s.moveTop}>
+                      <StatusBadge status="received" label="Opening balance" size="sm" />
+                      <strong>{avail}m</strong>
+                    </div>
+                    <div className={s.moveMeta}>balance: <strong>{avail}m</strong> · recorded before the movement ledger — new movements appear here</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className={s.empty}>No stock movements yet — appears when fabric is received, reserved, or released here.</div>
+            )
+          ) : (
+            <div className={s.timeline}>{data.stock_movements.map(ledgerRow)}</div>
+          )}
+        </section>
+
+        <section>
+          <h3 className={s.sectionTitle}>Request history <span className={s.sectionHint}>· distribution / restock / listing</span></h3>
+          {data.movements.length === 0 ? (
+            <div className={s.empty}>No requests recorded for this fabric at this hub.</div>
+          ) : (
+            <div className={s.timeline}>{data.movements.map(line)}</div>
+          )}
+        </section>
+      </div>
     </div>
   );
 };

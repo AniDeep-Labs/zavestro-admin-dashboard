@@ -1,0 +1,32 @@
+.page { padding: 24px; max-width: 900px; }
+.pageHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.title { font-family: var(--font-display); font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); margin: 0; }
+.refreshBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-border); background: var(--color-bg-primary);
+  color: var(--color-text-primary); font-family: inherit; font-size: var(--font-size-sm); cursor: pointer;
+}
+.refreshBtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.metaLine { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: 16px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+.card {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.skelCard { height: 110px; border-radius: var(--radius-lg); background: var(--color-bg-hover); opacity: 0.6; }
+.cardTitle { font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin: 0 0 12px; }
+.row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0; border-top: 1px solid var(--color-border-light);
+  font-size: var(--font-size-base); color: var(--color-text-primary);
+}
+.row:first-of-type { border-top: none; }
+.rowRight { display: inline-flex; align-items: center; gap: 8px; }
+.rowNote { font-size: var(--font-size-sm); color: var(--color-text-tertiary); }
+.note { font-size: var(--font-size-sm); color: var(--color-text-tertiary); margin: 0 0 8px; }
+.warn { font-size: var(--font-size-sm); color: var(--status-blocked-fg); margin-top: 8px; }

@@ -1,16 +1,17 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { craftspeopleApi, cmsApi } from '../../api/adminApi';
-import type { Craftsperson, LookbookItem, JournalPost, CustomerStory } from '../../api/adminApi';
+import { cmsApi } from '../../api/adminApi';
+import type { LookbookItem, JournalPost, CustomerStory } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ContentPage.module.css';
 import { UilEditAlt, UilEye, UilEyeSlash, UilPlus, UilSearch, UilTimes, UilTrashAlt } from "@iconscout/react-unicons";
+import { StatusBadge } from '../../components';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { Modal } from '../../components/Modal/Modal';
 
-type Section = 'lookbook' | 'craftspeople' | 'stories' | 'journal';
-
-const asCraftspeopleArray = (data: unknown): Craftsperson[] =>
-  Array.isArray(data) ? data : [];
+// 'craftspeople' section removed (G-20): artisan-brand model retired.
+type Section = 'lookbook' | 'stories' | 'journal';
 
 function useDebounce<T>(v: T, d: number) {
   const [dv, setDv] = React.useState(v);
@@ -22,15 +23,6 @@ export const ContentPage: React.FC = () => {
   const { section = 'lookbook' } = useParams<{ section?: string }>();
   const [search, setSearch] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
-
-  // Craftspeople state
-  const [craftspeople, setCraftspeople] = React.useState<Craftsperson[]>([]);
-  const [craftLoading, setCraftLoading] = React.useState(false);
-  const [craftError, setCraftError] = React.useState('');
-  const [editTarget, setEditTarget] = React.useState<Craftsperson | null>(null);
-  const [editBio, setEditBio] = React.useState('');
-  const [editYears, setEditYears] = React.useState('');
-  const [saving, setSaving] = React.useState(false);
 
   // Lookbook state
   const [lookbookItems, setLookbookItems] = React.useState<LookbookItem[]>([]);
@@ -53,7 +45,13 @@ export const ContentPage: React.FC = () => {
   const [jpForm, setJpForm] = React.useState({ title: '', slug: '', excerpt: '', body: '', status: 'draft' as 'draft' | 'published' | 'archived' });
   const [jpSaving, setJpSaving] = React.useState(false);
 
-  const validSection = (section as Section) in { lookbook: 1, craftspeople: 1, stories: 1, journal: 1 }
+  // Single confirm gate for all three destructive deletes (were firing on one click).
+  const [pendingDelete, setPendingDelete] = React.useState<
+    null | { kind: 'lookbook' | 'story' | 'post'; id: string; name: string }
+  >(null);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const validSection = (section as Section) in { lookbook: 1, stories: 1, journal: 1 }
     ? (section as Section) : 'lookbook';
 
   const debouncedSearch = useDebounce(search, 300);
@@ -64,13 +62,7 @@ export const ContentPage: React.FC = () => {
 
   React.useEffect(() => {
     setSearch('');
-    if (validSection === 'craftspeople') {
-      setCraftLoading(true); setCraftError('');
-      craftspeopleApi.list()
-        .then(data => setCraftspeople(asCraftspeopleArray(data)))
-        .catch(e => setCraftError(e instanceof Error ? e.message : 'Failed to load craftspeople'))
-        .finally(() => setCraftLoading(false));
-    } else if (validSection === 'lookbook') {
+    if (validSection === 'lookbook') {
       setLookbookLoading(true);
       cmsApi.lookbook.list()
         .then(setLookbookItems)
@@ -90,25 +82,6 @@ export const ContentPage: React.FC = () => {
         .finally(() => setPostsLoading(false));
     }
   }, [validSection]);
-
-  // ── Craftspeople handlers ──────────────────────────────────────────────────
-  const openEdit = (p: Craftsperson) => {
-    setEditTarget(p); setEditBio(p.bio ?? ''); setEditYears(p.years_experience != null ? String(p.years_experience) : '');
-  };
-
-  const handleSaveCraft = async () => {
-    if (!editTarget) return;
-    setSaving(true);
-    try {
-      const updated = await craftspeopleApi.updateStory(editTarget.id, {
-        bio: editBio, years_experience: editYears ? parseInt(editYears) : undefined,
-      });
-      setCraftspeople(prev => prev.map(p => p.id === updated.id ? { ...p, bio: updated.bio, years_experience: updated.years_experience } : p));
-      setEditTarget(null);
-      showToast('success', 'Saved', editTarget.name);
-    } catch (e) { showToast('error', 'Save failed', e instanceof Error ? e.message : undefined); }
-    finally { setSaving(false); }
-  };
 
   // ── Lookbook handlers ──────────────────────────────────────────────────────
   const openLookbook = (item: LookbookItem | 'new') => {
@@ -257,16 +230,23 @@ export const ContentPage: React.FC = () => {
     } catch (e) { showToast('error', 'Delete failed', e instanceof Error ? e.message : undefined); }
   };
 
-  // ── Section titles ─────────────────────────────────────────────────────────
-  const TITLES: Record<Section, string> = {
-    lookbook: 'Lookbook', craftspeople: 'Craftspeople', stories: 'Customer Stories', journal: 'Journal',
+  const DELETE_KIND_LABEL: Record<'lookbook' | 'story' | 'post', string> = {
+    lookbook: 'lookbook item', story: 'customer story', post: 'journal post',
+  };
+  const runDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      if (pendingDelete.kind === 'lookbook') await handleDeleteLookbook(pendingDelete.id);
+      else if (pendingDelete.kind === 'story') await handleDeleteStory(pendingDelete.id);
+      else await handleDeletePost(pendingDelete.id);
+    } finally { setDeleting(false); setPendingDelete(null); }
   };
 
-  // ── Craftspeople filtered list ─────────────────────────────────────────────
-  const craftspeopleList = Array.isArray(craftspeople) ? craftspeople : [];
-  const filteredCraft = craftspeopleList.filter(p =>
-    !debouncedSearch || (p.name ?? '').toLowerCase().includes(debouncedSearch.toLowerCase()) || (p.role ?? '').toLowerCase().includes(debouncedSearch.toLowerCase())
-  );
+  // ── Section titles ─────────────────────────────────────────────────────────
+  const TITLES: Record<Section, string> = {
+    lookbook: 'Lookbook', stories: 'Customer Stories', journal: 'Journal',
+  };
 
   const filteredLookbook = lookbookItems.filter(i =>
     !debouncedSearch || i.title.toLowerCase().includes(debouncedSearch.toLowerCase())
@@ -284,7 +264,7 @@ export const ContentPage: React.FC = () => {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>{TITLES[validSection]}</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className={styles.headerActions}>
           {validSection === 'lookbook' && (
             <button className={styles.addBtn} onClick={() => openLookbook('new')}><UilPlus size={14}/> Add Item</button>
           )}
@@ -320,22 +300,20 @@ export const ContentPage: React.FC = () => {
                 </td></tr>
               ) : filteredLookbook.map(item => (
                 <tr key={item.id} className={styles.row}>
-                  <td style={{ fontWeight: 500 }}>{item.title}</td>
-                  <td style={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>{item.description || '—'}</td>
-                  <td style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{(item.tags ?? []).join(', ') || '—'}</td>
+                  <td className={styles.nameCell}>{item.title}</td>
+                  <td className={styles.descCell}>{item.description || '—'}</td>
+                  <td className={styles.tagsCell}>{(item.tags ?? []).join(', ') || '—'}</td>
                   <td>{item.sort_order}</td>
                   <td>
-                    <span className={`${styles.statusPill} ${item.published ? styles.statusActive : styles.statusDraft}`}>
-                      {item.published ? 'Published' : 'Draft'}
-                    </span>
+                    <StatusBadge status={item.published ? 'published' : 'draft'} />
                   </td>
                   <td>
                     <div className={styles.actions}>
-                      <button className={styles.actionBtn} onClick={() => handleToggleLookbook(item)} title={item.published ? 'Unpublish' : 'Publish'}>
+                      <button className={styles.actionBtn} onClick={() => handleToggleLookbook(item)} title={item.published ? 'Unpublish' : 'Publish'} aria-label={item.published ? 'Unpublish item' : 'Publish item'}>
                         {item.published ? <UilEyeSlash size={13}/> : <UilEye size={13}/>}
                       </button>
-                      <button className={styles.actionBtn} onClick={() => openLookbook(item)}><UilEditAlt size={13}/></button>
-                      <button className={styles.actionBtn} style={{ color: 'var(--color-error)' }} onClick={() => handleDeleteLookbook(item.id)}><UilTrashAlt size={13}/></button>
+                      <button className={styles.actionBtn} onClick={() => openLookbook(item)} aria-label="Edit item"><UilEditAlt size={13}/></button>
+                      <button className={`${styles.actionBtn} ${styles.dangerBtn}`} onClick={() => setPendingDelete({ kind: 'lookbook', id: item.id, name: item.title })} aria-label="Delete item"><UilTrashAlt size={13}/></button>
                     </div>
                   </td>
                 </tr>
@@ -359,23 +337,21 @@ export const ContentPage: React.FC = () => {
                 </td></tr>
               ) : filteredStories.map(story => (
                 <tr key={story.id} className={styles.row}>
-                  <td style={{ fontWeight: 500 }}>{story.customer_name}</td>
-                  <td style={{ color: 'var(--color-text-secondary)' }}>{story.location || '—'}</td>
-                  <td style={{ color: 'var(--color-text-secondary)' }}>{story.product_name || '—'}</td>
+                  <td className={styles.nameCell}>{story.customer_name}</td>
+                  <td className={styles.mutedCell}>{story.location || '—'}</td>
+                  <td className={styles.mutedCell}>{story.product_name || '—'}</td>
                   <td>{story.rating ? `${story.rating} ★` : '—'}</td>
-                  <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, color: 'var(--color-text-secondary)' }}>{story.story_text}</td>
+                  <td className={styles.storyCell}>{story.story_text}</td>
                   <td>
-                    <span className={`${styles.statusPill} ${story.published ? styles.statusActive : styles.statusDraft}`}>
-                      {story.published ? 'Published' : 'Draft'}
-                    </span>
+                    <StatusBadge status={story.published ? 'published' : 'draft'} />
                   </td>
                   <td>
                     <div className={styles.actions}>
-                      <button className={styles.actionBtn} onClick={() => handleToggleStory(story)} title={story.published ? 'Unpublish' : 'Publish'}>
+                      <button className={styles.actionBtn} onClick={() => handleToggleStory(story)} title={story.published ? 'Unpublish' : 'Publish'} aria-label={story.published ? 'Unpublish story' : 'Publish story'}>
                         {story.published ? <UilEyeSlash size={13}/> : <UilEye size={13}/>}
                       </button>
-                      <button className={styles.actionBtn} onClick={() => openStory(story)}><UilEditAlt size={13}/></button>
-                      <button className={styles.actionBtn} style={{ color: 'var(--color-error)' }} onClick={() => handleDeleteStory(story.id)}><UilTrashAlt size={13}/></button>
+                      <button className={styles.actionBtn} onClick={() => openStory(story)} aria-label="Edit story"><UilEditAlt size={13}/></button>
+                      <button className={`${styles.actionBtn} ${styles.dangerBtn}`} onClick={() => setPendingDelete({ kind: 'story', id: story.id, name: story.customer_name })} aria-label="Delete story"><UilTrashAlt size={13}/></button>
                     </div>
                   </td>
                 </tr>
@@ -399,62 +375,21 @@ export const ContentPage: React.FC = () => {
                 </td></tr>
               ) : filteredPosts.map(post => (
                 <tr key={post.id} className={styles.row}>
-                  <td style={{ fontWeight: 500 }}>{post.title}</td>
-                  <td style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>{post.slug}</td>
-                  <td style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)', fontSize: 13 }}>{post.excerpt || '—'}</td>
+                  <td className={styles.nameCell}>{post.title}</td>
+                  <td className={styles.slugCell}>{post.slug}</td>
+                  <td className={styles.excerptCell}>{post.excerpt || '—'}</td>
                   <td>
-                    <span className={`${styles.statusPill} ${post.status === 'published' ? styles.statusActive : post.status === 'archived' ? styles.statusArchived : styles.statusDraft}`}>
-                      {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
-                    </span>
+                    <StatusBadge status={post.status} />
                   </td>
-                  <td style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                  <td className={styles.dateCell}>
                     {post.published_at ? new Date(post.published_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                   </td>
                   <td>
                     <div className={styles.actions}>
                       <button className={styles.actionBtn} onClick={() => openPost(post)}><UilEditAlt size={13}/> Edit</button>
-                      <button className={styles.actionBtn} style={{ color: 'var(--color-error)' }} onClick={() => handleDeletePost(post.id)}><UilTrashAlt size={13}/></button>
+                      <button className={`${styles.actionBtn} ${styles.dangerBtn}`} onClick={() => setPendingDelete({ kind: 'post', id: post.id, name: post.title })} aria-label="Delete post"><UilTrashAlt size={13}/></button>
                     </div>
                   </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* ── Craftspeople ─────────────────────────────────────────────────── */}
-      {validSection === 'craftspeople' && (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead><tr><th>Name</th><th>Role</th><th>Bio</th><th>Experience</th><th>Actions</th></tr></thead>
-            <tbody>
-              {craftLoading ? Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i}>{Array.from({ length: 5 }).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
-              )) : craftError ? (
-                <tr><td colSpan={5} className={styles.empty}>
-                  <div style={{ color: 'var(--color-error)' }}>{craftError}</div>
-                  <button className={styles.actionBtn} style={{ marginTop: 8 }} onClick={() => {
-                    setCraftError(''); setCraftLoading(true);
-                    craftspeopleApi.list().then(data => setCraftspeople(asCraftspeopleArray(data))).catch(e => setCraftError(e instanceof Error ? e.message : 'Failed')).finally(() => setCraftLoading(false));
-                  }}>Retry</button>
-                </td></tr>
-              ) : filteredCraft.length === 0 ? (
-                <tr><td colSpan={5} className={styles.empty}>
-                  {craftspeopleList.length === 0 ? 'No craftspeople records found.' : 'No matches.'}
-                </td></tr>
-              ) : filteredCraft.map(p => (
-                <tr key={p.id} className={styles.row}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {p.public_photo_url && <img src={p.public_photo_url} alt={p.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />}
-                      <span style={{ fontWeight: 500 }}>{p.name}</span>
-                    </div>
-                  </td>
-                  <td>{p.role}</td>
-                  <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.bio || '—'}</td>
-                  <td>{p.years_experience != null ? `${p.years_experience} yrs` : '—'}</td>
-                  <td><button className={styles.actionBtn} onClick={() => openEdit(p)}><UilEditAlt size={13}/> Edit Story</button></td>
                 </tr>
               ))}
             </tbody>
@@ -463,10 +398,21 @@ export const ContentPage: React.FC = () => {
       )}
 
       {/* ── Lookbook modal ───────────────────────────────────────────────── */}
-      {lookbookModal !== null && (
-        <div className={styles.modalOverlay} onClick={() => setLookbookModal(null)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>{lookbookModal === 'new' ? 'Add Lookbook Item' : 'Edit Lookbook Item'}</h3>
+      <Modal
+        open={lookbookModal !== null}
+        onClose={() => setLookbookModal(null)}
+        title={lookbookModal === 'new' ? 'Add Lookbook Item' : 'Edit Lookbook Item'}
+        size="md"
+        footer={
+          <div className={styles.modalActions}>
+            <button className={styles.cancelModalBtn} onClick={() => setLookbookModal(null)}>Cancel</button>
+            <button className={styles.createBtn} disabled={lbSaving} onClick={handleSaveLookbook}>
+              {lbSaving ? 'Saving…' : lookbookModal === 'new' ? 'Add Item' : 'Save'}
+            </button>
+          </div>
+        }
+      >
+        {lookbookModal !== null && (
             <div className={styles.fields}>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Title *</label>
@@ -474,13 +420,13 @@ export const ContentPage: React.FC = () => {
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Description</label>
-                <textarea className={styles.fieldInput} style={{ height: 80, resize: 'vertical' }} value={lbForm.description} onChange={e => setLbForm(f => ({ ...f, description: e.target.value }))} placeholder="Short caption…" />
+                <textarea className={`${styles.fieldInput} ${styles.descTa}`} value={lbForm.description} onChange={e => setLbForm(f => ({ ...f, description: e.target.value }))} placeholder="Short caption…" />
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Tags (comma-separated)</label>
                 <input className={styles.fieldInput} value={lbForm.tags} onChange={e => setLbForm(f => ({ ...f, tags: e.target.value }))} placeholder="e.g., wedding, festive, kurta" />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className={styles.formGrid2}>
                 <div className={styles.field}>
                   <label className={styles.fieldLabel}>Sort Order</label>
                   <input className={styles.fieldInput} type="number" min="0" value={lbForm.sort_order} onChange={e => setLbForm(f => ({ ...f, sort_order: e.target.value }))} />
@@ -494,23 +440,27 @@ export const ContentPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setLookbookModal(null)}>Cancel</button>
-              <button className={styles.createBtn} disabled={lbSaving} onClick={handleSaveLookbook}>
-                {lbSaving ? 'Saving…' : lookbookModal === 'new' ? 'Add Item' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* ── Story modal ──────────────────────────────────────────────────── */}
-      {storyModal !== null && (
-        <div className={styles.modalOverlay} onClick={() => setStoryModal(null)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
-            <h3 className={styles.modalTitle}>{storyModal === 'new' ? 'Add Customer Story' : 'Edit Story'}</h3>
+      <Modal
+        open={storyModal !== null}
+        onClose={() => setStoryModal(null)}
+        title={storyModal === 'new' ? 'Add Customer Story' : 'Edit Story'}
+        size="md"
+        footer={
+          <div className={styles.modalActions}>
+            <button className={styles.cancelModalBtn} onClick={() => setStoryModal(null)}>Cancel</button>
+            <button className={styles.createBtn} disabled={stSaving} onClick={handleSaveStory}>
+              {stSaving ? 'Saving…' : storyModal === 'new' ? 'Add Story' : 'Save'}
+            </button>
+          </div>
+        }
+      >
+        {storyModal !== null && (
             <div className={styles.fields}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className={styles.formGrid2}>
                 <div className={styles.field}>
                   <label className={styles.fieldLabel}>Customer Name *</label>
                   <input className={styles.fieldInput} value={stForm.customer_name} onChange={e => setStForm(f => ({ ...f, customer_name: e.target.value }))} placeholder="Full name" />
@@ -520,7 +470,7 @@ export const ContentPage: React.FC = () => {
                   <input className={styles.fieldInput} value={stForm.location} onChange={e => setStForm(f => ({ ...f, location: e.target.value }))} placeholder="e.g., Mumbai" />
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className={styles.formGrid2}>
                 <div className={styles.field}>
                   <label className={styles.fieldLabel}>Product</label>
                   <input className={styles.fieldInput} value={stForm.product_name} onChange={e => setStForm(f => ({ ...f, product_name: e.target.value }))} placeholder="e.g., Wedding Sherwani" />
@@ -535,7 +485,7 @@ export const ContentPage: React.FC = () => {
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Story Text *</label>
-                <textarea className={styles.fieldInput} style={{ height: 100, resize: 'vertical' }} value={stForm.story_text} onChange={e => setStForm(f => ({ ...f, story_text: e.target.value }))} placeholder="Customer's experience in their own words…" />
+                <textarea className={`${styles.fieldInput} ${styles.storyTa}`} value={stForm.story_text} onChange={e => setStForm(f => ({ ...f, story_text: e.target.value }))} placeholder="Customer's experience in their own words…" />
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Status</label>
@@ -545,21 +495,25 @@ export const ContentPage: React.FC = () => {
                 </select>
               </div>
             </div>
-            <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setStoryModal(null)}>Cancel</button>
-              <button className={styles.createBtn} disabled={stSaving} onClick={handleSaveStory}>
-                {stSaving ? 'Saving…' : storyModal === 'new' ? 'Add Story' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* ── Journal post modal ───────────────────────────────────────────── */}
-      {postModal !== null && (
-        <div className={styles.modalOverlay} onClick={() => setPostModal(null)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()} style={{ maxWidth: 640 }}>
-            <h3 className={styles.modalTitle}>{postModal === 'new' ? 'New Journal Post' : 'Edit Post'}</h3>
+      <Modal
+        open={postModal !== null}
+        onClose={() => setPostModal(null)}
+        title={postModal === 'new' ? 'New Journal Post' : 'Edit Post'}
+        size="lg"
+        footer={
+          <div className={styles.modalActions}>
+            <button className={styles.cancelModalBtn} onClick={() => setPostModal(null)}>Cancel</button>
+            <button className={styles.createBtn} disabled={jpSaving} onClick={handleSavePost}>
+              {jpSaving ? 'Saving…' : postModal === 'new' ? 'Create Post' : 'Save'}
+            </button>
+          </div>
+        }
+      >
+        {postModal !== null && (
             <div className={styles.fields}>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Title *</label>
@@ -570,15 +524,15 @@ export const ContentPage: React.FC = () => {
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Slug * (URL-safe, e.g. my-post-title)</label>
-                <input className={styles.fieldInput} value={jpForm.slug} onChange={e => setJpForm(f => ({ ...f, slug: slugify(e.target.value) }))} placeholder="my-post-title" style={{ fontFamily: 'monospace' }} />
+                <input className={`${styles.fieldInput} ${styles.mono}`} value={jpForm.slug} onChange={e => setJpForm(f => ({ ...f, slug: slugify(e.target.value) }))} placeholder="my-post-title" />
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Excerpt</label>
-                <textarea className={styles.fieldInput} style={{ height: 70, resize: 'vertical' }} value={jpForm.excerpt} onChange={e => setJpForm(f => ({ ...f, excerpt: e.target.value }))} placeholder="Short description shown in listings…" />
+                <textarea className={`${styles.fieldInput} ${styles.excerptTa}`} value={jpForm.excerpt} onChange={e => setJpForm(f => ({ ...f, excerpt: e.target.value }))} placeholder="Short description shown in listings…" />
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Body</label>
-                <textarea className={styles.fieldInput} style={{ height: 160, resize: 'vertical' }} value={jpForm.body} onChange={e => setJpForm(f => ({ ...f, body: e.target.value }))} placeholder="Full article content…" />
+                <textarea className={`${styles.fieldInput} ${styles.bodyTa}`} value={jpForm.body} onChange={e => setJpForm(f => ({ ...f, body: e.target.value }))} placeholder="Full article content…" />
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Status</label>
@@ -589,40 +543,19 @@ export const ContentPage: React.FC = () => {
                 </select>
               </div>
             </div>
-            <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setPostModal(null)}>Cancel</button>
-              <button className={styles.createBtn} disabled={jpSaving} onClick={handleSavePost}>
-                {jpSaving ? 'Saving…' : postModal === 'new' ? 'Create Post' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
-      {/* ── Craftspeople edit modal ───────────────────────────────────────── */}
-      {editTarget && (
-        <div className={styles.modalOverlay} onClick={() => setEditTarget(null)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Edit — {editTarget.name}</h3>
-            <div className={styles.fields}>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Bio</label>
-                <textarea className={styles.fieldInput} style={{ minHeight: 120, resize: 'vertical' }} value={editBio} onChange={e => setEditBio(e.target.value)} placeholder="Craftsperson's story and background…" />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Years of Experience</label>
-                <input type="number" className={styles.fieldInput} value={editYears} onChange={e => setEditYears(e.target.value)} min="0" />
-              </div>
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setEditTarget(null)}>Cancel</button>
-              <button className={styles.createBtn} disabled={saving} onClick={handleSaveCraft}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete this item?"
+        message={pendingDelete ? `Delete ${DELETE_KIND_LABEL[pendingDelete.kind]} “${pendingDelete.name}”? This can't be undone.` : ''}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleting}
+        onConfirm={runDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 };

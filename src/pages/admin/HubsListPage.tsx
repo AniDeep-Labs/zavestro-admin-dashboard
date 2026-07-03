@@ -6,16 +6,13 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './HubsListPage.module.css';
 import { UilPlus, UilTimes } from "@iconscout/react-unicons";
+import { StatusBadge } from '../../components';
 
 function useDebounce<T>(v: T, d: number) {
   const [dv, setDv] = React.useState(v);
   React.useEffect(() => { const t = setTimeout(() => setDv(v), d); return () => clearTimeout(t); }, [v, d]);
   return dv;
 }
-
-const statusCss: Record<string, string> = {
-  Active: 'statusActive', Inactive: 'statusInactive',
-};
 
 export const HubsListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -84,7 +81,7 @@ export const HubsListPage: React.FC = () => {
                   </div>
                   <div className={styles.hubLocation}>{[hub.city, hub.state].map(s => s?.trim()).filter(Boolean).join(', ')}</div>
                 </div>
-                <span className={`${styles.hubStatus} ${styles[statusCss[hub.status]]}`}>{hub.status}</span>
+                <StatusBadge status={hub.status.toLowerCase()} label={hub.status} />
               </div>
               <div className={styles.hubStats}>
                 <div className={styles.stat}><div className={styles.statVal}>{hub.activeOrders}</div><div className={styles.statLabel}>Active Orders</div></div>

@@ -63,6 +63,28 @@
   --color-warning: #E4952A;
   --color-info: #4B8DC8;
   --color-disabled: #A8A59F;
+  --color-on-accent: #FFFFFF; /* text/icon on solid accent fills (badges, primary buttons) */
+
+  /* STATUS VOCABULARY TONES (StatusBadge — FABLE-ADMIN-UIUX §2.1)
+     One tone per meaning: fit / making / qc / transit / done / blocked. */
+  --status-fit-fg: #3674AE;
+  --status-fit-bg: rgba(75, 141, 200, 0.10);
+  --status-fit-border: rgba(75, 141, 200, 0.30);
+  --status-making-fg: #9E7340;
+  --status-making-bg: #FBF6EF;
+  --status-making-border: rgba(212, 165, 116, 0.45);
+  --status-qc-fg: #B45309;
+  --status-qc-bg: rgba(228, 149, 42, 0.10);
+  --status-qc-border: rgba(228, 149, 42, 0.35);
+  --status-transit-fg: #1F6B4F;
+  --status-transit-bg: #E8F5E9;
+  --status-transit-border: rgba(31, 107, 79, 0.30);
+  --status-done-fg: #1E7A45;
+  --status-done-bg: rgba(42, 155, 91, 0.12);
+  --status-done-border: rgba(42, 155, 91, 0.40);
+  --status-blocked-fg: #B04545;
+  --status-blocked-bg: rgba(215, 91, 91, 0.10);
+  --status-blocked-border: rgba(215, 91, 91, 0.35);
 
   /* SPACING SCALE */
   --spacing-xs: 0.25rem;  /* 4px */
@@ -168,6 +190,16 @@
 
 /* ===== DARK MODE (data-theme="dark") ===== */
 [data-theme="dark"] {
+  /* STATUS VOCABULARY TONES — dark: translucent fills, lifted foregrounds */
+  --status-fit-fg: #8FB8DE;
+  --status-making-fg: #E0BB93;
+  --status-making-bg: rgba(212, 165, 116, 0.12);
+  --status-qc-fg: #ECB269;
+  --status-transit-fg: #7FC29B;
+  --status-transit-bg: rgba(42, 155, 91, 0.12);
+  --status-done-fg: #6FBF8E;
+  --status-blocked-fg: #E89A9A;
+
   /* DARK BACKGROUNDS — matches web dark scale */
   --color-bg-primary: #1C1A17;
   --color-bg-secondary: #181614;

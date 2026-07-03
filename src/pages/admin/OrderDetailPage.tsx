@@ -4,6 +4,9 @@ import {
   ordersApi,
   invoicesApi,
   customerMeasurementsApi,
+  usersApi,
+  alterationsApi,
+  returnsApi,
 } from "../../api/adminApi";
 import type {
   AdminOrder,
@@ -16,6 +19,8 @@ import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
 import { Can } from "../../components/Can/Can";
+import { StatusBadge, statusLabel } from "../../components/StatusBadge";
+import { PageHeader, DetailShell } from "../../components";
 import styles from "./OrderDetailPage.module.css";
 import {
   UilAngleLeft,
@@ -35,22 +40,51 @@ import {
 } from "@iconscout/react-unicons";
 
 // ── Stage stepper config ─────────────────────────────────────────────────────
+// Canonical stages per the backend state machine (order-transitions.ts). Legacy
+// rows may still carry old names — normalizeStage maps them so the stepper,
+// the next-step card and the override dropdown all speak the real machine.
 
-const STAGES: { key: OrderStage; label: string }[] = [
-  { key: "payment_pending", label: "Payment\nPending" },
+const STAGE_ALIAS: Record<string, string> = {
+  payment_pending: "pending_payment",
+  ready_to_dispatch: "ready_for_dispatch",
+  dispatched: "shipped",
+};
+const normalizeStage = (s: string): string => STAGE_ALIAS[s] ?? s;
+
+// The happy path, in order (rework / delivery_failed / cancelled / refunded are
+// off-path and render as a banner above the stepper instead).
+const STAGES: { key: string; label: string }[] = [
+  { key: "pending_payment", label: "Payment\nPending" },
   { key: "payment_confirmed", label: "Payment\nConfirmed" },
   { key: "awaiting_measurement", label: "Awaiting\nMeasurement" },
   { key: "measurement_complete", label: "Measurement\nDone" },
+  { key: "cutting", label: "Cutting" },
   { key: "in_tailoring", label: "In\nTailoring" },
   { key: "quality_check", label: "Quality\nCheck" },
-  { key: "ready_to_dispatch", label: "Ready to\nDispatch" },
-  { key: "dispatched", label: "Dispatched" },
+  { key: "ready_for_dispatch", label: "Ready for\nDispatch" },
+  { key: "shipped", label: "Shipped" },
   { key: "delivered", label: "Delivered" },
 ];
 
 const STAGE_IDX = Object.fromEntries(
   STAGES.map((s, i) => [s.key, i]),
 ) as Record<string, number>;
+
+// Where an off-path stage rejoins the happy path (for stepper progress display).
+const OFFPATH_NEAR: Record<string, string> = {
+  rework: "quality_check",
+  delivery_failed: "shipped",
+  fabric_sourcing: "measurement_complete",
+  fabric_sourced: "measurement_complete",
+};
+
+// Every stage the break-glass override may target = the state machine's keys.
+const OVERRIDE_STAGES: string[] = [
+  "pending_payment", "payment_confirmed", "awaiting_measurement", "measurement_complete",
+  "fabric_sourcing", "fabric_sourced", "cutting", "in_tailoring",
+  "quality_check", "rework", "ready_for_dispatch", "shipped",
+  "delivered", "delivery_failed", "cancelled", "refunded",
+];
 
 // ── Timeline helpers ─────────────────────────────────────────────────────────
 
@@ -138,19 +172,14 @@ const NextStepCard: React.FC<NextStepProps> = ({
 }) => {
   const [selectedProfileId, setSelectedProfileId] = React.useState("");
 
-  const stage = order.stage;
+  // Normalized: legacy stage names map onto the canonical machine.
+  const stage = normalizeStage(order.stage);
 
   // Payment not confirmed yet
-  if (stage === "payment_pending") {
+  if (stage === "pending_payment") {
     return (
       <div className={styles.nextStepCard}>
-        <div
-          className={styles.nextStepIcon}
-          style={{
-            background: "rgba(168, 162, 158,0.12)",
-            color: "var(--color-text-tertiary)",
-          }}
-        >
+        <div className={`${styles.nextStepIcon} ${styles.stepIconMuted}`}>
           <UilClock size={18} />
         </div>
         <div className={styles.nextStepTitle}>Awaiting Payment</div>
@@ -167,10 +196,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
     const hasSavedProfiles = !profilesLoading && customerFitProfiles.length > 0;
     return (
       <div className={styles.nextStepCard}>
-        <div
-          className={styles.nextStepIcon}
-          style={{ background: "rgba(212, 165, 116,0.12)", color: "#9E7340" }}
-        >
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGold}`}>
           <UilRuler size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 1 — Measurements</div>
@@ -181,10 +207,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
           </div>
         ) : hasSavedProfiles ? (
           <>
-            <div
-              className={styles.nextStepDesc}
-              style={{ color: "var(--color-primary)", fontWeight: 500 }}
-            >
+            <div className={`${styles.nextStepDesc} ${styles.nextStepGood}`}>
               ✓ This customer has saved measurements
             </div>
             <div className={styles.nextStepLabel}>Select fit profile</div>
@@ -218,7 +241,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
 
         {/* Dark-store: measurement is captured by the field agent on the home visit
             (booked at checkout) and recorded via the ops app — no admin booking here. */}
-        <div className={styles.nextStepEmpty} style={{ marginTop: 6 }}>
+        <div className={`${styles.nextStepEmpty} ${styles.nextStepEmptyGap}`}>
           {order.linked_home_visit_id
             ? "An agent home visit is booked — the agent captures measurements on the visit (via the ops app)."
             : "If there are no saved measurements, an agent home visit captures them after checkout."}
@@ -231,13 +254,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
   if (stage === "awaiting_measurement") {
     return (
       <div className={styles.nextStepCard}>
-        <div
-          className={styles.nextStepIcon}
-          style={{
-            background: "rgba(59,130,246,0.1)",
-            color: "var(--color-info)",
-          }}
-        >
+        <div className={`${styles.nextStepIcon} ${styles.stepIconBlue}`}>
           <UilClock size={18} />
         </div>
         <div className={styles.nextStepTitle}>
@@ -256,20 +273,14 @@ const NextStepCard: React.FC<NextStepProps> = ({
   if (stage === "measurement_complete") {
     return (
       <div className={styles.nextStepCard}>
-        <div
-          className={styles.nextStepIcon}
-          style={{
-            background: "rgba(31, 107, 79,0.08)",
-            color: "var(--color-primary)",
-          }}
-        >
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGreen}`}>
           <UilProcess size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 2 — Assign Craftsperson</div>
         <div className={styles.nextStepDesc}>
           Measurements are ready. Assign a tailor or cutter to begin stitching.
         </div>
-        <div style={{ marginBottom: 10 }}>
+        <div className={styles.nextStepField}>
           <StaffAssignmentDropdown
             value={order.craftsperson_id ?? null}
             onChange={onAssignCraft}
@@ -295,14 +306,35 @@ const NextStepCard: React.FC<NextStepProps> = ({
     );
   }
 
-  // In tailoring / fabric sourced
-  if (stage === "in_tailoring" || stage === "fabric_sourced") {
+  // Cutting (dark-store: the engine→physical bridge; ops floor owns it — this
+  // card is the super break-glass view)
+  if (stage === "cutting") {
     return (
       <div className={styles.nextStepCard}>
-        <div
-          className={styles.nextStepIcon}
-          style={{ background: "rgba(212, 165, 116,0.12)", color: "#9E7340" }}
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGold}`}>
+          <UilProcess size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Cutting</div>
+        <div className={styles.nextStepDesc}>
+          Fabric is being cut on the hub floor. The ops app advances this order;
+          advance manually only if the floor can't.
+        </div>
+        <button
+          className={styles.nextStepPrimary}
+          disabled={advancingStage}
+          onClick={() => onAdvance("in_tailoring", "Cut complete — sent to tailoring")}
         >
+          {advancingStage ? "Advancing…" : "Cut Complete → Tailoring"}
+        </button>
+      </div>
+    );
+  }
+
+  // In tailoring / fabric sourced
+  if (stage === "in_tailoring" || stage === "fabric_sourced" || stage === "fabric_sourcing") {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGold}`}>
           <UilProcess size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 3 — In Production</div>
@@ -328,20 +360,14 @@ const NextStepCard: React.FC<NextStepProps> = ({
   if (stage === "quality_check") {
     return (
       <div className={styles.nextStepCard}>
-        <div
-          className={styles.nextStepIcon}
-          style={{
-            background: "rgba(59,130,246,0.1)",
-            color: "var(--color-info)",
-          }}
-        >
+        <div className={`${styles.nextStepIcon} ${styles.stepIconBlue}`}>
           <UilShieldCheck size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 4 — Quality Check</div>
         <div className={styles.nextStepDesc}>
           Assign QC staff and review the garment.
         </div>
-        <div style={{ marginBottom: 10 }}>
+        <div className={styles.nextStepField}>
           <StaffAssignmentDropdown
             value={order.qc_staff_id ?? null}
             onChange={onAssignQC}
@@ -352,18 +378,16 @@ const NextStepCard: React.FC<NextStepProps> = ({
             placeholder="Assign QC staff…"
           />
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className={styles.qcBtnRow}>
           <button
-            className={styles.nextStepPrimary}
-            style={{ flex: 1 }}
+            className={`${styles.nextStepPrimary} ${styles.qcBtn}`}
             disabled={advancingStage}
-            onClick={() => onAdvance("ready_to_dispatch", "QC passed")}
+            onClick={() => onAdvance("ready_for_dispatch", "QC passed")}
           >
             {advancingStage ? "…" : "✓ QC Pass"}
           </button>
           <button
-            className={styles.nextStepDanger}
-            style={{ flex: 1 }}
+            className={`${styles.nextStepDanger} ${styles.qcBtn}`}
             disabled={advancingStage}
             onClick={() =>
               onAdvance("in_tailoring", "QC failed — returned to tailoring")
@@ -376,17 +400,11 @@ const NextStepCard: React.FC<NextStepProps> = ({
     );
   }
 
-  // Ready to dispatch
-  if (stage === "ready_to_dispatch") {
+  // Ready for dispatch
+  if (stage === "ready_for_dispatch") {
     return (
       <div className={styles.nextStepCard}>
-        <div
-          className={styles.nextStepIcon}
-          style={{
-            background: "rgba(31, 107, 79,0.08)",
-            color: "var(--color-primary)",
-          }}
-        >
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGreen}`}>
           <UilBox size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 5 — Dispatch</div>
@@ -397,7 +415,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
           className={styles.nextStepPrimary}
           disabled={advancingStage}
           onClick={() =>
-            onAdvance("dispatched", "Order dispatched to customer")
+            onAdvance("shipped", "Order dispatched to customer")
           }
         >
           {advancingStage ? "Advancing…" : "Mark Dispatched →"}
@@ -406,17 +424,11 @@ const NextStepCard: React.FC<NextStepProps> = ({
     );
   }
 
-  // Dispatched
-  if (stage === "dispatched") {
+  // Shipped
+  if (stage === "shipped") {
     return (
       <div className={styles.nextStepCard}>
-        <div
-          className={styles.nextStepIcon}
-          style={{
-            background: "rgba(59,130,246,0.1)",
-            color: "var(--color-info)",
-          }}
-        >
+        <div className={`${styles.nextStepIcon} ${styles.stepIconBlue}`}>
           <UilTruck size={18} />
         </div>
         <div className={styles.nextStepTitle}>Out for Delivery</div>
@@ -434,17 +446,57 @@ const NextStepCard: React.FC<NextStepProps> = ({
     );
   }
 
+  // Rework (off-path: QC failed, garment back with the tailor)
+  if (stage === "rework") {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGold}`}>
+          <UilProcess size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>In Rework</div>
+        <div className={styles.nextStepDesc}>
+          QC failed — the garment is back with the tailor. It returns to
+          Quality Check when fixed.
+        </div>
+        <button
+          className={styles.nextStepPrimary}
+          disabled={advancingStage}
+          onClick={() => onAdvance("quality_check", "Rework complete — back to QC")}
+        >
+          {advancingStage ? "Advancing…" : "Rework Done → QC"}
+        </button>
+      </div>
+    );
+  }
+
+  // Delivery failed (off-path)
+  if (stage === "delivery_failed") {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={`${styles.nextStepIcon} ${styles.stepIconBlue}`}>
+          <UilTruck size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Delivery Failed</div>
+        <div className={styles.nextStepDesc}>
+          The last delivery attempt failed. Re-ship when the customer confirms
+          availability.
+        </div>
+        <button
+          className={styles.nextStepPrimary}
+          disabled={advancingStage}
+          onClick={() => onAdvance("shipped", "Re-shipped after failed delivery")}
+        >
+          {advancingStage ? "Advancing…" : "Re-ship →"}
+        </button>
+      </div>
+    );
+  }
+
   // Delivered
   if (stage === "delivered") {
     return (
       <div className={styles.nextStepCard}>
-        <div
-          className={styles.nextStepIcon}
-          style={{
-            background: "rgba(31, 107, 79,0.08)",
-            color: "var(--color-primary)",
-          }}
-        >
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGreen}`}>
           <UilCheckCircle size={18} />
         </div>
         <div className={styles.nextStepTitle}>Order Complete</div>
@@ -483,6 +535,17 @@ export const OrderDetailPage: React.FC = () => {
 
   // Override modal
   const [showOverrideModal, setShowOverrideModal] = React.useState(false);
+  // G-37 re-measure (with this order as context)
+  const [showRemeasure, setShowRemeasure] = React.useState(false);
+  const [remeasureReason, setRemeasureReason] = React.useState("");
+  const [showAlteration, setShowAlteration] = React.useState(false);
+  const [alterationDesc, setAlterationDesc] = React.useState("");
+  const [requestingAlteration, setRequestingAlteration] = React.useState(false);
+  const [showReturn, setShowReturn] = React.useState(false);
+  const [returnReason, setReturnReason] = React.useState("defective");
+  const [returnDesc, setReturnDesc] = React.useState("");
+  const [requestingReturn, setRequestingReturn] = React.useState(false);
+  const [requestingRemeasure, setRequestingRemeasure] = React.useState(false);
   const [overrideReason, setOverrideReason] = React.useState("");
   const [overrideStage, setOverrideStage] = React.useState("");
   const [overrideChecks, setOverrideChecks] = React.useState([false, false]);
@@ -693,6 +756,112 @@ export const OrderDetailPage: React.FC = () => {
     }
   };
 
+  const submitRemeasure = async () => {
+    if (!order || !remeasureReason.trim()) {
+      showToast("error", "Add a reason for the re-measure");
+      return;
+    }
+    if (!order.user_id) {
+      showToast("error", "This order has no linked customer");
+      return;
+    }
+    setRequestingRemeasure(true);
+    try {
+      await usersApi.requestRemeasure(order.user_id, {
+        reason: remeasureReason.trim(),
+        order_id: order.uuid ?? order.id,
+        ...(order.fit_profile_id ? { fit_profile_id: order.fit_profile_id } : {}),
+      });
+      showToast("success", "Re-measure requested", "Ops will schedule a free agent visit.");
+      setShowRemeasure(false);
+      setRemeasureReason("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("already has an open") ? "Already requested" : "Failed",
+        msg,
+      );
+    } finally {
+      setRequestingRemeasure(false);
+    }
+  };
+
+  const submitAlteration = async () => {
+    if (!order?.user_id) {
+      showToast("error", "This order has no linked customer");
+      return;
+    }
+    if (!alterationDesc.trim()) {
+      showToast("error", "Describe the alteration needed");
+      return;
+    }
+    setRequestingAlteration(true);
+    try {
+      await alterationsApi.create({
+        user_id: order.user_id,
+        order_id: order.uuid ?? order.id,
+        description: alterationDesc.trim(),
+      });
+      showToast("success", "Alteration requested", "First alteration on the order is free.");
+      setShowAlteration(false);
+      setAlterationDesc("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("already exists")
+          ? "An alteration is already open on this order"
+          : msg?.includes("delivered")
+            ? "Only delivered orders can be altered"
+            : "Failed",
+        msg,
+      );
+    } finally {
+      setRequestingAlteration(false);
+    }
+  };
+
+  const RETURN_REASONS = [
+    { v: "defective", l: "Defective / quality issue → refund" },
+    { v: "wrong_item", l: "Wrong item received → refund" },
+    { v: "wrong_measurements", l: "Fit / measurements wrong → alteration" },
+    { v: "changed_mind", l: "Changed mind → declined" },
+    { v: "other", l: "Other → manual review" },
+  ];
+
+  const submitReturn = async () => {
+    if (!order?.user_id) {
+      showToast("error", "This order has no linked customer");
+      return;
+    }
+    setRequestingReturn(true);
+    try {
+      await returnsApi.create({
+        user_id: order.user_id,
+        order_id: order.uuid ?? order.id,
+        reason: returnReason,
+        description: returnDesc.trim() || undefined,
+      });
+      showToast("success", "Return started", "Ops will inspect; finance approves any refund.");
+      setShowReturn(false);
+      setReturnDesc("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("already exists")
+          ? "A return is already open on this order"
+          : msg?.includes("delivered")
+            ? "Only delivered orders can be returned"
+            : "Failed",
+        msg,
+      );
+    } finally {
+      setRequestingReturn(false);
+    }
+  };
+
   const handleGenerateInvoice = async () => {
     if (!order) return;
     setInvoiceGenerating(true);
@@ -822,72 +991,53 @@ export const OrderDetailPage: React.FC = () => {
       </div>
     );
 
-  const currentIdx = STAGE_IDX[order.stage] ?? -1;
+  const normStage = normalizeStage(order.stage);
+  const offPath = !(normStage in STAGE_IDX);
+  const currentIdx = STAGE_IDX[normStage] ?? STAGE_IDX[OFFPATH_NEAR[normStage]] ?? -1;
 
-  return (
-    <div className={styles.page}>
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button
-        className={styles.backBtn}
-        onClick={() => navigate("/admin/orders")}
-      >
-        <UilAngleLeft size={15} /> Back to Orders
-      </button>
-
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className={styles.card}>
-        <div className={styles.orderHeader}>
-          <div>
-            <div className={styles.orderId}>
-              {order.id}
-              {order.reference_id && (
-                <span className={styles.refBadge}>{order.reference_id}</span>
-              )}
-            </div>
-            <div className={styles.orderMeta}>
-              Created {order.created}
-              {order.customer_ref && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    fontFamily: "monospace",
-                    fontSize: 11,
-                    background: "var(--color-bg-secondary)",
-                    padding: "1px 5px",
-                    borderRadius: 3,
-                  }}
-                >
-                  {order.customer_ref}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className={styles.badges}>
+  // ── Canon header (W-11): order identity + status/mode chips; the customer/hub
+  //    strip and the stage stepper stay full-width in the header slot (which
+  //    spans both DetailShell columns). The SSE-fed timeline stays bespoke. ──
+  const header = (
+    <>
+      <PageHeader
+        above={
+          <button
+            className={styles.backBtn}
+            onClick={() => navigate("/admin/orders")}
+          >
+            <UilAngleLeft size={15} /> Back to Orders
+          </button>
+        }
+        eyebrow="Order"
+        title={
+          <>
+            {order.id}
+            {order.reference_id && (
+              <span className={styles.refBadge}>{order.reference_id}</span>
+            )}
+          </>
+        }
+        subtitle={`Created ${order.created}`}
+        meta={
+          <>
             <span className={`${styles.pill} ${styles.pillGreen}`}>
               {order.mode}
             </span>
-            <span
-              className={`${styles.statusPill} ${styles[`status-${order.status}`]}`}
-            >
-              {order.status}
-            </span>
+            <StatusBadge status={order.status} />
             {order.on_hold_reason && (
-              <span
-                style={{
-                  fontSize: 12,
-                  padding: "3px 9px",
-                  borderRadius: 20,
-                  background: "rgba(212, 165, 116,0.15)",
-                  color: "#9E7340",
-                  fontWeight: 600,
-                }}
-              >
-                ⏸ On Hold
-              </span>
+              <span className={styles.holdPill}>⏸ On Hold</span>
             )}
-          </div>
-        </div>
-        <div className={styles.customerRow}>
+            {order.customer_ref && (
+              <span className={styles.refChip}>{order.customer_ref}</span>
+            )}
+          </>
+        }
+      />
+
+      <div className={styles.headerExtras}>
+        <div className={styles.card}>
+          <div className={styles.customerRow}>
           <span className={styles.customerLabel}>Customer</span>
           <span className={styles.customerName}>{order.customer}</span>
           <span className={styles.customerPhone}>{order.phone}</span>
@@ -899,16 +1049,25 @@ export const OrderDetailPage: React.FC = () => {
               View Profile →
             </button>
           )}
-          <span className={styles.customerLabel} style={{ marginLeft: 8 }}>
+          <span className={`${styles.customerLabel} ${styles.customerLabelGap}`}>
             Hub
           </span>
           <span className={styles.customerName}>{order.hub}</span>
         </div>
       </div>
 
-      {/* ── Stage stepper ────────────────────────────────────────────────────── */}
+      {/* ── Stage stepper ──────────────────────────────────────────────────── */}
       <div className={styles.card}>
-        <h3 className={styles.sectionTitle}>Order Journey</h3>
+        <div className={styles.journeyHeader}>
+          <h3 className={styles.sectionTitle}>Order Journey</h3>
+          <StatusBadge status={order.stage} />
+        </div>
+        {offPath && (
+          <div className={styles.offPathBanner}>
+            This order is off the happy path: <strong>{statusLabel(order.stage)}</strong>
+            {OFFPATH_NEAR[normStage] ? ` — returns at ${statusLabel(OFFPATH_NEAR[normStage])}.` : '.'}
+          </div>
+        )}
         <div className={styles.stepper}>
           {STAGES.map((s, i) => {
             const done = i < currentIdx;
@@ -927,9 +1086,207 @@ export const OrderDetailPage: React.FC = () => {
           })}
         </div>
       </div>
+      </div>
+    </>
+  );
 
-      <div className={styles.twoCol}>
-        <div className={styles.main}>
+  // ── Canon right rail (W-11 DetailShell aside): ops break-glass · delivery ·
+  //    admin actions · cancellation — relocated verbatim from the old sidebar. ──
+  const aside = (
+    <>
+      {/* NEXT STEP — the ops-FLOOR action card (advance stage, assign tailor/QC).
+          G-23: these belong to the Ops app (Phase B); until then they're gated to
+          super_admin (system:manage) as break-glass. Support is CX-only and no
+          longer sees this. */}
+      <Can cap="system:manage">
+        <NextStepCard
+          order={order}
+          customerFitProfiles={customerFitProfiles}
+          profilesLoading={profilesLoading}
+          advancingStage={advancingStage}
+          assigningCraft={assigningCraft}
+          assigningQC={assigningQC}
+          onAdvance={handleAdvance}
+          onAssignCraft={handleAssignCraft}
+          onAssignQC={handleAssignQC}
+          onUseFitProfile={handleUseFitProfile}
+        />
+      </Can>
+
+      {/* Delivery date + hold reason — support CX (orders:write) */}
+      <Can cap="orders:write">
+        <div className={styles.card}>
+          <h3 className={styles.sectionTitle}>Delivery</h3>
+          <div className={styles.deliveryBlock}>
+            <div className={styles.metaLabel}>Est. Delivery Date</div>
+            {editingDelivery ? (
+              <div className={styles.inlineEdit}>
+                <input
+                  type="date"
+                  className={styles.inlineInput}
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                />
+                <button
+                  className={styles.inlineSave}
+                  disabled={savingDelivery}
+                  onClick={handleSaveDelivery}
+                >
+                  {savingDelivery ? "…" : "Save"}
+                </button>
+                <button
+                  className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
+                  onClick={() => {
+                    setEditingDelivery(false);
+                    setDeliveryDate(order.estimated_delivery_date ?? "");
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className={styles.inlineEdit}>
+                <span className={styles.metaValue}>
+                  {order.estimated_delivery_date ?? "—"}
+                </span>
+                <button
+                  className={styles.linkBtn}
+                  onClick={() => setEditingDelivery(true)}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+          <div>
+            <div className={styles.metaLabel}>On Hold Reason</div>
+            {editingHold ? (
+              <div className={styles.holdEditCol}>
+                <textarea
+                  className={styles.fieldTextarea}
+                  rows={2}
+                  placeholder="Leave empty to clear hold…"
+                  value={holdReason}
+                  onChange={(e) => setHoldReason(e.target.value)}
+                />
+                <div className={styles.holdEditRow}>
+                  <button
+                    className={styles.inlineSave}
+                    disabled={savingHold}
+                    onClick={handleSaveHold}
+                  >
+                    {savingHold ? "…" : "Save"}
+                  </button>
+                  <button
+                    className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
+                    onClick={() => {
+                      setEditingHold(false);
+                      setHoldReason(order.on_hold_reason ?? "");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.inlineEdit}>
+                <span
+                  className={`${styles.metaValue} ${order.on_hold_reason ? styles.holdValue : styles.holdValueNone}`}
+                >
+                  {order.on_hold_reason ?? "Not on hold"}
+                </span>
+                <button
+                  className={styles.linkBtn}
+                  onClick={() => setEditingHold(true)}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </Can>
+
+      {/* Admin actions — Override is super-only break-glass (G-23); invoice +
+          cancel stay available to support (orders:write) / finance. */}
+      <div className={styles.card}>
+        <h3 className={styles.sectionTitle}>Admin Actions</h3>
+        <div className={styles.actionList}>
+          <Can cap="system:manage">
+            <button
+              className={styles.overrideBtn}
+              onClick={() => setShowOverrideModal(true)}
+            >
+              Override Stage
+            </button>
+          </Can>
+          <button
+            className={styles.actionBtnSecondary}
+            disabled={invoiceGenerating}
+            onClick={handleGenerateInvoice}
+          >
+            {invoiceGenerating ? "Queuing…" : "Generate Invoice"}
+          </button>
+          <button
+            className={styles.actionBtnSecondary}
+            disabled={invoiceLoading}
+            onClick={handleDownloadInvoice}
+          >
+            {invoiceLoading ? "Loading…" : "Download Invoice"}
+          </button>
+          {/* G-37: support's re-measure lever, with this order as context */}
+          <Can cap="orders:write">
+            <button
+              className={styles.actionBtnSecondary}
+              onClick={() => setShowRemeasure(true)}
+            >
+              Request re-measure
+            </button>
+          </Can>
+          {/* Alteration & return — only on a delivered order (backend enforces it too) */}
+          {order.stage === "delivered" && (
+            <Can cap="orders:write">
+              <button
+                className={styles.actionBtnSecondary}
+                onClick={() => setShowAlteration(true)}
+              >
+                Request alteration
+              </button>
+            </Can>
+          )}
+          {order.stage === "delivered" && (
+            <Can cap="orders:write">
+              <button
+                className={styles.actionBtnSecondary}
+                onClick={() => setShowReturn(true)}
+              >
+                Start a return
+              </button>
+            </Can>
+          )}
+          {/* Cancel Order removed: the button was dead (no handler). The real
+              cancel flow (allowed-stage check + fabric release + refund
+              linkage) ships later. */}
+        </div>
+      </div>
+
+      {order.cancellation_reason && (
+        <div className={styles.card}>
+          <h3 className={`${styles.sectionTitle} ${styles.sectionTitleError}`}>
+            Cancellation
+          </h3>
+          <div className={styles.cancelReasonText}>
+            {order.cancellation_reason}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <DetailShell header={header} aside={aside}>
           {/* ── Items ──────────────────────────────────────────────────────── */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Items</h3>
@@ -967,20 +1324,10 @@ export const OrderDetailPage: React.FC = () => {
                     ))}
               </tbody>
             </table>
-            <div
-              style={{
-                paddingTop: 12,
-                borderTop: "1px solid var(--color-border-light)",
-                marginTop: 4,
-                display: "flex",
-                justifyContent: "flex-end",
-              }}
-            >
+            <div className={styles.itemsTotalRow}>
               <div>
-                <span className={styles.metaLabel} style={{ marginRight: 8 }}>
-                  Total
-                </span>
-                <span style={{ fontSize: 16, fontWeight: 700 }}>
+                <span className={`${styles.metaLabel} ${styles.totalLabel}`}>Total</span>
+                <span className={styles.totalValue}>
                   ₹{order.total.toLocaleString("en-IN")}
                 </span>
               </div>
@@ -992,32 +1339,17 @@ export const OrderDetailPage: React.FC = () => {
             <h3 className={styles.sectionTitle}>Production Assignments</h3>
 
             {/* Measurement (dark-store: fit on file or agent home visit — recorded via the ops app) */}
-            <div
-              style={{
-                marginBottom: 16,
-                paddingBottom: 16,
-                borderBottom: "1px solid var(--color-border-light)",
-              }}
-            >
+            <div className={styles.measureBlock}>
               <div className={styles.assignLabel}>
-                <UilRuler
-                  size={11}
-                  style={{ display: "inline", marginRight: 4 }}
-                />
+                <UilRuler size={11} className={styles.assignLabelIcon} />
                 Measurement
               </div>
               {order.fit_profile_id ? (
-                <span
-                  style={{
-                    fontSize: 13,
-                    color: "var(--color-primary)",
-                    fontWeight: 500,
-                  }}
-                >
+                <span className={styles.measureOnFile}>
                   ✓ Measurements on file — used for production
                 </span>
               ) : order.linked_home_visit_id ? (
-                <span style={{ fontSize: 13, color: "var(--color-info)" }}>
+                <span className={styles.measureVisit}>
                   Agent home visit
                   {order.linked_home_visit_ref
                     ? ` · ${order.linked_home_visit_ref}`
@@ -1025,12 +1357,9 @@ export const OrderDetailPage: React.FC = () => {
                   — captured via the ops app
                 </span>
               ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <UilExclamationCircle
-                    size={13}
-                    style={{ color: "#9E7340" }}
-                  />
-                  <span style={{ fontSize: 13, color: "#9E7340" }}>
+                <div className={styles.measureMissing}>
+                  <UilExclamationCircle size={13} />
+                  <span>
                     No measurements yet — an agent home visit will capture them
                   </span>
                 </div>
@@ -1041,14 +1370,11 @@ export const OrderDetailPage: React.FC = () => {
             <div className={styles.assignRow}>
               <div>
                 <div className={styles.assignLabel}>
-                  <UilProcess
-                    size={11}
-                    style={{ display: "inline", marginRight: 4 }}
-                  />
+                  <UilProcess size={11} className={styles.assignLabelIcon} />
                   Craftsperson
                 </div>
-                {order.stage === "measurement_complete" ||
-                STAGE_IDX[order.stage] > STAGE_IDX["measurement_complete"] ? (
+                {normStage === "measurement_complete" ||
+                currentIdx > STAGE_IDX["measurement_complete"] ? (
                   <>
                     <StaffAssignmentDropdown
                       value={order.craftsperson_id ?? null}
@@ -1059,38 +1385,19 @@ export const OrderDetailPage: React.FC = () => {
                       disabled={assigningCraft}
                     />
                     {order.craftsperson_name && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "var(--color-text-tertiary)",
-                          marginTop: 4,
-                        }}
-                      >
-                        {order.craftsperson_role}
-                      </div>
+                      <div className={styles.assignRole}>{order.craftsperson_role}</div>
                     )}
                   </>
                 ) : (
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--color-text-tertiary)",
-                      fontStyle: "italic",
-                    }}
-                  >
-                    Available after measurements
-                  </div>
+                  <div className={styles.assignHint}>Available after measurements</div>
                 )}
               </div>
               <div>
                 <div className={styles.assignLabel}>
-                  <UilShieldCheck
-                    size={11}
-                    style={{ display: "inline", marginRight: 4 }}
-                  />
+                  <UilShieldCheck size={11} className={styles.assignLabelIcon} />
                   QC Staff
                 </div>
-                {STAGE_IDX[order.stage] >= STAGE_IDX["quality_check"] ? (
+                {currentIdx >= STAGE_IDX["quality_check"] ? (
                   <>
                     <StaffAssignmentDropdown
                       value={order.qc_staff_id ?? null}
@@ -1102,15 +1409,7 @@ export const OrderDetailPage: React.FC = () => {
                     />
                   </>
                 ) : (
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--color-text-tertiary)",
-                      fontStyle: "italic",
-                    }}
-                  >
-                    Available at QC stage
-                  </div>
+                  <div className={styles.assignHint}>Available at QC stage</div>
                 )}
               </div>
             </div>
@@ -1151,11 +1450,7 @@ export const OrderDetailPage: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <div
-                  style={{ color: "var(--color-text-tertiary)", fontSize: 13 }}
-                >
-                  No activity yet.
-                </div>
+                <div className={styles.assignHint}>No activity yet.</div>
               )}
             </div>
             <div className={styles.noteForm}>
@@ -1232,183 +1527,7 @@ export const OrderDetailPage: React.FC = () => {
               ))
             )}
           </div>
-        </div>
-
-        {/* ── Sidebar ────────────────────────────────────────────────────────── */}
-        <div className={styles.sidebar}>
-          {/* NEXT STEP — the ops-FLOOR action card (advance stage, assign tailor/QC).
-              G-23: these belong to the Ops app (Phase B); until then they're gated to
-              super_admin (system:manage) as break-glass. Support is CX-only and no
-              longer sees this. */}
-          <Can cap="system:manage">
-            <NextStepCard
-              order={order}
-              customerFitProfiles={customerFitProfiles}
-              profilesLoading={profilesLoading}
-              advancingStage={advancingStage}
-              assigningCraft={assigningCraft}
-              assigningQC={assigningQC}
-              onAdvance={handleAdvance}
-              onAssignCraft={handleAssignCraft}
-              onAssignQC={handleAssignQC}
-              onUseFitProfile={handleUseFitProfile}
-            />
-          </Can>
-
-          {/* Delivery date + hold reason — support CX (orders:write) */}
-          <Can cap="orders:write">
-            <div className={styles.card}>
-              <h3 className={styles.sectionTitle}>Delivery</h3>
-              <div style={{ marginBottom: 10 }}>
-                <div className={styles.metaLabel}>Est. Delivery Date</div>
-                {editingDelivery ? (
-                  <div className={styles.inlineEdit}>
-                    <input
-                      type="date"
-                      className={styles.inlineInput}
-                      value={deliveryDate}
-                      onChange={(e) => setDeliveryDate(e.target.value)}
-                    />
-                    <button
-                      className={styles.inlineSave}
-                      disabled={savingDelivery}
-                      onClick={handleSaveDelivery}
-                    >
-                      {savingDelivery ? "…" : "Save"}
-                    </button>
-                    <button
-                      className={styles.actionBtnSecondary}
-                      style={{ height: 34, padding: "0 10px", fontSize: 12 }}
-                      onClick={() => {
-                        setEditingDelivery(false);
-                        setDeliveryDate(order.estimated_delivery_date ?? "");
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className={styles.inlineEdit}>
-                    <span className={styles.metaValue}>
-                      {order.estimated_delivery_date ?? "—"}
-                    </span>
-                    <button
-                      className={styles.linkBtn}
-                      onClick={() => setEditingDelivery(true)}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div>
-                <div className={styles.metaLabel}>On Hold Reason</div>
-                {editingHold ? (
-                  <div
-                    style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                  >
-                    <textarea
-                      className={styles.fieldTextarea}
-                      rows={2}
-                      placeholder="Leave empty to clear hold…"
-                      value={holdReason}
-                      onChange={(e) => setHoldReason(e.target.value)}
-                    />
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button
-                        className={styles.inlineSave}
-                        disabled={savingHold}
-                        onClick={handleSaveHold}
-                      >
-                        {savingHold ? "…" : "Save"}
-                      </button>
-                      <button
-                        className={styles.actionBtnSecondary}
-                        style={{ height: 34, padding: "0 10px", fontSize: 12 }}
-                        onClick={() => {
-                          setEditingHold(false);
-                          setHoldReason(order.on_hold_reason ?? "");
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.inlineEdit}>
-                    <span
-                      className={styles.metaValue}
-                      style={{
-                        color: order.on_hold_reason
-                          ? "#9E7340"
-                          : "var(--color-text-tertiary)",
-                        fontSize: 13,
-                      }}
-                    >
-                      {order.on_hold_reason ?? "Not on hold"}
-                    </span>
-                    <button
-                      className={styles.linkBtn}
-                      onClick={() => setEditingHold(true)}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </Can>
-
-          {/* Admin actions — Override is super-only break-glass (G-23); invoice +
-              cancel stay available to support (orders:write) / finance. */}
-          <div className={styles.card}>
-            <h3 className={styles.sectionTitle}>Admin Actions</h3>
-            <div className={styles.actionList}>
-              <Can cap="system:manage">
-                <button
-                  className={styles.overrideBtn}
-                  onClick={() => setShowOverrideModal(true)}
-                >
-                  Override Stage
-                </button>
-              </Can>
-              <button
-                className={styles.actionBtnSecondary}
-                disabled={invoiceGenerating}
-                onClick={handleGenerateInvoice}
-              >
-                {invoiceGenerating ? "Queuing…" : "Generate Invoice"}
-              </button>
-              <button
-                className={styles.actionBtnSecondary}
-                disabled={invoiceLoading}
-                onClick={handleDownloadInvoice}
-              >
-                {invoiceLoading ? "Loading…" : "Download Invoice"}
-              </button>
-              <Can cap="orders:write">
-                <button className={styles.cancelBtn}>Cancel Order</button>
-              </Can>
-            </div>
-          </div>
-
-          {order.cancellation_reason && (
-            <div className={styles.card}>
-              <h3
-                className={styles.sectionTitle}
-                style={{ color: "var(--color-error)" }}
-              >
-                Cancellation
-              </h3>
-              <div
-                style={{ fontSize: 13, color: "var(--color-text-secondary)" }}
-              >
-                {order.cancellation_reason}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      </DetailShell>
 
       {/* ── Override modal ────────────────────────────────────────────────────── */}
       {showOverrideModal && (
@@ -1424,7 +1543,7 @@ export const OrderDetailPage: React.FC = () => {
             </div>
             <div className={styles.currentStatus}>
               <span>
-                Current Stage: <strong>{order.stage.replace(/_/g, " ")}</strong>
+                Current Stage: <strong>{statusLabel(order.stage)}</strong>
               </span>
               <span>
                 Lifecycle: <strong>{order.status}</strong>
@@ -1438,9 +1557,9 @@ export const OrderDetailPage: React.FC = () => {
                 onChange={(e) => setOverrideStage(e.target.value)}
               >
                 <option value="">Select stage…</option>
-                {STAGES.map((s) => (
-                  <option key={s.key} value={s.key}>
-                    {s.label.replace("\n", " ")}
+                {OVERRIDE_STAGES.map((key) => (
+                  <option key={key} value={key}>
+                    {statusLabel(key)}
                   </option>
                 ))}
               </select>
@@ -1492,6 +1611,126 @@ export const OrderDetailPage: React.FC = () => {
                 onClick={handleOverride}
               >
                 Apply Override
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Re-measure request modal (G-37) */}
+      {showRemeasure && (
+        <div className={styles.modalOverlay} onClick={() => setShowRemeasure(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Request re-measure</h3>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>
+                Reason (free agent visit; ops schedules it)
+              </label>
+              <textarea
+                className={styles.fieldTextarea}
+                placeholder="e.g., Customer reports the fit was tight at the waist on this order"
+                value={remeasureReason}
+                onChange={(e) => setRemeasureReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowRemeasure(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.applyBtn}
+                disabled={!remeasureReason.trim() || requestingRemeasure}
+                onClick={submitRemeasure}
+              >
+                {requestingRemeasure ? "Requesting…" : "Request re-measure"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Request alteration on this (delivered) order */}
+      {showAlteration && (
+        <div className={styles.modalOverlay} onClick={() => setShowAlteration(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Request alteration</h3>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>
+                What needs altering (first alteration on the order is free)
+              </label>
+              <textarea
+                className={styles.fieldTextarea}
+                placeholder="e.g., Take in 1cm at the chest; shorten sleeves by 2cm"
+                value={alterationDesc}
+                onChange={(e) => setAlterationDesc(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowAlteration(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.applyBtn}
+                disabled={!alterationDesc.trim() || requestingAlteration}
+                onClick={submitAlteration}
+              >
+                {requestingAlteration ? "Requesting…" : "Request alteration"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Start a return on this (delivered) order */}
+      {showReturn && (
+        <div className={styles.modalOverlay} onClick={() => setShowReturn(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Start a return</h3>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>Reason (routes the outcome)</label>
+              <select
+                className={styles.fieldSelect}
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+              >
+                {RETURN_REASONS.map((r) => (
+                  <option key={r.v} value={r.v}>
+                    {r.l}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>Details (optional)</label>
+              <textarea
+                className={styles.fieldTextarea}
+                placeholder="What did the customer report?"
+                value={returnDesc}
+                onChange={(e) => setReturnDesc(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowReturn(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.applyBtn}
+                disabled={requestingReturn}
+                onClick={submitReturn}
+              >
+                {requestingReturn ? "Starting…" : "Start return"}
               </button>
             </div>
           </div>

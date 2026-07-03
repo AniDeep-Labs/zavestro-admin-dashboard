@@ -1,6 +1,158 @@
+/* Design Library — photo-forward card grid (visual catalog). Shell from OrdersListPage.module.css */
+
+/* Compact filter row — fixed control widths so nothing stretches into a tall
+   stacked card; wraps gracefully on narrow viewports. Self-contained styles so
+   they don't fight the shared (full-width) filterBar/searchInput defaults. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+.search {
+  flex: 0 0 auto;
+  width: 280px;
+  max-width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  outline: none;
+}
+.search:focus { border-color: var(--color-primary); }
+/* Explicit width is required: global.css sets `select { width: 100% }`; a single
+   class beats that element selector, but only when it actually declares width. */
+.sel {
+  flex: 0 0 auto;
+  width: 170px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  outline: none;
+  cursor: pointer;
+}
+.sel:focus { border-color: var(--color-primary); }
+.toolbarDivider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 4px;
+  background: var(--color-border);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    transform var(--transition-fast, 0.15s ease),
+    box-shadow var(--transition-fast, 0.15s ease),
+    border-color var(--transition-fast, 0.15s ease);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md, 0 4px 16px rgba(0, 0, 0, 0.08));
+  border-color: var(--color-primary-light);
+}
+
+.thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: var(--color-bg-section);
+  overflow: hidden;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thumbEmpty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.cardPill {
+  position: absolute;
+  top: var(--spacing-sm);
+  left: var(--spacing-sm);
+}
+
+/* Per-card quick-action (FABLE §4C — request a sample for an unsampled design). */
+.quickAction {
+  position: absolute;
+  bottom: var(--spacing-sm);
+  right: var(--spacing-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0, 0, 0, 0.12));
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  font-family: inherit;
+  cursor: pointer;
+}
+.quickAction:hover { background: var(--color-bg-section); }
+
+.cardBody {
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cardTitle {
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardSub {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.lifecycleRow { margin-top: 6px; }
 
 /* matched-fabric swatch chips on design cards (P3) */
-.swatchChips { display: flex; align-items: center; gap: 4px; margin: 4px 0; }
+.swatchChips { display: flex; align-items: center; gap: 4px; margin: 6px 0 0; }
 .swatchChip {
   width: 22px; height: 22px;
   border-radius: 50%;
@@ -11,3 +163,39 @@
 }
 .swatchChip img { width: 100%; height: 100%; object-fit: cover; }
 .swatchMore { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 2px; }
+
+.cardMeta {
+  margin-top: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.reviewLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* skeletons */
+.cardSkeleton { pointer-events: none; }
+.thumbSkeleton {
+  aspect-ratio: 4 / 3;
+  background: var(--color-bg-section);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.lineSkeleton {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-section);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.lineShort { width: 60%; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

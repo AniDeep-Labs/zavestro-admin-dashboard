@@ -30,6 +30,14 @@
 .modeLuxe { background: rgba(212, 165, 116, 0.15); color: #9E7340; }
 .modeBoth { background: rgba(99, 102, 241, 0.1); color: #4B8DC8; }
 
+.clickRow { cursor: pointer; }
+
+/* Collection-type chip (tokenized; dark-mode safe via alpha tints) */
+.typeChip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: var(--color-bg-secondary); color: var(--color-text-secondary); white-space: nowrap; }
+.typeNewArrivals { background: rgba(31, 107, 79, 0.12); color: var(--color-primary, #1F6B4F); }
+.typeOccasion { background: rgba(122, 28, 92, 0.14); color: #b0468f; }
+.typeFeatured { background: rgba(201, 153, 94, 0.16); color: var(--color-gold, #C9995E); }
+
 .count { font-weight: 500; color: var(--color-text); }
 .sortOrder { color: var(--color-text-muted); font-size: 0.8rem; }
 .date { color: var(--color-text-muted); font-size: 0.8rem; white-space: nowrap; }
@@ -50,3 +58,5 @@
 .skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #FAFAFA) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 .retryBtn { margin-top: 10px; padding: 6px 18px; background: var(--color-primary, #1F6B4F); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+
+.editorModal { max-width: 1380px !important; width: 96vw; }

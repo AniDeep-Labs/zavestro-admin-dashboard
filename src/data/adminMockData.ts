@@ -3,12 +3,17 @@
 export type AdminRole = 'admin' | 'admin_ops' | 'admin_finance' | 'admin_catalog' | 'admin_support';
 export type OrderMode = 'Simplified';
 export type LifecycleStatus = 'pending' | 'active' | 'completed' | 'cancelled';
+// Canonical stages per backend shared/constants/order-transitions.ts, plus the
+// legacy aliases still present in old rows (payment_pending, ready_to_dispatch,
+// dispatched, return_requested, returned). StatusBadge maps both sets.
 export type OrderStage =
-  | 'payment_pending' | 'payment_confirmed'
+  | 'pending_payment' | 'payment_pending' | 'payment_confirmed'
   | 'awaiting_measurement' | 'measurement_complete'
-  | 'fabric_sourced' | 'in_tailoring' | 'quality_check'
-  | 'ready_to_dispatch' | 'dispatched' | 'delivered'
-  | 'return_requested' | 'returned';
+  | 'fabric_sourcing' | 'fabric_sourced' | 'cutting'
+  | 'in_tailoring' | 'quality_check' | 'rework'
+  | 'ready_for_dispatch' | 'ready_to_dispatch' | 'shipped' | 'dispatched'
+  | 'delivered' | 'delivery_failed'
+  | 'cancelled' | 'refunded' | 'return_requested' | 'returned';
 
 export interface OrderItem {
   id: string;
@@ -51,6 +56,9 @@ export interface AdminOrder {
   hub: string;
   hub_id?: string;
   created: string;
+  /** ISO timestamp of the last update — drives the age-in-stage column */
+  updated_at?: string | null;
+  payment_method?: string | null;
   total: number;
   status: LifecycleStatus;
   overdue?: boolean;
@@ -135,6 +143,8 @@ export interface SupportTicket {
   reference_id?: string;
   customer: string;
   customer_ref?: string;
+  user_id?: string | null;
+  order_id?: string | null;
   phone: string;
   subject: string;
   category: string;
@@ -181,6 +191,26 @@ export interface Collection {
   subtitle?: string;
   bg_color_1?: string;
   bg_color_2?: string;
+  is_featured?: boolean;
+  // Collection studio — design the card + landing hero.
+  card_layout?: string;
+  hero_layout?: string;
+  card_aspect?: number;
+  hero_aspect?: number;
+  card_focal_x?: number;
+  card_focal_y?: number;
+  hero_focal_x?: number;
+  hero_focal_y?: number;
+  image_fit?: 'cover' | 'contain';
+  image_zoom?: number;
+  text_position?: 'left' | 'center' | 'bottom';
+  text_color?: 'light' | 'dark';
+  overlay?: number;
+  gradient_angle?: number;
+  gradient_solid?: boolean;
+  logo_key?: string | null;
+  cta_text?: string;
+  compose_style?: Record<string, unknown>;
 }
 
 

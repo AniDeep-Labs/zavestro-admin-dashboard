@@ -14,7 +14,9 @@
 .fields { display: flex; flex-direction: column; gap: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .fieldRow { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 600px) { .fieldRow { grid-template-columns: 1fr; } }
 .label { font-size: 0.8rem; font-weight: 500; color: var(--color-text-muted); }
+.hint { font-size: 0.75rem; color: var(--color-text-muted); }
 .input { padding: 9px 12px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: var(--color-bg-card); color: var(--color-text); font-size: 0.875rem; width: 100%; box-sizing: border-box; }
 .input:focus { outline: none; border-color: var(--color-primary, #1F6B4F); }
 .inputError { border-color: var(--color-error) !important; }
@@ -32,9 +34,10 @@
 .uploadText { flex: 1; font-size: 0.8rem; color: var(--color-text-muted); }
 .uploadBtn { padding: 6px 14px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 6px; background: var(--color-bg-card); color: var(--color-text); font-size: 0.8rem; cursor: pointer; }
 
-.toggleRow { display: flex; align-items: center; }
+.toggleRow { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .toggleLabel { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; color: var(--color-text); cursor: pointer; }
 .toggleLabel input { width: 16px; height: 16px; }
+.toggleHint { font-size: 0.75rem; color: var(--color-text-muted); margin-left: 24px; }
 
 /* Sidebar — product association */
 .productSearch { position: relative; margin-bottom: 16px; }
@@ -58,3 +61,28 @@
 .cancelBtn { padding: 10px 20px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: transparent; color: var(--color-text-muted); font-size: 0.875rem; cursor: pointer; }
 .saveBtn { padding: 10px 24px; border: none; border-radius: 8px; background: var(--color-primary, #1F6B4F); color: #fff; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
 .saveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Inline-style burn-down: static styles moved here. Gradient on .previewBox
+   stays inline (data-driven from bgColor1/bgColor2). */
+.loadError { padding: 40px; text-align: center; color: var(--color-error); }
+.labelHint { font-weight: 400; color: var(--color-text-secondary); }
+.colorRow { display: flex; gap: 8px; align-items: center; }
+.colorSwatch { width: 40px; height: 36px; border: none; cursor: pointer; border-radius: 4px; }
+.flex1 { flex: 1; }
+.previewBox { border-radius: 10px; padding: 14px 18px; color: #fff; }
+.previewLabel { font-size: 13px; font-weight: 700; opacity: 0.75; }
+.previewName { font-size: 16px; font-weight: 700; margin-top: 4px; }
+.previewSub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+.hidden { display: none; }
+.uploadAreaRow { flex-direction: row; align-items: center; gap: 12px; padding: 10px 14px; }
+.coverThumb { width: 80px; height: 44px; object-fit: cover; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--color-border); }
+.coverKey { font-size: 12px; color: var(--color-text-secondary); flex: 1; word-break: break-all; }
+.coverRemove { font-size: 12px; color: var(--color-error); background: none; border: none; cursor: pointer; white-space: nowrap; }
+
+.studioIntro { font-size: 0.8rem; color: var(--color-text-muted); margin: 0 0 14px; }
+
+.pageModal { padding: 0; }
+.pageModal .saveBar { margin: 0; border-radius: 0; }
+/* Storefront-design card holds the full canvas studio — trim its side padding so the
+   editor gets near full-modal width (like the banner studio), not a cramped inset. */
+.pageModal .studioCard { padding-left: 12px; padding-right: 12px; }

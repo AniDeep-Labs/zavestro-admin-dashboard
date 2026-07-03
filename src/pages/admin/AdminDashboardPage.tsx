@@ -5,6 +5,7 @@ import { dashboardApi, hasCapability } from '../../api/adminApi';
 import type { DashboardData } from '../../api/adminApi';
 import { clearAdminToken } from '../../api/catalogApi';
 import { Sparkline, AreaTrendChart, BarMini, STAGE_COLORS, fmtINRShort } from '../../components/charts/Charts';
+import { ActionInbox } from '../../components/ActionInbox';
 import styles from './AdminDashboardPage.module.css';
 
 /* ── Inline SVG icons (Lucide-style) ── */
@@ -98,9 +99,9 @@ type Accent = 'Emerald' | 'Amber' | 'Red' | 'Gold';
 // `cap` gates each KPI to the roles that should see it (undefined = everyone).
 const kpis: { label: string; key: string; format: (v: number) => string; icon: IconKey; accent: Accent; navPath: string; cap?: string }[] = [
   { label: 'Total Orders',     key: 'totalOrders',     format: v => v.toLocaleString(),                   icon: 'Package',       accent: 'Emerald', navPath: '/admin/orders', cap: 'orders:read' },
-  { label: 'Active Orders',    key: 'activeOrders',    format: v => v.toLocaleString(),                   icon: 'Activity',      accent: 'Emerald', navPath: '/admin/orders', cap: 'orders:read' },
+  { label: 'Active Orders',    key: 'activeOrders',    format: v => v.toLocaleString(),                   icon: 'Activity',      accent: 'Emerald', navPath: '/admin/orders?view=stuck', cap: 'orders:read' },
   { label: 'GMV',              key: 'gmv',             format: v => '₹' + (v / 100000).toFixed(1) + 'L', icon: 'IndianRupee',   accent: 'Emerald', navPath: '/admin/analytics/revenue', cap: 'reports:read' },
-  { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders', cap: 'orders:read' },
+  { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders?stage=pending_payment', cap: 'orders:read' },
   { label: 'Open Tickets',     key: 'openTickets',     format: v => v.toLocaleString(),                   icon: 'Headphones',    accent: 'Red',     navPath: '/admin/support', cap: 'customers:write' },
   { label: 'New Customers',    key: 'newCustomers',    format: v => v.toLocaleString(),                   icon: 'UserPlus',      accent: 'Emerald', navPath: '/admin/users', cap: 'customers:read' },
 ];
@@ -204,7 +205,17 @@ export const AdminDashboardPage: React.FC = () => {
     );
   };
 
+  // Roles with no company KPIs/charts (design/procurement) are 403'd on the
+  // dashboard data endpoint by the read-policy (G-82) — skip the fetch so they
+  // get the ActionInbox + workspace pointer, not an error banner.
+  const hasDashData =
+    hasCapability('orders:read') || hasCapability('reports:read') || hasCapability('customers:write');
+
   React.useEffect(() => {
+    if (!hasDashData) {
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
     setApiError(null);
@@ -220,7 +231,7 @@ export const AdminDashboardPage: React.FC = () => {
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [period, refreshTick]);
+  }, [period, refreshTick, hasDashData]);
 
   return (
     <div className={styles.page}>
@@ -233,7 +244,12 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Overview — dark hero panel: title + period toggle + Filter + refresh (TailAdmin flow) */}
+      {/* What needs me today (role-aware) — leads the page above the vanity stats */}
+      <ActionInbox />
+
+      {/* Overview — dark hero panel: title + period toggle + refresh. Hidden when the
+          role has no company KPIs (design/procurement) so there's no empty band. */}
+      {visibleKpis.length > 0 && (
       <div className={styles.overviewPanel}>
         <div className={styles.overviewHead}>
           <div className={styles.overviewTitleWrap}>
@@ -264,11 +280,14 @@ export const AdminDashboardPage: React.FC = () => {
           {visibleKpis.map(kpi => renderMetricCell(kpi))}
         </div>
       </div>
+      )}
 
       {/* ── Mini metrics + Production funnel + Performance (TailAdmin arrangement) ── */}
+      {(hasCapability('orders:read') || hasCapability('reports:read')) && (
       <div className={styles.cardsGrid}>
         <div className={styles.cardsLeft}>
-          {/* mini metric cards */}
+          {/* mini metric cards — QC pass rate + AOV are company ops/financial → reports:read */}
+          {hasCapability('reports:read') && (
           <div className={styles.miniRow}>
             <div
               className={styles.miniCard} role="button" tabIndex={0}
@@ -299,6 +318,7 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Production funnel — orders by stage as coloured bars */}
           {hasCapability(CARD_CAP.pipeline) && (
@@ -316,7 +336,8 @@ export const AdminDashboardPage: React.FC = () => {
           )}
         </div>
 
-        {/* Performance — tabbed (Revenue / Orders / Hubs) */}
+        {/* Performance — tabbed (Revenue / Hubs): company financials → reports:read */}
+        {hasCapability('reports:read') && (
         <div className={`${styles.card} ${styles.perfCard}`}>
           <div className={styles.cardHeader}><h2 className={styles.cardTitle}>Performance</h2></div>
           <div className={styles.perfTabs}>
@@ -344,7 +365,9 @@ export const AdminDashboardPage: React.FC = () => {
             )}
           </div>
         </div>
+        )}
       </div>
+      )}
 
       {/* Overdue Orders (stage breakdown now lives in the Production Funnel above) */}
       {hasCapability(CARD_CAP.pipeline) && (data?.overdueOrders ?? []).length > 0 && (
@@ -369,7 +392,8 @@ export const AdminDashboardPage: React.FC = () => {
       </div>
       )}
 
-      {/* Measurement Sessions Today + Hub Performance */}
+      {/* Urgent tickets (support) + Alerts (company ops → reports:read) */}
+      {(hasCapability(CARD_CAP.support) || hasCapability('reports:read')) && (
       <div className={styles.twoCol}>
         {/* Hub Performance lives in the Performance card's "Hubs" tab —
             Urgent Tickets & Alerts share this operational row. */}
@@ -400,7 +424,8 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
         )}
 
-        {/* Alerts */}
+        {/* Alerts — company ops summary → reports:read */}
+        {hasCapability('reports:read') && (
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Alerts</h2>
@@ -426,9 +451,12 @@ export const AdminDashboardPage: React.FC = () => {
             <div className={styles.emptyState}>No active alerts — all systems good.</div>
           )}
         </div>
+        )}
       </div>
+      )}
 
-      {/* Recent Activity */}
+      {/* Recent Activity — company audit feed → reports:read */}
+      {hasCapability('reports:read') && (
       <div className={styles.card}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>Recent Activity</h2>
@@ -454,6 +482,17 @@ export const AdminDashboardPage: React.FC = () => {
           }
         </div>
       </div>
+      )}
+
+      {/* Role with no company widgets (e.g. design/procurement): the ActionInbox above
+          carries their actionable work; point them at their workspace. */}
+      {!hasCapability('orders:read') && !hasCapability('reports:read') && !hasCapability('customers:write') && (
+        <div className={styles.card}>
+          <div className={styles.emptyState}>
+            Your day-to-day lives in your workspace — use the left nav. Anything needing you shows up at the top.
+          </div>
+        </div>
+      )}
     </div>
   );
 };

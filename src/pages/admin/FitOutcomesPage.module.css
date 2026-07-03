@@ -1,0 +1,30 @@
+/* Compact filter toolbar — explicit width so the global `select{width:100%}` can't
+   stretch the hub picker full-width. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+.hubSel {
+  flex: 0 0 auto;
+  width: 220px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  outline: none;
+  cursor: pointer;
+}
+.hubSel:focus { border-color: var(--color-primary); }
+
+/* Low-confidence flag when FTR is computed off too few responses. */
+.lowNote {
+  font-size: var(--font-size-sm);
+  color: var(--color-warning, var(--color-text-secondary));
+  margin: 0 0 var(--spacing-md);
+}

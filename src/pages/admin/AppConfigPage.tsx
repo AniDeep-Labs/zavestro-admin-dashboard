@@ -13,6 +13,7 @@ export const AppConfigPage: React.FC = () => {
   const [dirty, setDirty] = React.useState<Set<string>>(new Set());
   const [showConfirm, setShowConfirm] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState('');
@@ -38,6 +39,7 @@ export const AppConfigPage: React.FC = () => {
   const handleSave = async () => {
     setShowConfirm(false);
     setSaving(true);
+    setSaveError('');
     const updated = groups.map(g => ({
       ...g,
       items: g.items.map(item => ({ ...item, value: values[item.key] ?? item.value })),
@@ -48,7 +50,10 @@ export const AppConfigPage: React.FC = () => {
       setSaved(true);
       setDirty(new Set());
       setTimeout(() => setSaved(false), 3000);
-    } catch { /* silently fail — localStorage fallback already happened */ }
+    } catch (err) {
+      // G-42: never fail silently — the edits stay marked dirty so they can be retried.
+      setSaveError(err instanceof Error ? err.message : 'Save failed — the server rejected the update.');
+    }
     finally { setSaving(false); }
   };
 
@@ -68,6 +73,11 @@ export const AppConfigPage: React.FC = () => {
       </div>
 
       {saved && <div className={styles.successBanner}>Configuration updated ✓</div>}
+      {saveError && (
+        <div className={styles.warningBanner} role="alert">
+          Not saved: {saveError} — your changes are still pending below.
+        </div>
+      )}
 
       {loading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>

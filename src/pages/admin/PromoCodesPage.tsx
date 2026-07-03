@@ -3,6 +3,7 @@ import { promosApi } from '../../api/adminApi';
 import type { PromoCode } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import styles from './PromoCodesPage.module.css';
 import { UilChartBar, UilCheck, UilCopy, UilPen, UilPlus, UilToggleOff, UilToggleOn, UilTrashAlt } from "@iconscout/react-unicons";
 
@@ -132,13 +133,17 @@ export const PromoCodesPage: React.FC = () => {
     } finally { setTogglingId(null); }
   };
 
-  const handleDelete = async (promo: PromoCode) => {
-    if (!confirm(`Delete promo code "${promo.code}"? This cannot be undone.`)) return;
+  const [confirmDelete, setConfirmDelete] = React.useState<PromoCode | null>(null);
+
+  const handleDelete = async () => {
+    const promo = confirmDelete;
+    if (!promo) return;
     setDeletingId(promo.id);
     try {
       await promosApi.delete(promo.id);
       setPromos(prev => prev.filter(p => p.id !== promo.id));
       showToast('success', 'Promo deleted');
+      setConfirmDelete(null);
     } catch (e) {
       showToast('error', 'Failed to delete', e instanceof Error ? e.message : undefined);
     } finally { setDeletingId(null); }
@@ -207,7 +212,7 @@ export const PromoCodesPage: React.FC = () => {
                         <button className={styles.exportBtn} disabled={togglingId === p.id} onClick={() => handleToggle(p)} title={p.is_active ? 'Deactivate' : 'Activate'}>
                           {p.is_active ? <UilToggleOn size={14}/> : <UilToggleOff size={14}/>}
                         </button>
-                        <button className={styles.exportBtn} disabled={deletingId === p.id} onClick={() => handleDelete(p)} title="Delete" style={{ color: 'var(--color-error, #D75B5B)' }}>
+                        <button className={styles.exportBtn} disabled={deletingId === p.id} onClick={() => setConfirmDelete(p)} title="Delete" style={{ color: 'var(--color-error, #D75B5B)' }}>
                           <UilTrashAlt size={14}/>
                         </button>
                       </div>
@@ -237,6 +242,16 @@ export const PromoCodesPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title={`Delete promo "${confirmDelete?.code ?? ''}"?`}
+        message="This permanently removes the promo code. Customers can no longer use it. This cannot be undone."
+        confirmLabel="Delete promo"
+        loading={!!confirmDelete && deletingId === confirmDelete.id}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 };

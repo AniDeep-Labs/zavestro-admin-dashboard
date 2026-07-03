@@ -1,4 +1,5 @@
 import React from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   cmListingsApi,
   designsApi,
@@ -18,6 +19,8 @@ import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
 import { Spinner } from "../../components/Spinner";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { StatusBadge } from "../../components/StatusBadge";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import base from "./OrdersListPage.module.css";
@@ -27,9 +30,25 @@ import {
   UilTimes,
   UilImagePlus,
   UilImage,
+  UilCopy,
 } from "@iconscout/react-unicons";
 
 const url = (k?: string) => (k && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${k}` : "");
+
+// G-26 cost floor: fabric + make + per-order overhead (FABLE-SOLUTIONS P2 model).
+// MAKE/OVERHEAD become AppConfig values later; one place to change until then.
+const MAKE_COST = 180;
+const OVERHEAD = 250;
+const costFloor = (
+  pricePerMeter: string | number | null | undefined,
+  metersPerGarment: string | number | null | undefined,
+): number | null => {
+  const ppm = pricePerMeter == null ? NaN : Number(pricePerMeter);
+  const mpg = metersPerGarment == null ? NaN : Number(metersPerGarment);
+  if (!Number.isFinite(ppm) || !Number.isFinite(mpg)) return null;
+  return Math.round(ppm * mpg + MAKE_COST + OVERHEAD);
+};
+const marginPct = (price: number, floor: number) => Math.round(((price - floor) / price) * 100);
 
 type Editor = {
   mode: "sample" | "direct" | "edit";
@@ -44,6 +63,11 @@ type Editor = {
   description: string;
   photos: string[];
   isActive: boolean;
+  /** G-26: cost-floor inputs when known (edit mode from the listing row) */
+  pricePerMeter?: string | number | null;
+  metersPerGarment?: string | number | null;
+  /** G-25: current stock truth when known (edit mode) */
+  inStock?: boolean;
 };
 
 export const ListingsManagePage: React.FC = () => {
@@ -138,6 +162,24 @@ export const ListingsManagePage: React.FC = () => {
       description: l.description ?? "",
       photos: l.photo_keys ?? [],
       isActive: l.is_active,
+      pricePerMeter: l.price_per_meter,
+      metersPerGarment: l.meters_per_garment,
+      inStock: l.in_stock,
+    });
+  // §6C: Duplicate — listings are variations; open a NEW listing (direct mode, editable
+  // design/fabric/hub pickers) pre-filled from this one, starting as a draft to review.
+  const openDuplicate = (l: CmListing) =>
+    setEditor({
+      mode: "direct",
+      design_id: l.design_id,
+      fabric_id: l.fabric_id,
+      hub_id: l.hub_id,
+      label: "",
+      fabricLabel: "",
+      price: l.price ?? "",
+      description: l.description ?? "",
+      photos: l.photo_keys ?? [],
+      isActive: false,
     });
 
   const onUpload = async (files: FileList | null) => {
@@ -161,7 +203,12 @@ export const ListingsManagePage: React.FC = () => {
     }
   };
 
-  const save = async (publish: boolean) => {
+  const [showStockWarn, setShowStockWarn] = React.useState(false);
+  const [showBelowCostWarn, setShowBelowCostWarn] = React.useState(false);
+  const [belowCostMsg, setBelowCostMsg] = React.useState("");
+  const [pendingPublish, setPendingPublish] = React.useState(false);
+
+  const save = async (publish: boolean, publishAnyway = false, belowCostOk = false) => {
     if (!editor) return;
     if (
       editor.mode === "direct" &&
@@ -178,6 +225,12 @@ export const ListingsManagePage: React.FC = () => {
       toast("error", "Add at least one photo");
       return;
     }
+    // G-25 (warn, never block — accept-all-orders model): publishing while the
+    // hub holds no fabric means the storefront will show it out-of-stock.
+    if (publish && editor.inStock === false && !publishAnyway) {
+      setShowStockWarn(true);
+      return;
+    }
     setSaving(true);
     const price = Number(editor.price);
     const description = editor.description.trim() || undefined;
@@ -189,6 +242,7 @@ export const ListingsManagePage: React.FC = () => {
           photo_keys: editor.photos,
           description,
           is_active,
+          allow_below_cost: belowCostOk,
         });
       } else if (editor.mode === "edit" && editor.listingId) {
         await cmListingsApi.update(editor.listingId, {
@@ -196,6 +250,7 @@ export const ListingsManagePage: React.FC = () => {
           photo_keys: editor.photos,
           description: description ?? null,
           is_active,
+          allow_below_cost: belowCostOk,
         });
       } else {
         await cmListingsApi.create({
@@ -206,13 +261,25 @@ export const ListingsManagePage: React.FC = () => {
           photo_keys: editor.photos,
           description,
           is_active,
+          allow_below_cost: belowCostOk,
         });
       }
       toast("success", publish ? "Listing published" : "Saved as draft");
       setEditor(null);
       load();
     } catch (e) {
-      toast("error", "Save failed", e instanceof Error ? e.message : undefined);
+      const msg = e instanceof Error ? e.message : undefined;
+      if (msg?.includes("cost floor") && !belowCostOk) {
+        // G-26: below the cost floor — let the CM confirm an intentional loss-leader.
+        setPendingPublish(publish);
+        setBelowCostMsg(msg);
+        setShowBelowCostWarn(true);
+      } else if (msg?.includes("reviewed sample")) {
+        // D13: first listing of a design at a hub is gated on an approved sample.
+        toast("error", "Sample review needed first", msg);
+      } else {
+        toast("error", "Save failed", msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -226,13 +293,29 @@ export const ListingsManagePage: React.FC = () => {
         xs.map((x) => (x.id === l.id ? { ...x, is_active: !l.is_active } : x)),
       );
     } catch (err) {
+      const msg = err instanceof Error ? err.message : undefined;
       toast(
         "error",
-        "Update failed",
-        err instanceof Error ? err.message : undefined,
+        msg?.includes("reviewed sample") ? "Sample review needed first" : "Update failed",
+        msg,
       );
     }
   };
+
+  // Deep-link from the Categories page: /admin/catalog/listings?garment=<garment type>.
+  // Filters the listing grid to that garment type (the bridge between a merchandising
+  // category and its dark-store listings). Matched on the garment-type name.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const garmentFilter = searchParams.get("garment");
+  const shownListings = React.useMemo(
+    () =>
+      garmentFilter
+        ? listings.filter(
+            (l) => (l.garment_type ?? "").toLowerCase() === garmentFilter.toLowerCase(),
+          )
+        : listings,
+    [listings, garmentFilter],
+  );
 
   return (
     <div className={base.page}>
@@ -294,26 +377,26 @@ export const ListingsManagePage: React.FC = () => {
             (l) => l.is_active && l.in_stock === false,
           ).length;
           return liveOOS > 0 ? (
-            <div
-              style={{
-                margin: "0 0 12px",
-                padding: "10px 14px",
-                borderRadius: 8,
-                background: "rgba(215,91,91,0.1)",
-                color: "var(--color-error)",
-                fontSize: 13,
-                fontWeight: 500,
-              }}
-            >
+            <div className={s.oosStrip}>
               {liveOOS} live listing{liveOOS === 1 ? "" : "s"} out of stock —
-              the fabric is short at the hub, so customers can't buy. Request a
-              restock.
+              the fabric is short at the hub, so customers can't buy.{" "}
+              <Link className={s.oosLink} to="/admin/catalog/restock">Request restock →</Link>
             </div>
           ) : null;
         })()}
       <h2 className={s.sectionTitle}>
         Your listings{" "}
-        {!loading && <span className={s.count}>{listings.length}</span>}
+        {!loading && <span className={s.count}>{shownListings.length}</span>}
+        {garmentFilter && (
+          <button
+            type="button"
+            className={s.filterChip}
+            onClick={() => setSearchParams({})}
+            title="Clear filter"
+          >
+            {garmentFilter} <UilTimes size={13} />
+          </button>
+        )}
       </h2>
       {loading ? (
         <div className={s.grid}>
@@ -321,13 +404,15 @@ export const ListingsManagePage: React.FC = () => {
             <div key={i} className={`${s.card} ${s.skeleton}`} />
           ))}
         </div>
-      ) : listings.length === 0 ? (
+      ) : shownListings.length === 0 ? (
         <div className={s.empty}>
-          No listings yet. List a reviewed sample above, or add one directly.
+          {garmentFilter
+            ? `No ${garmentFilter} listings yet. Create one from a reviewed sample above, or add one directly.`
+            : "No listings yet. List a reviewed sample above, or add one directly."}
         </div>
       ) : (
         <div className={s.grid}>
-          {listings.map((l) => {
+          {shownListings.map((l) => {
             const img =
               url((l.photo_keys ?? [])[0]) ||
               url((l.fabric_image_keys ?? [])[0]);
@@ -347,38 +432,41 @@ export const ListingsManagePage: React.FC = () => {
                   </div>
                   {/* G-24: per-fabric shared stock at this hub (derived server-side). */}
                   {l.in_stock === false ? (
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "var(--color-error)",
-                      }}
-                    >
-                      ● Out of stock — fabric short at hub
-                    </div>
+                    <div className={s.stockOut}>● Out of stock — fabric short at hub</div>
                   ) : l.in_stock === true ? (
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "var(--color-text-tertiary)",
-                      }}
-                    >
+                    <div className={s.stockOk}>
                       ● In stock
                       {l.available_meters != null
                         ? ` · ${Number(l.available_meters)}m`
                         : ""}
                     </div>
                   ) : null}
+                  {/* G-26: margin vs the cost floor (fabric + make + overhead) */}
+                  {(() => {
+                    const floor = costFloor(l.price_per_meter, l.meters_per_garment);
+                    if (floor == null) return null;
+                    const m = marginPct(Number(l.price), floor);
+                    const cls = Number(l.price) < floor ? s.marginBad : m < 25 ? s.marginThin : s.marginOk;
+                    return (
+                      <div className={cls} title={`Cost floor ≈ ₹${floor} (fabric + make ₹${MAKE_COST} + overhead ₹${OVERHEAD})`}>
+                        {Number(l.price) < floor ? `▼ priced ₹${floor - Number(l.price)} below cost` : `margin ${m}%`}
+                      </div>
+                    );
+                  })()}
                   <div className={s.cardFoot}>
                     <span className={s.price}>
                       ₹{Number(l.price).toLocaleString("en-IN")}
                     </span>
-                    <span
-                      className={`${base.stagePill} ${l.is_active ? base.stageSuccess : base.stageWarning}`}
-                      onClick={(e) => toggleActive(l, e)}
-                      style={{ cursor: "pointer" }}
+                    <button
+                      className={s.dupBtn}
+                      title="Duplicate as a new listing (variation)"
+                      aria-label="Duplicate listing"
+                      onClick={(e) => { e.stopPropagation(); openDuplicate(l); }}
                     >
-                      {l.is_active ? "Live" : "Draft"}
+                      <UilCopy size={14} />
+                    </button>
+                    <span className={s.toggleWrap} onClick={(e) => toggleActive(l, e)}>
+                      <StatusBadge status={l.is_active ? "live" : "draft"} />
                     </span>
                   </div>
                 </div>
@@ -530,6 +618,36 @@ export const ListingsManagePage: React.FC = () => {
                 placeholder="1499"
               />
             </div>
+            {/* G-26: the cost floor, live under the price field */}
+            {(() => {
+              const fabric = editor.mode === "direct"
+                ? fabrics.find((f) => f.id === editor.fabric_id)
+                : null;
+              const design = editor.mode === "direct"
+                ? designs.find((d) => d.id === editor.design_id)
+                : null;
+              const floor = costFloor(
+                editor.pricePerMeter ?? fabric?.price_per_meter,
+                editor.metersPerGarment ?? design?.meters_per_garment,
+              );
+              if (floor == null) return null;
+              const price = Number(editor.price);
+              const below = Number.isFinite(price) && price > 0 && price < floor;
+              const m = Number.isFinite(price) && price > 0 ? marginPct(price, floor) : null;
+              return (
+                <div className={below ? s.floorWarn : s.floorLine}>
+                  Cost ≈ ₹{floor} (fabric + make ₹{MAKE_COST} + overhead ₹{OVERHEAD})
+                  {m != null && ` — margin ${m}%`}
+                  {below && " — PRICED BELOW COST"}
+                </div>
+              );
+            })()}
+            {editor.mode === "direct" && (
+              <div className={s.gateHint}>
+                A design's first listing at a hub needs a reviewed sample before it
+                can go live (drafts are fine) — request one from the design console.
+              </div>
+            )}
             <Input
               label="Description (optional)"
               value={editor.description}
@@ -539,6 +657,29 @@ export const ListingsManagePage: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* G-25: publishing with no fabric at the hub — warn, never block */}
+      <ConfirmDialog
+        open={showStockWarn}
+        title="Publish without stock?"
+        message="This hub holds no fabric for this listing — it will publish but show out-of-stock to customers until a restock lands. Request a restock first, or publish anyway."
+        confirmLabel="Publish anyway"
+        loading={saving}
+        onConfirm={() => { setShowStockWarn(false); save(true, true); }}
+        onCancel={() => setShowStockWarn(false)}
+      />
+
+      {/* G-26: price below the cost floor — confirm an intentional loss-leader */}
+      <ConfirmDialog
+        open={showBelowCostWarn}
+        title="Sell below cost?"
+        message={`${belowCostMsg || "This price is below the cost floor."} You'll lose margin on every sale — confirm only for a deliberate loss-leader or clearance.`}
+        confirmLabel="Sell below cost"
+        variant="danger"
+        loading={saving}
+        onConfirm={() => { setShowBelowCostWarn(false); save(pendingPublish, true, true); }}
+        onCancel={() => setShowBelowCostWarn(false)}
+      />
     </div>
   );
 };
