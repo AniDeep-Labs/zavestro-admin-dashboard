@@ -1,6 +1,7 @@
 import React from 'react';
 import { promosApi } from '../../api/adminApi';
 import type { PromoCode } from '../../api/adminApi';
+import { istDayEnd } from '../../utils/dateWindow';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -70,7 +71,7 @@ function PromoForm({
         <button className={styles.cancelModalBtn} onClick={onCancel}>Cancel</button>
         <button className={styles.saveModalBtn}
           disabled={saving || !code.trim() || !value || !expiry}
-          onClick={() => onSave({ code: code.trim().toUpperCase(), discount_type: type, discount_value: parseFloat(value), min_order_amount: minOrder ? parseFloat(minOrder) : 0, max_uses: maxUses ? parseInt(maxUses) : undefined, valid_until: new Date(expiry).toISOString() })}>
+          onClick={() => onSave({ code: code.trim().toUpperCase(), discount_type: type, discount_value: parseFloat(value), min_order_amount: minOrder ? parseFloat(minOrder) : 0, max_uses: maxUses ? parseInt(maxUses) : undefined, valid_until: istDayEnd(expiry) })}>
           {saving ? 'Saving…' : initial.id ? 'Save Changes' : 'Create'}
         </button>
       </div>
