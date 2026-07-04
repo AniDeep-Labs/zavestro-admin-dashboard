@@ -81,6 +81,16 @@ export interface AdminOrder {
   estimated_delivery_date?: string | null;
   on_hold_reason?: string | null;
   cancellation_reason?: string | null;
+  // T1-15: delivery address (support-editable pre-dispatch)
+  delivery_address?: {
+    name?: string;
+    phone?: string;
+    line1: string;
+    line2?: string | null;
+    city: string;
+    state: string;
+    pincode: string;
+  } | null;
 }
 
 export interface AdminUser {

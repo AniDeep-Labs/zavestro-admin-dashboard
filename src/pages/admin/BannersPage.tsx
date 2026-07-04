@@ -2,6 +2,7 @@
    reusable BannerHero renderer + layout helpers, shared by the collection studio. */
 import React from 'react';
 import { bannersApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
+import { istDayStart, istDayEnd } from '../../utils/dateWindow';
 import type { Banner, BannerPayload, BannerLayout, BannerTextPosition, BannerTextColor, BannerImageFit, BannerMode, BannerCtaStyle, BannerComposeStyle } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -618,8 +619,8 @@ function BannerForm({
       bg_color_1: bgColor1, bg_color_2: bgColor2,
       sort_order: parseInt(sortOrder, 10) || 0,
       is_active: isActive,
-      starts_at: startsAt ? new Date(startsAt).toISOString() : undefined,
-      ends_at: endsAt ? new Date(endsAt).toISOString() : undefined,
+      starts_at: istDayStart(startsAt), // T1-22: IST day boundaries
+      ends_at: istDayEnd(endsAt),
       layout: layoutWeb, text_position: textPosition, text_color: textColor, overlay,
       badge_text: (layoutMobile === 'offer_badge' || layoutWeb === 'offer_badge') ? (badgeText.trim() || undefined) : undefined,
       mode_mobile: modeMobile, mode_web: modeWeb,

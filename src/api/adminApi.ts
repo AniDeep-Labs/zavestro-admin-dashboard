@@ -264,8 +264,27 @@ export const ordersApi = {
         | null,
       on_hold_reason: (o.on_hold_reason ?? null) as string | null,
       cancellation_reason: (o.cancellation_reason ?? null) as string | null,
+      delivery_address: (o.delivery_address ??
+        null) as AdminOrder["delivery_address"],
     };
   },
+  // T1-15: support edits the delivery address pre-dispatch (dark-store hub-guarded server-side).
+  editAddress: async (
+    id: string,
+    address: {
+      name: string;
+      phone: string;
+      line1: string;
+      line2?: string;
+      city: string;
+      state: string;
+      pincode: string;
+    },
+  ): Promise<{ delivery_address: AdminOrder["delivery_address"] }> =>
+    req(`/api/admin/orders/${id}/address`, {
+      method: "PATCH",
+      body: JSON.stringify(address),
+    }),
 
   updateStage: async (
     id: string,
@@ -2554,10 +2573,28 @@ export const fabricsApi = {
     req<FabricAtHub>(
       `/api/admin/fabrics/at-hub?hub_id=${hubId}&fabric_id=${fabricId}`,
     ),
+  // T1-10: count-adjust a hub's shelf to the physical truth (logs a count_adjust movement).
+  adjustHubStock: async (input: { hub_id: string; fabric_id: string; counted_meters: number; note: string }): Promise<{ previous: number; counted: number; variance: number; at_hub: FabricAtHub }> =>
+    req(`/api/admin/fabrics/hub-stock/adjust`, { method: "POST", body: JSON.stringify(input) }),
+  hubStockVariance: async (): Promise<HubStockVariance[]> =>
+    req<HubStockVariance[]>(`/api/admin/fabrics/hub-stock/variance`),
+  // T1-12: stale-reservation exception view + guarded release.
+  staleReservations: async (hubId?: string, days?: number): Promise<StaleReservation[]> => {
+    const qs = new URLSearchParams();
+    if (hubId) qs.set("hub_id", hubId);
+    if (days) qs.set("days", String(days));
+    const q = qs.toString();
+    return req<StaleReservation[]>(`/api/admin/fabrics/reservations/stale${q ? `?${q}` : ""}`);
+  },
+  releaseStaleReservation: async (orderId: string, reason: string): Promise<{ released: boolean }> =>
+    req(`/api/admin/fabrics/reservations/${orderId}/release`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
   // Phase 3 — central procurement pool (received/allocated/available per SKU).
   centralStock: async (): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central`),
-  receiveCentral: async (input: { fabric_id: string; meters: number; note?: string }): Promise<CentralStockRow[]> =>
+  receiveCentral: async (input: { fabric_id: string; meters: number; note?: string; lot_code?: string; shade_note?: string }): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central/receive`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -2604,10 +2641,12 @@ export interface FabricMovement {
 }
 // True stock-movement ledger (mig 120): every available_meters change with running balance.
 export interface FabricStockMovement {
-  kind: string; // received | reserved | released | reconciled | in | out
+  kind: string; // received | reserved | released | reconciled | in | out | count_adjust
   delta_meters: string | number; // signed
   balance_after: string | number; // running balance
   created_at: string;
+  lot_code?: string | null; // T1-9
+  note?: string | null; // T1-10 (count_adjust reason)
 }
 export interface FabricAtHub {
   fabric: Fabric;
@@ -2618,9 +2657,36 @@ export interface FabricAtHub {
     reserved_meters: string;
     reorder_meters?: string | number | null;
     updated_at: string | null;
+    last_counted_at?: string | null; // T1-10
+    quarantine_meters?: string | number | null; // T1-13
   };
   movements: FabricMovement[]; // distribution/restock/listing REQUEST events (context)
   stock_movements?: FabricStockMovement[]; // actual stock in/out with running balance
+}
+
+// T1-10: count-variance + monthly-count-due, one row per hub.
+export interface HubStockVariance {
+  hub_id: string;
+  hub_name: string;
+  count_adjustments: number;
+  total_variance_meters: number;
+  last_counted_at: string | null;
+  total_skus: number;
+  skus_due_for_count: number;
+}
+
+// T1-12: a fabric reservation locked on a pre-cutting order that's gone stale.
+export interface StaleReservation {
+  order_id: string;
+  order_number: string;
+  hub_id: string;
+  hub_name: string | null;
+  stage: string;
+  reserved_meters: number;
+  reserved_at: string;
+  age_days: number;
+  customer_name: string | null;
+  customer_phone: string | null;
 }
 
 export interface FabricStockRow {
@@ -2661,6 +2727,12 @@ export interface Distribution {
   status: "pushed" | "received" | "cancelled";
   received_meters?: string | number | null;
   variance_reason?: string | null;
+  // T1-13 inbound QC
+  accepted_meters?: string | number | null;
+  rejected_meters?: string | number | null;
+  held_meters?: string | number | null;
+  qc_result?: "pass" | "partial" | "hold" | "reject" | null;
+  qc_defects?: string[] | null;
   created_at: string;
   updated_at: string;
   design_name: string | null;
@@ -2675,6 +2747,7 @@ export interface PushDistributionInput {
   hub_id: string;
   sample_qty?: number;
   sellable_qty?: number;
+  lot_code?: string; // T1-9: dye-lot being shipped
 }
 
 export const distributionApi = {
@@ -2695,9 +2768,26 @@ export const distributionApi = {
   receive: async (
     id: string,
     // G-30: record what actually arrived; variance > 5% needs a reason.
-    opts: { actual_meters?: number; variance_reason?: string } = {},
-  ): Promise<{ id: string; stocked_meters: number }> =>
+    // T1-13: inbound QC — rejected (write-off) / held (quarantine) metres + defects.
+    opts: {
+      actual_meters?: number;
+      variance_reason?: string;
+      rejected_meters?: number;
+      held_meters?: number;
+      qc_notes?: string;
+      qc_defects?: string[];
+    } = {},
+  ): Promise<{ id: string; stocked_meters: number; qc_result: string }> =>
     req(`/api/admin/distribution/${id}/receive`, {
+      method: "POST",
+      body: JSON.stringify(opts),
+    }),
+  // T1-13: re-inspect held/quarantined metres from a receipt.
+  inspect: async (
+    id: string,
+    opts: { accept_meters?: number; reject_meters?: number; notes?: string },
+  ): Promise<{ id: string; accepted: number; rejected: number; remaining_held: number }> =>
+    req(`/api/admin/distribution/${id}/inspect`, {
       method: "POST",
       body: JSON.stringify(opts),
     }),

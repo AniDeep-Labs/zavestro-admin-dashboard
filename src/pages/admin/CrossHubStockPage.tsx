@@ -1,7 +1,13 @@
 import React from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { fabricsApi, hubsApi, distributionApi, R2_PUBLIC_URL } from '../../api/adminApi';
-import type { FabricStockRow, Hub, Distribution } from '../../api/adminApi';
+import type {
+  FabricStockRow,
+  Hub,
+  Distribution,
+  HubStockVariance,
+  StaleReservation,
+} from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { EmptyState, PageHeader } from '../../components';
@@ -56,6 +62,32 @@ export const CrossHubStockPage: React.FC = () => {
 
   React.useEffect(() => { load(); }, [load]);
   React.useEffect(() => { hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {}); }, []);
+  // T1-10: count-variance + monthly-count-due by hub.
+  const [variance, setVariance] = React.useState<HubStockVariance[]>([]);
+  React.useEffect(() => { fabricsApi.hubStockVariance().then(setVariance).catch(() => {}); }, []);
+  // T1-12: stale-reservation exception view + guarded release.
+  const [staleRes, setStaleRes] = React.useState<StaleReservation[]>([]);
+  const [releaseFor, setReleaseFor] = React.useState<string | null>(null);
+  const [releaseReason, setReleaseReason] = React.useState('');
+  const [releasing, setReleasing] = React.useState(false);
+  const loadStale = React.useCallback(() => {
+    fabricsApi.staleReservations().then(setStaleRes).catch(() => {});
+  }, []);
+  React.useEffect(() => { loadStale(); }, [loadStale]);
+  const doRelease = async (orderId: string) => {
+    if (!releaseReason.trim()) { toast('error', 'A reason is required'); return; }
+    setReleasing(true);
+    try {
+      await fabricsApi.releaseStaleReservation(orderId, releaseReason.trim());
+      toast('success', 'Reservation released', 'The fabric is freed and the order is on hold.');
+      setReleaseFor(null); setReleaseReason('');
+      loadStale(); load();
+    } catch (e) {
+      toast('error', 'Release failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setReleasing(false);
+    }
+  };
 
   const hubName = (id: string) => hubs.find((h) => h.id === id)?.name ?? '—';
 
@@ -236,6 +268,75 @@ export const CrossHubStockPage: React.FC = () => {
         subtitle="The supply brain — what's below reorder, what's dead, what's in transit, and every SKU's stock & capital per hub."
         actions={<Button variant="ghost" onClick={exportCsv} disabled={visibleRows.length === 0}><UilImport size={15} /> Export CSV</Button>}
       />
+
+      {/* T1-10: count-variance + monthly-count-due by hub. */}
+      {variance.some((v) => v.total_skus > 0) && (
+        <div className={cs.varPanel}>
+          <div className={cs.varTitle}>Stock count · variance by hub</div>
+          <div className={cs.varGrid}>
+            {variance.filter((v) => v.total_skus > 0).map((v) => (
+              <div key={v.hub_id} className={cs.varCard}>
+                <div className={cs.varHub}>{v.hub_name}</div>
+                <div className={cs.varMeta}>
+                  {v.skus_due_for_count > 0
+                    ? <span className={cs.varDue}>{v.skus_due_for_count} of {v.total_skus} SKU{v.total_skus === 1 ? '' : 's'} due for count</span>
+                    : <span>all {v.total_skus} counted</span>}
+                </div>
+                <div className={cs.varMeta}>
+                  {v.count_adjustments > 0
+                    ? `${v.count_adjustments} adjustment${v.count_adjustments === 1 ? '' : 's'} · ${v.total_variance_meters}m corrected`
+                    : 'no variance recorded'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* T1-12: stale-reservation exception view + guarded release. */}
+      {staleRes.length > 0 && (
+        <div className={cs.stalePanel}>
+          <div className={cs.staleTitle}>
+            ⚠ Stale reservations — fabric locked on orders that haven't reached cutting
+          </div>
+          <div className={cs.staleList}>
+            {staleRes.map((r) => (
+              <div key={r.order_id} className={cs.staleRow}>
+                <div className={cs.staleInfo}>
+                  <Link to={`/admin/orders/${r.order_id}`} className={cs.staleOrder}>
+                    {r.order_number}
+                  </Link>
+                  <span className={cs.staleMeta}>
+                    {r.reserved_meters}m · {r.hub_name ?? '—'} · {r.stage.replace(/_/g, ' ')} ·{' '}
+                    <strong className={cs.staleAge}>{r.age_days}d old</strong>
+                    {r.customer_name ? ` · ${r.customer_name}` : ''}
+                  </span>
+                </div>
+                {releaseFor === r.order_id ? (
+                  <div className={cs.staleReleaseForm}>
+                    <input
+                      className={cs.staleReason}
+                      value={releaseReason}
+                      placeholder="reason (e.g. customer unreachable 20d)"
+                      onChange={(e) => setReleaseReason(e.target.value)}
+                    />
+                    <Button variant="ghost" onClick={() => { setReleaseFor(null); setReleaseReason(''); }}>
+                      Cancel
+                    </Button>
+                    <Button onClick={() => doRelease(r.order_id)} state={releasing ? 'loading' : 'default'}>
+                      Release + hold
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="outline" onClick={() => { setReleaseFor(r.order_id); setReleaseReason(''); }}>
+                    Release
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className={ds.toolbar}>
         <select className={ds.hubSel} value={hubFilter} onChange={(e) => setHubFilter(e.target.value)}>

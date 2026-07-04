@@ -34,6 +34,8 @@ export const CentralStockPage: React.FC = () => {
   const [fabricId, setFabricId] = React.useState("");
   const [meters, setMeters] = React.useState("");
   const [note, setNote] = React.useState("");
+  const [lotCode, setLotCode] = React.useState(""); // T1-9 dye-lot
+  const [shadeNote, setShadeNote] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   // adjust
   const [adjustTarget, setAdjustTarget] = React.useState<CentralStockRow | null>(null);
@@ -96,11 +98,17 @@ export const CentralStockPage: React.FC = () => {
     if (!m || m <= 0) return showToast("error", "Enter a valid quantity (metres)");
     setSaving(true);
     try {
-      const next = await fabricsApi.receiveCentral({ fabric_id: fabricId, meters: m, note: note.trim() || undefined });
+      const next = await fabricsApi.receiveCentral({
+        fabric_id: fabricId,
+        meters: m,
+        note: note.trim() || undefined,
+        lot_code: lotCode.trim() || undefined,
+        shade_note: shadeNote.trim() || undefined,
+      });
       setRows(next);
       showToast("success", `Received ${m} m into central stock`);
       setReceiveOpen(false);
-      setFabricId(""); setMeters(""); setNote("");
+      setFabricId(""); setMeters(""); setNote(""); setLotCode(""); setShadeNote("");
     } catch (e) {
       showToast("error", "Receive failed", e instanceof Error ? e.message : undefined);
     } finally {
@@ -261,7 +269,13 @@ export const CentralStockPage: React.FC = () => {
           <label className={s.flbl}>Note (optional)
             <input className={s.finp} value={note} placeholder="e.g. PO-1042, Arvind invoice #88" onChange={(e) => setNote(e.target.value)} />
           </label>
-          <span className={s.fhint}>Adds to this fabric's central pool and logs a receipt; available to ship to hubs.</span>
+          <label className={s.flbl}>Dye-lot code (optional)
+            <input className={s.finp} value={lotCode} placeholder="e.g. LOT-2026-0447" onChange={(e) => setLotCode(e.target.value)} />
+          </label>
+          <label className={s.flbl}>Shade note (optional)
+            <input className={s.finp} value={shadeNote} placeholder="e.g. slightly darker than swatch" onChange={(e) => setShadeNote(e.target.value)} />
+          </label>
+          <span className={s.fhint}>Adds to this fabric's central pool and logs a receipt; the dye-lot is carried to hub shipments so a garment can be traced to its batch.</span>
         </div>
       </Modal>
 
