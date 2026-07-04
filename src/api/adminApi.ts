@@ -2559,6 +2559,19 @@ export const fabricsApi = {
     req(`/api/admin/fabrics/hub-stock/adjust`, { method: "POST", body: JSON.stringify(input) }),
   hubStockVariance: async (): Promise<HubStockVariance[]> =>
     req<HubStockVariance[]>(`/api/admin/fabrics/hub-stock/variance`),
+  // T1-12: stale-reservation exception view + guarded release.
+  staleReservations: async (hubId?: string, days?: number): Promise<StaleReservation[]> => {
+    const qs = new URLSearchParams();
+    if (hubId) qs.set("hub_id", hubId);
+    if (days) qs.set("days", String(days));
+    const q = qs.toString();
+    return req<StaleReservation[]>(`/api/admin/fabrics/reservations/stale${q ? `?${q}` : ""}`);
+  },
+  releaseStaleReservation: async (orderId: string, reason: string): Promise<{ released: boolean }> =>
+    req(`/api/admin/fabrics/reservations/${orderId}/release`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
   // Phase 3 — central procurement pool (received/allocated/available per SKU).
   centralStock: async (): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central`),
@@ -2640,6 +2653,20 @@ export interface HubStockVariance {
   last_counted_at: string | null;
   total_skus: number;
   skus_due_for_count: number;
+}
+
+// T1-12: a fabric reservation locked on a pre-cutting order that's gone stale.
+export interface StaleReservation {
+  order_id: string;
+  order_number: string;
+  hub_id: string;
+  hub_name: string | null;
+  stage: string;
+  reserved_meters: number;
+  reserved_at: string;
+  age_days: number;
+  customer_name: string | null;
+  customer_phone: string | null;
 }
 
 export interface FabricStockRow {

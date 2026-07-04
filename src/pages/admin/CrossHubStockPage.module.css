@@ -63,3 +63,28 @@
 .varHub { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
 .varMeta { font-size: 0.8rem; color: var(--color-text-tertiary); }
 .varDue { color: var(--color-warning, #b7791f); font-weight: 600; }
+
+/* T1-12: stale reservations */
+.stalePanel {
+  margin: 4px 0 20px;
+  padding: 14px 16px;
+  background: var(--color-warning-bg, #fdf6ec);
+  border: 1px solid var(--color-warning, #b7791f);
+  border-radius: 10px;
+}
+.staleTitle { font-size: 0.9rem; font-weight: 600; color: var(--color-warning, #b7791f); margin-bottom: 10px; }
+.staleList { display: flex; flex-direction: column; gap: 8px; }
+.staleRow {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 8px 12px; background: var(--color-bg-card); border: 1px solid var(--color-border-light); border-radius: 8px;
+}
+.staleInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.staleOrder { font-weight: 600; font-size: 0.9rem; color: var(--color-primary); text-decoration: none; }
+.staleOrder:hover { text-decoration: underline; }
+.staleMeta { font-size: 0.8rem; color: var(--color-text-tertiary); }
+.staleAge { color: var(--color-warning, #b7791f); }
+.staleReleaseForm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.staleReason {
+  padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 6px;
+  font-size: 0.85rem; min-width: 240px; background: var(--color-bg-input, var(--color-bg-card)); color: var(--color-text-primary);
+}
