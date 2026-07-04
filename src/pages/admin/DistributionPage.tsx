@@ -48,6 +48,17 @@ export const DistributionPage: React.FC = () => {
   const [actualMeters, setActualMeters] = React.useState('');
   const [varianceReason, setVarianceReason] = React.useState('');
   const [receiving, setReceiving] = React.useState(false);
+  // inbound QC (T1-13)
+  const [rejectedMeters, setRejectedMeters] = React.useState('');
+  const [heldMeters, setHeldMeters] = React.useState('');
+  const [qcNotes, setQcNotes] = React.useState('');
+  const [qcDefects, setQcDefects] = React.useState<string[]>([]);
+  // re-inspect held metres (T1-13)
+  const [inspectTarget, setInspectTarget] = React.useState<Distribution | null>(null);
+  const [acceptMeters, setAcceptMeters] = React.useState('');
+  const [rejMeters, setRejMeters] = React.useState('');
+  const [inspectNotes, setInspectNotes] = React.useState('');
+  const [inspecting, setInspecting] = React.useState(false);
 
   // cancel (with reason)
   const [cancelTarget, setCancelTarget] = React.useState<Distribution | null>(null);
@@ -125,7 +136,10 @@ export const DistributionPage: React.FC = () => {
     setReceiveTarget(r);
     setActualMeters(String(Number(r.sellable_qty)));
     setVarianceReason('');
+    setRejectedMeters(''); setHeldMeters(''); setQcNotes(''); setQcDefects([]);
   };
+  const toggleDefect = (d: string) =>
+    setQcDefects((x) => (x.includes(d) ? x.filter((y) => y !== d) : [...x, d]));
 
   const handleReceive = async () => {
     if (!receiveTarget) return;
@@ -137,19 +151,58 @@ export const DistributionPage: React.FC = () => {
       toast('error', 'Variance reason required', `Received ${actual}m vs pushed ${pushed}m`);
       return;
     }
+    const rejected = Number(rejectedMeters) || 0;
+    const held = Number(heldMeters) || 0;
+    if (rejected + held > actual) { toast('error', 'Rejected + held cannot exceed received'); return; }
+    if ((rejected > 0 || held > 0) && !qcNotes.trim()) { toast('error', 'A QC note is required to reject/hold'); return; }
     setReceiving(true);
     try {
       const res = await distributionApi.receive(receiveTarget.id, {
         actual_meters: actual,
         ...(varianceReason.trim() ? { variance_reason: varianceReason.trim() } : {}),
+        ...(rejected > 0 ? { rejected_meters: rejected } : {}),
+        ...(held > 0 ? { held_meters: held } : {}),
+        ...(qcNotes.trim() ? { qc_notes: qcNotes.trim() } : {}),
+        ...(qcDefects.length ? { qc_defects: qcDefects } : {}),
       });
-      toast('success', 'Received at hub', res.stocked_meters ? `${res.stocked_meters}m landed in stock.` : undefined);
+      const accepted = actual - rejected - held;
+      toast('success', `QC: ${res.qc_result}`, `${accepted}m accepted${held ? `, ${held}m held` : ''}${rejected ? `, ${rejected}m rejected` : ''}.`);
       setReceiveTarget(null);
       load();
     } catch (err) {
       toast('error', 'Failed', err instanceof Error ? err.message : undefined);
     } finally {
       setReceiving(false);
+    }
+  };
+
+  const openInspect = (r: Distribution) => {
+    setInspectTarget(r);
+    setAcceptMeters(String(Number(r.held_meters ?? 0)));
+    setRejMeters(''); setInspectNotes('');
+  };
+  const handleInspect = async () => {
+    if (!inspectTarget) return;
+    const accept = Number(acceptMeters) || 0;
+    const reject = Number(rejMeters) || 0;
+    const held = Number(inspectTarget.held_meters ?? 0);
+    if (accept + reject <= 0) { toast('error', 'Enter metres to accept and/or reject'); return; }
+    if (accept + reject > held) { toast('error', `Only ${held}m are held`); return; }
+    if (reject > 0 && !inspectNotes.trim()) { toast('error', 'A note is required to reject'); return; }
+    setInspecting(true);
+    try {
+      const res = await distributionApi.inspect(inspectTarget.id, {
+        ...(accept > 0 ? { accept_meters: accept } : {}),
+        ...(reject > 0 ? { reject_meters: reject } : {}),
+        ...(inspectNotes.trim() ? { notes: inspectNotes.trim() } : {}),
+      });
+      toast('success', 'Re-inspected', `${res.accepted}m accepted, ${res.rejected}m rejected, ${res.remaining_held}m still held.`);
+      setInspectTarget(null);
+      load();
+    } catch (err) {
+      toast('error', 'Failed', err instanceof Error ? err.message : undefined);
+    } finally {
+      setInspecting(false);
     }
   };
 
@@ -235,6 +288,9 @@ export const DistributionPage: React.FC = () => {
               <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => openReceive(r)}>Receive…</Button>
               <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => { setCancelTarget(r); setCancelReason(''); }}>Cancel</Button>
             </>
+          )}
+          {r.status === 'received' && Number(r.held_meters ?? 0) > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => openInspect(r)}>Re-inspect {Number(r.held_meters)}m held…</Button>
           )}
         </div>
       </td>
@@ -392,7 +448,61 @@ export const DistributionPage: React.FC = () => {
                 placeholder="e.g. 2m short — supplier roll ran out"
               />
             )}
-            <p className={styles.fabricCellCode}>The received meters land in the hub's stock and can't be undone here.</p>
+            {/* T1-13: inbound QC gate */}
+            <div className={styles.qcBox}>
+              <div className={styles.qcTitle}>Inbound QC — check width / GSM / shade / defects</div>
+              <div className={styles.qcRow}>
+                <Input label="Reject (write-off, m)" type="number" value={rejectedMeters} onChange={setRejectedMeters} placeholder="0" />
+                <Input label="Hold (quarantine, m)" type="number" value={heldMeters} onChange={setHeldMeters} placeholder="0" />
+              </div>
+              <div className={styles.qcDefects}>
+                {['width', 'gsm', 'shade', 'defect', 'other'].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={`${styles.qcChip} ${qcDefects.includes(d) ? styles.qcChipOn : ''}`}
+                    onClick={() => toggleDefect(d)}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+              {(Number(rejectedMeters) > 0 || Number(heldMeters) > 0) && (
+                <Input label="QC note (required)" value={qcNotes} onChange={setQcNotes} placeholder="e.g. shade off on 20m, holes on 10m" />
+              )}
+              <p className={styles.fabricCellCode}>
+                Accepted = {Math.max(0, Number(actualMeters || 0) - (Number(rejectedMeters) || 0) - (Number(heldMeters) || 0))}m enter available. Rejected never do; held wait in quarantine.
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Re-inspect held/quarantined metres (T1-13) */}
+      <Modal
+        open={inspectTarget !== null}
+        onClose={() => !inspecting && setInspectTarget(null)}
+        title="Re-inspect held fabric"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setInspectTarget(null)} disabled={inspecting}>Cancel</Button>
+            <Button variant="primary" state={inspecting ? 'loading' : 'default'} onClick={handleInspect}>Clear held</Button>
+          </>
+        }
+      >
+        {inspectTarget && (
+          <div className={styles.modalStack}>
+            <p className={styles.fabricCellCode}>
+              {inspectTarget.fabric_name ?? 'fabric'} → {hubName(inspectTarget.hub_id)} · {Number(inspectTarget.held_meters ?? 0)}m held in quarantine
+            </p>
+            <div className={styles.qcRow}>
+              <Input label="Accept → available (m)" type="number" value={acceptMeters} onChange={setAcceptMeters} placeholder="0" />
+              <Input label="Reject → write-off (m)" type="number" value={rejMeters} onChange={setRejMeters} placeholder="0" />
+            </div>
+            {Number(rejMeters) > 0 && (
+              <Input label="Reject note (required)" value={inspectNotes} onChange={setInspectNotes} placeholder="e.g. shade still off after re-check" />
+            )}
           </div>
         )}
       </Modal>

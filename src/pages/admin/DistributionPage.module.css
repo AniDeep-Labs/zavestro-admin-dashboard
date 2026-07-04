@@ -30,3 +30,18 @@
   background: none; border: 1px solid var(--color-primary); color: var(--color-primary);
   border-radius: var(--radius-full); padding: 1px 10px; font: inherit; font-size: var(--font-size-xs); cursor: pointer;
 }
+
+/* T1-13: inbound QC */
+.qcBox {
+  padding: 12px; border: 1px solid var(--color-border-light); border-radius: 8px;
+  background: var(--color-bg-secondary); display: flex; flex-direction: column; gap: 10px;
+}
+.qcTitle { font-size: 0.8rem; font-weight: 600; color: var(--color-text-secondary); }
+.qcRow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.qcDefects { display: flex; flex-wrap: wrap; gap: 6px; }
+.qcChip {
+  padding: 4px 10px; border: 1px solid var(--color-border); border-radius: 999px;
+  background: var(--color-bg-card); color: var(--color-text-secondary); font-size: 0.78rem;
+  cursor: pointer; text-transform: capitalize;
+}
+.qcChipOn { background: var(--color-warning, #b7791f); color: #fff; border-color: var(--color-warning, #b7791f); }

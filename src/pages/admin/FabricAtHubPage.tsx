@@ -166,6 +166,12 @@ export const FabricAtHubPage: React.FC = () => {
           <div className={kpi.summaryLabel}>Reserved</div>
           <div className={kpi.summaryValue}>{reserved.toLocaleString('en-IN')} m</div>
         </div>
+        {Number(data.stock.quarantine_meters ?? 0) > 0 && (
+          <div className={kpi.summaryCard}>
+            <div className={kpi.summaryLabel}>Quarantine (QC hold)</div>
+            <div className={kpi.summaryValue}>{Number(data.stock.quarantine_meters).toLocaleString('en-IN')} m</div>
+          </div>
+        )}
         <div className={kpi.summaryCard}>
           <div className={kpi.summaryLabel}>Capital (avail)</div>
           <div className={kpi.summaryValue}>{capital != null ? `₹${capital.toLocaleString('en-IN')}` : '—'}</div>

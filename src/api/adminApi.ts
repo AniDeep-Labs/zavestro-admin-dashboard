@@ -2639,6 +2639,7 @@ export interface FabricAtHub {
     reorder_meters?: string | number | null;
     updated_at: string | null;
     last_counted_at?: string | null; // T1-10
+    quarantine_meters?: string | number | null; // T1-13
   };
   movements: FabricMovement[]; // distribution/restock/listing REQUEST events (context)
   stock_movements?: FabricStockMovement[]; // actual stock in/out with running balance
@@ -2707,6 +2708,12 @@ export interface Distribution {
   status: "pushed" | "received" | "cancelled";
   received_meters?: string | number | null;
   variance_reason?: string | null;
+  // T1-13 inbound QC
+  accepted_meters?: string | number | null;
+  rejected_meters?: string | number | null;
+  held_meters?: string | number | null;
+  qc_result?: "pass" | "partial" | "hold" | "reject" | null;
+  qc_defects?: string[] | null;
   created_at: string;
   updated_at: string;
   design_name: string | null;
@@ -2742,9 +2749,26 @@ export const distributionApi = {
   receive: async (
     id: string,
     // G-30: record what actually arrived; variance > 5% needs a reason.
-    opts: { actual_meters?: number; variance_reason?: string } = {},
-  ): Promise<{ id: string; stocked_meters: number }> =>
+    // T1-13: inbound QC — rejected (write-off) / held (quarantine) metres + defects.
+    opts: {
+      actual_meters?: number;
+      variance_reason?: string;
+      rejected_meters?: number;
+      held_meters?: number;
+      qc_notes?: string;
+      qc_defects?: string[];
+    } = {},
+  ): Promise<{ id: string; stocked_meters: number; qc_result: string }> =>
     req(`/api/admin/distribution/${id}/receive`, {
+      method: "POST",
+      body: JSON.stringify(opts),
+    }),
+  // T1-13: re-inspect held/quarantined metres from a receipt.
+  inspect: async (
+    id: string,
+    opts: { accept_meters?: number; reject_meters?: number; notes?: string },
+  ): Promise<{ id: string; accepted: number; rejected: number; remaining_held: number }> =>
+    req(`/api/admin/distribution/${id}/inspect`, {
       method: "POST",
       body: JSON.stringify(opts),
     }),
