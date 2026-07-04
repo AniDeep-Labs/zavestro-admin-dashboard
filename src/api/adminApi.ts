@@ -2557,7 +2557,7 @@ export const fabricsApi = {
   // Phase 3 — central procurement pool (received/allocated/available per SKU).
   centralStock: async (): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central`),
-  receiveCentral: async (input: { fabric_id: string; meters: number; note?: string }): Promise<CentralStockRow[]> =>
+  receiveCentral: async (input: { fabric_id: string; meters: number; note?: string; lot_code?: string; shade_note?: string }): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central/receive`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -2675,6 +2675,7 @@ export interface PushDistributionInput {
   hub_id: string;
   sample_qty?: number;
   sellable_qty?: number;
+  lot_code?: string; // T1-9: dye-lot being shipped
 }
 
 export const distributionApi = {

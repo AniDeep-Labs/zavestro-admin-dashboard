@@ -40,6 +40,7 @@ export const DistributionPage: React.FC = () => {
   const [hubId, setHubId] = React.useState('');
   const [sampleQty, setSampleQty] = React.useState('1');
   const [sellableQty, setSellableQty] = React.useState('0');
+  const [lotCode, setLotCode] = React.useState(''); // T1-9 dye-lot being shipped
   const [pushing, setPushing] = React.useState(false);
 
   // receive (G-30)
@@ -109,7 +110,7 @@ export const DistributionPage: React.FC = () => {
 
   const openPush = () => {
     setDesignId(''); setFabrics([]); setFabricId(''); setHubId(hubs[0]?.id ?? '');
-    setSampleQty('1'); setSellableQty('0'); setOpen(true);
+    setSampleQty('1'); setSellableQty('0'); setLotCode(''); setOpen(true);
   };
 
   // ── push validation against central (caught here, not at the hub's receive) ──
@@ -179,6 +180,7 @@ export const DistributionPage: React.FC = () => {
         hub_id: hubId,
         sample_qty: restockMode ? 0 : (Number(sampleQty) || 0),
         sellable_qty: Number(sellableQty) || 0,
+        lot_code: lotCode.trim() || undefined,
       });
       toast('success', restockMode ? 'Restock pushed to hub' : 'Pushed to hub', 'The hub will receive and stock it.');
       setOpen(false);
@@ -353,6 +355,7 @@ export const DistributionPage: React.FC = () => {
               <Input label="Sellable metres" type="number" value={sellableQty} onChange={setSellableQty} />
             </div>
           )}
+          <Input label="Dye-lot code (optional)" value={lotCode} onChange={setLotCode} placeholder="which physical lot you're shipping" />
           {overPush && (
             <p className={`${s.hint} ${s.hintWarn}`}>
               Pushing {shipTotal} m {restockMode ? '' : `(sample ${Number(sampleQty) || 0} + sellable ${Number(sellableQty) || 0}) `}exceeds central available ({centralAvail} m). Receive more into Central Stock first.
