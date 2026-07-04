@@ -2142,6 +2142,8 @@ export interface PnlReport {
     refunds: number;
     profit: number;
   };
+  // T1-19: outstanding wallet credits — a current liability, not part of period profit.
+  wallet_liability: number;
   estimates: {
     payment_fee_rate_pct: number;
     delivery_cost_per_order: number;
