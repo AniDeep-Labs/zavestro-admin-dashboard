@@ -2963,6 +2963,10 @@ export interface CmListing {
   available_meters?: string | number | null;
   // G-26: fabric ₹/m → cost floor = price_per_meter × meters_per_garment + make + overhead.
   price_per_meter?: string | number | null;
+  // T1-16: sales signal so the hub merchant doesn't merchandise blind.
+  units_sold?: number;
+  units_delivered?: number;
+  last_ordered_at?: string | null;
 }
 export interface ReadyToListSample {
   sample_id: string;

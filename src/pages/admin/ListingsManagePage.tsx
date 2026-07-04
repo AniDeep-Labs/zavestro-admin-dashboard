@@ -453,6 +453,20 @@ export const ListingsManagePage: React.FC = () => {
                       </div>
                     );
                   })()}
+                  {/* T1-16: sales signal so the hub merchant doesn't merchandise blind */}
+                  {(l.units_sold ?? 0) > 0 ? (
+                    <div className={s.salesLine}>
+                      {l.units_sold} sold
+                      {(l.units_delivered ?? 0) !== (l.units_sold ?? 0)
+                        ? ` · ${l.units_delivered ?? 0} delivered`
+                        : ""}
+                      {l.last_ordered_at
+                        ? ` · last ${new Date(l.last_ordered_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`
+                        : ""}
+                    </div>
+                  ) : (
+                    <div className={s.salesNone}>No orders yet</div>
+                  )}
                   <div className={s.cardFoot}>
                     <span className={s.price}>
                       ₹{Number(l.price).toLocaleString("en-IN")}

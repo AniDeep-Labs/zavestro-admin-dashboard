@@ -95,3 +95,7 @@
   margin-right: 8px;
 }
 .dupBtn:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+/* T1-16: listing sales signal */
+.salesLine { font-size: 0.75rem; color: var(--color-text-secondary); font-weight: 500; }
+.salesNone { font-size: 0.75rem; color: var(--color-text-tertiary); }
