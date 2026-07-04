@@ -77,3 +77,19 @@
 .moveTime { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-top: 2px; }
 
 .sectionHint { font-weight: var(--font-weight-regular); font-size: var(--font-size-sm); color: var(--color-text-muted); }
+
+/* T1-10: hub shelf count / adjust */
+.countBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 12px 0 20px;
+  padding: 12px 16px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+}
+.countMeta { font-size: 0.85rem; color: var(--color-text-tertiary); }
+.countForm { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; flex: 1; }
+.countActions { display: flex; gap: 8px; align-items: center; }

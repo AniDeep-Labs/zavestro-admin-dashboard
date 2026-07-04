@@ -2554,6 +2554,11 @@ export const fabricsApi = {
     req<FabricAtHub>(
       `/api/admin/fabrics/at-hub?hub_id=${hubId}&fabric_id=${fabricId}`,
     ),
+  // T1-10: count-adjust a hub's shelf to the physical truth (logs a count_adjust movement).
+  adjustHubStock: async (input: { hub_id: string; fabric_id: string; counted_meters: number; note: string }): Promise<{ previous: number; counted: number; variance: number; at_hub: FabricAtHub }> =>
+    req(`/api/admin/fabrics/hub-stock/adjust`, { method: "POST", body: JSON.stringify(input) }),
+  hubStockVariance: async (): Promise<HubStockVariance[]> =>
+    req<HubStockVariance[]>(`/api/admin/fabrics/hub-stock/variance`),
   // Phase 3 — central procurement pool (received/allocated/available per SKU).
   centralStock: async (): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central`),
@@ -2604,10 +2609,12 @@ export interface FabricMovement {
 }
 // True stock-movement ledger (mig 120): every available_meters change with running balance.
 export interface FabricStockMovement {
-  kind: string; // received | reserved | released | reconciled | in | out
+  kind: string; // received | reserved | released | reconciled | in | out | count_adjust
   delta_meters: string | number; // signed
   balance_after: string | number; // running balance
   created_at: string;
+  lot_code?: string | null; // T1-9
+  note?: string | null; // T1-10 (count_adjust reason)
 }
 export interface FabricAtHub {
   fabric: Fabric;
@@ -2618,9 +2625,21 @@ export interface FabricAtHub {
     reserved_meters: string;
     reorder_meters?: string | number | null;
     updated_at: string | null;
+    last_counted_at?: string | null; // T1-10
   };
   movements: FabricMovement[]; // distribution/restock/listing REQUEST events (context)
   stock_movements?: FabricStockMovement[]; // actual stock in/out with running balance
+}
+
+// T1-10: count-variance + monthly-count-due, one row per hub.
+export interface HubStockVariance {
+  hub_id: string;
+  hub_name: string;
+  count_adjustments: number;
+  total_variance_meters: number;
+  last_counted_at: string | null;
+  total_skus: number;
+  skus_due_for_count: number;
 }
 
 export interface FabricStockRow {
