@@ -1601,7 +1601,7 @@ export interface DesignFabricRef {
   image_keys: string[];
   meters_per_garment: string | null;
   price_per_meter: string | null;
-  hubs: { hub_name: string; available_meters: number | string }[];
+  hubs: { hub_id?: string; hub_name: string; available_meters: number | string }[];
 }
 export interface DesignSampleRef {
   id: string;
