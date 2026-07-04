@@ -2594,7 +2594,7 @@ export const fabricsApi = {
   // Phase 3 — central procurement pool (received/allocated/available per SKU).
   centralStock: async (): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central`),
-  receiveCentral: async (input: { fabric_id: string; meters: number; note?: string; lot_code?: string; shade_note?: string }): Promise<CentralStockRow[]> =>
+  receiveCentral: async (input: { fabric_id: string; meters: number; note?: string; lot_code?: string; shade_note?: string; unit_cost?: number }): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central/receive`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -2627,6 +2627,7 @@ export interface CentralStockRow {
   allocated_meters: string | number;
   available_meters: string | number;
   updated_at: string;
+  unit_cost_wac?: string | number | null; // T1-17: weighted-avg cost-at-receipt
 }
 
 export interface FabricMovement {

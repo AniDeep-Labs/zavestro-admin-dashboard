@@ -36,6 +36,7 @@ export const CentralStockPage: React.FC = () => {
   const [note, setNote] = React.useState("");
   const [lotCode, setLotCode] = React.useState(""); // T1-9 dye-lot
   const [shadeNote, setShadeNote] = React.useState("");
+  const [unitCost, setUnitCost] = React.useState(""); // T1-17 ₹/m paid
   const [saving, setSaving] = React.useState(false);
   // adjust
   const [adjustTarget, setAdjustTarget] = React.useState<CentralStockRow | null>(null);
@@ -83,8 +84,14 @@ export const CentralStockPage: React.FC = () => {
     }
   }, [sp, setSp]);
 
-  const valueOf = (r: CentralStockRow) =>
-    r.price_per_meter != null ? num(r.available_meters) * num(r.price_per_meter) : null;
+  // T1-17: value at weighted-average cost-at-receipt; fall back to list price only when a
+  // fabric has no costed receipts (so a list-price edit no longer revalues shelved stock).
+  const costBasis = (r: CentralStockRow) =>
+    r.unit_cost_wac != null ? num(r.unit_cost_wac) : r.price_per_meter != null ? num(r.price_per_meter) : null;
+  const valueOf = (r: CentralStockRow) => {
+    const c = costBasis(r);
+    return c != null ? num(r.available_meters) * c : null;
+  };
 
   // ── rollups ──
   const totReceived = rows.reduce((sum, r) => sum + num(r.received_meters), 0);
@@ -104,11 +111,12 @@ export const CentralStockPage: React.FC = () => {
         note: note.trim() || undefined,
         lot_code: lotCode.trim() || undefined,
         shade_note: shadeNote.trim() || undefined,
+        unit_cost: unitCost.trim() && Number(unitCost) >= 0 ? Number(unitCost) : undefined,
       });
       setRows(next);
       showToast("success", `Received ${m} m into central stock`);
       setReceiveOpen(false);
-      setFabricId(""); setMeters(""); setNote(""); setLotCode(""); setShadeNote("");
+      setFabricId(""); setMeters(""); setNote(""); setLotCode(""); setShadeNote(""); setUnitCost("");
     } catch (e) {
       showToast("error", "Receive failed", e instanceof Error ? e.message : undefined);
     } finally {
@@ -265,6 +273,9 @@ export const CentralStockPage: React.FC = () => {
           </label>
           <label className={s.flbl}>Quantity received (metres)
             <input className={s.finp} type="number" min={1} value={meters} placeholder="e.g. 200" onChange={(e) => setMeters(e.target.value)} />
+          </label>
+          <label className={s.flbl}>Unit cost — ₹/metre paid (optional)
+            <input className={s.finp} type="number" min={0} value={unitCost} placeholder="defaults to the fabric's current ₹/m" onChange={(e) => setUnitCost(e.target.value)} />
           </label>
           <label className={s.flbl}>Note (optional)
             <input className={s.finp} value={note} placeholder="e.g. PO-1042, Arvind invoice #88" onChange={(e) => setNote(e.target.value)} />
