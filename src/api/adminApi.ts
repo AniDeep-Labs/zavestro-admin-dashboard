@@ -1,4 +1,4 @@
-import { getAdminToken, clearAdminToken } from "./catalogApi";
+import { getAdminToken, setAdminToken, clearAdminToken } from "./catalogApi";
 import type {
   AdminOrder,
   AdminUser,
@@ -3143,11 +3143,18 @@ export const adminAuthExtApi = {
   changePassword: async (
     currentPassword: string,
     newPassword: string,
-  ): Promise<void> =>
-    req("/api/admin/auth/change-password", {
-      method: "POST",
-      body: JSON.stringify({ currentPassword, newPassword }),
-    }),
+  ): Promise<void> => {
+    // T1-4: the server hands back a fresh token WITHOUT the must-change gate. Swap it
+    // in immediately so a temp-password admin keeps working without re-logging-in.
+    const res = await req<{ changed: boolean; token?: string }>(
+      "/api/admin/auth/change-password",
+      {
+        method: "POST",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      },
+    );
+    if (res?.token) setAdminToken(res.token);
+  },
 
   setTempPassword: async (
     adminUserId: string,
