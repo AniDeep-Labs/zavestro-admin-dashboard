@@ -1,11 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fitFeedbackApi } from '../../api/adminApi';
+import { fitFeedbackApi, usersApi } from '../../api/adminApi';
 import type { FitFeedbackEntry } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { StatusBadge } from '../../components/StatusBadge';
+import { Modal } from '../../components/Modal/Modal';
+import { Button } from '../../components/Button/Button';
 import styles from './OrdersListPage.module.css';
+import fs from './FitFeedbackPage.module.css';
 
 // Fit-Promise radar (W-17): a ≤2 rating is a fit failure that needs rescue.
 const fitTone = (n: number) => (n >= 4 ? 'done' : n <= 2 ? 'blocked' : 'qc');
@@ -21,6 +24,45 @@ export const FitFeedbackPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const dismiss = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
+  const toast = (type: ToastData['type'], title: string, msg?: string) =>
+    setToasts((t) => [...t, createToast(type, title, msg)]);
+
+  // T1-21 (SP-1): inline rescue on a fit failure — issue goodwill (≤₹500, per-order capped)
+  // or request a free re-measure, without leaving the radar.
+  const [rescue, setRescue] = React.useState<{ row: FitFeedbackEntry; mode: 'credit' | 'remeasure' } | null>(null);
+  const [amount, setAmount] = React.useState('');
+  const [reason, setReason] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const openRescue = (row: FitFeedbackEntry, mode: 'credit' | 'remeasure') => {
+    setRescue({ row, mode }); setAmount(''); setReason('');
+  };
+  const submitRescue = async () => {
+    if (!rescue) return;
+    const { row, mode } = rescue;
+    if (!reason.trim()) return toast('error', 'A reason is required');
+    if (mode === 'credit') {
+      const amt = Number(amount);
+      if (!(amt > 0) || amt > 500) return toast('error', 'Enter an amount up to ₹500');
+      setBusy(true);
+      try {
+        const res = await usersApi.issueCredits(row.user_id, amt, reason.trim(), row.order_id);
+        toast('success', `₹${amt} credit issued`, res.order_goodwill_total != null ? `₹${res.order_goodwill_total} goodwill on this order so far.` : undefined);
+        setRescue(null);
+      } catch (e) {
+        toast('error', "Couldn't issue credit", e instanceof Error ? e.message : undefined);
+      } finally { setBusy(false); }
+    } else {
+      setBusy(true);
+      try {
+        await usersApi.requestRemeasure(row.user_id, { reason: reason.trim(), order_id: row.order_id });
+        toast('success', 'Re-measure requested', 'Ops will schedule a free agent visit.');
+        setRescue(null);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : undefined;
+        toast('error', msg?.includes('already has an open') ? 'Already requested' : 'Failed', msg);
+      } finally { setBusy(false); }
+    }
+  };
 
   React.useEffect(() => {
     fitFeedbackApi
@@ -105,13 +147,29 @@ export const FitFeedbackPage: React.FC = () => {
                     <td className={styles.date}>{fmtDate(r.created_at)}</td>
                     <td>
                       {r.overall_fit <= 2 && (
-                        <button
-                          className={styles.exportBtn}
-                          onClick={() => navigate(`/admin/orders/${r.order_number ?? r.order_id}`)}
-                          title="Open the order to request a free re-measure / book an alteration"
-                        >
-                          Rescue →
-                        </button>
+                        <div className={fs.rescueActions}>
+                          <button
+                            className={styles.exportBtn}
+                            onClick={() => openRescue(r, 'credit')}
+                            title="Issue goodwill credit (≤₹500, per-order capped)"
+                          >
+                            Credit
+                          </button>
+                          <button
+                            className={styles.exportBtn}
+                            onClick={() => openRescue(r, 'remeasure')}
+                            title="Request a free re-measure"
+                          >
+                            Re-measure
+                          </button>
+                          <button
+                            className={styles.exportBtn}
+                            onClick={() => navigate(`/admin/orders/${r.order_number ?? r.order_id}`)}
+                            title="Open the order for more options"
+                          >
+                            Open →
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -121,6 +179,48 @@ export const FitFeedbackPage: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* T1-21: inline rescue — goodwill credit or free re-measure */}
+      <Modal
+        open={rescue !== null}
+        onClose={() => !busy && setRescue(null)}
+        title={rescue?.mode === 'credit' ? 'Issue goodwill credit' : 'Request re-measure'}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRescue(null)} disabled={busy}>Cancel</Button>
+            <Button variant="primary" state={busy ? 'loading' : 'default'} onClick={submitRescue}>
+              {rescue?.mode === 'credit' ? 'Issue credit' : 'Request re-measure'}
+            </Button>
+          </>
+        }
+      >
+        {rescue && (
+          <div className={fs.rescueForm}>
+            <p className={fs.rescueMeta}>
+              {rescue.row.customer_name ?? '—'} · order {rescue.row.order_number ?? rescue.row.order_id.slice(0, 8)}
+            </p>
+            {rescue.mode === 'credit' && (
+              <input
+                className={fs.rescueInput}
+                type="number"
+                min={1}
+                max={500}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Amount (₹, max 500 — per order)"
+              />
+            )}
+            <textarea
+              className={fs.rescueInput}
+              rows={2}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={rescue.mode === 'credit' ? 'Reason (goodwill for the fit issue)' : 'What went wrong with the fit?'}
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

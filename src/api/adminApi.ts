@@ -487,10 +487,11 @@ export const usersApi = {
     id: string,
     amount: number,
     reason: string,
-  ): Promise<void> =>
+    orderId?: string, // T1-21: ties the goodwill to the order + enforces the per-order ₹500 cap
+  ): Promise<{ balance: number; order_goodwill_total: number | null }> =>
     req(`/api/admin/users/${id}/credits`, {
       method: "POST",
-      body: JSON.stringify({ amount, reason }),
+      body: JSON.stringify({ amount, reason, ...(orderId ? { order_id: orderId } : {}) }),
     }),
 
   // W-5: submit a credit ABOVE support's inline cap for finance to approve.
@@ -831,6 +832,13 @@ export const supportApi = {
     );
     return mapTicket(raw);
   },
+
+  // T1-21: escalate a ticket to finance (records the escalated state + bumps priority).
+  escalate: async (id: string, reason: string): Promise<void> =>
+    req(`/api/admin/support/${id}/escalate`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
 };
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
@@ -2175,6 +2183,7 @@ export const financeApi = {
 export interface FitFeedbackEntry {
   id: string;
   order_id: string;
+  user_id: string; // T1-21: for the rescue verbs (credit / re-measure)
   order_number: string | null;
   hub_id: string | null;
   hub_name: string | null;

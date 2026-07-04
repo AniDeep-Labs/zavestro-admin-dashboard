@@ -1,0 +1,9 @@
+/* T1-21: fit-feedback inline rescue actions */
+.rescueActions { display: flex; gap: 6px; flex-wrap: wrap; }
+.rescueForm { display: flex; flex-direction: column; gap: 10px; }
+.rescueMeta { font-size: 0.85rem; color: var(--color-text-secondary); }
+.rescueInput {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px;
+  font-size: 0.9rem; background: var(--color-bg-card); color: var(--color-text-primary);
+  font-family: inherit; box-sizing: border-box;
+}

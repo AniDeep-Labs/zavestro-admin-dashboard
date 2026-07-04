@@ -58,6 +58,47 @@ export const TicketDetailPage: React.FC = () => {
   const [remeasureReason, setRemeasureReason] = React.useState("");
   const [requestingRemeasure, setRequestingRemeasure] = React.useState(false);
 
+  // T1-21: inline goodwill credit (≤₹500, per-order capped server-side)
+  const [showCredit, setShowCredit] = React.useState(false);
+  const [creditAmount, setCreditAmount] = React.useState("");
+  const [creditReason, setCreditReason] = React.useState("");
+  const [issuingCredit, setIssuingCredit] = React.useState(false);
+  const submitCredit = async () => {
+    const amt = Number(creditAmount);
+    if (!ticket?.user_id || !(amt > 0)) return showToast("error", "Enter a credit amount");
+    if (amt > 500) return showToast("error", "Support credits are capped at ₹500 — escalate to finance for more");
+    if (!creditReason.trim()) return showToast("error", "A reason is required");
+    setIssuingCredit(true);
+    try {
+      const res = await usersApi.issueCredits(ticket.user_id, amt, creditReason.trim(), ticket.order_id ?? undefined);
+      showToast("success", `₹${amt} credit issued`, res.order_goodwill_total != null ? `₹${res.order_goodwill_total} goodwill on this order so far.` : undefined);
+      setShowCredit(false); setCreditAmount(""); setCreditReason("");
+    } catch (e) {
+      showToast("error", "Couldn't issue credit", e instanceof Error ? e.message : undefined);
+    } finally {
+      setIssuingCredit(false);
+    }
+  };
+
+  // T1-21: escalate to finance
+  const [showEscalate, setShowEscalate] = React.useState(false);
+  const [escalateReason, setEscalateReason] = React.useState("");
+  const [escalating, setEscalating] = React.useState(false);
+  const submitEscalate = async () => {
+    if (!ticket || !escalateReason.trim()) return showToast("error", "Add a reason for finance");
+    setEscalating(true);
+    try {
+      await supportApi.escalate(ticket.id, escalateReason.trim());
+      showToast("success", "Escalated to finance", "Finance has been notified; priority raised to high.");
+      setShowEscalate(false); setEscalateReason("");
+      supportApi.get(ticket.id).then(setTicket).catch(() => {});
+    } catch (e) {
+      showToast("error", "Couldn't escalate", e instanceof Error ? e.message : undefined);
+    } finally {
+      setEscalating(false);
+    }
+  };
+
   const submitRemeasure = async () => {
     if (!ticket?.user_id || !remeasureReason.trim()) {
       showToast("error", "Add a reason for the re-measure");
@@ -450,6 +491,17 @@ export const TicketDetailPage: React.FC = () => {
               Request re-measure
             </button>
           )}
+          {/* T1-21: the two money verbs — inline goodwill (≤₹500) + escalate to finance */}
+          {ticket.user_id && (
+            <button className={styles.assignSelfBtn} onClick={() => setShowCredit(true)}>
+              Issue credit (≤₹500)
+            </button>
+          )}
+          {ticket.user_id && (
+            <button className={styles.assignSelfBtn} onClick={() => setShowEscalate(true)}>
+              Escalate to finance
+            </button>
+          )}
           {/* Alteration & return need a delivered linked order; backend enforces it. */}
           {ticket.user_id && ticket.order_id && (
             <button
@@ -803,6 +855,79 @@ export const TicketDetailPage: React.FC = () => {
                 onClick={submitRemeasure}
               >
                 {requestingRemeasure ? "Requesting…" : "Request re-measure"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* T1-21: issue goodwill credit (≤₹500, per-order capped) */}
+      {showCredit && ticket && (
+        <div className={styles.modalOverlay} onClick={() => setShowCredit(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Issue credit for {ticket.customer}</h3>
+            <p className={styles.fieldLabel}>
+              Goodwill wallet credit, capped at ₹500 per order{ticket.order_id ? " (tied to the linked order)" : ""}.
+              More than that must be escalated to finance.
+            </p>
+            <input
+              className={styles.fieldTextarea}
+              type="number"
+              min={1}
+              max={500}
+              value={creditAmount}
+              onChange={(e) => setCreditAmount(e.target.value)}
+              placeholder="Amount (₹, max 500)"
+            />
+            <textarea
+              className={styles.fieldTextarea}
+              rows={2}
+              value={creditReason}
+              onChange={(e) => setCreditReason(e.target.value)}
+              placeholder="Reason (e.g., goodwill for a fit issue)"
+            />
+            <div className={styles.modalActions}>
+              <button className={styles.cancelModalBtn} onClick={() => setShowCredit(false)}>
+                Cancel
+              </button>
+              <button
+                className={styles.assignSelfBtn}
+                disabled={!creditAmount || !creditReason.trim() || issuingCredit}
+                onClick={submitCredit}
+              >
+                {issuingCredit ? "Issuing…" : "Issue credit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* T1-21: escalate to finance */}
+      {showEscalate && ticket && (
+        <div className={styles.modalOverlay} onClick={() => setShowEscalate(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Escalate to finance</h3>
+            <p className={styles.fieldLabel}>
+              For a money decision beyond support's ₹500 cap (a refund or larger credit). Finance is
+              notified and the ticket priority is raised to high.
+            </p>
+            <textarea
+              className={styles.fieldTextarea}
+              rows={3}
+              value={escalateReason}
+              onChange={(e) => setEscalateReason(e.target.value)}
+              placeholder="e.g., Customer wants a full refund — needs finance approval"
+            />
+            <div className={styles.modalActions}>
+              <button className={styles.cancelModalBtn} onClick={() => setShowEscalate(false)}>
+                Cancel
+              </button>
+              <button
+                className={styles.assignSelfBtn}
+                disabled={!escalateReason.trim() || escalating}
+                onClick={submitEscalate}
+              >
+                {escalating ? "Escalating…" : "Escalate to finance"}
               </button>
             </div>
           </div>
