@@ -262,6 +262,9 @@ export const ordersApi = {
       estimated_delivery_date: (o.estimated_delivery_date ?? null) as
         | string
         | null,
+      // T1-20: computed fallback for the promised date (created_at + SLA).
+      computed_delivery_date: (o.computed_delivery_date ?? null) as string | null,
+      delivery_sla_days: (o.delivery_sla_days ?? null) as number | null,
       on_hold_reason: (o.on_hold_reason ?? null) as string | null,
       cancellation_reason: (o.cancellation_reason ?? null) as string | null,
       delivery_address: (o.delivery_address ??

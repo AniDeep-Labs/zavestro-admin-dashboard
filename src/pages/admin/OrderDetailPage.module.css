@@ -224,3 +224,6 @@
 
 /* T1-15: delivery-address edit hint */
 .addrHint { font-size: 0.75rem; color: var(--color-text-tertiary); }
+
+/* T1-20: computed promised-date estimate hint */
+.estHint { font-size: 0.72rem; color: var(--color-text-tertiary); font-weight: 400; }

@@ -1201,7 +1201,17 @@ export const OrderDetailPage: React.FC = () => {
             ) : (
               <div className={styles.inlineEdit}>
                 <span className={styles.metaValue}>
-                  {order.estimated_delivery_date ?? "—"}
+                  {order.estimated_delivery_date ? (
+                    order.estimated_delivery_date
+                  ) : order.computed_delivery_date ? (
+                    /* T1-20: computed fallback when no human set a date — an estimate, not a guess */
+                    <>
+                      {new Date(order.computed_delivery_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      <span className={styles.estHint}> · estimated (created + {order.delivery_sla_days ?? 7}d)</span>
+                    </>
+                  ) : (
+                    "—"
+                  )}
                 </span>
                 <button
                   className={styles.linkBtn}
