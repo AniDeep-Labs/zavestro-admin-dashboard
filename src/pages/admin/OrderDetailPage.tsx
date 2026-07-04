@@ -564,6 +564,13 @@ export const OrderDetailPage: React.FC = () => {
   const [deliveryDate, setDeliveryDate] = React.useState("");
   const [savingDelivery, setSavingDelivery] = React.useState(false);
 
+  // Delivery address inline edit (T1-15 — support, pre-dispatch, dark-store hub-guarded)
+  const emptyAddr = { name: "", phone: "", line1: "", line2: "", city: "", state: "", pincode: "" };
+  const [editingAddress, setEditingAddress] = React.useState(false);
+  const [addrForm, setAddrForm] = React.useState(emptyAddr);
+  const [savingAddress, setSavingAddress] = React.useState(false);
+  const ADDRESS_LOCKED = ["shipped", "delivered", "delivery_failed", "rto"];
+
   // Hold reason inline edit
   const [editingHold, setEditingHold] = React.useState(false);
   const [holdReason, setHoldReason] = React.useState("");
@@ -953,6 +960,53 @@ export const OrderDetailPage: React.FC = () => {
     }
   };
 
+  const openEditAddress = () => {
+    const a = order?.delivery_address;
+    setAddrForm({
+      name: a?.name ?? order?.customer ?? "",
+      phone: a?.phone ?? order?.phone ?? "",
+      line1: a?.line1 ?? "",
+      line2: a?.line2 ?? "",
+      city: a?.city ?? "",
+      state: a?.state ?? "",
+      pincode: a?.pincode ?? "",
+    });
+    setEditingAddress(true);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!order) return;
+    const f = addrForm;
+    if (!f.name.trim() || !f.phone.trim() || !f.line1.trim() || !f.city.trim() || !f.state.trim()) {
+      showToast("error", "Name, phone, line 1, city and state are required");
+      return;
+    }
+    if (!/^\d{6}$/.test(f.pincode.trim())) {
+      showToast("error", "Pincode must be 6 digits");
+      return;
+    }
+    setSavingAddress(true);
+    try {
+      const res = await ordersApi.editAddress(order.uuid ?? order.id, {
+        name: f.name.trim(),
+        phone: f.phone.trim(),
+        line1: f.line1.trim(),
+        line2: f.line2.trim() || undefined,
+        city: f.city.trim(),
+        state: f.state.trim(),
+        pincode: f.pincode.trim(),
+      });
+      setOrder((prev) => (prev ? { ...prev, delivery_address: res.delivery_address } : prev));
+      setEditingAddress(false);
+      showToast("success", "Delivery address updated");
+    } catch (e) {
+      // Server enforces the dark-store hub guard — surface its message (cross-hub, unserviceable, locked).
+      showToast("error", "Couldn't update address", e instanceof Error ? e.message : undefined);
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
   const handleSaveHold = async () => {
     if (!order) return;
     setSavingHold(true);
@@ -1155,6 +1209,59 @@ export const OrderDetailPage: React.FC = () => {
                 >
                   Edit
                 </button>
+              </div>
+            )}
+          </div>
+          <div className={styles.deliveryBlock}>
+            <div className={styles.metaLabel}>Delivery Address</div>
+            {editingAddress ? (
+              <div className={styles.holdEditCol}>
+                {([
+                  ["name", "Name"],
+                  ["phone", "Phone"],
+                  ["line1", "Address line 1"],
+                  ["line2", "Address line 2 (optional)"],
+                  ["city", "City"],
+                  ["state", "State"],
+                  ["pincode", "Pincode (6 digits)"],
+                ] as const).map(([key, ph]) => (
+                  <input
+                    key={key}
+                    className={styles.inlineInput}
+                    placeholder={ph}
+                    value={addrForm[key]}
+                    onChange={(e) => setAddrForm({ ...addrForm, [key]: e.target.value })}
+                  />
+                ))}
+                <div className={styles.inlineEdit}>
+                  <button className={styles.inlineSave} disabled={savingAddress} onClick={handleSaveAddress}>
+                    {savingAddress ? "…" : "Save"}
+                  </button>
+                  <button
+                    className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
+                    onClick={() => setEditingAddress(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <span className={styles.addrHint}>
+                  A pincode outside this order's hub can't be set — cancel + re-order to deliver elsewhere.
+                </span>
+              </div>
+            ) : (
+              <div className={styles.inlineEdit}>
+                <span className={styles.metaValue}>
+                  {order.delivery_address
+                    ? `${order.delivery_address.line1}${order.delivery_address.line2 ? `, ${order.delivery_address.line2}` : ""}, ${order.delivery_address.city}, ${order.delivery_address.state} ${order.delivery_address.pincode}`
+                    : "—"}
+                </span>
+                {ADDRESS_LOCKED.includes(order.stage) ? (
+                  <span className={styles.addrHint}>locked (shipped)</span>
+                ) : (
+                  <button className={styles.linkBtn} onClick={openEditAddress}>
+                    Edit
+                  </button>
+                )}
               </div>
             )}
           </div>

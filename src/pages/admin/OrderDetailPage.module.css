@@ -221,3 +221,6 @@
 .nextStepField { margin-bottom: 10px; }
 .qcBtnRow { display: flex; gap: 8px; }
 .qcBtn { flex: 1; }
+
+/* T1-15: delivery-address edit hint */
+.addrHint { font-size: 0.75rem; color: var(--color-text-tertiary); }

@@ -264,8 +264,27 @@ export const ordersApi = {
         | null,
       on_hold_reason: (o.on_hold_reason ?? null) as string | null,
       cancellation_reason: (o.cancellation_reason ?? null) as string | null,
+      delivery_address: (o.delivery_address ??
+        null) as AdminOrder["delivery_address"],
     };
   },
+  // T1-15: support edits the delivery address pre-dispatch (dark-store hub-guarded server-side).
+  editAddress: async (
+    id: string,
+    address: {
+      name: string;
+      phone: string;
+      line1: string;
+      line2?: string;
+      city: string;
+      state: string;
+      pincode: string;
+    },
+  ): Promise<{ delivery_address: AdminOrder["delivery_address"] }> =>
+    req(`/api/admin/orders/${id}/address`, {
+      method: "PATCH",
+      body: JSON.stringify(address),
+    }),
 
   updateStage: async (
     id: string,
