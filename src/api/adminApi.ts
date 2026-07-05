@@ -493,6 +493,9 @@ export const usersApi = {
       method: "POST",
       body: JSON.stringify({ amount, reason, ...(orderId ? { order_id: orderId } : {}) }),
     }),
+  // T1-21b Phase 2: repeat-rescue signal so support isn't blind before issuing.
+  rescueSummary: async (id: string): Promise<RescueSummary> =>
+    req<RescueSummary>(`/api/admin/users/${id}/rescue-summary`),
 
   // W-5: submit a credit ABOVE support's inline cap for finance to approve.
   requestCredit: async (id: string, amount: number, reason: string): Promise<void> =>
@@ -839,7 +842,28 @@ export const supportApi = {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),
+  // T1-21b Phase 2: customers whose rescue rate is abnormal (manager review).
+  rescueWatchlist: async (): Promise<RescueWatchRow[]> =>
+    req<RescueWatchRow[]>(`/api/admin/support/rescue-watchlist`),
 };
+
+// T1-21b Phase 2: rescue velocity signal + watchlist row.
+export interface RescueSummary {
+  user_id: string;
+  goodwill_90d: number;
+  remeasures_90d: number;
+  orders_90d: number;
+  window_days: number;
+  flagged: boolean;
+}
+export interface RescueWatchRow {
+  user_id: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  goodwill_90d: number;
+  remeasures_90d: number;
+  window_days: number;
+}
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fitFeedbackApi, usersApi } from '../../api/adminApi';
-import type { FitFeedbackEntry } from '../../api/adminApi';
+import { fitFeedbackApi, usersApi, supportApi } from '../../api/adminApi';
+import type { FitFeedbackEntry, RescueWatchRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -33,6 +33,9 @@ export const FitFeedbackPage: React.FC = () => {
   const [amount, setAmount] = React.useState('');
   const [reason, setReason] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  // T1-21b Phase 2: rescue watchlist — customers whose rescue rate is abnormal.
+  const [watch, setWatch] = React.useState<RescueWatchRow[]>([]);
+  React.useEffect(() => { supportApi.rescueWatchlist().then(setWatch).catch(() => {}); }, []);
   const openRescue = (row: FitFeedbackEntry, mode: 'credit' | 'remeasure') => {
     setRescue({ row, mode }); setAmount(''); setReason('');
   };
@@ -84,6 +87,25 @@ export const FitFeedbackPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Fit Feedback</h1>
       </div>
+      {/* T1-21b Phase 2: rescue watchlist — abnormal rescue rate, for a manager's review */}
+      {watch.length > 0 && (
+        <div className={fs.watchPanel}>
+          <div className={fs.watchTitle}>⚠ Rescue watch — customers over the rescue threshold ({watch[0].window_days}d)</div>
+          <div className={fs.watchGrid}>
+            {watch.map((w) => (
+              <button
+                key={w.user_id}
+                className={fs.watchCard}
+                onClick={() => navigate(`/admin/users/${w.user_id}`)}
+                title="Open the customer 360"
+              >
+                <span className={fs.watchName}>{w.customer_name ?? w.customer_phone ?? w.user_id.slice(0, 8)}</span>
+                <span className={fs.watchMeta}>₹{w.goodwill_90d} goodwill · {w.remeasures_90d} re-measures</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>

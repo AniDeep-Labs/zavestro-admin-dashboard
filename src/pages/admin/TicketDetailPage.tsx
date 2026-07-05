@@ -58,6 +58,12 @@ export const TicketDetailPage: React.FC = () => {
   const [remeasureReason, setRemeasureReason] = React.useState("");
   const [requestingRemeasure, setRequestingRemeasure] = React.useState(false);
 
+  // T1-21b Phase 2: repeat-rescue signal so support isn't blind before issuing.
+  const [rescueSig, setRescueSig] = React.useState<import('../../api/adminApi').RescueSummary | null>(null);
+  React.useEffect(() => {
+    if (ticket?.user_id) usersApi.rescueSummary(ticket.user_id).then(setRescueSig).catch(() => {});
+  }, [ticket?.user_id]);
+
   // T1-21: inline goodwill credit (≤₹500, per-order capped server-side)
   const [showCredit, setShowCredit] = React.useState(false);
   const [creditAmount, setCreditAmount] = React.useState("");
@@ -870,6 +876,12 @@ export const TicketDetailPage: React.FC = () => {
               Goodwill wallet credit, capped at ₹500 per order{ticket.order_id ? " (tied to the linked order)" : ""}.
               More than that must be escalated to finance.
             </p>
+            {rescueSig && (
+              <p className={`${styles.fieldLabel} ${rescueSig.flagged ? styles.rescueFlag : ''}`}>
+                {rescueSig.flagged ? '⚠ ' : ''}This customer: ₹{rescueSig.goodwill_90d} goodwill · {rescueSig.remeasures_90d} re-measures in {rescueSig.window_days}d
+                {rescueSig.flagged ? ' — abnormal rescue rate, consider escalating instead.' : ''}
+              </p>
+            )}
             <input
               className={styles.fieldTextarea}
               type="number"
