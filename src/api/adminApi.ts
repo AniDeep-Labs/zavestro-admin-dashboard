@@ -1834,6 +1834,8 @@ export const designsApi = {
       garment_category_id?: string;
       gender?: string;
       q?: string;
+      dead?: boolean; // T1-28: published, never listed (server-side, correct across pages)
+      sample_pending?: boolean; // T1-28: not archived + no reviewed sample
       limit?: number;
       offset?: number;
       sort?: "newest" | "best_fit";
@@ -1845,6 +1847,8 @@ export const designsApi = {
       qs.set("garment_category_id", params.garment_category_id);
     if (params.gender) qs.set("gender", params.gender);
     if (params.q) qs.set("q", params.q);
+    if (params.dead) qs.set("dead", "true");
+    if (params.sample_pending) qs.set("sample_pending", "true");
     if (params.limit != null) qs.set("limit", String(params.limit));
     if (params.offset != null) qs.set("offset", String(params.offset));
     if (params.sort) qs.set("sort", params.sort);

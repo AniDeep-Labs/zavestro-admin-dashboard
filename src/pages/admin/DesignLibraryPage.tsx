@@ -66,9 +66,11 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
   // load(reset=true) replaces the list (filter change); load(false) appends the next page.
   const load = React.useCallback(
     (reset: boolean, offset = 0) => {
-      reset ? setLoading(true) : setLoadingMore(true);
+      if (reset) setLoading(true);
+      else setLoadingMore(true);
       designsApi
-        .list({ status: status || undefined, gender: gender || undefined, q: q || undefined, sort, limit: PAGE, offset })
+        // T1-28: the money chips are now server-side, so they're correct across pagination.
+        .list({ status: status || undefined, gender: gender || undefined, q: q || undefined, dead: deadOnly || undefined, sample_pending: samplePending || undefined, sort, limit: PAGE, offset })
         .then((rows) => {
           setDesigns((prev) => (reset ? rows : [...prev, ...rows]));
           setHasMore(rows.length === PAGE);
@@ -76,8 +78,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
         .catch((e) => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
         .finally(() => (reset ? setLoading(false) : setLoadingMore(false)));
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [status, gender, q, sort],
+    [status, gender, q, sort, deadOnly, samplePending],
   );
 
   React.useEffect(() => { load(true, 0); }, [load]);
@@ -150,13 +151,9 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
           ))}
         </div>
       ) : (() => {
-        let filtered = designs;
-        if (deadOnly)
-          filtered = filtered.filter((d) => d.status === 'published' && (d.live_hub_count ?? 0) === 0);
-        if (samplePending)
-          filtered = filtered.filter((d) => !d.has_reviewed_sample && d.status !== 'archived');
-        // Sort is now server-side (correct across pagination) — just the client-side chip filters remain.
-        const shown = filtered;
+        // T1-28: the chip filters (dead / sample-pending) are applied server-side now, so the
+        // list is correct across pagination — no client-side filtering that misses later pages.
+        const shown = designs;
         if (shown.length === 0)
           return anyFilter ? (
             <EmptyState
