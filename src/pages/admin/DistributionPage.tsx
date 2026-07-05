@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { distributionApi, designsApi, hubsApi, fabricsApi, R2_PUBLIC_URL } from '../../api/adminApi';
-import type { Distribution, DesignSummary, DesignFabricRef, Hub, CentralStockRow, FabricStockRow, Fabric } from '../../api/adminApi';
+import { distributionApi, designsApi, hubsApi, fabricsApi, qcTemplatesApi, R2_PUBLIC_URL } from '../../api/adminApi';
+import type { Distribution, DesignSummary, DesignFabricRef, Hub, CentralStockRow, FabricStockRow, Fabric, QcCheck } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { Modal } from '../../components/Modal/Modal';
@@ -53,6 +53,9 @@ export const DistributionPage: React.FC = () => {
   const [heldMeters, setHeldMeters] = React.useState('');
   const [qcNotes, setQcNotes] = React.useState('');
   const [qcDefects, setQcDefects] = React.useState<string[]>([]);
+  // T1-13b Phase 2: the category's QC checklist + the inspector's per-check answers.
+  const [qcChecks, setQcChecks] = React.useState<QcCheck[]>([]);
+  const [qcAnswers, setQcAnswers] = React.useState<Record<string, number | boolean | null>>({});
   // re-inspect held metres (T1-13)
   const [inspectTarget, setInspectTarget] = React.useState<Distribution | null>(null);
   const [acceptMeters, setAcceptMeters] = React.useState('');
@@ -137,6 +140,23 @@ export const DistributionPage: React.FC = () => {
     setActualMeters(String(Number(r.sellable_qty)));
     setVarianceReason('');
     setRejectedMeters(''); setHeldMeters(''); setQcNotes(''); setQcDefects([]);
+    // T1-13b: load the category's QC checklist (if any) so the inspector fills it in.
+    setQcChecks([]); setQcAnswers({});
+    if (r.garment_category_id) {
+      qcTemplatesApi
+        .forCategory(r.garment_category_id)
+        .then((t) => setQcChecks(t?.checks ?? []))
+        .catch(() => {});
+    }
+  };
+  const setAnswer = (key: string, val: number | boolean | null) =>
+    setQcAnswers((a) => ({ ...a, [key]: val }));
+  // A numeric answer outside its tolerance / a required boolean answered "fail" — flagged.
+  const checkFails = (c: QcCheck): boolean => {
+    const v = qcAnswers[c.key];
+    if (c.type === 'numeric')
+      return typeof v === 'number' && ((c.min != null && v < c.min) || (c.max != null && v > c.max));
+    return v === false;
   };
   const toggleDefect = (d: string) =>
     setQcDefects((x) => (x.includes(d) ? x.filter((y) => y !== d) : [...x, d]));
@@ -155,6 +175,27 @@ export const DistributionPage: React.FC = () => {
     const held = Number(heldMeters) || 0;
     if (rejected + held > actual) { toast('error', 'Rejected + held cannot exceed received'); return; }
     if ((rejected > 0 || held > 0) && !qcNotes.trim()) { toast('error', 'A QC note is required to reject/hold'); return; }
+    // T1-13b: every REQUIRED checklist item must be answered (mirrors the backend 400).
+    const answeredKeys = new Set(
+      qcChecks
+        .filter((c) => {
+          const v = qcAnswers[c.key];
+          return c.type === 'numeric' ? typeof v === 'number' : typeof v === 'boolean';
+        })
+        .map((c) => c.key),
+    );
+    const missing = qcChecks.filter((c) => c.required && !answeredKeys.has(c.key));
+    if (missing.length) {
+      toast('error', 'QC checklist incomplete', `Answer: ${missing.map((c) => c.label).join(', ')}`);
+      return;
+    }
+    const qcCheckResults = qcChecks
+      .filter((c) => answeredKeys.has(c.key))
+      .map((c) =>
+        c.type === 'numeric'
+          ? { key: c.key, value: qcAnswers[c.key] as number }
+          : { key: c.key, pass: qcAnswers[c.key] as boolean },
+      );
     setReceiving(true);
     try {
       const res = await distributionApi.receive(receiveTarget.id, {
@@ -164,6 +205,7 @@ export const DistributionPage: React.FC = () => {
         ...(held > 0 ? { held_meters: held } : {}),
         ...(qcNotes.trim() ? { qc_notes: qcNotes.trim() } : {}),
         ...(qcDefects.length ? { qc_defects: qcDefects } : {}),
+        ...(qcCheckResults.length ? { qc_check_results: qcCheckResults } : {}),
       });
       const accepted = actual - rejected - held;
       toast('success', `QC: ${res.qc_result}`, `${accepted}m accepted${held ? `, ${held}m held` : ''}${rejected ? `, ${rejected}m rejected` : ''}.`);
@@ -451,6 +493,56 @@ export const DistributionPage: React.FC = () => {
             {/* T1-13: inbound QC gate */}
             <div className={styles.qcBox}>
               <div className={styles.qcTitle}>Inbound QC — check width / GSM / shade / defects</div>
+              {/* T1-13b: the design's category checklist (required checks + tolerances). */}
+              {qcChecks.length > 0 && (
+                <div className={styles.qcChecklist}>
+                  {qcChecks.map((c) => {
+                    const v = qcAnswers[c.key];
+                    const fail = checkFails(c);
+                    const tol =
+                      c.type === 'numeric' && (c.min != null || c.max != null)
+                        ? `${c.min != null ? `≥${c.min}` : ''}${c.min != null && c.max != null ? ' & ' : ''}${c.max != null ? `≤${c.max}` : ''}${c.unit ? ` ${c.unit}` : ''}`
+                        : '';
+                    return (
+                      <div key={c.key} className={styles.qcCheckRow}>
+                        <span className={styles.qcCheckLabel}>
+                          {c.label}
+                          {c.required ? ' *' : ''}
+                          {tol && <span className={styles.qcCheckTol}> ({tol})</span>}
+                        </span>
+                        {c.type === 'numeric' ? (
+                          <input
+                            className={`${styles.qcCheckInput} ${fail ? styles.qcCheckFail : ''}`}
+                            type="number"
+                            value={typeof v === 'number' ? String(v) : ''}
+                            onChange={(e) =>
+                              setAnswer(c.key, e.target.value === '' ? null : Number(e.target.value))
+                            }
+                          />
+                        ) : (
+                          <span className={styles.qcPassFail}>
+                            <button
+                              type="button"
+                              className={`${styles.qcChip} ${v === true ? styles.qcChipOn : ''}`}
+                              onClick={() => setAnswer(c.key, true)}
+                            >
+                              Pass
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.qcChip} ${v === false ? styles.qcChipFail : ''}`}
+                              onClick={() => setAnswer(c.key, false)}
+                            >
+                              Fail
+                            </button>
+                          </span>
+                        )}
+                        {fail && <span className={styles.qcFailFlag}>out of tolerance</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div className={styles.qcRow}>
                 <Input label="Reject (write-off, m)" type="number" value={rejectedMeters} onChange={setRejectedMeters} placeholder="0" />
                 <Input label="Hold (quarantine, m)" type="number" value={heldMeters} onChange={setHeldMeters} placeholder="0" />
