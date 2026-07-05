@@ -153,6 +153,10 @@ const SupplyOverviewPage = lazyPage(
   () => import("./pages/admin/SupplyOverviewPage"),
   "SupplyOverviewPage",
 );
+const HubConstraintsPage = lazyPage(
+  () => import("./pages/admin/HubConstraintsPage"),
+  "HubConstraintsPage",
+);
 const InvoicesListPage = lazyPage(
   () => import("./pages/admin/InvoicesListPage"),
   "InvoicesListPage",
@@ -439,6 +443,7 @@ function App() {
           <Route path="oversight/designs" element={<DesignOverviewPage />} />
           <Route path="oversight/listings" element={<ListingsOverviewPage />} />
           <Route path="oversight/supply" element={<SupplyOverviewPage />} />
+          <Route path="oversight/hub-constraints" element={<HubConstraintsPage />} />
           <Route path="invoices" element={<InvoicesListPage />} />
           <Route
             path="finance/cod-reconciliation"

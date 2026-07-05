@@ -111,6 +111,13 @@ const SECTIONS: NavSection[] = [
         path: "/admin/oversight/supply",
         cap: "reports:read",
       },
+      {
+        // T2-7: per-hub WIP × stage bottleneck view + festival/leave calendar.
+        label: "Hub Constraints",
+        icon: <UilBox size={18} />,
+        path: "/admin/oversight/hub-constraints",
+        cap: "reports:read",
+      },
     ],
   },
   {
