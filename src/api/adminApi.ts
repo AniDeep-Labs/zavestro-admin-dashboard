@@ -262,6 +262,9 @@ export const ordersApi = {
       estimated_delivery_date: (o.estimated_delivery_date ?? null) as
         | string
         | null,
+      // T1-20: computed fallback for the promised date (created_at + SLA).
+      computed_delivery_date: (o.computed_delivery_date ?? null) as string | null,
+      delivery_sla_days: (o.delivery_sla_days ?? null) as number | null,
       on_hold_reason: (o.on_hold_reason ?? null) as string | null,
       cancellation_reason: (o.cancellation_reason ?? null) as string | null,
       delivery_address: (o.delivery_address ??
@@ -484,11 +487,15 @@ export const usersApi = {
     id: string,
     amount: number,
     reason: string,
-  ): Promise<void> =>
+    orderId?: string, // T1-21: ties the goodwill to the order + enforces the per-order ₹500 cap
+  ): Promise<{ balance: number; order_goodwill_total: number | null }> =>
     req(`/api/admin/users/${id}/credits`, {
       method: "POST",
-      body: JSON.stringify({ amount, reason }),
+      body: JSON.stringify({ amount, reason, ...(orderId ? { order_id: orderId } : {}) }),
     }),
+  // T1-21b Phase 2: repeat-rescue signal so support isn't blind before issuing.
+  rescueSummary: async (id: string): Promise<RescueSummary> =>
+    req<RescueSummary>(`/api/admin/users/${id}/rescue-summary`),
 
   // W-5: submit a credit ABOVE support's inline cap for finance to approve.
   requestCredit: async (id: string, amount: number, reason: string): Promise<void> =>
@@ -525,6 +532,15 @@ export const usersApi = {
 
   remeasureRequests: async (id: string): Promise<RemeasureRequest[]> =>
     req(`/api/admin/users/${id}/remeasure-requests`),
+  // T1-21b Phase 3 (E): record whether the re-measure was our fault or customer error.
+  setRemeasureOutcome: async (
+    requestId: string,
+    outcome: "our_fault" | "customer_error" | "pending",
+  ): Promise<void> =>
+    req(`/api/admin/remeasure-requests/${requestId}/outcome`, {
+      method: "POST",
+      body: JSON.stringify({ outcome }),
+    }),
 };
 
 export interface CreditLedgerEntry {
@@ -551,6 +567,8 @@ export interface RemeasureRequest {
   fit_profile_id: string | null;
   reason: string;
   status: "open" | "scheduled" | "done" | "cancelled";
+  outcome?: "pending" | "our_fault" | "customer_error"; // T1-21b Phase 3 (E)
+  redeemed_order_id?: string | null; // T1-21b Phase 3 (F): the visit rides this order
   created_at: string;
   requested_by_name: string | null;
 }
@@ -828,7 +846,36 @@ export const supportApi = {
     );
     return mapTicket(raw);
   },
+
+  // T1-21: escalate a ticket to finance (records the escalated state + bumps priority).
+  escalate: async (id: string, reason: string): Promise<void> =>
+    req(`/api/admin/support/${id}/escalate`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+  // T1-21b Phase 2: customers whose rescue rate is abnormal (manager review).
+  rescueWatchlist: async (): Promise<RescueWatchRow[]> =>
+    req<RescueWatchRow[]>(`/api/admin/support/rescue-watchlist`),
 };
+
+// T1-21b Phase 2: rescue velocity signal + watchlist row.
+export interface RescueSummary {
+  user_id: string;
+  goodwill_90d: number;
+  remeasures_90d: number;
+  false_claims_90d: number; // T1-21b Phase 3 (E): customer-error re-measures
+  orders_90d: number;
+  window_days: number;
+  flagged: boolean;
+}
+export interface RescueWatchRow {
+  user_id: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  goodwill_90d: number;
+  remeasures_90d: number;
+  window_days: number;
+}
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
 
@@ -1601,7 +1648,7 @@ export interface DesignFabricRef {
   image_keys: string[];
   meters_per_garment: string | null;
   price_per_meter: string | null;
-  hubs: { hub_name: string; available_meters: number | string }[];
+  hubs: { hub_id?: string; hub_name: string; available_meters: number | string }[];
 }
 export interface DesignSampleRef {
   id: string;
@@ -2142,6 +2189,8 @@ export interface PnlReport {
     refunds: number;
     profit: number;
   };
+  // T1-19: outstanding wallet credits — a current liability, not part of period profit.
+  wallet_liability: number;
   estimates: {
     payment_fee_rate_pct: number;
     delivery_cost_per_order: number;
@@ -2170,6 +2219,7 @@ export const financeApi = {
 export interface FitFeedbackEntry {
   id: string;
   order_id: string;
+  user_id: string; // T1-21: for the rescue verbs (credit / re-measure)
   order_number: string | null;
   hub_id: string | null;
   hub_name: string | null;
@@ -2594,7 +2644,7 @@ export const fabricsApi = {
   // Phase 3 — central procurement pool (received/allocated/available per SKU).
   centralStock: async (): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central`),
-  receiveCentral: async (input: { fabric_id: string; meters: number; note?: string; lot_code?: string; shade_note?: string }): Promise<CentralStockRow[]> =>
+  receiveCentral: async (input: { fabric_id: string; meters: number; note?: string; lot_code?: string; shade_note?: string; unit_cost?: number }): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central/receive`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -2627,6 +2677,7 @@ export interface CentralStockRow {
   allocated_meters: string | number;
   available_meters: string | number;
   updated_at: string;
+  unit_cost_wac?: string | number | null; // T1-17: weighted-avg cost-at-receipt
 }
 
 export interface FabricMovement {
@@ -2963,6 +3014,10 @@ export interface CmListing {
   available_meters?: string | number | null;
   // G-26: fabric ₹/m → cost floor = price_per_meter × meters_per_garment + make + overhead.
   price_per_meter?: string | number | null;
+  // T1-16: sales signal so the hub merchant doesn't merchandise blind.
+  units_sold?: number;
+  units_delivered?: number;
+  last_ordered_at?: string | null;
 }
 export interface ReadyToListSample {
   sample_id: string;

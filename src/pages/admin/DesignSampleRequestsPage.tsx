@@ -77,10 +77,17 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
       toast('error', 'Pick a design, fabric and hub');
       return;
     }
+    const outOfStock = availAt(reqHub) === 0; // T1-18: capture before reset
     setSubmitting(true);
     try {
       await sampleJobsApi.request({ design_id: reqDesign, fabric_id: reqFabric, hub_id: reqHub });
-      toast('success', 'Sample requested', 'The hub will cut, stitch and submit it for review.');
+      toast(
+        outOfStock ? 'warning' : 'success',
+        'Sample requested',
+        outOfStock
+          ? 'Note: this hub has 0m of the fabric — it will wait at cutting until stock is distributed.'
+          : 'The hub will cut, stitch and submit it for review.',
+      );
       resetRequest();
       load();
     } catch (e) {
@@ -103,6 +110,14 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
   };
 
   const hubName = (id: string) => hubs.find((h) => h.id === id)?.name ?? '—';
+
+  // T1-18 (W-D1): the selected fabric's per-hub stock, so the designer doesn't request a
+  // sample at a 0m hub that stalls at ops cutting days later. Hubs absent from the fabric's
+  // hubs list have 0m (the backend only lists hubs with stock > 0).
+  const selectedFabricHubs = designFabrics.find((f) => f.id === reqFabric)?.hubs ?? [];
+  const availAt = (hubId: string) =>
+    Number(selectedFabricHubs.find((h) => h.hub_id === hubId)?.available_meters ?? 0);
+  const reqHubStock = reqFabric && reqHub ? availAt(reqHub) : null;
   const open = rows.filter((r) => !['reviewed', 'approved', 'rejected', 'cancelled'].includes(r.status)).length;
 
   const body = (
@@ -209,9 +224,16 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
             <select className={s.reqSelect} value={reqHub} onChange={(e) => setReqHub(e.target.value)}>
               <option value="">Select a hub…</option>
               {hubs.map((h) => (
-                <option key={h.id} value={h.id}>{h.name}</option>
+                <option key={h.id} value={h.id}>
+                  {h.name}{reqFabric ? ` — ${availAt(h.id)}m of this fabric` : ''}
+                </option>
               ))}
             </select>
+            {reqHubStock === 0 && (
+              <div className={s.stockWarn}>
+                ⚠ This hub has 0m of the selected fabric — the sample will stall at cutting until stock is distributed here. You can still request it.
+              </div>
+            )}
           </div>
           <div className={s.reqActions}>
             <Button variant="ghost" onClick={resetRequest}>Cancel</Button>

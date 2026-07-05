@@ -1,10 +1,17 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supportApi, ordersApi, usersApi, alterationsApi, returnsApi } from "../../api/adminApi";
+import {
+  supportApi,
+  ordersApi,
+  usersApi,
+  alterationsApi,
+  returnsApi,
+} from "../../api/adminApi";
 import type {
   SupportTicket,
   TicketMessage,
   AdminOrder,
+  RescueSummary,
 } from "../../api/adminApi";
 import { catalogApi } from "../../api/catalogApi";
 import type { AdminUser } from "../../api/catalogApi";
@@ -58,6 +65,92 @@ export const TicketDetailPage: React.FC = () => {
   const [remeasureReason, setRemeasureReason] = React.useState("");
   const [requestingRemeasure, setRequestingRemeasure] = React.useState(false);
 
+  // T1-21b Phase 2: repeat-rescue signal so support isn't blind before issuing.
+  const [rescueSig, setRescueSig] = React.useState<RescueSummary | null>(null);
+  React.useEffect(() => {
+    if (ticket?.user_id)
+      usersApi
+        .rescueSummary(ticket.user_id)
+        .then(setRescueSig)
+        .catch(() => {});
+  }, [ticket?.user_id]);
+
+  // T1-21: inline goodwill credit (≤₹500, per-order capped server-side)
+  const [showCredit, setShowCredit] = React.useState(false);
+  const [creditAmount, setCreditAmount] = React.useState("");
+  const [creditReason, setCreditReason] = React.useState("");
+  const [issuingCredit, setIssuingCredit] = React.useState(false);
+  const submitCredit = async () => {
+    const amt = Number(creditAmount);
+    if (!ticket?.user_id || !(amt > 0))
+      return showToast("error", "Enter a credit amount");
+    if (amt > 500)
+      return showToast(
+        "error",
+        "Support credits are capped at ₹500 — escalate to finance for more",
+      );
+    if (!creditReason.trim()) return showToast("error", "A reason is required");
+    setIssuingCredit(true);
+    try {
+      const res = await usersApi.issueCredits(
+        ticket.user_id,
+        amt,
+        creditReason.trim(),
+        ticket.order_id ?? undefined,
+      );
+      showToast(
+        "success",
+        `₹${amt} credit issued`,
+        res.order_goodwill_total != null
+          ? `₹${res.order_goodwill_total} goodwill on this order so far.`
+          : undefined,
+      );
+      setShowCredit(false);
+      setCreditAmount("");
+      setCreditReason("");
+    } catch (e) {
+      showToast(
+        "error",
+        "Couldn't issue credit",
+        e instanceof Error ? e.message : undefined,
+      );
+    } finally {
+      setIssuingCredit(false);
+    }
+  };
+
+  // T1-21: escalate to finance
+  const [showEscalate, setShowEscalate] = React.useState(false);
+  const [escalateReason, setEscalateReason] = React.useState("");
+  const [escalating, setEscalating] = React.useState(false);
+  const submitEscalate = async () => {
+    if (!ticket || !escalateReason.trim())
+      return showToast("error", "Add a reason for finance");
+    setEscalating(true);
+    try {
+      await supportApi.escalate(ticket.id, escalateReason.trim());
+      showToast(
+        "success",
+        "Escalated to finance",
+        "Finance has been notified; priority raised to high.",
+      );
+      setShowEscalate(false);
+      setEscalateReason("");
+      supportApi
+        .get(ticket.id)
+        .then(setTicket)
+        .catch(() => {});
+    } catch (e) {
+      showToast(
+        "error",
+        "Couldn't escalate",
+        e instanceof Error ? e.message : undefined,
+      );
+    } finally {
+      setEscalating(false);
+    }
+  };
+
   const submitRemeasure = async () => {
     if (!ticket?.user_id || !remeasureReason.trim()) {
       showToast("error", "Add a reason for the re-measure");
@@ -69,12 +162,20 @@ export const TicketDetailPage: React.FC = () => {
         reason: remeasureReason.trim(),
         ...(ticket.order_id ? { order_id: ticket.order_id } : {}),
       });
-      showToast("success", "Re-measure requested", "Ops will schedule a free agent visit.");
+      showToast(
+        "success",
+        "Re-measure requested",
+        "Ops will schedule a free agent visit.",
+      );
       setShowRemeasure(false);
       setRemeasureReason("");
     } catch (e) {
       const msg = e instanceof Error ? e.message : undefined;
-      showToast("error", msg?.includes("already has an open") ? "Already requested" : "Failed", msg);
+      showToast(
+        "error",
+        msg?.includes("already has an open") ? "Already requested" : "Failed",
+        msg,
+      );
     } finally {
       setRequestingRemeasure(false);
     }
@@ -98,7 +199,11 @@ export const TicketDetailPage: React.FC = () => {
         order_id: ticket.order_id,
         description: alterationDesc.trim(),
       });
-      showToast("success", "Alteration requested", "First alteration on the order is free.");
+      showToast(
+        "success",
+        "Alteration requested",
+        "First alteration on the order is free.",
+      );
       setShowAlteration(false);
       setAlterationDesc("");
     } catch (e) {
@@ -143,7 +248,11 @@ export const TicketDetailPage: React.FC = () => {
         reason: returnReason,
         description: returnDesc.trim() || undefined,
       });
-      showToast("success", "Return started", "Ops will inspect; finance approves any refund.");
+      showToast(
+        "success",
+        "Return started",
+        "Ops will inspect; finance approves any refund.",
+      );
       setShowReturn(false);
       setReturnDesc("");
     } catch (e) {
@@ -450,6 +559,23 @@ export const TicketDetailPage: React.FC = () => {
               Request re-measure
             </button>
           )}
+          {/* T1-21: the two money verbs — inline goodwill (≤₹500) + escalate to finance */}
+          {ticket.user_id && (
+            <button
+              className={styles.assignSelfBtn}
+              onClick={() => setShowCredit(true)}
+            >
+              Issue credit (≤₹500)
+            </button>
+          )}
+          {ticket.user_id && (
+            <button
+              className={styles.assignSelfBtn}
+              onClick={() => setShowEscalate(true)}
+            >
+              Escalate to finance
+            </button>
+          )}
           {/* Alteration & return need a delivered linked order; backend enforces it. */}
           {ticket.user_id && ticket.order_id && (
             <button
@@ -748,7 +874,8 @@ export const TicketDetailPage: React.FC = () => {
                     disabled={!reply.trim() || sending}
                     onClick={handleSendReply}
                   >
-                    <UilMessage size={14} /> {sending ? "Sending…" : "Send Reply"}
+                    <UilMessage size={14} />{" "}
+                    {sending ? "Sending…" : "Send Reply"}
                   </button>
                 </div>
               </>
@@ -779,12 +906,18 @@ export const TicketDetailPage: React.FC = () => {
 
       {/* Re-measure quick-action modal (G-37) */}
       {showRemeasure && ticket && (
-        <div className={styles.modalOverlay} onClick={() => setShowRemeasure(false)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setShowRemeasure(false)}
+        >
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Request re-measure for {ticket.customer}</h3>
+            <h3 className={styles.modalTitle}>
+              Request re-measure for {ticket.customer}
+            </h3>
             <p className={styles.fieldLabel}>
-              Records a free re-measure request{ticket.order_id ? " for the linked order" : ""}. Ops
-              schedules the agent visit — no charge.
+              Records a free re-measure request
+              {ticket.order_id ? " for the linked order" : ""}. Ops schedules
+              the agent visit — no charge.
             </p>
             <textarea
               className={styles.fieldTextarea}
@@ -794,7 +927,10 @@ export const TicketDetailPage: React.FC = () => {
               placeholder="e.g., Customer reports the kurta was tight across the chest"
             />
             <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setShowRemeasure(false)}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowRemeasure(false)}
+              >
                 Cancel
               </button>
               <button
@@ -809,14 +945,127 @@ export const TicketDetailPage: React.FC = () => {
         </div>
       )}
 
+      {/* T1-21: issue goodwill credit (≤₹500, per-order capped) */}
+      {showCredit && (
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setShowCredit(false)}
+        >
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>
+              Issue credit for {ticket.customer}
+            </h3>
+            <p className={styles.fieldLabel}>
+              Goodwill wallet credit, capped at ₹500 per order
+              {ticket.order_id ? " (tied to the linked order)" : ""}. More than
+              that must be escalated to finance.
+            </p>
+            {rescueSig && (
+              <p
+                className={`${styles.fieldLabel} ${rescueSig.flagged ? styles.rescueFlag : ""}`}
+              >
+                {rescueSig.flagged ? "⚠ " : ""}This customer: ₹
+                {rescueSig.goodwill_90d} goodwill · {rescueSig.remeasures_90d}{" "}
+                re-measures
+                {rescueSig.false_claims_90d > 0
+                  ? ` (${rescueSig.false_claims_90d} customer-error)`
+                  : ""}{" "}
+                in {rescueSig.window_days}d
+                {rescueSig.flagged
+                  ? " — abnormal rescue rate, consider escalating instead."
+                  : ""}
+              </p>
+            )}
+            <input
+              className={styles.fieldTextarea}
+              type="number"
+              min={1}
+              max={500}
+              value={creditAmount}
+              onChange={(e) => setCreditAmount(e.target.value)}
+              placeholder="Amount (₹, max 500)"
+            />
+            <textarea
+              className={styles.fieldTextarea}
+              rows={2}
+              value={creditReason}
+              onChange={(e) => setCreditReason(e.target.value)}
+              placeholder="Reason (e.g., goodwill for a fit issue)"
+            />
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowCredit(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.assignSelfBtn}
+                disabled={
+                  !creditAmount || !creditReason.trim() || issuingCredit
+                }
+                onClick={submitCredit}
+              >
+                {issuingCredit ? "Issuing…" : "Issue credit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* T1-21: escalate to finance */}
+      {showEscalate && (
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setShowEscalate(false)}
+        >
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Escalate to finance</h3>
+            <p className={styles.fieldLabel}>
+              For a money decision beyond support's ₹500 cap (a refund or larger
+              credit). Finance is notified and the ticket priority is raised to
+              high.
+            </p>
+            <textarea
+              className={styles.fieldTextarea}
+              rows={3}
+              value={escalateReason}
+              onChange={(e) => setEscalateReason(e.target.value)}
+              placeholder="e.g., Customer wants a full refund — needs finance approval"
+            />
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowEscalate(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.assignSelfBtn}
+                disabled={!escalateReason.trim() || escalating}
+                onClick={submitEscalate}
+              >
+                {escalating ? "Escalating…" : "Escalate to finance"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Alteration quick-action modal — sibling to re-measure */}
       {showAlteration && ticket && (
-        <div className={styles.modalOverlay} onClick={() => setShowAlteration(false)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setShowAlteration(false)}
+        >
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Request alteration for {ticket.customer}</h3>
+            <h3 className={styles.modalTitle}>
+              Request alteration for {ticket.customer}
+            </h3>
             <p className={styles.fieldLabel}>
-              Raises an alteration on the ticket's linked order. The first alteration on
-              an order is free; the order must already be delivered.
+              Raises an alteration on the ticket's linked order. The first
+              alteration on an order is free; the order must already be
+              delivered.
             </p>
             <textarea
               className={styles.fieldTextarea}
@@ -826,7 +1075,10 @@ export const TicketDetailPage: React.FC = () => {
               placeholder="e.g., Take in 1cm at the chest; shorten sleeves by 2cm"
             />
             <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setShowAlteration(false)}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowAlteration(false)}
+              >
                 Cancel
               </button>
               <button
@@ -843,12 +1095,18 @@ export const TicketDetailPage: React.FC = () => {
 
       {/* Return quick-action modal */}
       {showReturn && ticket && (
-        <div className={styles.modalOverlay} onClick={() => setShowReturn(false)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setShowReturn(false)}
+        >
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Start a return for {ticket.customer}</h3>
+            <h3 className={styles.modalTitle}>
+              Start a return for {ticket.customer}
+            </h3>
             <p className={styles.fieldLabel}>
-              Raises a return on the linked order. The reason routes the outcome; the
-              order must be delivered. Ops inspects, finance approves any refund.
+              Raises a return on the linked order. The reason routes the
+              outcome; the order must be delivered. Ops inspects, finance
+              approves any refund.
             </p>
             <select
               className={styles.fieldSelect}
@@ -869,7 +1127,10 @@ export const TicketDetailPage: React.FC = () => {
               placeholder="What did the customer report? (optional)"
             />
             <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setShowReturn(false)}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowReturn(false)}
+              >
                 Cancel
               </button>
               <button

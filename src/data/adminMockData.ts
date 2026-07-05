@@ -79,6 +79,9 @@ export interface AdminOrder {
   linked_home_visit_ref?: string | null;
   fit_profile_id?: string | null;
   estimated_delivery_date?: string | null;
+  // T1-20: computed fallback (created_at + SLA) shown when no manual date is set.
+  computed_delivery_date?: string | null;
+  delivery_sla_days?: number | null;
   on_hold_reason?: string | null;
   cancellation_reason?: string | null;
   // T1-15: delivery address (support-editable pre-dispatch)

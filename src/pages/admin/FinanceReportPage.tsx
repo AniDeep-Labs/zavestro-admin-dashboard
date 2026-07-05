@@ -159,6 +159,8 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
             <SummaryCard label="Payment fees" value={pnl?.totals.payment_fees} loading={loading} />
             <SummaryCard label="Refunds" value={pnl?.totals.refunds} loading={loading} accent />
             <SummaryCard label="Profit" value={pnl?.totals.profit} loading={loading} />
+            {/* T1-19: outstanding wallet credits — a current liability, not part of period profit. */}
+            <SummaryCard label="Wallet liability (owed, current)" value={pnl?.wallet_liability} loading={loading} accent />
           </>
         )}
       </div>

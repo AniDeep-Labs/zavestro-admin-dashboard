@@ -46,3 +46,11 @@
 .count { font-size: var(--font-size-sm); color: var(--color-text-muted); white-space: nowrap; }
 /* Push the request action to the far right of the toolbar. */
 .toolbar > :last-child { margin-left: auto; }
+
+/* T1-18: sample-request out-of-stock warning */
+.stockWarn {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--color-warning, #b7791f);
+  line-height: 1.4;
+}

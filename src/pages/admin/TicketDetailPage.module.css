@@ -124,3 +124,6 @@
 .resolveBtn { width: 100%; height: 38px; background: var(--color-success); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); cursor: pointer; }
 .closeBtn { width: 100%; height: 38px; background: none; border: 1.5px solid var(--color-border); color: var(--color-text-secondary); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); cursor: pointer; }
 .escalateBtn { width: 100%; height: 38px; background: none; border: 1.5px solid var(--color-error); color: var(--color-error); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); cursor: pointer; }
+
+/* T1-21b Phase 2: flagged rescue signal */
+.rescueFlag { color: var(--color-warning, #b7791f); font-weight: 600; }

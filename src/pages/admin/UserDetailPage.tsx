@@ -113,6 +113,20 @@ export const UserDetailPage: React.FC = () => {
       })
       .catch(() => setLedger([]));
 
+  // T1-21b Phase 3 (E): record the re-measure outcome (our fault vs customer error).
+  const setOutcome = async (
+    requestId: string,
+    outcome: "our_fault" | "customer_error" | "pending",
+  ) => {
+    try {
+      await usersApi.setRemeasureOutcome(requestId, outcome);
+      showToast("success", "Outcome recorded");
+      if (id) usersApi.remeasureRequests(id).then(setRemeasures).catch(() => {});
+    } catch (e) {
+      showToast("error", "Failed", e instanceof Error ? e.message : undefined);
+    }
+  };
+
   const submitRemeasure = async () => {
     if (!id || !remeasureReason.trim()) {
       showToast("error", "Add a reason for the re-measure");
@@ -581,7 +595,24 @@ export const UserDetailPage: React.FC = () => {
                           month: "short",
                         })}
                         {r.requested_by_name ? ` · ${r.requested_by_name}` : ""}
+                        {r.redeemed_order_id ? " · redeemed on next order" : ""}
                       </span>
+                      {/* T1-21b Phase 3 (E): record the outcome after the visit */}
+                      <select
+                        className={styles.remeasureMeta}
+                        value={r.outcome ?? "pending"}
+                        onChange={(e) =>
+                          setOutcome(
+                            r.id,
+                            e.target.value as "our_fault" | "customer_error" | "pending",
+                          )
+                        }
+                        title="Outcome — did the re-measure find our fault or customer error?"
+                      >
+                        <option value="pending">Outcome: pending</option>
+                        <option value="our_fault">Our fault</option>
+                        <option value="customer_error">Customer error</option>
+                      </select>
                     </div>
                   ))}
               </div>
