@@ -5,6 +5,7 @@ import type { ApiCategory, ApiVariant, ApiMedia, VariantPayload } from '../../ap
 
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { Alert } from '../../components/Alert';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './ProductEditPage.module.css';
 import { UilAngleLeft, UilCheck, UilImage, UilPlus } from "@iconscout/react-unicons";
@@ -379,6 +380,13 @@ export const ProductEditPage: React.FC = () => {
           {isNew ? 'New Product' : name || 'Edit Product'}
         </h1>
       </div>
+
+      {/* T1-30 (P-13): editing the LEGACY catalog — this doesn't feed the new listings flow. */}
+      <Alert
+        type="warning"
+        title="Legacy catalog — this doesn't feed the new listings flow"
+        message="Kept live only for the legacy customer flow until the P5 cutover. To merchandise the new storefront, create a listing from Designs → Listings; edits here won't appear there."
+      />
 
       <div className={styles.twoCol}>
         {/* ── LEFT: product details ── */}
