@@ -878,7 +878,7 @@ export const TicketDetailPage: React.FC = () => {
             </p>
             {rescueSig && (
               <p className={`${styles.fieldLabel} ${rescueSig.flagged ? styles.rescueFlag : ''}`}>
-                {rescueSig.flagged ? '⚠ ' : ''}This customer: ₹{rescueSig.goodwill_90d} goodwill · {rescueSig.remeasures_90d} re-measures in {rescueSig.window_days}d
+                {rescueSig.flagged ? '⚠ ' : ''}This customer: ₹{rescueSig.goodwill_90d} goodwill · {rescueSig.remeasures_90d} re-measures{rescueSig.false_claims_90d > 0 ? ` (${rescueSig.false_claims_90d} customer-error)` : ''} in {rescueSig.window_days}d
                 {rescueSig.flagged ? ' — abnormal rescue rate, consider escalating instead.' : ''}
               </p>
             )}

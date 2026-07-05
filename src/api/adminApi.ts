@@ -532,6 +532,15 @@ export const usersApi = {
 
   remeasureRequests: async (id: string): Promise<RemeasureRequest[]> =>
     req(`/api/admin/users/${id}/remeasure-requests`),
+  // T1-21b Phase 3 (E): record whether the re-measure was our fault or customer error.
+  setRemeasureOutcome: async (
+    requestId: string,
+    outcome: "our_fault" | "customer_error" | "pending",
+  ): Promise<void> =>
+    req(`/api/admin/remeasure-requests/${requestId}/outcome`, {
+      method: "POST",
+      body: JSON.stringify({ outcome }),
+    }),
 };
 
 export interface CreditLedgerEntry {
@@ -558,6 +567,8 @@ export interface RemeasureRequest {
   fit_profile_id: string | null;
   reason: string;
   status: "open" | "scheduled" | "done" | "cancelled";
+  outcome?: "pending" | "our_fault" | "customer_error"; // T1-21b Phase 3 (E)
+  redeemed_order_id?: string | null; // T1-21b Phase 3 (F): the visit rides this order
   created_at: string;
   requested_by_name: string | null;
 }
@@ -852,6 +863,7 @@ export interface RescueSummary {
   user_id: string;
   goodwill_90d: number;
   remeasures_90d: number;
+  false_claims_90d: number; // T1-21b Phase 3 (E): customer-error re-measures
   orders_90d: number;
   window_days: number;
   flagged: boolean;
