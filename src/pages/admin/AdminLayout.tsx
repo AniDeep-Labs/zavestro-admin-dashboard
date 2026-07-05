@@ -236,6 +236,13 @@ const SECTIONS: NavSection[] = [
         cap: "catalog:write",
       },
       {
+        // T1-13b: per-garment-category inbound-QC checklists (which checks + tolerances).
+        label: "QC Templates",
+        icon: <UilCheckCircle size={18} />,
+        path: "/admin/catalog/qc-templates",
+        cap: "catalog:write",
+      },
+      {
         label: "Request Restock",
         icon: <UilHistory size={18} />,
         path: "/admin/catalog/restock",

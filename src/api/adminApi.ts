@@ -1311,6 +1311,43 @@ export interface MoneyConfig {
 export const fetchMoneyConfig = (): Promise<MoneyConfig> =>
   req<MoneyConfig>(`/api/admin/money-config`);
 
+// ─── QC checklist templates (T1-13b) ──────────────────────────────────────────
+export interface QcCheck {
+  key: string;
+  label: string;
+  type: "numeric" | "boolean";
+  required: boolean;
+  min?: number | null;
+  max?: number | null;
+  unit?: string;
+}
+export interface QcTemplate {
+  id: string;
+  garment_category_id: string;
+  category_name: string | null;
+  category_slug: string | null;
+  name: string | null;
+  checks: QcCheck[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+export const qcTemplatesApi = {
+  list: (): Promise<QcTemplate[]> => req<QcTemplate[]>(`/api/admin/qc-templates`),
+  forCategory: (categoryId: string): Promise<QcTemplate | null> =>
+    req<QcTemplate | null>(`/api/admin/qc-templates/category/${categoryId}`),
+  upsert: (
+    categoryId: string,
+    body: { name?: string; checks: QcCheck[] },
+  ): Promise<QcTemplate> =>
+    req<QcTemplate>(`/api/admin/qc-templates/category/${categoryId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  remove: (id: string): Promise<{ deleted: boolean }> =>
+    req<{ deleted: boolean }>(`/api/admin/qc-templates/${id}`, { method: "DELETE" }),
+};
+
 export async function uploadToR2(
   file: File,
   folder = "uploads",

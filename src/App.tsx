@@ -245,6 +245,10 @@ const FabricStockPage = lazyPage(
   () => import("./pages/admin/FabricStockPage"),
   "FabricStockPage",
 );
+const QcTemplatesPage = lazyPage(
+  () => import("./pages/admin/QcTemplatesPage"),
+  "QcTemplatesPage",
+);
 const CentralStockPage = lazyPage(
   () => import("./pages/admin/CentralStockPage"),
   "CentralStockPage",
@@ -426,6 +430,7 @@ function App() {
           />
           <Route path="catalog/listings" element={<ListingsManagePage />} />
           <Route path="catalog/fabric-stock" element={<FabricStockPage />} />
+          <Route path="catalog/qc-templates" element={<QcTemplatesPage />} />
           <Route path="procurement/central-stock" element={<CentralStockPage />} />
           <Route
             path="procurement/track/:hubId/:fabricId"
