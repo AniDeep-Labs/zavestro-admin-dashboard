@@ -96,8 +96,9 @@ export const HubConstraintsPage: React.FC = () => {
       <div className={s.pageHeader}>
         <h1 className={s.title}>Hub constraints</h1>
         <p className={s.subtitle}>
-          Work-in-progress by stage and hub — which hub is backed up at which stage — read against
-          the festival / staff-leave calendar.
+          Work-in-progress by stage and hub — which hub is backed up at which stage (open
+          alterations included, since they consume the same tailors) — read against the festival /
+          staff-leave calendar.
         </p>
       </div>
 
@@ -146,7 +147,7 @@ export const HubConstraintsPage: React.FC = () => {
                   <td className={s.num}>
                     {fmtH(r.p50_stage_hours)} / {fmtH(r.p90_stage_hours)} / {fmtH(r.max_stage_hours)}
                   </td>
-                  <td className={s.num}>{r.threshold_hours}h</td>
+                  <td className={s.num}>{r.threshold_hours == null ? '—' : `${r.threshold_hours}h`}</td>
                   <td className={s.num}>{fmtH(r.p50_order_age_hours)}</td>
                 </tr>
               ))}

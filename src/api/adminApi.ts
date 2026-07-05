@@ -1374,7 +1374,7 @@ export interface HubConstraintRow {
   hub_id: string | null;
   hub_name: string | null;
   stage: string;
-  threshold_hours: number;
+  threshold_hours: number | null; // null for the 'alteration' line (no stage SLA) — T2-9
   wip_count: number;
   p50_stage_hours: number | null;
   p90_stage_hours: number | null;
