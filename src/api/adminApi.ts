@@ -2725,6 +2725,8 @@ export interface FabricAtHub {
     last_counted_at?: string | null; // T1-10
     quarantine_meters?: string | number | null; // T1-13
   };
+  // T1-26: false = a no-movement on-hand balance that the ledger doesn't explain (unreconciled).
+  opening_reconciled?: boolean;
   movements: FabricMovement[]; // distribution/restock/listing REQUEST events (context)
   stock_movements?: FabricStockMovement[]; // actual stock in/out with running balance
 }

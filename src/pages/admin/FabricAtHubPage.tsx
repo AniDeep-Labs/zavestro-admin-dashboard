@@ -214,17 +214,27 @@ export const FabricAtHubPage: React.FC = () => {
           <h3 className={s.sectionTitle}>Stock ledger <span className={s.sectionHint}>· every metre in &amp; out, with running balance</span></h3>
           {!data.stock_movements || data.stock_movements.length === 0 ? (
             avail > 0 ? (
-              // Stock exists but predates the movement ledger — show it as an opening balance
-              // so the ledger reconciles with the on-hand figure instead of contradicting it.
+              // T1-26: only call it an "Opening balance" if the stock genuinely predates the
+              // movement ledger. Otherwise the ledger doesn't explain the on-hand figure — show
+              // "Unreconciled" (don't dress up an unexplained discrepancy as explained).
               <div className={s.timeline}>
                 <div className={s.move}>
                   <div className={s.moveDot} />
                   <div className={s.moveBody}>
                     <div className={s.moveTop}>
-                      <StatusBadge status="received" label="Opening balance" size="sm" />
+                      {data.opening_reconciled === false ? (
+                        <StatusBadge status="blocked" label="Unreconciled" size="sm" />
+                      ) : (
+                        <StatusBadge status="received" label="Opening balance" size="sm" />
+                      )}
                       <strong>{avail}m</strong>
                     </div>
-                    <div className={s.moveMeta}>balance: <strong>{avail}m</strong> · recorded before the movement ledger — new movements appear here</div>
+                    <div className={s.moveMeta}>
+                      balance: <strong>{avail}m</strong> ·{' '}
+                      {data.opening_reconciled === false
+                        ? 'no ledger movement explains this on-hand stock — count/adjust to reconcile'
+                        : 'recorded before the movement ledger — new movements appear here'}
+                    </div>
                   </div>
                 </div>
               </div>
