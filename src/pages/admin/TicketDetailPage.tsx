@@ -946,7 +946,7 @@ export const TicketDetailPage: React.FC = () => {
       )}
 
       {/* T1-21: issue goodwill credit (≤₹500, per-order capped) */}
-      {showCredit && ticket && (
+      {showCredit && (
         <div
           className={styles.modalOverlay}
           onClick={() => setShowCredit(false)}
@@ -1014,7 +1014,7 @@ export const TicketDetailPage: React.FC = () => {
       )}
 
       {/* T1-21: escalate to finance */}
-      {showEscalate && ticket && (
+      {showEscalate && (
         <div
           className={styles.modalOverlay}
           onClick={() => setShowEscalate(false)}
