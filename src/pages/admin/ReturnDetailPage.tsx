@@ -7,6 +7,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import { StatusBadge } from '../../components';
 import { Can } from '../../components/Can/Can';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import styles from './OrdersListPage.module.css';
 import d from './ReturnDetailPage.module.css';
 import { UilAngleLeft } from "@iconscout/react-unicons";
@@ -19,6 +20,7 @@ export const ReturnDetailPage: React.FC = () => {
   const [approving, setApproving] = React.useState(false);
   const [approveNote, setApproveNote] = React.useState('');
   const [refundAmt, setRefundAmt] = React.useState(''); // G-54(A): blank = full refund
+  const [showApproveConfirm, setShowApproveConfirm] = React.useState(false); // T1-24
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
@@ -34,6 +36,19 @@ export const ReturnDetailPage: React.FC = () => {
       .catch(e => showToast('error', 'Failed to load', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // T1-24 (F-6): a refund is real money — validate, then require a confirm (amount +
+  // destination), matching RefundsPage. No more one-click approve.
+  const openApproveConfirm = () => {
+    if (!ret) return;
+    const payable = Number(ret.payable_amount ?? 0);
+    const amt = refundAmt.trim() ? Number(refundAmt) : undefined;
+    if (amt !== undefined && (!Number.isFinite(amt) || amt <= 0 || amt > payable)) {
+      showToast('error', 'Invalid amount', `Enter an amount between ₹0 and the order total ₹${payable}, or leave blank for a full refund.`);
+      return;
+    }
+    setShowApproveConfirm(true);
+  };
 
   const handleApprove = async () => {
     if (!ret) return;
@@ -51,6 +66,7 @@ export const ReturnDetailPage: React.FC = () => {
       setRet(fresh);
       setApproveNote('');
       setRefundAmt('');
+      setShowApproveConfirm(false);
     } catch (e) {
       showToast('error', 'Could not approve', e instanceof Error ? e.message : undefined);
     } finally {
@@ -148,7 +164,7 @@ export const ReturnDetailPage: React.FC = () => {
                   <button
                     className={styles.addBtn}
                     disabled={approving}
-                    onClick={handleApprove}
+                    onClick={openApproveConfirm}
                     style={{ alignSelf: 'flex-end' }}
                   >
                     {approving ? 'Initiating…' : 'Approve & initiate refund'}
@@ -164,6 +180,24 @@ export const ReturnDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* T1-24: confirm the money action (amount + destination), matching RefundsPage */}
+      <ConfirmDialog
+        open={showApproveConfirm}
+        title="Approve & initiate refund?"
+        message={
+          <>
+            Initiate a refund of{' '}
+            <strong>₹{refundAmt.trim() ? Number(refundAmt) : Number(ret?.payable_amount ?? 0)}</strong>{' '}
+            to <strong>{ret?.customer_name ?? 'the customer'}</strong> (order {ret?.order_number}) via
+            their <strong>original payment method</strong> — never wallet. This can't be undone.
+          </>
+        }
+        confirmLabel="Yes, initiate refund"
+        loading={approving}
+        onConfirm={handleApprove}
+        onCancel={() => setShowApproveConfirm(false)}
+      />
     </div>
   );
 };
