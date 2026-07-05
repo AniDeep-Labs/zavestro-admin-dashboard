@@ -46,9 +46,10 @@ function PromoForm({
         </select>
       </div>
       <div className={styles.field}>
-        <label className={styles.fieldLabel}>Value *</label>
+        <label className={styles.fieldLabel}>Value * {type === 'percent' ? '(0–100%)' : '(₹, max 100000)'}</label>
         <input className={styles.fieldInput} placeholder={type === 'percent' ? 'e.g., 10' : 'e.g., 200'}
-          value={value} onChange={e => setValue(e.target.value)} type="number" min="0" />
+          value={value} onChange={e => setValue(e.target.value)} type="number" min="0"
+          max={type === 'percent' ? 100 : 100000} />
       </div>
       <div className={styles.field}>
         <label className={styles.fieldLabel}>Min Order Amount (₹)</label>
@@ -98,8 +99,21 @@ export const PromoCodesPage: React.FC = () => {
     promosApi.list().then(r => setPromos(r.promos)).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  // T1-25: guard the value bounds client-side (backend zod enforces the same — percent ≤ 100,
+  // flat ≤ 100000) so a fat-finger is caught before the server rejects it.
+  const promoBoundError = (data: Partial<PromoCode>): string | null => {
+    const v = data.discount_value;
+    if (v == null) return null; // not being set in this (partial) edit
+    if (v <= 0) return 'Discount value must be positive';
+    if (data.discount_type === 'percent' && v > 100) return "A percentage discount can't exceed 100%";
+    if (data.discount_type === 'flat' && v > 100000) return 'Flat discount is too large (max ₹100000)';
+    return null;
+  };
+
   const handleCreate = async (data: Partial<PromoCode>) => {
     if (!data.code?.trim() || data.discount_value == null) { showToast('error', 'Code and value are required'); return; }
+    const boundErr = promoBoundError(data);
+    if (boundErr) { showToast('error', boundErr); return; }
     setSavingPromo(true);
     try {
       const created = await promosApi.create(data as Parameters<typeof promosApi.create>[0]);
@@ -113,6 +127,8 @@ export const PromoCodesPage: React.FC = () => {
 
   const handleEdit = async (data: Partial<PromoCode>) => {
     if (!editingPromo) return;
+    const boundErr = promoBoundError(data);
+    if (boundErr) { showToast('error', boundErr); return; }
     setSavingPromo(true);
     try {
       const updated = await promosApi.update(editingPromo.id, data);
