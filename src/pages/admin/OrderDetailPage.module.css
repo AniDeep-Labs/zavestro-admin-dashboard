@@ -12,6 +12,13 @@
 .metaValue { font-size: var(--font-size-base); color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
 .linkBtn { background: none; border: none; cursor: pointer; font-family: var(--font-family); font-size: 13px; color: var(--color-primary); font-weight: var(--font-weight-medium); padding: 0; }
 .linkBtn:hover { text-decoration: underline; }
+/* T2-8: item-level cancel */
+.linkBtnDanger { background: none; border: none; cursor: pointer; font-family: var(--font-family); font-size: 13px; color: var(--color-error); font-weight: var(--font-weight-medium); padding: 0; }
+.linkBtnDanger:hover { text-decoration: underline; }
+.itemRowCancelled { opacity: 0.55; }
+.itemStrike { text-decoration: line-through; }
+.reasonInput { width: 100%; box-sizing: border-box; height: 38px; padding: 0 12px; margin-top: 10px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; }
+.reasonInput:focus { border-color: var(--color-primary); }
 .orderId { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text-primary); font-family: monospace; }
 .statusPill { display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
 .modalOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: var(--z-modal); padding: 16px; }

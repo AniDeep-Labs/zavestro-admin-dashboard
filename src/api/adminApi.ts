@@ -289,6 +289,17 @@ export const ordersApi = {
       body: JSON.stringify(address),
     }),
 
+  // T2-8: cancel a single item in a multi-item order (+ partial refund of its line).
+  cancelItem: async (
+    orderId: string,
+    itemId: string,
+    reason?: string,
+  ): Promise<{ order_id: string; item_id: string; line_amount: number; refunded: number }> =>
+    req(`/api/admin/orders/${orderId}/items/${itemId}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+
   updateStage: async (
     id: string,
     stage: OrderStage,
