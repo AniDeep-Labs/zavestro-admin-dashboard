@@ -45,3 +45,15 @@
   cursor: pointer; text-transform: capitalize;
 }
 .qcChipOn { background: var(--color-warning, #b7791f); color: #fff; border-color: var(--color-warning, #b7791f); }
+.qcChipFail { background: var(--color-error, #c0392b); color: #fff; border-color: var(--color-error, #c0392b); }
+
+/* T1-13b: per-category checklist inside the receive-QC box */
+.qcChecklist { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; border-top: 1px dashed var(--color-border); border-bottom: 1px dashed var(--color-border); }
+.qcCheckRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.qcCheckLabel { flex: 1; min-width: 140px; font-size: 0.82rem; color: var(--color-text-primary); }
+.qcCheckTol { color: var(--color-text-tertiary); font-size: 0.75rem; }
+.qcCheckInput { width: 96px; height: 32px; padding: 0 8px; border: 1.5px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-card); color: var(--color-text-primary); font-size: 0.82rem; outline: none; }
+.qcCheckInput:focus { border-color: var(--color-primary); }
+.qcCheckFail { border-color: var(--color-error, #c0392b); }
+.qcPassFail { display: inline-flex; gap: 6px; }
+.qcFailFlag { font-size: 0.72rem; font-weight: 600; color: var(--color-error, #c0392b); }
