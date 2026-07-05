@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fitFeedbackApi, usersApi, supportApi } from '../../api/adminApi';
+import { fitFeedbackApi, usersApi, supportApi, fetchMoneyConfig } from '../../api/adminApi';
 import type { FitFeedbackEntry, RescueWatchRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -36,6 +36,9 @@ export const FitFeedbackPage: React.FC = () => {
   // T1-21b Phase 2: rescue watchlist — customers whose rescue rate is abnormal.
   const [watch, setWatch] = React.useState<RescueWatchRow[]>([]);
   React.useEffect(() => { supportApi.rescueWatchlist().then(setWatch).catch(() => {}); }, []);
+  // T1-23: single-source the support credit cap.
+  const [creditCap, setCreditCap] = React.useState(500);
+  React.useEffect(() => { fetchMoneyConfig().then((c) => setCreditCap(c.support_credit_cap)).catch(() => {}); }, []);
   const openRescue = (row: FitFeedbackEntry, mode: 'credit' | 'remeasure') => {
     setRescue({ row, mode }); setAmount(''); setReason('');
   };
@@ -45,7 +48,7 @@ export const FitFeedbackPage: React.FC = () => {
     if (!reason.trim()) return toast('error', 'A reason is required');
     if (mode === 'credit') {
       const amt = Number(amount);
-      if (!(amt > 0) || amt > 500) return toast('error', 'Enter an amount up to ₹500');
+      if (!(amt > 0) || amt > creditCap) return toast('error', `Enter an amount up to ₹${creditCap}`);
       setBusy(true);
       try {
         const res = await usersApi.issueCredits(row.user_id, amt, reason.trim(), row.order_id);
@@ -227,10 +230,10 @@ export const FitFeedbackPage: React.FC = () => {
                 className={fs.rescueInput}
                 type="number"
                 min={1}
-                max={500}
+                max={creditCap}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="Amount (₹, max 500 — per order)"
+                placeholder={`Amount (₹, max ${creditCap} — per order)`}
               />
             )}
             <textarea

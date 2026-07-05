@@ -1300,6 +1300,17 @@ export const homeSectionsApi = {
 
 // ─── R2 upload utility ────────────────────────────────────────────────────────
 
+// T1-23: single-source money constants — read from the server so the FE never drifts from
+// the backend (cost floor make/overhead, support credit cap, guarantee reserve).
+export interface MoneyConfig {
+  listing_make_cost: number;
+  listing_overhead: number;
+  support_credit_cap: number;
+  guarantee_reserve_per_order: number;
+}
+export const fetchMoneyConfig = (): Promise<MoneyConfig> =>
+  req<MoneyConfig>(`/api/admin/money-config`);
+
 export async function uploadToR2(
   file: File,
   folder = "uploads",
@@ -2173,6 +2184,7 @@ export interface PnlHub {
   revenue: number;
   fabric_cost: number;
   guarantee_cost: number;
+  guarantee_reserve: number; // T1-23: memo provision (not in profit)
   delivery_cost: number;
   payment_fees: number;
   refunds: number;
@@ -2191,6 +2203,8 @@ export interface PnlReport {
   };
   // T1-19: outstanding wallet credits — a current liability, not part of period profit.
   wallet_liability: number;
+  // T1-23: fit-promise reserve to hold for the period (memo/provision, not in profit).
+  guarantee_reserve: number;
   estimates: {
     payment_fee_rate_pct: number;
     delivery_cost_per_order: number;
