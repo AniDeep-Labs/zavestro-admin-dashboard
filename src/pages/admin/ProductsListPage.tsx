@@ -6,7 +6,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './ProductsListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilPlus, UilSearch, UilTimes } from "@iconscout/react-unicons";
-import { StatusBadge } from '../../components';
+import { StatusBadge, Alert } from '../../components';
 
 const LIMIT = 20;
 
@@ -118,6 +118,14 @@ export const ProductsListPage: React.FC = () => {
           <UilPlus size={15}/> Add Product
         </button>
       </div>
+
+      {/* T1-30 (P-13): make it unmistakable this is the LEGACY catalog. */}
+      <Alert
+        type="warning"
+        title="Legacy catalog — edits here do NOT feed the new listings flow"
+        message="This is the old product catalog kept live only for the legacy customer flow until the P5 cutover. To merchandise the new storefront, use Designs → Listings. Changes here won't appear there."
+      />
+
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>

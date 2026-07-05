@@ -51,11 +51,14 @@ export const CutSheetModal: React.FC<{ open: boolean; designId?: string; onClose
         setDesign(d);
         if (d.fit_preset) setPreset(d.fit_preset);
         if (d.fabrics[0]) setFabricId(d.fabrics[0].id);
-        return designsApi.getTemplate(d.garment_category_id);
+        // T1-27: thread the FETCHED design through the chain. Reading `design?.fit_preset` in
+        // the next .then is a stale closure (still null), so it always clobbered the design's
+        // own preset with the template's first — the printed cut sheet defaulted to the wrong fit.
+        return designsApi.getTemplate(d.garment_category_id).then((t) => ({ d, t }));
       })
-      .then((t) => {
+      .then(({ d, t }) => {
         setTpl(t);
-        if (!design?.fit_preset && t.available_fit_presets?.[0]) setPreset(t.available_fit_presets[0]);
+        if (!d.fit_preset && t.available_fit_presets?.[0]) setPreset(t.available_fit_presets[0]);
       })
       .catch((e) => toast('error', 'Failed to load', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));

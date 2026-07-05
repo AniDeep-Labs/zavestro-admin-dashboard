@@ -342,7 +342,8 @@ export const catalogApi = {
     const urlRes = await fetch(`${BASE_URL}/api/admin/media/upload-url`, {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content_type: file.type }),
+      // T1-31: declare the size so the presign enforces the ceiling (was omitted → unbounded).
+      body: JSON.stringify({ content_type: file.type, file_size: file.size }),
     });
     if (urlRes.status === 401) { clearAdminToken(); window.location.href = '/admin/login'; throw new Error('Unauthorized'); }
     if (!urlRes.ok) throw new Error('Failed to get upload URL');

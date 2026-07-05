@@ -6,6 +6,7 @@ import {
   usersApi,
   alterationsApi,
   returnsApi,
+  fetchMoneyConfig,
 } from "../../api/adminApi";
 import type {
   SupportTicket,
@@ -65,6 +66,14 @@ export const TicketDetailPage: React.FC = () => {
   const [remeasureReason, setRemeasureReason] = React.useState("");
   const [requestingRemeasure, setRequestingRemeasure] = React.useState(false);
 
+  // T1-23: the support credit cap is single-sourced from the server (not hardcoded 500).
+  const [creditCap, setCreditCap] = React.useState(500);
+  React.useEffect(() => {
+    fetchMoneyConfig()
+      .then((c) => setCreditCap(c.support_credit_cap))
+      .catch(() => {});
+  }, []);
+
   // T1-21b Phase 2: repeat-rescue signal so support isn't blind before issuing.
   const [rescueSig, setRescueSig] = React.useState<RescueSummary | null>(null);
   React.useEffect(() => {
@@ -84,10 +93,10 @@ export const TicketDetailPage: React.FC = () => {
     const amt = Number(creditAmount);
     if (!ticket?.user_id || !(amt > 0))
       return showToast("error", "Enter a credit amount");
-    if (amt > 500)
+    if (amt > creditCap)
       return showToast(
         "error",
-        "Support credits are capped at ₹500 — escalate to finance for more",
+        `Support credits are capped at ₹${creditCap} — escalate to finance for more`,
       );
     if (!creditReason.trim()) return showToast("error", "A reason is required");
     setIssuingCredit(true);
@@ -565,7 +574,7 @@ export const TicketDetailPage: React.FC = () => {
               className={styles.assignSelfBtn}
               onClick={() => setShowCredit(true)}
             >
-              Issue credit (≤₹500)
+              Issue credit (≤₹{creditCap})
             </button>
           )}
           {ticket.user_id && (
@@ -956,7 +965,7 @@ export const TicketDetailPage: React.FC = () => {
               Issue credit for {ticket.customer}
             </h3>
             <p className={styles.fieldLabel}>
-              Goodwill wallet credit, capped at ₹500 per order
+              Goodwill wallet credit, capped at ₹{creditCap} per order
               {ticket.order_id ? " (tied to the linked order)" : ""}. More than
               that must be escalated to finance.
             </p>
@@ -980,10 +989,10 @@ export const TicketDetailPage: React.FC = () => {
               className={styles.fieldTextarea}
               type="number"
               min={1}
-              max={500}
+              max={creditCap}
               value={creditAmount}
               onChange={(e) => setCreditAmount(e.target.value)}
-              placeholder="Amount (₹, max 500)"
+              placeholder={`Amount (₹, max ${creditCap})`}
             />
             <textarea
               className={styles.fieldTextarea}

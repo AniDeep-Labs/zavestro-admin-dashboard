@@ -7,6 +7,7 @@ import {
   hubsApi,
   uploadToR2,
   R2_PUBLIC_URL,
+  fetchMoneyConfig,
 } from "../../api/adminApi";
 import type {
   CmListing,
@@ -36,17 +37,20 @@ import {
 const url = (k?: string) => (k && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${k}` : "");
 
 // G-26 cost floor: fabric + make + per-order overhead (FABLE-SOLUTIONS P2 model).
-// MAKE/OVERHEAD become AppConfig values later; one place to change until then.
+// T1-23: make/overhead are single-sourced from the server (fetchMoneyConfig); these are
+// only the fallback defaults until the fetch resolves, matching the backend defaults.
 const MAKE_COST = 180;
 const OVERHEAD = 250;
 const costFloor = (
   pricePerMeter: string | number | null | undefined,
   metersPerGarment: string | number | null | undefined,
+  make: number,
+  overhead: number,
 ): number | null => {
   const ppm = pricePerMeter == null ? NaN : Number(pricePerMeter);
   const mpg = metersPerGarment == null ? NaN : Number(metersPerGarment);
   if (!Number.isFinite(ppm) || !Number.isFinite(mpg)) return null;
-  return Math.round(ppm * mpg + MAKE_COST + OVERHEAD);
+  return Math.round(ppm * mpg + make + overhead);
 };
 const marginPct = (price: number, floor: number) => Math.round(((price - floor) / price) * 100);
 
@@ -77,6 +81,13 @@ export const ListingsManagePage: React.FC = () => {
   const [fabrics, setFabrics] = React.useState<Fabric[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [loading, setLoading] = React.useState(true);
+  // T1-23: single-source cost-floor constants from the server (fallback to the defaults).
+  const [money, setMoney] = React.useState({ make: MAKE_COST, overhead: OVERHEAD });
+  React.useEffect(() => {
+    fetchMoneyConfig()
+      .then((c) => setMoney({ make: c.listing_make_cost, overhead: c.listing_overhead }))
+      .catch(() => {});
+  }, []);
   const [editor, setEditor] = React.useState<Editor | null>(null);
   const [uploading, setUploading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -443,12 +454,12 @@ export const ListingsManagePage: React.FC = () => {
                   ) : null}
                   {/* G-26: margin vs the cost floor (fabric + make + overhead) */}
                   {(() => {
-                    const floor = costFloor(l.price_per_meter, l.meters_per_garment);
+                    const floor = costFloor(l.price_per_meter, l.meters_per_garment, money.make, money.overhead);
                     if (floor == null) return null;
                     const m = marginPct(Number(l.price), floor);
                     const cls = Number(l.price) < floor ? s.marginBad : m < 25 ? s.marginThin : s.marginOk;
                     return (
-                      <div className={cls} title={`Cost floor ≈ ₹${floor} (fabric + make ₹${MAKE_COST} + overhead ₹${OVERHEAD})`}>
+                      <div className={cls} title={`Cost floor ≈ ₹${floor} (fabric + make ₹${money.make} + overhead ₹${money.overhead})`}>
                         {Number(l.price) < floor ? `▼ priced ₹${floor - Number(l.price)} below cost` : `margin ${m}%`}
                       </div>
                     );
@@ -643,6 +654,8 @@ export const ListingsManagePage: React.FC = () => {
               const floor = costFloor(
                 editor.pricePerMeter ?? fabric?.price_per_meter,
                 editor.metersPerGarment ?? design?.meters_per_garment,
+                money.make,
+                money.overhead,
               );
               if (floor == null) return null;
               const price = Number(editor.price);
@@ -650,7 +663,7 @@ export const ListingsManagePage: React.FC = () => {
               const m = Number.isFinite(price) && price > 0 ? marginPct(price, floor) : null;
               return (
                 <div className={below ? s.floorWarn : s.floorLine}>
-                  Cost ≈ ₹{floor} (fabric + make ₹{MAKE_COST} + overhead ₹{OVERHEAD})
+                  Cost ≈ ₹{floor} (fabric + make ₹{money.make} + overhead ₹{money.overhead})
                   {m != null && ` — margin ${m}%`}
                   {below && " — PRICED BELOW COST"}
                 </div>

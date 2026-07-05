@@ -1300,6 +1300,17 @@ export const homeSectionsApi = {
 
 // ─── R2 upload utility ────────────────────────────────────────────────────────
 
+// T1-23: single-source money constants — read from the server so the FE never drifts from
+// the backend (cost floor make/overhead, support credit cap, guarantee reserve).
+export interface MoneyConfig {
+  listing_make_cost: number;
+  listing_overhead: number;
+  support_credit_cap: number;
+  guarantee_reserve_per_order: number;
+}
+export const fetchMoneyConfig = (): Promise<MoneyConfig> =>
+  req<MoneyConfig>(`/api/admin/money-config`);
+
 export async function uploadToR2(
   file: File,
   folder = "uploads",
@@ -1823,6 +1834,8 @@ export const designsApi = {
       garment_category_id?: string;
       gender?: string;
       q?: string;
+      dead?: boolean; // T1-28: published, never listed (server-side, correct across pages)
+      sample_pending?: boolean; // T1-28: not archived + no reviewed sample
       limit?: number;
       offset?: number;
       sort?: "newest" | "best_fit";
@@ -1834,6 +1847,8 @@ export const designsApi = {
       qs.set("garment_category_id", params.garment_category_id);
     if (params.gender) qs.set("gender", params.gender);
     if (params.q) qs.set("q", params.q);
+    if (params.dead) qs.set("dead", "true");
+    if (params.sample_pending) qs.set("sample_pending", "true");
     if (params.limit != null) qs.set("limit", String(params.limit));
     if (params.offset != null) qs.set("offset", String(params.offset));
     if (params.sort) qs.set("sort", params.sort);
@@ -2173,6 +2188,7 @@ export interface PnlHub {
   revenue: number;
   fabric_cost: number;
   guarantee_cost: number;
+  guarantee_reserve: number; // T1-23: memo provision (not in profit)
   delivery_cost: number;
   payment_fees: number;
   refunds: number;
@@ -2191,6 +2207,8 @@ export interface PnlReport {
   };
   // T1-19: outstanding wallet credits — a current liability, not part of period profit.
   wallet_liability: number;
+  // T1-23: fit-promise reserve to hold for the period (memo/provision, not in profit).
+  guarantee_reserve: number;
   estimates: {
     payment_fee_rate_pct: number;
     delivery_cost_per_order: number;
@@ -2711,6 +2729,8 @@ export interface FabricAtHub {
     last_counted_at?: string | null; // T1-10
     quarantine_meters?: string | number | null; // T1-13
   };
+  // T1-26: false = a no-movement on-hand balance that the ledger doesn't explain (unreconciled).
+  opening_reconciled?: boolean;
   movements: FabricMovement[]; // distribution/restock/listing REQUEST events (context)
   stock_movements?: FabricStockMovement[]; // actual stock in/out with running balance
 }
