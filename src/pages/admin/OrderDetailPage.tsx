@@ -19,6 +19,7 @@ import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
 import { Can } from "../../components/Can/Can";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { StatusBadge, statusLabel } from "../../components/StatusBadge";
 import { PageHeader, DetailShell } from "../../components";
 import styles from "./OrderDetailPage.module.css";
@@ -519,6 +520,10 @@ export const OrderDetailPage: React.FC = () => {
   const [order, setOrder] = React.useState<AdminOrder | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  // T2-8: item-level cancel (+ partial refund) target + reason.
+  const [cancelItem, setCancelItem] = React.useState<{ id: string; name: string } | null>(null);
+  const [cancelItemReason, setCancelItemReason] = React.useState("");
+  const [cancellingItem, setCancellingItem] = React.useState(false);
 
   // Customer measurement bookings (for linking)
 
@@ -596,6 +601,36 @@ export const OrderDetailPage: React.FC = () => {
       })
       .catch(() => {});
   }, [id]);
+
+  // T2-8: cancel one item in a multi-item order (+ partial refund of its line).
+  const doCancelItem = async () => {
+    if (!order || !cancelItem) return;
+    setCancellingItem(true);
+    try {
+      const res = await ordersApi.cancelItem(
+        order.uuid ?? order.id,
+        cancelItem.id,
+        cancelItemReason.trim() || undefined,
+      );
+      showToast(
+        "success",
+        "Item cancelled",
+        res.refunded > 0
+          ? `₹${res.refunded.toLocaleString("en-IN")} refunded to source.`
+          : "Order total reduced.",
+      );
+      setCancelItem(null);
+      setCancelItemReason("");
+      reload();
+    } catch (e) {
+      showToast("error", "Could not cancel item", e instanceof Error ? e.message : undefined);
+    } finally {
+      setCancellingItem(false);
+    }
+  };
+  const ITEM_CANCEL_LOCKED = ["delivered", "shipped", "cancelled", "refunded", "rto", "delivery_failed"];
+  const activeItemCount = (order?.items ?? []).filter((it) => !it.cancelled_at).length;
+  const canCancelItems = !!order && !ITEM_CANCEL_LOCKED.includes(order.stage) && activeItemCount >= 2;
 
   React.useEffect(() => {
     if (!id) return;
@@ -1403,6 +1438,31 @@ export const OrderDetailPage: React.FC = () => {
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* T2-8: cancel one item (+ partial refund of its line) */}
+      <ConfirmDialog
+        open={!!cancelItem}
+        title="Cancel this item?"
+        message={
+          <>
+            Cancel <strong>{cancelItem?.name}</strong> and refund its line to the customer's
+            original payment method (COD orders just pay less). The rest of the order continues.
+            <input
+              className={styles.reasonInput}
+              value={cancelItemReason}
+              onChange={(e) => setCancelItemReason(e.target.value)}
+              placeholder="Reason (optional) — e.g. fabric defect on this item"
+            />
+          </>
+        }
+        confirmLabel="Cancel item + refund"
+        loading={cancellingItem}
+        onConfirm={doCancelItem}
+        onCancel={() => {
+          setCancelItem(null);
+          setCancelItemReason("");
+        }}
+      />
       <DetailShell header={header} aside={aside}>
           {/* ── Items ──────────────────────────────────────────────────────── */}
           <div className={styles.card}>
@@ -1414,29 +1474,51 @@ export const OrderDetailPage: React.FC = () => {
                   <th>Qty</th>
                   <th>Unit Price</th>
                   <th>Total</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
                 {(order.items ?? []).length > 0
-                  ? (order.items ?? []).map((it) => (
-                      <tr key={it.id}>
-                        <td>{it.product_name}</td>
-                        <td>{it.quantity}</td>
-                        <td>₹{it.unit_price.toLocaleString("en-IN")}</td>
-                        <td>
-                          ₹
-                          {(it.quantity * it.unit_price).toLocaleString(
-                            "en-IN",
-                          )}
-                        </td>
-                      </tr>
-                    ))
+                  ? (order.items ?? []).map((it) => {
+                      const cancelled = !!it.cancelled_at;
+                      return (
+                        <tr key={it.id} className={cancelled ? styles.itemRowCancelled : undefined}>
+                          <td className={cancelled ? styles.itemStrike : undefined}>
+                            {it.product_name}
+                            {cancelled && (
+                              <span className={styles.metaLabel}> · cancelled</span>
+                            )}
+                          </td>
+                          <td>{it.quantity}</td>
+                          <td>₹{it.unit_price.toLocaleString("en-IN")}</td>
+                          <td>
+                            ₹
+                            {(it.quantity * it.unit_price).toLocaleString("en-IN")}
+                          </td>
+                          <td>
+                            {!cancelled && canCancelItems && (
+                              <Can cap="refunds:approve">
+                                <button
+                                  className={styles.linkBtnDanger}
+                                  onClick={() =>
+                                    setCancelItem({ id: it.id, name: it.product_name })
+                                  }
+                                >
+                                  Cancel item
+                                </button>
+                              </Can>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
                   : order.products.map((p, i) => (
                       <tr key={i}>
                         <td>{p}</td>
                         <td>1</td>
                         <td>—</td>
                         <td>—</td>
+                        <td />
                       </tr>
                     ))}
               </tbody>

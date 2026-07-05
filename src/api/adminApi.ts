@@ -289,6 +289,17 @@ export const ordersApi = {
       body: JSON.stringify(address),
     }),
 
+  // T2-8: cancel a single item in a multi-item order (+ partial refund of its line).
+  cancelItem: async (
+    orderId: string,
+    itemId: string,
+    reason?: string,
+  ): Promise<{ order_id: string; item_id: string; line_amount: number; refunded: number }> =>
+    req(`/api/admin/orders/${orderId}/items/${itemId}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+
   updateStage: async (
     id: string,
     stage: OrderStage,
@@ -1356,6 +1367,67 @@ export const qcTemplatesApi = {
     }),
   remove: (id: string): Promise<{ deleted: boolean }> =>
     req<{ deleted: boolean }>(`/api/admin/qc-templates/${id}`, { method: "DELETE" }),
+};
+
+// ─── T2-7: per-hub constraint view + festival/leave calendar ───────────────────
+export interface HubConstraintRow {
+  hub_id: string | null;
+  hub_name: string | null;
+  stage: string;
+  threshold_hours: number | null; // null for the 'alteration' line (no stage SLA) — T2-9
+  wip_count: number;
+  p50_stage_hours: number | null;
+  p90_stage_hours: number | null;
+  max_stage_hours: number | null;
+  over_sla_count: number;
+  p50_order_age_hours: number | null;
+}
+export interface HubCalendarEvent {
+  id: string;
+  hub_id: string | null;
+  hub_name: string | null;
+  event_type: "demand_spike" | "staff_leave";
+  label: string;
+  starts_on: string;
+  ends_on: string;
+  magnitude: number;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export type HubCalendarInput = {
+  hub_id?: string | null;
+  event_type: "demand_spike" | "staff_leave";
+  label: string;
+  starts_on: string;
+  ends_on: string;
+  magnitude?: number;
+  note?: string;
+};
+export const hubPlanningApi = {
+  constraints: (hubId?: string): Promise<HubConstraintRow[]> =>
+    req<HubConstraintRow[]>(
+      `/api/admin/analytics/hub-constraints${hubId ? `?hub_id=${hubId}` : ""}`,
+    ),
+  listEvents: (params: { hubId?: string; upcoming?: boolean } = {}): Promise<HubCalendarEvent[]> => {
+    const qs = new URLSearchParams();
+    if (params.hubId) qs.set("hub_id", params.hubId);
+    if (params.upcoming) qs.set("upcoming", "true");
+    const s = qs.toString();
+    return req<HubCalendarEvent[]>(`/api/admin/hub-calendar${s ? `?${s}` : ""}`);
+  },
+  createEvent: (body: HubCalendarInput): Promise<HubCalendarEvent> =>
+    req<HubCalendarEvent>(`/api/admin/hub-calendar`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateEvent: (id: string, body: HubCalendarInput): Promise<HubCalendarEvent> =>
+    req<HubCalendarEvent>(`/api/admin/hub-calendar/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  removeEvent: (id: string): Promise<{ deleted: boolean }> =>
+    req<{ deleted: boolean }>(`/api/admin/hub-calendar/${id}`, { method: "DELETE" }),
 };
 
 export async function uploadToR2(

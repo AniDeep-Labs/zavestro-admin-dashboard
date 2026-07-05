@@ -20,6 +20,8 @@ export interface OrderItem {
   product_name: string;
   quantity: number;
   unit_price: number;
+  cancelled_at?: string | null; // T2-8: item-level cancel
+  cancel_reason?: string | null;
 }
 
 export interface OrderTimelineEntry {
