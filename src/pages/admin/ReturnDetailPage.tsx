@@ -8,6 +8,7 @@ import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import { StatusBadge } from '../../components';
 import { Can } from '../../components/Can/Can';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { DispositionPanel } from '../../components/DispositionPanel/DispositionPanel';
 import styles from './OrdersListPage.module.css';
 import d from './ReturnDetailPage.module.css';
 import { UilAngleLeft } from "@iconscout/react-unicons";
@@ -177,6 +178,11 @@ export const ReturnDetailPage: React.FC = () => {
                 finance can approve the refund here.
               </p>
             )}
+          </div>
+
+          {/* T2-12: what happens to the returned made-for-one garment + the ₹ write-off */}
+          <div className={styles.card}>
+            <DispositionPanel orderId={ret.order_id} source="return" />
           </div>
         </div>
       </div>

@@ -1443,6 +1443,37 @@ export const hubPlanningApi = {
     req<{ deleted: boolean }>(`/api/admin/hub-calendar/${id}`, { method: "DELETE" }),
 };
 
+// ─── T2-12: garment disposition + write-off (returns / RTO) ────────────────────
+export type DispositionKind = "pending" | "donate" | "scrap" | "salvage" | "remake_source";
+export interface GarmentDisposition {
+  id: string;
+  order_id: string;
+  source: "return" | "rto";
+  disposition: DispositionKind;
+  write_off_amount: number;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface DispositionResponse {
+  disposition: GarmentDisposition | null;
+  fabric_cost: number;
+  make_cost: number;
+  suggested_write_off: number;
+}
+export const dispositionApi = {
+  get: (orderId: string): Promise<DispositionResponse> =>
+    req<DispositionResponse>(`/api/admin/dispositions/${orderId}`),
+  set: (
+    orderId: string,
+    body: { source: "return" | "rto"; disposition: DispositionKind; write_off_amount?: number; note?: string },
+  ): Promise<DispositionResponse> =>
+    req<DispositionResponse>(`/api/admin/dispositions/${orderId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+};
+
 export async function uploadToR2(
   file: File,
   folder = "uploads",
