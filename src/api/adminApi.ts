@@ -1404,11 +1404,24 @@ export type HubCalendarInput = {
   magnitude?: number;
   note?: string;
 };
+// T2-11: per-hub intake surge signal.
+export interface HubSurgeRow {
+  hub_id: string | null;
+  hub_name: string | null;
+  wip_total: number;
+  over_sla_total: number;
+  wip_threshold: number;
+  sla_breach_threshold: number;
+  is_surging: boolean;
+  surge_reason: "wip" | "sla" | "both" | null;
+}
 export const hubPlanningApi = {
   constraints: (hubId?: string): Promise<HubConstraintRow[]> =>
     req<HubConstraintRow[]>(
       `/api/admin/analytics/hub-constraints${hubId ? `?hub_id=${hubId}` : ""}`,
     ),
+  surge: (hubId?: string): Promise<HubSurgeRow[]> =>
+    req<HubSurgeRow[]>(`/api/admin/analytics/hub-surge${hubId ? `?hub_id=${hubId}` : ""}`),
   listEvents: (params: { hubId?: string; upcoming?: boolean } = {}): Promise<HubCalendarEvent[]> => {
     const qs = new URLSearchParams();
     if (params.hubId) qs.set("hub_id", params.hubId);
