@@ -2209,12 +2209,18 @@ export interface Invoice {
   created_at: string;
   payable_amount?: string | number | null;
   hub_name?: string | null;
+  // T2-19: GST snapshot (null until the invoice PDF is generated)
+  taxable_value?: string | number | null;
+  tax_total?: string | number | null;
+  grand_total?: string | number | null;
+  is_interstate?: boolean | null;
 }
 
 export interface InvoicesResponse {
   invoices: Invoice[];
   total: number;
   total_invoiced?: number;
+  total_gst?: number; // T2-19: GST itemized across the filtered set (CA's monthly figure)
   page: number;
   limit: number;
 }
