@@ -2636,6 +2636,12 @@ export const staffApi = {
       method: "PATCH",
       body: JSON.stringify({ is_active }),
     }),
+  // T2-26 (SU-9): issue a time-limited reset token (returned once for the admin to hand over).
+  resetPassword: (id: string): Promise<{ token: string; expires_at: string; email: string }> =>
+    req<{ token: string; expires_at: string; email: string }>(
+      `/api/admin/staff-management/${id}/reset-password`,
+      { method: "POST" },
+    ),
 };
 
 // ─── Notification Blast ──────────────────────────────────────────────────────────
@@ -2650,6 +2656,18 @@ export interface BlastPayload {
   segment: "all" | "opted_in";
 }
 
+export interface BlastHistoryRow {
+  id: string;
+  subject: string | null;
+  headline: string | null;
+  segment: string;
+  users_targeted: number;
+  cta_text?: string | null;
+  cta_url?: string | null;
+  sent_at: string;
+  sent_by_email: string | null;
+}
+
 export const notificationsAdminApi = {
   blast: async (payload: BlastPayload): Promise<{ users_targeted: number }> =>
     req<{ users_targeted: number }>(`/api/admin/notifications/blast`, {
@@ -2661,6 +2679,9 @@ export const notificationsAdminApi = {
     req<{ count: number }>(`/api/admin/notifications/blast-audience?segment=${segment}`).then(
       (r) => r.count,
     ),
+  // T2-26 (SU-7): sent-history of blasts.
+  history: async (limit = 30): Promise<BlastHistoryRow[]> =>
+    req<BlastHistoryRow[]>(`/api/admin/notifications/blasts?limit=${limit}`),
 };
 
 // ─── Admin inbox (hand-off notifications) ─────────────────────────────────────

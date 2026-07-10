@@ -86,7 +86,10 @@
 .orderId { font-size: 12px; font-weight: var(--font-weight-semibold); color: var(--color-primary); font-family: monospace; }
 .date { font-size: 13px; white-space: nowrap; color: var(--color-text-secondary); }
 
-.headerActions { display: flex; gap: 8px; }
+.headerActions { display: flex; gap: 8px; align-items: center; }
+/* T2-26 cross-link */
+.crossLink { display: inline-flex; align-items: center; font-size: var(--font-size-sm); color: var(--color-primary); text-decoration: none; font-weight: var(--font-weight-medium); white-space: nowrap; }
+.crossLink:hover { text-decoration: underline; }
 .exportBtn { height: 38px; padding: 0 16px; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; background: none; border: 1.5px solid var(--color-border); color: var(--color-text-secondary); }
 .bulkBtn { height: 38px; padding: 0 16px; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; background: none; border: 1.5px solid var(--color-primary); color: var(--color-primary); }
 .bulkBtn:disabled { opacity: 0.4; cursor: not-allowed; }

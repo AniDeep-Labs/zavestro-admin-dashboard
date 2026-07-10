@@ -1,6 +1,6 @@
 import React from 'react';
 import { notificationsAdminApi } from '../../api/adminApi';
-import type { BlastPayload } from '../../api/adminApi';
+import type { BlastPayload, BlastHistoryRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
@@ -13,10 +13,16 @@ export const NotificationBlastPage: React.FC = () => {
   const [confirming, setConfirming] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const [audienceCount, setAudienceCount] = React.useState<number | null>(null);
+  const [history, setHistory] = React.useState<BlastHistoryRow[] | null>(null); // T2-26 SU-7
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
+
+  const loadHistory = React.useCallback(() => {
+    notificationsAdminApi.history().then(setHistory).catch(() => setHistory([]));
+  }, []);
+  React.useEffect(() => { loadHistory(); }, [loadHistory]);
 
   const set = <K extends keyof BlastPayload>(k: K, v: BlastPayload[K]) => setForm(f => ({ ...f, [k]: v }));
   const valid = form.subject.trim() && form.headline.trim() && form.body.trim();
@@ -43,6 +49,7 @@ export const NotificationBlastPage: React.FC = () => {
       showToast('success', 'Blast queued', `Sending to ${users_targeted} customer${users_targeted !== 1 ? 's' : ''} (in-app + email + push).`);
       setConfirming(false);
       setForm({ subject: '', headline: '', body: '', pushBody: '', ctaText: '', ctaUrl: '', segment: 'opted_in' });
+      loadHistory(); // T2-26: reflect the just-sent blast in the history table
     } catch (e) {
       showToast('error', 'Send failed', e instanceof Error ? e.message : undefined);
     } finally { setSending(false); }
@@ -94,6 +101,32 @@ export const NotificationBlastPage: React.FC = () => {
             <UilMessage size={14} /> Review & Send
           </button>
         </div>
+      </div>
+
+      {/* T2-26 (SU-7): sent history — every blast, to whom, by whom, when. */}
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead><tr><th>Sent</th><th>Headline</th><th>Audience</th><th>Recipients</th><th>By</th></tr></thead>
+          <tbody>
+            {history === null ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <tr key={i}>{Array.from({ length: 5 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
+              ))
+            ) : history.length === 0 ? (
+              <tr><td colSpan={5} className={styles.empty}>No blasts sent yet.</td></tr>
+            ) : (
+              history.map(h => (
+                <tr key={h.id}>
+                  <td className={styles.date}>{new Date(h.sent_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>{h.headline || h.subject || '—'}</td>
+                  <td>{h.segment === 'all' ? 'All active' : 'Opted-in'}</td>
+                  <td>{h.users_targeted.toLocaleString('en-IN')}</td>
+                  <td>{h.sent_by_email ?? '—'}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       {confirming && (
