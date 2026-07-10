@@ -15,6 +15,7 @@ import type {
   DesignSummary,
   Fabric,
   Hub,
+  FabricStockRow,
 } from "../../api/adminApi";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -54,6 +55,21 @@ const costFloor = (
 };
 const marginPct = (price: number, floor: number) => Math.round(((price - floor) / price) * 100);
 
+// T2-27 (CM-2): available metres of the editor's fabric at its hub, vs metres-per-garment.
+function stockFor(
+  editor: Editor | null,
+  editorStock: FabricStockRow[] | null,
+  designs: DesignSummary[],
+): { available: number | null; mpg: number | null; inStock: boolean | null } {
+  if (!editor || !editor.fabric_id) return { available: null, mpg: null, inStock: null };
+  const row = editorStock?.find((r) => r.fabric_id === editor.fabric_id);
+  const available = row ? Number(row.available_meters) : null;
+  const mpgRaw = editor.metersPerGarment ?? designs.find((d) => d.id === editor.design_id)?.meters_per_garment;
+  const mpg = mpgRaw == null || mpgRaw === "" ? null : Number(mpgRaw);
+  const inStock = available != null && mpg != null ? available >= mpg : null;
+  return { available, mpg, inStock };
+}
+
 type Editor = {
   mode: "sample" | "direct" | "edit";
   sampleId?: string;
@@ -89,6 +105,9 @@ export const ListingsManagePage: React.FC = () => {
       .catch(() => {});
   }, []);
   const [editor, setEditor] = React.useState<Editor | null>(null);
+  // T2-27 (CM-1): status tabs. T2-27 (CM-2): live hub stock for the chosen fabric while picking.
+  const [tab, setTab] = React.useState<"all" | "ready" | "drafts" | "oos">("all");
+  const [editorStock, setEditorStock] = React.useState<FabricStockRow[] | null>(null);
   const [uploading, setUploading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -118,6 +137,14 @@ export const ListingsManagePage: React.FC = () => {
   React.useEffect(() => {
     load();
   }, [load]);
+  // T2-27 (CM-2): fetch the chosen hub's fabric stock so the picker can show availability live.
+  const editorHub = editor?.hub_id;
+  React.useEffect(() => {
+    if (!editorHub) { setEditorStock(null); return; }
+    let alive = true;
+    fabricsApi.stock({ hub_id: editorHub }).then((rows) => { if (alive) setEditorStock(rows); }).catch(() => { if (alive) setEditorStock([]); });
+    return () => { alive = false; };
+  }, [editorHub]);
   React.useEffect(() => {
     designsApi
       .list({ status: "published" })
@@ -238,7 +265,10 @@ export const ListingsManagePage: React.FC = () => {
     }
     // G-25 (warn, never block — accept-all-orders model): publishing while the
     // hub holds no fabric means the storefront will show it out-of-stock.
-    if (publish && editor.inStock === false && !publishAnyway) {
+    // T2-27 (CM-2): use the LIVE picker stock so the warn now fires for new listings too,
+    // not just edit mode (falls back to the edit-mode server truth when stock isn't loaded).
+    const liveInStock = stockFor(editor, editorStock, designs).inStock ?? editor.inStock;
+    if (publish && liveInStock === false && !publishAnyway) {
       setShowStockWarn(true);
       return;
     }
@@ -318,15 +348,17 @@ export const ListingsManagePage: React.FC = () => {
   // category and its dark-store listings). Matched on the garment-type name.
   const [searchParams, setSearchParams] = useSearchParams();
   const garmentFilter = searchParams.get("garment");
-  const shownListings = React.useMemo(
-    () =>
-      garmentFilter
-        ? listings.filter(
-            (l) => (l.garment_type ?? "").toLowerCase() === garmentFilter.toLowerCase(),
-          )
-        : listings,
-    [listings, garmentFilter],
-  );
+  // T2-27 (CM-1): tab-filter then garment-filter.
+  const draftCount = listings.filter((l) => !l.is_active).length;
+  const oosCount = listings.filter((l) => l.is_active && l.in_stock === false).length;
+  const shownListings = React.useMemo(() => {
+    let ls = listings;
+    if (tab === "drafts") ls = ls.filter((l) => !l.is_active);
+    else if (tab === "oos") ls = ls.filter((l) => l.is_active && l.in_stock === false);
+    if (garmentFilter)
+      ls = ls.filter((l) => (l.garment_type ?? "").toLowerCase() === garmentFilter.toLowerCase());
+    return ls;
+  }, [listings, tab, garmentFilter]);
 
   return (
     <div className={base.page}>
@@ -338,15 +370,33 @@ export const ListingsManagePage: React.FC = () => {
         </Button>
       </div>
 
-      {/* Ready to list */}
-      {ready.length > 0 && (
+      {/* T2-27 (CM-1): status tabs */}
+      <div className={base.viewChips}>
+        {([
+          ["all", "All", listings.length],
+          ["ready", "Ready", ready.length],
+          ["drafts", "Drafts", draftCount],
+          ["oos", "Out of stock", oosCount],
+        ] as const).map(([k, label, n]) => (
+          <button
+            key={k}
+            className={`${base.viewChip} ${tab === k ? base.viewChipActive : ""}`}
+            onClick={() => setTab(k)}
+          >
+            {label} ({loading ? "…" : n})
+          </button>
+        ))}
+      </div>
+
+      {/* Ready tab — reviewed samples not yet listed */}
+      {tab === "ready" && (
         <section className={s.readySection}>
-          <h2 className={s.sectionTitle}>
-            Ready to list <span className={s.count}>{ready.length}</span>
-          </h2>
           <p className={s.hint}>
             Reviewed samples not yet on the storefront. Set a price and publish.
           </p>
+          {ready.length === 0 ? (
+            <div className={s.empty}>Nothing waiting — every reviewed sample is listed.</div>
+          ) : (
           <div className={s.readyGrid}>
             {ready.map((r) => {
               const img =
@@ -378,16 +428,17 @@ export const ListingsManagePage: React.FC = () => {
               );
             })}
           </div>
+          )}
         </section>
       )}
 
       {/* G-24: nudge — live listings whose fabric is short can't actually be bought. */}
-      {!loading &&
+      {tab !== "ready" && !loading &&
         (() => {
           const liveOOS = listings.filter(
             (l) => l.is_active && l.in_stock === false,
           ).length;
-          return liveOOS > 0 ? (
+          return liveOOS > 0 && tab !== "oos" ? (
             <div className={s.oosStrip}>
               {liveOOS} live listing{liveOOS === 1 ? "" : "s"} out of stock —
               the fabric is short at the hub, so customers can't buy.{" "}
@@ -395,8 +446,10 @@ export const ListingsManagePage: React.FC = () => {
             </div>
           ) : null;
         })()}
+      {tab !== "ready" && (
+      <>
       <h2 className={s.sectionTitle}>
-        Your listings{" "}
+        {tab === "drafts" ? "Drafts" : tab === "oos" ? "Out of stock" : "Your listings"}{" "}
         {!loading && <span className={s.count}>{shownListings.length}</span>}
         {garmentFilter && (
           <button
@@ -417,9 +470,13 @@ export const ListingsManagePage: React.FC = () => {
         </div>
       ) : shownListings.length === 0 ? (
         <div className={s.empty}>
-          {garmentFilter
-            ? `No ${garmentFilter} listings yet. Create one from a reviewed sample above, or add one directly.`
-            : "No listings yet. List a reviewed sample above, or add one directly."}
+          {tab === "drafts"
+            ? "No drafts — every listing is published."
+            : tab === "oos"
+              ? "No out-of-stock listings — every live listing has fabric at its hub."
+              : garmentFilter
+                ? `No ${garmentFilter} listings yet. List one from the Ready tab, or add one directly.`
+                : "No listings yet. List a reviewed sample from the Ready tab, or add one directly."}
         </div>
       ) : (
         <div className={s.grid}>
@@ -499,6 +556,8 @@ export const ListingsManagePage: React.FC = () => {
             );
           })}
         </div>
+      )}
+      </>
       )}
 
       <Modal
@@ -592,6 +651,19 @@ export const ListingsManagePage: React.FC = () => {
                 <span>{editor.fabricLabel}</span>
               </div>
             )}
+
+            {/* T2-27 (CM-2): live hub stock for the chosen fabric — shown BEFORE price/publish. */}
+            {editor.fabric_id && editor.hub_id && (() => {
+              const st = stockFor(editor, editorStock, designs);
+              if (editorStock === null) return <div className={s.floorLine}>Checking hub stock…</div>;
+              if (st.available == null)
+                return <div className={s.floorWarn}>● No stock at this hub for this fabric{st.mpg != null ? ` · needs ${st.mpg}m/garment` : ""}. It'll publish out-of-stock.</div>;
+              return (
+                <div className={st.inStock === false ? s.floorWarn : s.floorLine}>
+                  {st.inStock === false ? "● Out of stock at this hub" : "● In stock"} · {st.available}m available{st.mpg != null ? ` · needs ${st.mpg}m/garment` : ""}
+                </div>
+              );
+            })()}
 
             <div className={s.photos}>
               <span className={s.photosLabel}>
