@@ -1025,18 +1025,29 @@ export interface AuditLogResponse {
   totalPages: number;
 }
 
+export interface AuditFilters {
+  search?: string;
+  action?: string;
+  // T2-22: actor / entity / date filters
+  actor?: string;
+  entity_type?: string;
+  entity_id?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
 export const auditApi = {
-  list: async (
-    params: {
-      search?: string;
-      action?: string;
-      page?: number;
-      limit?: number;
-    } = {},
-  ): Promise<AuditLogResponse> => {
+  list: async (params: AuditFilters = {}): Promise<AuditLogResponse> => {
     const qs = new URLSearchParams();
     if (params.search) qs.set("search", params.search);
     if (params.action) qs.set("action", params.action);
+    if (params.actor) qs.set("actor", params.actor);
+    if (params.entity_type) qs.set("entity_type", params.entity_type);
+    if (params.entity_id) qs.set("entity_id", params.entity_id);
+    if (params.from) qs.set("from", params.from);
+    if (params.to) qs.set("to", params.to);
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
     const raw = await req<{
@@ -1059,9 +1070,14 @@ export const auditApi = {
         entityType: (e.entityType ?? e.entity_type ?? "") as string,
         entityId: (e.entityId ?? e.entity_id ?? "") as string,
         ip: (e.ip ?? "") as string,
+        details: e.details,
       })),
     };
   },
+
+  // T2-22: distinct actors + entity types for the filter dropdowns.
+  facets: async (): Promise<{ actors: string[]; entity_types: string[] }> =>
+    req<{ actors: string[]; entity_types: string[] }>(`/api/admin/audit-log/facets`),
 };
 
 // ─── Collections ─────────────────────────────────────────────────────────────
