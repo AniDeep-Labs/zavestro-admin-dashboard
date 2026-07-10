@@ -135,6 +135,7 @@ export interface Hub {
   phone?: string;
   managerName: string;
   managerPhone: string;
+  managerStaffId?: string | null; // T2-24: hub manager as a real staff relation
   dailyOrderLimit?: number;
 }
 

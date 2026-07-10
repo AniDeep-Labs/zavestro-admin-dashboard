@@ -142,3 +142,15 @@
 .rosterTable td { padding: 9px 10px; border-bottom: 1px solid var(--color-border-light); color: var(--color-text-primary); }
 .rosterTable tr:last-child td { border-bottom: none; }
 .rosterName { font-weight: var(--font-weight-medium); }
+
+/* T2-24: recent-orders clickable rows + activity feed */
+.clickRow { cursor: pointer; transition: background var(--transition-fast); }
+.clickRow:hover { background: var(--color-bg-hover); }
+.activityFeed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.activityItem { display: flex; gap: 10px; align-items: flex-start; }
+.activityDot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary); margin-top: 6px; flex-shrink: 0; }
+.activityDotConfig { background: var(--color-secondary, var(--color-text-tertiary)); }
+.activityBody { display: flex; flex-direction: column; gap: 2px; }
+.activityTitle { font-size: var(--font-size-base); color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
+.activitySub { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.activityMeta { font-size: 12px; color: var(--color-text-tertiary); }

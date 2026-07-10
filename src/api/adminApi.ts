@@ -668,6 +668,7 @@ function mapHub(h: Record<string, unknown>): Hub {
     qcPassRate: (h.qcPassRate as number) ?? 100,
     managerName: (h.managerName ?? h.manager_name ?? "") as string,
     managerPhone: (h.managerPhone ?? h.manager_phone ?? "") as string,
+    managerStaffId: (h.managerStaffId ?? h.manager_staff_id ?? null) as string | null,
   };
 }
 
@@ -742,18 +743,45 @@ export const hubsApi = {
   },
 
   update: async (id: string, data: Partial<Hub>): Promise<Hub> => {
-    const { status, managerName, managerPhone, ...rest } = data;
+    const { status, managerName, managerPhone, managerStaffId, ...rest } = data;
     const body: Record<string, unknown> = { ...rest };
     if (status !== undefined) body.is_active = status === "Active";
     if (managerName !== undefined) body.manager_name = managerName;
     if (managerPhone !== undefined) body.manager_phone = managerPhone;
+    if (managerStaffId !== undefined) body.manager_staff_id = managerStaffId;
     const raw = await req<Record<string, unknown>>(`/api/admin/hubs/${id}`, {
       method: "PUT",
       body: JSON.stringify(body),
     });
     return mapHub(raw);
   },
+
+  // T2-24: HubDetail Recent-orders + Activity tabs.
+  recentOrders: (id: string, limit = 20): Promise<HubRecentOrder[]> =>
+    req<HubRecentOrder[]>(`/api/admin/hubs/${id}/orders?limit=${limit}`),
+  activity: (id: string, limit = 30): Promise<HubActivityItem[]> =>
+    req<HubActivityItem[]>(`/api/admin/hubs/${id}/activity?limit=${limit}`),
 };
+
+export interface HubRecentOrder {
+  id: string;
+  uuid: string;
+  reference_id: string | null;
+  customer: string | null;
+  stage: string;
+  status: string;
+  total: number;
+  created_at: string;
+  updated_at: string;
+}
+export interface HubActivityItem {
+  kind: "order" | "config";
+  created_at: string;
+  title: string;
+  subtitle: string | null;
+  actor: string | null;
+  order_uuid?: string | null;
+}
 
 // ─── Support ──────────────────────────────────────────────────────────────────
 
