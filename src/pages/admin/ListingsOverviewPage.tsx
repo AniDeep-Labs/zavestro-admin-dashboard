@@ -1,83 +1,121 @@
 import React from 'react';
-import { listingsAdminApi } from '../../api/adminApi';
-import type { ListingOverviewRow } from '../../api/adminApi';
-import { ToastContainer, createToast } from '../../components/Toast/Toast';
-import type { ToastData } from '../../components/Toast/Toast';
-import styles from './OrdersListPage.module.css';
-import { StatusBadge } from '../../components';
+import { listingsAdminApi, hubsApi } from '../../api/adminApi';
+import type { ListingExceptions, ListingOosRow, ListingBelowFloorRow, Hub } from '../../api/adminApi';
+import { OverviewExceptions } from './OverviewExceptions';
+import type { OvTab } from './OverviewExceptions';
 
+const inr = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
+
+// T2-21 (SU-1): exceptions-first Listings overview — live listings that can't be fulfilled
+// (out of stock) or that lose money (priced below the cost floor).
 export const ListingsOverviewPage: React.FC = () => {
-  const [rows, setRows] = React.useState<ListingOverviewRow[]>([]);
+  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  const [data, setData] = React.useState<ListingExceptions | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [hubFilter, setHubFilter] = React.useState('');
-  const [toasts, setToasts] = React.useState<ToastData[]>([]);
-  const dismiss = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
+  const [error, setError] = React.useState('');
+  const [hubId, setHubId] = React.useState('');
+  const [startDate, setStartDate] = React.useState('');
+  const [endDate, setEndDate] = React.useState('');
 
   React.useEffect(() => {
-    setLoading(true);
-    listingsAdminApi
-      .overview()
-      .then(setRows)
-      .catch((e) =>
-        setToasts((t) => [
-          ...t,
-          createToast('error', 'Load failed', e instanceof Error ? e.message : undefined),
-        ]),
-      )
-      .finally(() => setLoading(false));
+    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
   }, []);
 
-  const hubs = Array.from(new Set(rows.map((r) => r.hub_name))).sort();
-  const visible = hubFilter ? rows.filter((r) => r.hub_name === hubFilter) : rows;
-  const active = rows.filter((r) => r.is_active).length;
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError('');
+    listingsAdminApi
+      .overviewExceptions({ hub_id: hubId || undefined, start_date: startDate || undefined, end_date: endDate || undefined })
+      .then(setData)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  }, [hubId, startDate, endDate]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const oosTab: OvTab<ListingOosRow> = {
+    key: 'oos',
+    label: 'Live · out of stock',
+    rows: data?.live_but_oos ?? [],
+    rowKey: (r) => r.listing_id,
+    columns: [
+      { header: 'Design', cell: (r) => r.design_name },
+      { header: 'Hub', cell: (r) => r.hub_name },
+      { header: 'Price', cell: (r) => inr(r.price) },
+      { header: 'In stock', cell: (r) => `${r.available_meters}m / needs ${r.meters_per_garment}m` },
+    ],
+    csv: [
+      { header: 'Design', value: (r) => r.design_name },
+      { header: 'Hub', value: (r) => r.hub_name },
+      { header: 'Price', value: (r) => r.price },
+      { header: 'Available metres', value: (r) => r.available_meters },
+      { header: 'Metres per garment', value: (r) => r.meters_per_garment },
+    ],
+    peek: (r) => ({
+      title: r.design_name,
+      subtitle: `${r.hub_name} · live but out of stock`,
+      fields: [
+        { label: 'Price', value: inr(r.price) },
+        { label: 'Available', value: `${r.available_meters}m` },
+        { label: 'Needs per garment', value: `${r.meters_per_garment}m` },
+      ],
+    }),
+    emptyBody: 'Every live listing can cover at least one garment.',
+  };
+
+  const floorTab: OvTab<ListingBelowFloorRow> = {
+    key: 'below_floor',
+    label: 'Below cost floor',
+    rows: data?.below_floor ?? [],
+    rowKey: (r) => r.listing_id,
+    columns: [
+      { header: 'Design', cell: (r) => r.design_name },
+      { header: 'Hub', cell: (r) => r.hub_name },
+      { header: 'Price', cell: (r) => inr(r.price) },
+      { header: 'Cost floor', cell: (r) => inr(r.cost_floor) },
+      { header: 'Loss/unit', cell: (r) => inr(r.cost_floor - r.price) },
+    ],
+    csv: [
+      { header: 'Design', value: (r) => r.design_name },
+      { header: 'Hub', value: (r) => r.hub_name },
+      { header: 'Price', value: (r) => r.price },
+      { header: 'Cost floor', value: (r) => r.cost_floor },
+      { header: 'Loss per unit', value: (r) => r.cost_floor - r.price },
+    ],
+    peek: (r) => ({
+      title: r.design_name,
+      subtitle: `${r.hub_name} · priced below cost`,
+      fields: [
+        { label: 'Price', value: inr(r.price) },
+        { label: 'Cost floor', value: inr(r.cost_floor) },
+        { label: 'Loss per unit', value: inr(r.cost_floor - r.price) },
+      ],
+    }),
+    emptyBody: 'No live listing is priced below its cost floor.',
+  };
+
+  // Two tabs carry different row types; the shell is generic per-tab, so widen at the boundary.
+  const tabs = [oosTab, floorTab] as unknown as OvTab<ListingOosRow & ListingBelowFloorRow>[];
 
   return (
-    <div className={styles.page}>
-      <ToastContainer toasts={toasts} onDismiss={dismiss} />
-      <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Listings Overview</h1>
-        <span className={styles.pagination}>
-          {loading ? '' : `${rows.length} listings · ${active} active · ${hubs.length} hubs`}
-        </span>
-      </div>
-
-      <div className={styles.filterBar}>
-        <select className={styles.filterSelect} value={hubFilter} onChange={(e) => setHubFilter(e.target.value)}>
-          <option value="">All hubs</option>
-          {hubs.map((h) => <option key={h} value={h}>{h}</option>)}
-        </select>
-      </div>
-
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr><th>Listing (design)</th><th>Garment</th><th>Fabric</th><th>Hub</th><th>Price</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}>{Array.from({ length: 6 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
-              ))
-            ) : visible.length === 0 ? (
-              <tr><td colSpan={6} className={styles.empty}>No listings yet. Listings are published by the catalog manager once a sample is reviewed.</td></tr>
-            ) : (
-              visible.map((r) => (
-                <tr key={r.id}>
-                  <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.design_name}</td>
-                  <td>{r.garment_type}</td>
-                  <td style={{ color: 'var(--color-text-secondary)' }}>{r.fabric_name}</td>
-                  <td>{r.hub_name}</td>
-                  <td className={styles.total} style={{ fontWeight: 600 }}>₹{Number(r.price).toLocaleString('en-IN')}</td>
-                  <td>
-                    <StatusBadge status={r.is_active ? 'live' : 'inactive'} label={r.is_active ? 'Live' : 'Hidden'} />
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <OverviewExceptions<ListingOosRow & ListingBelowFloorRow>
+      title="Listings Overview"
+      subtitle="Exceptions first — live listings that can't be fulfilled or that lose money on every sale."
+      loading={loading}
+      error={error}
+      onRetry={load}
+      hubs={hubs}
+      hubId={hubId}
+      startDate={startDate}
+      endDate={endDate}
+      onFilter={(p) => {
+        if (p.hubId !== undefined) setHubId(p.hubId);
+        if (p.startDate !== undefined) setStartDate(p.startDate);
+        if (p.endDate !== undefined) setEndDate(p.endDate);
+      }}
+      tabs={tabs}
+      csvName="listings-overview"
+    />
   );
 };
 
