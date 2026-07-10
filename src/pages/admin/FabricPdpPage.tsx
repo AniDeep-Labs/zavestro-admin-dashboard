@@ -11,7 +11,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import base from './OrdersListPage.module.css';
 import s from './FabricPdpPage.module.css';
 import { UilArrowLeft, UilImage } from '@iconscout/react-unicons';
-import { StatusBadge } from '../../components';
+import { StatusBadge, CopyId } from '../../components';
 
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 
@@ -285,13 +285,15 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
                   <p className={s.stockEmpty}>No stock movement recorded yet.</p>
                 ) : (
                   <table className={base.table}>
-                    <thead><tr><th>When</th><th>Hub</th><th>Kind</th><th>Change</th><th>Balance</th><th>Note</th></tr></thead>
+                    <thead><tr><th>When</th><th>Hub</th><th>Kind</th><th>Order</th><th>Change</th><th>Balance</th><th>Note</th></tr></thead>
                     <tbody>
                       {movements.map((m) => (
                         <tr key={m.id}>
                           <td>{new Date(m.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                           <td>{m.hub_name}</td>
                           <td>{m.kind}{m.lot_code ? ` · ${m.lot_code}` : ''}</td>
+                          {/* T2-29: order that ate this fabric. CopyId (not a link) — procurement can't open OrderDetail. */}
+                          <td onClick={(e) => e.stopPropagation()}>{m.order_number ? <CopyId value={m.order_number} /> : '—'}</td>
                           <td className={m.delta_meters < 0 ? s.stockLow : s.stockUp}>{m.delta_meters > 0 ? '+' : ''}{m.delta_meters}m</td>
                           <td>{m.balance_after}m</td>
                           <td className={s.moveNote}>{m.note ?? '—'}</td>
