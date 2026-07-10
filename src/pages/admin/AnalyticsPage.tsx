@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { analyticsApi, hubsApi, fitAnalyticsApi } from '../../api/adminApi';
 import type { AnalyticsData, Hub, FitAnalyticsData, RetentionData } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -38,8 +38,32 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
+// T2-23: a KPI tile that drills to the underlying records when it has a `to` route.
+type KpiItem = { label: string; value: string; trend: string; up: boolean; to?: string };
+function KpiCard({ k, navigate }: { k: KpiItem; navigate: ReturnType<typeof useNavigate> }) {
+  const clickable = !!k.to;
+  return (
+    <div
+      className={`${styles.kpiCard} ${clickable ? styles.kpiClickable : ''}`}
+      onClick={clickable ? () => navigate(k.to!) : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? (e) => { if (e.key === 'Enter') navigate(k.to!); } : undefined}
+    >
+      <div className={styles.kpiLabel}>{k.label}{clickable && <span className={styles.drillArrow}> →</span>}</div>
+      <div className={styles.kpiValue}>{k.value}</div>
+      {k.trend && (
+        <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>
+          {k.up ? <UilChartGrowth size={12}/> : <UilChartDown size={12}/>} {k.trend}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const AnalyticsPage: React.FC = () => {
   const { section = 'revenue' } = useParams<{ section?: string }>();
+  const navigate = useNavigate();
   const [period, setPeriod] = React.useState('This Month');
   const [analyticsData, setAnalyticsData] = React.useState<AnalyticsData | null>(null);
   const [fitData, setFitData] = React.useState<FitAnalyticsData | null>(null);
@@ -127,19 +151,11 @@ export const AnalyticsPage: React.FC = () => {
           <div className={styles.kpiGrid}>
             {[
               { label: 'Total GMV',        value: gmvKpi  ? fmtMoney(gmvKpi.value)  : '₹0', trend: gmvKpi?.trend  ?? '', up: gmvKpi?.up  ?? true },
-              { label: 'Total Orders',     value: ordersKpi ? ordersKpi.value.toLocaleString('en-IN') : '0', trend: ordersKpi?.trend ?? '', up: ordersKpi?.up ?? true },
+              { label: 'Total Orders',     value: ordersKpi ? ordersKpi.value.toLocaleString('en-IN') : '0', trend: ordersKpi?.trend ?? '', up: ordersKpi?.up ?? true, to: '/admin/orders' },
               { label: 'New Customers',    value: custKpi ? custKpi.value.toLocaleString('en-IN') : '0', trend: custKpi?.trend ?? '', up: custKpi?.up ?? true },
               { label: 'Avg. Order Value', value: aovKpi  ? `₹${aovKpi.value.toLocaleString('en-IN')}` : '₹0', trend: aovKpi?.trend  ?? '', up: aovKpi?.up  ?? true },
             ].map(k => (
-              <div key={k.label} className={styles.kpiCard}>
-                <div className={styles.kpiLabel}>{k.label}</div>
-                <div className={styles.kpiValue}>{k.value}</div>
-                {k.trend && (
-                  <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>
-                    {k.up ? <UilChartGrowth size={12}/> : <UilChartDown size={12}/>} {k.trend}
-                  </div>
-                )}
-              </div>
+              <KpiCard key={k.label} k={k} navigate={navigate} />
             ))}
           </div>
 
@@ -157,11 +173,6 @@ export const AnalyticsPage: React.FC = () => {
               <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem', padding: '24px 0' }}>No revenue recorded yet for this period.</p>
             )}
           </div>
-
-          <div className={styles.card}>
-            <h2 className={styles.cardTitle}>Top Products by Revenue</h2>
-            <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem', padding: '16px 0' }}>No orders recorded yet — top products will appear here once orders come in.</p>
-          </div>
         </>
       )}
 
@@ -170,23 +181,17 @@ export const AnalyticsPage: React.FC = () => {
         <>
           <div className={styles.kpiGrid}>
             {[
-              { label: 'Total Orders',      value: ordersKpi ? ordersKpi.value.toLocaleString('en-IN') : '0', trend: ordersKpi?.trend ?? '', up: ordersKpi?.up ?? true },
+              { label: 'Total Orders',      value: ordersKpi ? ordersKpi.value.toLocaleString('en-IN') : '0', trend: ordersKpi?.trend ?? '', up: ordersKpi?.up ?? true, to: '/admin/orders' },
               { label: 'GMV',               value: gmvKpi   ? fmtMoney(gmvKpi.value) : '₹0',                  trend: gmvKpi?.trend  ?? '', up: gmvKpi?.up  ?? true },
               { label: 'New Customers',     value: custKpi  ? custKpi.value.toLocaleString('en-IN') : '0',     trend: custKpi?.trend ?? '', up: custKpi?.up ?? true },
               { label: 'Avg. Order Value',  value: aovKpi   ? `₹${aovKpi.value.toLocaleString('en-IN')}` : '₹0', trend: aovKpi?.trend ?? '', up: aovKpi?.up ?? true },
             ].map(k => (
-              <div key={k.label} className={styles.kpiCard}>
-                <div className={styles.kpiLabel}>{k.label}</div>
-                <div className={styles.kpiValue}>{k.value}</div>
-                {k.trend && (
-                  <div className={`${styles.kpiTrend} ${k.up ? styles.trendUp : styles.trendDown}`}>
-                    {k.up ? <UilChartGrowth size={12}/> : <UilChartDown size={12}/>} {k.trend}
-                  </div>
-                )}
-              </div>
+              <KpiCard key={k.label} k={k} navigate={navigate} />
             ))}
           </div>
-          <EmptyState message="Stage latency data will appear once orders progress through production stages." />
+          <p className={styles.drillHint}>
+            Tip: open the <button className={styles.linkBtn} onClick={() => navigate('/admin/oversight/hub-constraints')}>Hub Constraints</button> board for per-stage timing and SLA breaches.
+          </p>
         </>
       )}
 
@@ -215,7 +220,9 @@ export const AnalyticsPage: React.FC = () => {
                     {(fitData.by_product ?? []).map(item => {
                       const score = item.avg_fit_score ?? 0;
                       return (
-                        <div key={item.name} className={styles.fitRow}>
+                        <div key={item.name} className={`${styles.fitRow} ${styles.clickable}`} role="button" tabIndex={0}
+                          onClick={() => navigate('/admin/fit-outcomes')}
+                          onKeyDown={e => { if (e.key === 'Enter') navigate('/admin/fit-outcomes'); }}>
                           <span className={styles.fitCat}>{item.name}</span>
                           <div className={styles.fitBarWrap}>
                             <div className={`${styles.fitBar} ${score < 4 ? styles.fitBarLow : styles.fitBarHigh}`}
@@ -235,7 +242,9 @@ export const AnalyticsPage: React.FC = () => {
                     {(fitData.hub_performance ?? []).map(h => {
                       const score = h.avg_fit_score ?? 0;
                       return (
-                        <div key={h.name} className={styles.fitRow}>
+                        <div key={h.name} className={`${styles.fitRow} ${styles.clickable}`} role="button" tabIndex={0}
+                          onClick={() => navigate('/admin/fit-outcomes')}
+                          onKeyDown={e => { if (e.key === 'Enter') navigate('/admin/fit-outcomes'); }}>
                           <span className={styles.fitCat}>{h.name}</span>
                           <div className={styles.fitBarWrap}>
                             <div className={`${styles.fitBar} ${score < 4 ? styles.fitBarLow : styles.fitBarHigh}`}
@@ -272,7 +281,7 @@ export const AnalyticsPage: React.FC = () => {
               </thead>
               <tbody>
                 {hubs.map(h => (
-                  <tr key={h.id}>
+                  <tr key={h.id} className={styles.row} onClick={() => navigate(`/admin/hubs/${h.id}`)}>
                     <td className={styles.productName}>{h.name}</td>
                     <td>{h.city}</td>
                     <td>{h.activeOrders}</td>
