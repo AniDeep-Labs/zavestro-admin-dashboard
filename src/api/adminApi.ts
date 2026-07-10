@@ -2032,6 +2032,48 @@ export interface DesignOverviewRow {
   units_sold: number;
 }
 
+// T2-21 exceptions-first overview types
+export interface DesignExceptionRow {
+  id: string;
+  name: string;
+  garment_type: string;
+  gender: string | null;
+  created_at: string;
+  days_published: number;
+  live_hub_count: number;
+  units_sold: number;
+}
+export interface DesignExceptions {
+  aging_days: number;
+  counts: { published_never_listed: number; aging: number };
+  published_never_listed: DesignExceptionRow[];
+  aging: DesignExceptionRow[];
+}
+export interface ListingOosRow {
+  listing_id: string;
+  design_name: string;
+  hub_name: string;
+  hub_id: string;
+  price: number;
+  meters_per_garment: number;
+  available_meters: number;
+  created_at: string;
+}
+export interface ListingBelowFloorRow {
+  listing_id: string;
+  design_name: string;
+  hub_name: string;
+  hub_id: string;
+  price: number;
+  cost_floor: number;
+  created_at: string;
+}
+export interface ListingExceptions {
+  counts: { live_but_oos: number; below_floor: number };
+  live_but_oos: ListingOosRow[];
+  below_floor: ListingBelowFloorRow[];
+}
+
 export const designsApi = {
   list: async (
     params: {
@@ -2095,6 +2137,18 @@ export const designsApi = {
 
   overview: async (): Promise<DesignOverviewRow[]> =>
     req<DesignOverviewRow[]>(`/api/admin/designs/overview`),
+
+  // T2-21: exceptions-first overview (published-never-listed + aging)
+  overviewExceptions: async (
+    p: { hub_id?: string; start_date?: string; end_date?: string } = {},
+  ): Promise<DesignExceptions> => {
+    const qs = new URLSearchParams();
+    if (p.hub_id) qs.set('hub_id', p.hub_id);
+    if (p.start_date) qs.set('start_date', p.start_date);
+    if (p.end_date) qs.set('end_date', p.end_date);
+    const s = qs.toString();
+    return req<DesignExceptions>(`/api/admin/designs/overview-exceptions${s ? `?${s}` : ''}`);
+  },
 
   getTemplate: async (categoryId: string): Promise<GarmentTemplate> =>
     req<GarmentTemplate>(
@@ -2209,12 +2263,18 @@ export interface Invoice {
   created_at: string;
   payable_amount?: string | number | null;
   hub_name?: string | null;
+  // T2-19: GST snapshot (null until the invoice PDF is generated)
+  taxable_value?: string | number | null;
+  tax_total?: string | number | null;
+  grand_total?: string | number | null;
+  is_interstate?: boolean | null;
 }
 
 export interface InvoicesResponse {
   invoices: Invoice[];
   total: number;
   total_invoiced?: number;
+  total_gst?: number; // T2-19: GST itemized across the filtered set (CA's monthly figure)
   page: number;
   limit: number;
 }
@@ -2467,6 +2527,17 @@ export const financeApi = {
     req(`/api/admin/finance/settlements/${encodeURIComponent(id)}`, { method: "DELETE" }),
   syncSettlements: (from: string, to: string): Promise<{ synced: number; inserted: number }> =>
     req(`/api/admin/finance/settlements/sync`, { method: "POST", body: JSON.stringify({ from, to }) }),
+  // T2-20: CA journal / Tally export (sales + GST + refunds) as a downloadable CSV or XML file.
+  journal: (
+    format: "csv" | "xml",
+    p: FinanceReportParams = {},
+  ): Promise<{ filename: string; mime: string; content: string; voucher_count: number }> => {
+    const qs = new URLSearchParams({ format });
+    if (p.hub_id) qs.set("hub_id", p.hub_id);
+    if (p.start_date) qs.set("start_date", p.start_date);
+    if (p.end_date) qs.set("end_date", p.end_date);
+    return req(`/api/admin/finance/journal?${qs}`);
+  },
 };
 
 // ─── Fit feedback (Support console — per-order fit ratings) ───────────────────
@@ -3325,6 +3396,18 @@ export interface ListingOverviewRow {
 export const listingsAdminApi = {
   overview: async (): Promise<ListingOverviewRow[]> =>
     req<ListingOverviewRow[]>(`/api/admin/listings/overview`),
+
+  // T2-21: exceptions-first overview (live-but-OOS + below-floor)
+  overviewExceptions: async (
+    p: { hub_id?: string; start_date?: string; end_date?: string } = {},
+  ): Promise<ListingExceptions> => {
+    const qs = new URLSearchParams();
+    if (p.hub_id) qs.set('hub_id', p.hub_id);
+    if (p.start_date) qs.set('start_date', p.start_date);
+    if (p.end_date) qs.set('end_date', p.end_date);
+    const s = qs.toString();
+    return req<ListingExceptions>(`/api/admin/listings/overview-exceptions${s ? `?${s}` : ''}`);
+  },
 };
 
 // ─── Catalog-manager listings management ──────────────────────────────────────

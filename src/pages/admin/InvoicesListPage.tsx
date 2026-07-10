@@ -30,6 +30,7 @@ export const InvoicesListPage: React.FC = () => {
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [total, setTotal] = React.useState(0);
   const [totalInvoiced, setTotalInvoiced] = React.useState(0);
+  const [totalGst, setTotalGst] = React.useState(0); // T2-19: GST itemized across the filtered set
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [actionId, setActionId] = React.useState<string | null>(null);
@@ -64,7 +65,7 @@ export const InvoicesListPage: React.FC = () => {
       page,
       limit: 25,
     })
-      .then(r => { setInvoices(r.invoices); setTotal(r.total); setTotalInvoiced(r.total_invoiced ?? 0); })
+      .then(r => { setInvoices(r.invoices); setTotal(r.total); setTotalInvoiced(r.total_invoiced ?? 0); setTotalGst(r.total_gst ?? 0); })
       .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [debouncedSearch, statusFilter, hubFilter, month, page, refreshTick]);
@@ -150,9 +151,9 @@ export const InvoicesListPage: React.FC = () => {
           <div className={kpi.summarySub}>sum of order value</div>
         </div>
         <div className={kpi.summaryCard}>
-          <div className={kpi.summaryLabel}>GST breakdown</div>
-          <div className={kpi.summaryValue}>—</div>
-          <div className={iv.gstNote}>not itemized — needs a tax model</div>
+          <div className={kpi.summaryLabel}>GST collected</div>
+          <div className={kpi.summaryValue}>{loading ? '—' : fmtINR(totalGst)}</div>
+          <div className={kpi.summarySub}>CGST+SGST / IGST, itemized on generated invoices</div>
         </div>
       </div>
 
@@ -181,11 +182,11 @@ export const InvoicesListPage: React.FC = () => {
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead><tr>
-              <th>Invoice #</th><th>Order</th><th>Customer</th><th>Hub</th><th>Amount</th><th>Status</th><th>Date</th><th>Actions</th>
+              <th>Invoice #</th><th>Order</th><th>Customer</th><th>Hub</th><th>Amount</th><th>GST</th><th>Status</th><th>Date</th><th>Actions</th>
             </tr></thead>
             <tbody>
               {Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i}>{Array.from({ length: 8 }).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
+                <tr key={i}>{Array.from({ length: 9 }).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
               ))}
             </tbody>
           </table>
@@ -201,7 +202,7 @@ export const InvoicesListPage: React.FC = () => {
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead><tr>
-                <th>Invoice #</th><th>Order</th><th>Customer</th><th>Hub</th><th>Amount</th><th>Status</th><th>Date</th><th>Actions</th>
+                <th>Invoice #</th><th>Order</th><th>Customer</th><th>Hub</th><th>Amount</th><th>GST</th><th>Status</th><th>Date</th><th>Actions</th>
               </tr></thead>
               <tbody>
                 {invoices.map(inv => (
@@ -211,6 +212,7 @@ export const InvoicesListPage: React.FC = () => {
                     <td><div className={styles.customerName}>{inv.customer_name}</div></td>
                     <td>{inv.hub_name ?? '—'}</td>
                     <td className={styles.total}>{inv.payable_amount != null ? fmtINR(Number(inv.payable_amount)) : '—'}</td>
+                    <td>{inv.tax_total != null ? `${fmtINR(Number(inv.tax_total))} ${inv.is_interstate ? 'IGST' : 'GST'}` : '—'}</td>
                     <td><StatusBadge status={inv.status} /></td>
                     <td className={styles.date}>{new Date(inv.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                     <td onClick={e => e.stopPropagation()}>
