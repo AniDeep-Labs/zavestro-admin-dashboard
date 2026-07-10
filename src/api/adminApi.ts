@@ -2856,6 +2856,9 @@ export const fabricsApi = {
   // T1-10: count-adjust a hub's shelf to the physical truth (logs a count_adjust movement).
   adjustHubStock: async (input: { hub_id: string; fabric_id: string; counted_meters: number; note: string }): Promise<{ previous: number; counted: number; variance: number; at_hub: FabricAtHub }> =>
     req(`/api/admin/fabrics/hub-stock/adjust`, { method: "POST", body: JSON.stringify(input) }),
+  // T2-14: write off unusable-remnant metres as a 'scrap' movement.
+  recordScrap: async (input: { hub_id: string; fabric_id: string; meters: number; note: string }): Promise<{ previous: number; scrapped: number; remaining: number; at_hub: FabricAtHub }> =>
+    req(`/api/admin/fabrics/hub-stock/scrap`, { method: "POST", body: JSON.stringify(input) }),
   hubStockVariance: async (): Promise<HubStockVariance[]> =>
     req<HubStockVariance[]>(`/api/admin/fabrics/hub-stock/variance`),
   // T1-12: stale-reservation exception view + guarded release.

@@ -100,6 +100,28 @@ export const FabricAtHubPage: React.FC = () => {
     }
   };
 
+  // T2-14: scrap unusable-remnant metres (a 'scrap' ledger movement).
+  const [scrapOpen, setScrapOpen] = React.useState(false);
+  const [scrapMeters, setScrapMeters] = React.useState('');
+  const [scrapNote, setScrapNote] = React.useState('');
+  const submitScrap = async () => {
+    if (!hubId || !fabricId) return;
+    const m = Number(scrapMeters);
+    if (!(m > 0)) return toast('error', 'Enter the metres to scrap');
+    if (!scrapNote.trim()) return toast('error', 'A reason is required');
+    setSaving(true);
+    try {
+      const res = await fabricsApi.recordScrap({ hub_id: hubId, fabric_id: fabricId, meters: m, note: scrapNote.trim() });
+      setData(res.at_hub);
+      toast('success', 'Scrap recorded', `${m}m written off — ${res.remaining}m remaining.`);
+      setScrapOpen(false); setScrapMeters(''); setScrapNote('');
+    } catch (e) {
+      toast('error', 'Scrap failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <div className={baseCss.page}><div className={s.center}><Spinner /></div></div>;
   if (!data) return <div className={baseCss.page}><div className={s.center}>Not found.</div></div>;
 
@@ -225,6 +247,23 @@ export const FabricAtHubPage: React.FC = () => {
               <div className={s.countActions}>
                 <Button variant="ghost" onClick={() => { setCountOpen(false); setCountNote(''); }}>Cancel</Button>
                 <Button onClick={submitCount} state={saving ? 'loading' : 'default'}>Record count</Button>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* T2-14: scrap / remnant write-off. */}
+        <div className={s.countBar}>
+          {!scrapOpen ? (
+            <Button variant="outline" onClick={() => setScrapOpen(true)}>
+              Record scrap / remnant
+            </Button>
+          ) : (
+            <div className={s.countForm}>
+              <Input label="Metres to scrap" type="number" value={scrapMeters} onChange={setScrapMeters} placeholder={`available ${avail}`} />
+              <Input label="Reason / note" value={scrapNote} onChange={setScrapNote} placeholder="e.g. end-of-roll remnant · damaged edge" />
+              <div className={s.countActions}>
+                <Button variant="ghost" onClick={() => { setScrapOpen(false); setScrapNote(''); setScrapMeters(''); }}>Cancel</Button>
+                <Button onClick={submitScrap} state={saving ? 'loading' : 'default'}>Record scrap</Button>
               </div>
             </div>
           )}
