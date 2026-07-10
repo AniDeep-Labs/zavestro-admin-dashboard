@@ -169,6 +169,26 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
     }
   };
 
+  // T2-20: CA journal / Tally export for the current window — sales + GST + refunds as a file.
+  const downloadJournal = async (format: "csv" | "xml") => {
+    try {
+      const { filename, content, mime, voucher_count } = await financeApi.journal(format, {
+        hub_id: hubId || undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+      });
+      const url = URL.createObjectURL(new Blob([content], { type: mime }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("success", "Journal exported", `${voucher_count} voucher${voucher_count === 1 ? "" : "s"}.`);
+    } catch (e) {
+      showToast("error", "Export failed", e instanceof Error ? e.message : undefined);
+    }
+  };
+
   const canExport = mode === "settlement" ? !!settlement?.hubs.length : !!pnl?.hubs.length;
   const title = mode === "settlement" ? "Online Settlement" : "Per-Hub P&L";
   const subtitle = mode === "settlement"
@@ -198,6 +218,8 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
         actions={
           <>
             <Button variant="ghost" onClick={handleExport} disabled={!canExport}><UilImport size={15} /> Export CSV</Button>
+            <Button variant="ghost" onClick={() => downloadJournal("csv")}><UilImport size={15} /> Journal CSV</Button>
+            <Button variant="ghost" onClick={() => downloadJournal("xml")}><UilImport size={15} /> Tally XML</Button>
             <Button variant="ghost" onClick={load}><UilRefresh size={15} /> Refresh</Button>
           </>
         }

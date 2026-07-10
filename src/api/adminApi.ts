@@ -2473,6 +2473,17 @@ export const financeApi = {
     req(`/api/admin/finance/settlements/${encodeURIComponent(id)}`, { method: "DELETE" }),
   syncSettlements: (from: string, to: string): Promise<{ synced: number; inserted: number }> =>
     req(`/api/admin/finance/settlements/sync`, { method: "POST", body: JSON.stringify({ from, to }) }),
+  // T2-20: CA journal / Tally export (sales + GST + refunds) as a downloadable CSV or XML file.
+  journal: (
+    format: "csv" | "xml",
+    p: FinanceReportParams = {},
+  ): Promise<{ filename: string; mime: string; content: string; voucher_count: number }> => {
+    const qs = new URLSearchParams({ format });
+    if (p.hub_id) qs.set("hub_id", p.hub_id);
+    if (p.start_date) qs.set("start_date", p.start_date);
+    if (p.end_date) qs.set("end_date", p.end_date);
+    return req(`/api/admin/finance/journal?${qs}`);
+  },
 };
 
 // ─── Fit feedback (Support console — per-order fit ratings) ───────────────────
