@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fitOutcomesApi, hubsApi, hasCapability } from '../../api/adminApi';
-import type { FitOutcomes, FitOutcomeSummary, Hub } from '../../api/adminApi';
+import type { FitOutcomes, FitOutcomeSummary, Hub, FitFailureAgentRow, ReworkTailorRow } from '../../api/adminApi';
 import { StatusBadge } from '../../components/StatusBadge';
 import { EmptyState, PageHeader } from '../../components';
 import styles from './OrdersListPage.module.css';
@@ -23,6 +23,8 @@ export const FitOutcomesPage: React.FC = () => {
   // page via fit:read but can't drill into the raw feedback — so don't dead-end them.
   const canDrill = hasCapability('reviews:moderate');
   const [data, setData] = React.useState<FitOutcomes | null>(null);
+  const [agents, setAgents] = React.useState<FitFailureAgentRow[]>([]);
+  const [tailors, setTailors] = React.useState<ReworkTailorRow[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [hubFilter, setHubFilter] = React.useState('');
   const [loading, setLoading] = React.useState(true);
@@ -31,9 +33,17 @@ export const FitOutcomesPage: React.FC = () => {
   const load = React.useCallback(() => {
     setLoading(true);
     setError('');
-    fitOutcomesApi
-      .get({ hub_id: hubFilter || undefined })
-      .then(setData)
+    const params = { hub_id: hubFilter || undefined };
+    Promise.all([
+      fitOutcomesApi.get(params),
+      fitOutcomesApi.byAgent(params),
+      fitOutcomesApi.reworkByTailor(params),
+    ])
+      .then(([d, a, t]) => {
+        setData(d);
+        setAgents(a);
+        setTailors(t);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, [hubFilter]);
@@ -131,6 +141,62 @@ export const FitOutcomesPage: React.FC = () => {
                       </tr>
                     );
                   })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* T2-10: the measurer is the #1 fit-failure source — attribute it for coaching. */}
+          <h2 className={s.subHeading}>Fit failure by measuring agent</h2>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead><tr><th>Agent</th><th>Delivered</th><th>Responded</th><th>Fit failures</th><th>Failure rate</th></tr></thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 2 }).map((_, i) => (
+                    <tr key={i}>{Array.from({ length: 5 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
+                  ))
+                ) : agents.length === 0 ? (
+                  <tr><td colSpan={5}><EmptyState title="No agent-measured deliveries yet" body="Fit-failure attribution appears once home-visit orders are delivered." size="compact" /></td></tr>
+                ) : (
+                  agents.map((a) => {
+                    const low = a.responded < MIN_RESPONSES;
+                    const tone = low || a.fit_failure_pct == null ? 'neutral' : a.fit_failure_pct >= 15 ? 'blocked' : a.fit_failure_pct >= 8 ? 'qc' : 'done';
+                    return (
+                      <tr key={a.agent_id}>
+                        <td className={styles.customerName}>{a.agent_name ?? '—'}</td>
+                        <td className={styles.total}>{a.delivered}</td>
+                        <td>{a.responded}</td>
+                        <td>{a.fit_failures}</td>
+                        <td><StatusBadge status={tone} label={a.fit_failure_pct != null ? `${a.fit_failure_pct}%` : '—'} size="sm" /></td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <h2 className={s.subHeading}>Rework by tailor</h2>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead><tr><th>Tailor</th><th>Rework (total)</th><th>Open</th><th>Completed</th></tr></thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 2 }).map((_, i) => (
+                    <tr key={i}>{Array.from({ length: 4 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
+                  ))
+                ) : tailors.length === 0 ? (
+                  <tr><td colSpan={4}><EmptyState title="No rework assigned yet" body="Alterations attributed to a tailor appear here." size="compact" /></td></tr>
+                ) : (
+                  tailors.map((t) => (
+                    <tr key={t.tailor_id}>
+                      <td className={styles.customerName}>{t.tailor_name ?? '—'}</td>
+                      <td className={styles.total}>{t.rework_count}</td>
+                      <td>{t.open_count}</td>
+                      <td>{t.completed_count}</td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>

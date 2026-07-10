@@ -2646,15 +2646,37 @@ export interface FitOutcomes {
   by_hub: (FitOutcomeSummary & { hub_id: string | null; hub_name: string | null })[];
   note: string;
 }
+// T2-10: measuring-agent + tailor attribution slices.
+export interface FitFailureAgentRow {
+  agent_id: string;
+  agent_name: string | null;
+  delivered: number;
+  responded: number;
+  fit_failures: number;
+  fit_failure_pct: number | null;
+}
+export interface ReworkTailorRow {
+  tailor_id: string;
+  tailor_name: string | null;
+  rework_count: number;
+  open_count: number;
+  completed_count: number;
+}
+const fitSliceQs = (params: { hub_id?: string; start_date?: string; end_date?: string }): string => {
+  const qs = new URLSearchParams();
+  if (params.hub_id) qs.set('hub_id', params.hub_id);
+  if (params.start_date) qs.set('start_date', params.start_date);
+  if (params.end_date) qs.set('end_date', params.end_date);
+  const q = qs.toString();
+  return q ? `?${q}` : '';
+};
 export const fitOutcomesApi = {
-  get: async (params: { hub_id?: string; start_date?: string; end_date?: string } = {}): Promise<FitOutcomes> => {
-    const qs = new URLSearchParams();
-    if (params.hub_id) qs.set('hub_id', params.hub_id);
-    if (params.start_date) qs.set('start_date', params.start_date);
-    if (params.end_date) qs.set('end_date', params.end_date);
-    const q = qs.toString();
-    return req<FitOutcomes>(`/api/admin/analytics/fit-outcomes${q ? `?${q}` : ''}`);
-  },
+  get: async (params: { hub_id?: string; start_date?: string; end_date?: string } = {}): Promise<FitOutcomes> =>
+    req<FitOutcomes>(`/api/admin/analytics/fit-outcomes${fitSliceQs(params)}`),
+  byAgent: async (params: { hub_id?: string; start_date?: string; end_date?: string } = {}): Promise<FitFailureAgentRow[]> =>
+    req<FitFailureAgentRow[]>(`/api/admin/analytics/fit-failure-by-agent${fitSliceQs(params)}`),
+  reworkByTailor: async (params: { hub_id?: string; start_date?: string; end_date?: string } = {}): Promise<ReworkTailorRow[]> =>
+    req<ReworkTailorRow[]>(`/api/admin/analytics/rework-by-tailor${fitSliceQs(params)}`),
 };
 
 // ─── Fabrics Master (procurement) ─────────────────────────────────────────────
