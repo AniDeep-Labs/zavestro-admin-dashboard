@@ -968,17 +968,30 @@ function inferConfigType(key: string, value: unknown): ConfigItem["type"] {
 
 export const configApi = {
   get: async (): Promise<ConfigGroup[]> => {
-    const rows =
-      await req<{ key: string; value: unknown; description?: string }[]>(
-        "/api/admin/config",
-      );
+    const rows = await req<
+      {
+        key: string;
+        value: unknown;
+        description?: string | null;
+        min?: number | null;
+        max?: number | null;
+        dangerous?: boolean;
+        updated_by_email?: string | null;
+        updated_at?: string | null;
+      }[]
+    >("/api/admin/config");
     if (!rows || rows.length === 0) return [];
-    const items = rows.map((r) => ({
+    const items: ConfigItem[] = rows.map((r) => ({
       key: r.key,
       label: r.key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
       value: r.value as ConfigItem["value"],
       type: inferConfigType(r.key, r.value),
-      description: r.description,
+      description: r.description ?? null,
+      min: r.min ?? null,
+      max: r.max ?? null,
+      dangerous: r.dangerous ?? false,
+      updatedByEmail: r.updated_by_email ?? null,
+      updatedAt: r.updated_at ?? null,
     }));
     return [{ title: "App Configuration", items }];
   },

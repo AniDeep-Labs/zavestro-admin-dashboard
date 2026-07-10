@@ -78,8 +78,21 @@
 .configRow { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--color-border-light); gap: 16px; }
 .configRow:last-child { border-bottom: none; }
 .configRowDirty { background: rgba(212, 165, 116,0.05); margin: 0 -20px; padding-left: 20px; padding-right: 20px; border-radius: var(--radius-md); }
-.configLabel { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-base); font-weight: var(--font-weight-medium); color: var(--color-text-primary); }
+.configLabel { display: flex; flex-direction: column; gap: 3px; font-size: var(--font-size-base); font-weight: var(--font-weight-medium); color: var(--color-text-primary); min-width: 0; }
+.configLabel > span:first-child { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .unsavedBadge { background: var(--color-secondary); color: #fff; font-size: 10px; font-weight: var(--font-weight-bold); padding: 2px 6px; border-radius: var(--radius-full); }
+/* T2-25 */
+.dangerBadge { background: var(--color-error); color: #fff; font-size: 10px; font-weight: var(--font-weight-bold); padding: 2px 6px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.03em; }
+.configDesc { font-size: var(--font-size-sm); font-weight: 400; color: var(--color-text-secondary); }
+.configMeta { font-size: 11px; color: var(--color-text-tertiary); font-weight: 400; }
+.configKey { font-family: monospace; font-size: 11px; color: var(--color-text-tertiary); }
+.numInputError { border-color: var(--color-error) !important; }
+.dangerConfirm { border: 1px solid var(--color-error); border-radius: var(--radius-md); padding: 12px; background: rgba(215,91,91,0.06); display: flex; flex-direction: column; gap: 8px; }
+.dangerConfirmTitle { margin: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-error); }
+.dangerConfirmRow { display: flex; flex-direction: column; gap: 3px; }
+.dangerConfirmLabel { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.dangerConfirmInput { height: 36px; padding: 0 10px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: monospace; font-size: var(--font-size-base); background: var(--color-bg-primary); color: var(--color-text-primary); outline: none; }
+.dangerConfirmInput:focus { border-color: var(--color-error); }
 .configControl { flex-shrink: 0; }
 .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .toggleInput { position: absolute; opacity: 0; width: 0; height: 0; }
