@@ -250,6 +250,13 @@ const SECTIONS: NavSection[] = [
         cap: "catalog:write",
       },
       {
+        // T2-15: dead-stock aging + markdown flag (capital tied up).
+        label: "Dead Stock",
+        icon: <UilLayerGroup size={18} />,
+        path: "/admin/catalog/dead-stock",
+        cap: "catalog:write",
+      },
+      {
         label: "Request Restock",
         icon: <UilHistory size={18} />,
         path: "/admin/catalog/restock",

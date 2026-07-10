@@ -2793,6 +2793,27 @@ export interface FabricLots {
   shrink_prone: boolean;
   lots: FabricLotRow[];
 }
+// T2-15: dead-stock aging + capital ₹.
+export interface DeadStockRow {
+  hub_id: string | null;
+  hub_name: string | null;
+  fabric_id: string;
+  fabric_code: string | null;
+  fabric_name: string | null;
+  available_meters: number;
+  days_idle: number;
+  bucket: "0-30" | "30-60" | "60-90" | "90+";
+  last_movement: string | null;
+  capital: number;
+  markdown_flagged: boolean;
+  markdown_note: string | null;
+}
+export interface DeadStock {
+  items: DeadStockRow[];
+  capital_by_bucket: Record<string, number>;
+  total_capital: number;
+  min_days: number;
+}
 export const fabricsApi = {
   list: async (
     params: { q?: string; active?: boolean; low?: boolean } = {},
@@ -2859,6 +2880,11 @@ export const fabricsApi = {
   // T2-14: write off unusable-remnant metres as a 'scrap' movement.
   recordScrap: async (input: { hub_id: string; fabric_id: string; meters: number; note: string }): Promise<{ previous: number; scrapped: number; remaining: number; at_hub: FabricAtHub }> =>
     req(`/api/admin/fabrics/hub-stock/scrap`, { method: "POST", body: JSON.stringify(input) }),
+  // T2-15: dead-stock aging + markdown flag.
+  deadStock: async (hubId?: string): Promise<DeadStock> =>
+    req<DeadStock>(`/api/admin/fabrics/dead-stock${hubId ? `?hub_id=${hubId}` : ""}`),
+  flagMarkdown: async (input: { hub_id: string; fabric_id: string; flagged: boolean; note?: string }): Promise<{ markdown_flagged: boolean }> =>
+    req(`/api/admin/fabrics/hub-stock/markdown`, { method: "POST", body: JSON.stringify(input) }),
   hubStockVariance: async (): Promise<HubStockVariance[]> =>
     req<HubStockVariance[]>(`/api/admin/fabrics/hub-stock/variance`),
   // T1-12: stale-reservation exception view + guarded release.
