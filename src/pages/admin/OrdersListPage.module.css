@@ -218,6 +218,76 @@
   color: #FFFFFF;
 }
 
+/* T2-17 exception ownership — stuck-inbox sub-filter + owner column */
+.subFilter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 14px;
+}
+.subFilterLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-right: 2px;
+}
+.ownerCell { white-space: nowrap; }
+.ownedWrap { display: flex; align-items: center; gap: 6px; }
+.ownerChip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--color-bg-tertiary, var(--color-bg-secondary));
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.unownedChip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: none;
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+.ownerBtn {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-primary);
+  background: none;
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+.ownerBtn:hover:not(:disabled) { background: var(--color-primary); color: #FFFFFF; }
+.ownerBtnGhost {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+.ownerBtnGhost:hover:not(:disabled) { border-color: var(--color-text-primary); color: var(--color-text-primary); }
+.ownerBtn:disabled, .ownerBtnGhost:disabled { opacity: 0.5; cursor: not-allowed; }
+.assignSelect {
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-primary);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  max-width: 180px;
+}
+
 /* Cross-hub stock (supply brain — G-29) */
 .stockZero { color: var(--color-error); }
 .stockLow { color: var(--status-qc-fg); }

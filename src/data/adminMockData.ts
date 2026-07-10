@@ -64,6 +64,12 @@ export interface AdminOrder {
   total: number;
   status: LifecycleStatus;
   overdue?: boolean;
+  // T2-17 exception ownership (populated in the stuck view; null when unowned/elsewhere)
+  stuck_hours?: number | null;
+  exception_owner?: string | null;
+  exception_owner_id?: string | null;
+  exception_claimed_at?: string | null;
+  exception_resolves_at?: string | null;
   items?: OrderItem[];
   timeline?: OrderTimelineEntry[];
   payments?: OrderPayment[];

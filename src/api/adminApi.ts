@@ -179,6 +179,8 @@ export interface OrdersParams {
   paymentMethod?: string;
   /** in-flight orders unmoved for 48h+ (the "Stuck" saved view) */
   stuck?: boolean;
+  /** T2-17: filter the stuck exception inbox by ownership */
+  owner?: "unowned" | "mine" | "all";
   page?: number;
   limit?: number;
 }
@@ -189,6 +191,45 @@ export interface OrdersResponse {
   totalPages: number;
 }
 
+// T2-17: order-exception ownership — claim / assign / release a stuck order so it has a
+// single, time-boxed owner and can't be silently double-worked or ignored.
+export interface ExceptionClaim {
+  claim_id: string;
+  order_id: string;
+  claimed_by: string;
+  claimed_by_name: string | null;
+  assigned_by: string | null;
+  assigned_by_name: string | null;
+  ack_note: string | null;
+  ttl_hours: number;
+  claimed_at: string;
+  resolves_at: string;
+  overdue: boolean;
+}
+export interface AssignableAdmin {
+  id: string;
+  name: string;
+  role: string;
+}
+export const orderExceptionsApi = {
+  assignable: (): Promise<AssignableAdmin[]> =>
+    req<AssignableAdmin[]>(`/api/admin/order-exceptions/assignable`),
+  active: (orderId: string): Promise<ExceptionClaim | null> =>
+    req<ExceptionClaim | null>(`/api/admin/order-exceptions/${orderId}`),
+  claim: (
+    orderId: string,
+    body: { assigned_to?: string; ack_note?: string; ttl_hours?: number } = {},
+  ): Promise<ExceptionClaim> =>
+    req<ExceptionClaim>(`/api/admin/order-exceptions/${orderId}/claim`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  release: (orderId: string): Promise<{ released: boolean }> =>
+    req<{ released: boolean }>(`/api/admin/order-exceptions/${orderId}/resolve`, {
+      method: "POST",
+    }),
+};
+
 export const ordersApi = {
   list: async (params: OrdersParams = {}): Promise<OrdersResponse> => {
     const qs = new URLSearchParams();
@@ -198,6 +239,7 @@ export const ordersApi = {
     if (params.userId) qs.set("user_id", params.userId);
     if (params.paymentMethod) qs.set("payment_method", params.paymentMethod);
     if (params.stuck) qs.set("stuck", "1");
+    if (params.owner && params.owner !== "all") qs.set("owner", params.owner);
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
     return req<OrdersResponse>(`/api/admin/orders?${qs}`);
