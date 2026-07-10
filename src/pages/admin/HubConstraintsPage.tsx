@@ -1,6 +1,7 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { hubPlanningApi, hubsApi } from '../../api/adminApi';
-import type { HubConstraintRow, HubCalendarEvent, HubCalendarInput, Hub } from '../../api/adminApi';
+import type { HubConstraintRow, HubCalendarEvent, HubCalendarInput, Hub, HubSurgeRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Can } from '../../components/Can/Can';
@@ -24,6 +25,7 @@ export const HubConstraintsPage: React.FC = () => {
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [hubId, setHubId] = React.useState('');
   const [rows, setRows] = React.useState<HubConstraintRow[]>([]);
+  const [surge, setSurge] = React.useState<HubSurgeRow[]>([]);
   const [events, setEvents] = React.useState<HubCalendarEvent[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -40,10 +42,12 @@ export const HubConstraintsPage: React.FC = () => {
     Promise.all([
       hubPlanningApi.constraints(hubId || undefined),
       hubPlanningApi.listEvents({ hubId: hubId || undefined, upcoming: true }),
+      hubPlanningApi.surge(hubId || undefined),
     ])
-      .then(([c, e]) => {
+      .then(([c, e, sg]) => {
         setRows(c);
         setEvents(e);
+        setSurge(sg);
       })
       .catch((err) => toast('error', 'Load failed', err instanceof Error ? err.message : undefined))
       .finally(() => setLoading(false));
@@ -112,6 +116,23 @@ export const HubConstraintsPage: React.FC = () => {
           ))}
         </select>
       </div>
+
+      {/* T2-11: per-hub intake surge alert — throttle intake before promises break. */}
+      {surge
+        .filter((h) => h.is_surging)
+        .map((h) => (
+          <div key={h.hub_id ?? 'none'} className={s.surgeBanner}>
+            <span>
+              <strong>⚠ {h.hub_name ?? 'Hub'} is at surge capacity</strong> — WIP {h.wip_total}
+              {h.surge_reason !== 'sla' && ` (> ${h.wip_threshold})`}, {h.over_sla_total} over SLA
+              {h.surge_reason !== 'wip' && ` (> ${h.sla_breach_threshold})`}. Consider pausing new
+              intake for this hub.
+            </span>
+            <Link className={s.surgeLink} to="/admin/system/service-areas">
+              Pause pincodes →
+            </Link>
+          </div>
+        ))}
 
       {/* Constraint grid */}
       <div className={s.card}>

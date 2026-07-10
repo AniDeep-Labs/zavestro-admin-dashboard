@@ -1404,11 +1404,24 @@ export type HubCalendarInput = {
   magnitude?: number;
   note?: string;
 };
+// T2-11: per-hub intake surge signal.
+export interface HubSurgeRow {
+  hub_id: string | null;
+  hub_name: string | null;
+  wip_total: number;
+  over_sla_total: number;
+  wip_threshold: number;
+  sla_breach_threshold: number;
+  is_surging: boolean;
+  surge_reason: "wip" | "sla" | "both" | null;
+}
 export const hubPlanningApi = {
   constraints: (hubId?: string): Promise<HubConstraintRow[]> =>
     req<HubConstraintRow[]>(
       `/api/admin/analytics/hub-constraints${hubId ? `?hub_id=${hubId}` : ""}`,
     ),
+  surge: (hubId?: string): Promise<HubSurgeRow[]> =>
+    req<HubSurgeRow[]>(`/api/admin/analytics/hub-surge${hubId ? `?hub_id=${hubId}` : ""}`),
   listEvents: (params: { hubId?: string; upcoming?: boolean } = {}): Promise<HubCalendarEvent[]> => {
     const qs = new URLSearchParams();
     if (params.hubId) qs.set("hub_id", params.hubId);
@@ -1428,6 +1441,37 @@ export const hubPlanningApi = {
     }),
   removeEvent: (id: string): Promise<{ deleted: boolean }> =>
     req<{ deleted: boolean }>(`/api/admin/hub-calendar/${id}`, { method: "DELETE" }),
+};
+
+// ─── T2-12: garment disposition + write-off (returns / RTO) ────────────────────
+export type DispositionKind = "pending" | "donate" | "scrap" | "salvage" | "remake_source";
+export interface GarmentDisposition {
+  id: string;
+  order_id: string;
+  source: "return" | "rto";
+  disposition: DispositionKind;
+  write_off_amount: number;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface DispositionResponse {
+  disposition: GarmentDisposition | null;
+  fabric_cost: number;
+  make_cost: number;
+  suggested_write_off: number;
+}
+export const dispositionApi = {
+  get: (orderId: string): Promise<DispositionResponse> =>
+    req<DispositionResponse>(`/api/admin/dispositions/${orderId}`),
+  set: (
+    orderId: string,
+    body: { source: "return" | "rto"; disposition: DispositionKind; write_off_amount?: number; note?: string },
+  ): Promise<DispositionResponse> =>
+    req<DispositionResponse>(`/api/admin/dispositions/${orderId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
 };
 
 export async function uploadToR2(
@@ -2646,15 +2690,37 @@ export interface FitOutcomes {
   by_hub: (FitOutcomeSummary & { hub_id: string | null; hub_name: string | null })[];
   note: string;
 }
+// T2-10: measuring-agent + tailor attribution slices.
+export interface FitFailureAgentRow {
+  agent_id: string;
+  agent_name: string | null;
+  delivered: number;
+  responded: number;
+  fit_failures: number;
+  fit_failure_pct: number | null;
+}
+export interface ReworkTailorRow {
+  tailor_id: string;
+  tailor_name: string | null;
+  rework_count: number;
+  open_count: number;
+  completed_count: number;
+}
+const fitSliceQs = (params: { hub_id?: string; start_date?: string; end_date?: string }): string => {
+  const qs = new URLSearchParams();
+  if (params.hub_id) qs.set('hub_id', params.hub_id);
+  if (params.start_date) qs.set('start_date', params.start_date);
+  if (params.end_date) qs.set('end_date', params.end_date);
+  const q = qs.toString();
+  return q ? `?${q}` : '';
+};
 export const fitOutcomesApi = {
-  get: async (params: { hub_id?: string; start_date?: string; end_date?: string } = {}): Promise<FitOutcomes> => {
-    const qs = new URLSearchParams();
-    if (params.hub_id) qs.set('hub_id', params.hub_id);
-    if (params.start_date) qs.set('start_date', params.start_date);
-    if (params.end_date) qs.set('end_date', params.end_date);
-    const q = qs.toString();
-    return req<FitOutcomes>(`/api/admin/analytics/fit-outcomes${q ? `?${q}` : ''}`);
-  },
+  get: async (params: { hub_id?: string; start_date?: string; end_date?: string } = {}): Promise<FitOutcomes> =>
+    req<FitOutcomes>(`/api/admin/analytics/fit-outcomes${fitSliceQs(params)}`),
+  byAgent: async (params: { hub_id?: string; start_date?: string; end_date?: string } = {}): Promise<FitFailureAgentRow[]> =>
+    req<FitFailureAgentRow[]>(`/api/admin/analytics/fit-failure-by-agent${fitSliceQs(params)}`),
+  reworkByTailor: async (params: { hub_id?: string; start_date?: string; end_date?: string } = {}): Promise<ReworkTailorRow[]> =>
+    req<ReworkTailorRow[]>(`/api/admin/analytics/rework-by-tailor${fitSliceQs(params)}`),
 };
 
 // ─── Fabrics Master (procurement) ─────────────────────────────────────────────
@@ -2712,6 +2778,21 @@ export interface FabricInput {
   width_cm?: number | null; // T0-6
 }
 
+// T2-13: per-lot wash-test / pre-shrunk QC + shrink-risk.
+export interface FabricLotRow {
+  lot_code: string;
+  wash_tested: boolean;
+  pre_shrunk: boolean;
+  measured_shrinkage_pct: number | null;
+  note: string | null;
+  tested_at: string | null;
+  shrink_risk: boolean;
+}
+export interface FabricLots {
+  fabric_shrinkage_pct: number;
+  shrink_prone: boolean;
+  lots: FabricLotRow[];
+}
 export const fabricsApi = {
   list: async (
     params: { q?: string; active?: boolean; low?: boolean } = {},
@@ -2760,6 +2841,18 @@ export const fabricsApi = {
     req<FabricAtHub>(
       `/api/admin/fabrics/at-hub?hub_id=${hubId}&fabric_id=${fabricId}`,
     ),
+  // T2-13: per-lot wash-test / pre-shrunk QC.
+  lots: async (fabricId: string): Promise<FabricLots> =>
+    req<FabricLots>(`/api/admin/fabrics/${fabricId}/lots`),
+  setLot: async (
+    fabricId: string,
+    lotCode: string,
+    body: { wash_tested?: boolean; pre_shrunk?: boolean; measured_shrinkage_pct?: number | null; note?: string },
+  ): Promise<FabricLots> =>
+    req<FabricLots>(`/api/admin/fabrics/${fabricId}/lots/${encodeURIComponent(lotCode)}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   // T1-10: count-adjust a hub's shelf to the physical truth (logs a count_adjust movement).
   adjustHubStock: async (input: { hub_id: string; fabric_id: string; counted_meters: number; note: string }): Promise<{ previous: number; counted: number; variance: number; at_hub: FabricAtHub }> =>
     req(`/api/admin/fabrics/hub-stock/adjust`, { method: "POST", body: JSON.stringify(input) }),

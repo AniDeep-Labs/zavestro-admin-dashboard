@@ -21,6 +21,11 @@
 .badgeSpike { color: #fff; background: var(--color-warning, #b7791f); }
 .badgeLeave { color: #fff; background: var(--color-info, #3b6fb0); }
 .empty { color: var(--color-text-tertiary); padding: 8px 0; }
+
+/* T2-11: intake surge banner */
+.surgeBanner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border: 1px solid var(--color-error, #c0392b); border-radius: var(--radius-md); background: rgba(215, 91, 91, 0.08); color: var(--color-text-primary); font-size: var(--font-size-base); }
+.surgeLink { color: var(--color-error, #c0392b); font-weight: var(--font-weight-semibold); text-decoration: none; white-space: nowrap; }
+.surgeLink:hover { text-decoration: underline; }
 .rowActions { display: inline-flex; gap: 8px; }
 .linkBtn { background: none; border: none; color: var(--color-primary); cursor: pointer; font-size: var(--font-size-sm); padding: 0; }
 .linkDanger { color: var(--color-error, #c0392b); }

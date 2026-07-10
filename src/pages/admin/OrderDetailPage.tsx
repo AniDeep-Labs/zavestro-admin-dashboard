@@ -20,6 +20,7 @@ import type { ToastData } from "../../components/Toast/Toast";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
 import { Can } from "../../components/Can/Can";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { DispositionPanel } from "../../components/DispositionPanel/DispositionPanel";
 import { StatusBadge, statusLabel } from "../../components/StatusBadge";
 import { PageHeader, DetailShell } from "../../components";
 import styles from "./OrderDetailPage.module.css";
@@ -1532,6 +1533,13 @@ export const OrderDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* T2-12: an RTO'd made-for-one garment came home — record disposition + write-off */}
+          {order.stage === "rto" && (
+            <div className={styles.card}>
+              <DispositionPanel orderId={order.uuid ?? order.id} source="rto" />
+            </div>
+          )}
 
           {/* ── Measurement + Staff assignments ────────────────────────────── */}
           <div className={styles.card}>

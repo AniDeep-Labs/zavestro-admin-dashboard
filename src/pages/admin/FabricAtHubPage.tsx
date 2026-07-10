@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { fabricsApi, R2_PUBLIC_URL } from '../../api/adminApi';
-import type { FabricAtHub, FabricMovement, FabricStockMovement } from '../../api/adminApi';
+import type { FabricAtHub, FabricMovement, FabricStockMovement, FabricLots, FabricLotRow } from '../../api/adminApi';
 import { Spinner } from '../../components/Spinner';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -58,6 +58,28 @@ export const FabricAtHubPage: React.FC = () => {
   }, [hubId, fabricId]);
 
   React.useEffect(() => { load(); }, [load]);
+
+  // T2-13: per-lot wash-test / pre-shrunk QC.
+  const [lots, setLots] = React.useState<FabricLots | null>(null);
+  const loadLots = React.useCallback(() => {
+    if (!fabricId) return;
+    fabricsApi.lots(fabricId).then(setLots).catch(() => {});
+  }, [fabricId]);
+  React.useEffect(() => { loadLots(); }, [loadLots]);
+
+  const toggleLot = async (lot: FabricLotRow, patch: { wash_tested?: boolean; pre_shrunk?: boolean }) => {
+    if (!fabricId) return;
+    try {
+      const res = await fabricsApi.setLot(fabricId, lot.lot_code, {
+        wash_tested: patch.wash_tested ?? lot.wash_tested,
+        pre_shrunk: patch.pre_shrunk ?? lot.pre_shrunk,
+        measured_shrinkage_pct: lot.measured_shrinkage_pct,
+      });
+      setLots(res);
+    } catch (e) {
+      toast('error', 'Could not update lot', e instanceof Error ? e.message : undefined);
+    }
+  };
 
   const submitCount = async () => {
     if (!hubId || !fabricId) return;
@@ -255,6 +277,66 @@ export const FabricAtHubPage: React.FC = () => {
           )}
         </section>
       </div>
+
+      {/* T2-13: per-lot wash-test / pre-shrunk QC + shrink-risk before cutting. */}
+      {lots && lots.lots.length > 0 && (
+        <section className={s.lotsSection}>
+          <h3 className={s.sectionTitle}>
+            Dye-lots{' '}
+            <span className={s.sectionHint}>· wash-test / pre-shrink before cutting shrink-prone cotton</span>
+          </h3>
+          {lots.shrink_prone && lots.lots.some((l) => l.shrink_risk) && (
+            <div className={s.shrinkWarn}>
+              ⚠ This fabric is shrink-prone ({lots.fabric_shrinkage_pct}% shrinkage). The lots flagged
+              below are untested — cutting them before a wash risks a post-wash alteration wave.
+            </div>
+          )}
+          <table className={s.lotsTable}>
+            <thead>
+              <tr>
+                <th>Lot</th>
+                <th>Wash-tested</th>
+                <th>Pre-shrunk</th>
+                <th>Measured shrink</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lots.lots.map((l) => (
+                <tr key={l.lot_code}>
+                  <td><strong>{l.lot_code}</strong></td>
+                  <td>
+                    <Can cap="distribution:write" fallback={<>{l.wash_tested ? 'Yes' : 'No'}</>}>
+                      <input
+                        type="checkbox"
+                        checked={l.wash_tested}
+                        onChange={(e) => toggleLot(l, { wash_tested: e.target.checked })}
+                      />
+                    </Can>
+                  </td>
+                  <td>
+                    <Can cap="distribution:write" fallback={<>{l.pre_shrunk ? 'Yes' : 'No'}</>}>
+                      <input
+                        type="checkbox"
+                        checked={l.pre_shrunk}
+                        onChange={(e) => toggleLot(l, { pre_shrunk: e.target.checked })}
+                      />
+                    </Can>
+                  </td>
+                  <td>{l.measured_shrinkage_pct == null ? '—' : `${l.measured_shrinkage_pct}%`}</td>
+                  <td>
+                    {l.shrink_risk ? (
+                      <StatusBadge status="blocked" label="Shrink risk" size="sm" />
+                    ) : (
+                      <StatusBadge status="received" label="OK to cut" size="sm" />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
     </div>
   );
 };

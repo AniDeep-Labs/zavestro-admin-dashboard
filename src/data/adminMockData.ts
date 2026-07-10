@@ -12,7 +12,7 @@ export type OrderStage =
   | 'fabric_sourcing' | 'fabric_sourced' | 'cutting'
   | 'in_tailoring' | 'quality_check' | 'rework'
   | 'ready_for_dispatch' | 'ready_to_dispatch' | 'shipped' | 'dispatched'
-  | 'delivered' | 'delivery_failed'
+  | 'delivered' | 'delivery_failed' | 'rto'
   | 'cancelled' | 'refunded' | 'return_requested' | 'returned';
 
 export interface OrderItem {
