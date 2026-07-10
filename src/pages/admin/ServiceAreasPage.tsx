@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { serviceAreasApi, hubsApi } from '../../api/adminApi';
 import type { ServicePincode, Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -114,7 +115,11 @@ export const ServiceAreasPage: React.FC = () => {
             {total} pincode{total !== 1 ? 's' : ''} configured
           </p>
         </div>
-        <button className={styles.addBtn} onClick={() => setShowModal(true)}><UilPlus size={15}/> Add Pincodes</button>
+        <div className={styles.headerActions}>
+          {/* T2-26 (SU-8): unserviced demand lives on Pincode Demand — cross-link the two. */}
+          <Link className={styles.crossLink} to="/admin/pincode-waitlist">View pincode demand →</Link>
+          <button className={styles.addBtn} onClick={() => setShowModal(true)}><UilPlus size={15}/> Add Pincodes</button>
+        </div>
       </div>
 
       {/* Search bar */}

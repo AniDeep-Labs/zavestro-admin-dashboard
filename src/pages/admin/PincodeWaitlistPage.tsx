@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { pincodeWaitlistApi } from '../../api/adminApi';
 import type { PincodeDemand } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -37,7 +38,11 @@ export const PincodeWaitlistPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Pincode Demand</h1>
-        <button className={styles.clearBtn} onClick={load} title="Refresh"><UilRefresh size={14} /> Refresh</button>
+        <div className={styles.headerActions}>
+          {/* T2-26 (SU-8): open a pincode as a service area — cross-link the two. */}
+          <Link className={styles.crossLink} to="/admin/system/service-areas">Manage service areas →</Link>
+          <button className={styles.clearBtn} onClick={load} title="Refresh"><UilRefresh size={14} /> Refresh</button>
+        </div>
       </div>
 
       <div className={styles.filterBar}>
