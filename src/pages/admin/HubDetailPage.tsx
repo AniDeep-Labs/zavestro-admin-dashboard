@@ -1,11 +1,12 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { hubsApi, staffApi, fabricsApi } from '../../api/adminApi';
-import type { Hub, StaffMember, FabricStockRow } from '../../api/adminApi';
+import type { Hub, StaffMember, FabricStockRow, HubRecentOrder, HubActivityItem } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { StatusBadge } from '../../components/StatusBadge';
 import { PageHeader, Tabs } from '../../components';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './HubDetailPage.module.css';
 import { UilAngleLeft, UilPlus, UilPower, UilSave } from "@iconscout/react-unicons";
@@ -31,6 +32,11 @@ export const HubDetailPage: React.FC = () => {
   const [roster, setRoster] = React.useState<StaffMember[] | null>(null);
   // W-18: per-hub fabric stock for the Capacity & Stock tab.
   const [stock, setStock] = React.useState<FabricStockRow[] | null>(null);
+  // T2-24: recent orders + activity feed + deactivate confirmation
+  const [recentOrders, setRecentOrders] = React.useState<HubRecentOrder[] | null>(null);
+  const [activity, setActivity] = React.useState<HubActivityItem[] | null>(null);
+  const [confirmDeactivate, setConfirmDeactivate] = React.useState(false);
+  const [statusSaving, setStatusSaving] = React.useState(false);
 
   useBreadcrumbTitle(hub?.name || form.name || (isNew ? 'New Hub' : undefined));
 
@@ -47,7 +53,23 @@ export const HubDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
     staffApi.list(id).then(setRoster).catch(() => setRoster([]));
     fabricsApi.stock({ hub_id: id }).then(setStock).catch(() => setStock([]));
+    hubsApi.recentOrders(id).then(setRecentOrders).catch(() => setRecentOrders([]));
+    hubsApi.activity(id).then(setActivity).catch(() => setActivity([]));
   }, [id, isNew]);
+
+  // T2-24: flip active/inactive (used by the deactivate confirm + the activate button).
+  const setHubStatus = async (next: 'Active' | 'Inactive') => {
+    if (!hub) return;
+    setStatusSaving(true);
+    try {
+      const updated = await hubsApi.update(hub.id, { status: next });
+      setHub(updated); setForm(updated);
+      showToast('success', `Hub ${updated.status.toLowerCase()}`);
+      hubsApi.activity(hub.id).then(setActivity).catch(() => {});
+    } catch (e) {
+      showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
+    } finally { setStatusSaving(false); setConfirmDeactivate(false); }
+  };
 
   const handleFormChange = (key: keyof Hub, value: string | number) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -140,23 +162,49 @@ export const HubDetailPage: React.FC = () => {
   /* ── EDIT / DETAIL MODE (super-admin oversight) — canon tabbed shell (W-18) ── */
   const num = (v: string | number | null) => Number(v) || 0;
 
+  const managers = (roster ?? []).filter(s => s.role === 'hub_manager');
   const detailsContent = (
     <div className={styles.card}>
       <h3 className={styles.sectionTitle}>Hub Details</h3>
       <div className={styles.formGrid}>
-        {([
-          { key: 'address', label: 'Address' },
-          { key: 'pincode', label: 'Pincode' },
-          { key: 'managerName', label: 'Hub Manager' },
-          { key: 'managerPhone', label: 'Contact' },
-        ] as Array<{ key: keyof Hub; label: string }>).map(f => (
-          <div key={f.key} className={styles.formField}>
-            <label className={styles.metaLabel}>{f.label}</label>
-            <input type="text" className={styles.fieldInput}
-              value={(form[f.key] as string) ?? ''}
-              onChange={e => handleFormChange(f.key, e.target.value)} />
-          </div>
-        ))}
+        <div className={styles.formField}>
+          <label className={styles.metaLabel}>Address</label>
+          <input type="text" className={styles.fieldInput} value={form.address ?? ''}
+            onChange={e => handleFormChange('address', e.target.value)} />
+        </div>
+        <div className={styles.formField}>
+          <label className={styles.metaLabel}>Pincode</label>
+          <input type="text" className={styles.fieldInput} value={form.pincode ?? ''}
+            onChange={e => handleFormChange('pincode', e.target.value)} />
+          <button className={styles.linkBtn} onClick={() => navigate('/admin/system/service-areas')}>Manage service areas →</button>
+        </div>
+        {/* T2-24: manager is a select over the hub's hub_manager staff (no more free-text). */}
+        <div className={styles.formField}>
+          <label className={styles.metaLabel}>Hub Manager</label>
+          {roster === null ? (
+            <input type="text" className={styles.fieldInput} value="Loading…" readOnly disabled />
+          ) : managers.length === 0 ? (
+            <span className={styles.fieldHint}>
+              No hub-manager staff at this hub. <button className={styles.linkBtn} onClick={() => navigate('/admin/system/staff')}>Add one →</button>
+            </span>
+          ) : (
+            <select className={styles.fieldInput} value={form.managerStaffId ?? ''}
+              onChange={e => {
+                const m = managers.find(s => s.id === e.target.value);
+                setForm(prev => ({ ...prev, managerStaffId: m?.id ?? null, managerName: m?.name ?? '', managerPhone: m?.phone ?? '' }));
+              }}>
+              <option value="">Select a hub manager…</option>
+              {managers.map(m => <option key={m.id} value={m.id}>{m.name}{m.phone ? ` · ${m.phone}` : ''}</option>)}
+            </select>
+          )}
+          {!form.managerStaffId && form.managerName && (
+            <span className={styles.fieldHint}>Currently (unlinked): {form.managerName}{form.managerPhone ? ` · ${form.managerPhone}` : ''}</span>
+          )}
+        </div>
+        <div className={styles.formField}>
+          <label className={styles.metaLabel}>Contact</label>
+          <input type="text" className={styles.fieldInput} value={form.managerPhone ?? ''} readOnly disabled />
+        </div>
       </div>
     </div>
   );
@@ -231,6 +279,64 @@ export const HubDetailPage: React.FC = () => {
     </div>
   );
 
+  const fmtDate = (d: string) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+  // T2-24: real Recent-orders tab (was a dead placeholder).
+  const ordersContent = (
+    <div className={styles.card}>
+      <h3 className={styles.sectionTitle}>Recent orders</h3>
+      {recentOrders === null ? (
+        <div className={styles.empty}>Loading orders…</div>
+      ) : recentOrders.length === 0 ? (
+        <div className={styles.empty}>No orders at this hub yet.</div>
+      ) : (
+        <table className={styles.rosterTable}>
+          <thead><tr><th>Order</th><th>Customer</th><th>Stage</th><th>Total</th><th>Placed</th></tr></thead>
+          <tbody>
+            {recentOrders.map(o => (
+              <tr key={o.uuid} className={styles.clickRow} onClick={() => navigate(`/admin/orders/${o.uuid}`)}>
+                <td className={styles.rosterName}>{o.reference_id || o.id}</td>
+                <td>{o.customer ?? '—'}</td>
+                <td><StatusBadge status={o.stage} size="sm" /></td>
+                <td>₹{o.total.toLocaleString('en-IN')}</td>
+                <td>{fmtDate(o.created_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+
+  // T2-24: merged floor + config activity feed.
+  const activityContent = (
+    <div className={styles.card}>
+      <h3 className={styles.sectionTitle}>Activity</h3>
+      {activity === null ? (
+        <div className={styles.empty}>Loading activity…</div>
+      ) : activity.length === 0 ? (
+        <div className={styles.empty}>No activity recorded at this hub yet.</div>
+      ) : (
+        <ul className={styles.activityFeed}>
+          {activity.map((a, i) => (
+            <li key={i} className={styles.activityItem}>
+              <span className={`${styles.activityDot} ${a.kind === 'config' ? styles.activityDotConfig : ''}`} />
+              <div className={styles.activityBody}>
+                <div className={styles.activityTitle}>
+                  {a.order_uuid ? (
+                    <button className={styles.linkBtn} onClick={() => navigate(`/admin/orders/${a.order_uuid}`)}>{a.title}</button>
+                  ) : a.title}
+                </div>
+                {a.subtitle && <div className={styles.activitySub}>{a.subtitle}</div>}
+                <div className={styles.activityMeta}>{fmtDate(a.created_at)}{a.actor ? ` · ${a.actor}` : ''}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -242,13 +348,8 @@ export const HubDetailPage: React.FC = () => {
         actions={
           <>
             <button className={styles.editBtn} disabled={saving} onClick={handleSave}><UilSave size={14}/> {saving ? 'Saving…' : 'Save Changes'}</button>
-            <button className={styles.deactivateBtn} onClick={async () => {
-              try {
-                const updated = await hubsApi.update(hub.id, { status: hub.status === 'Active' ? 'Inactive' : 'Active' });
-                setHub(updated); setForm(updated);
-                showToast('success', `Hub ${updated.status.toLowerCase()}`);
-              } catch (e) { showToast('error', 'Failed', e instanceof Error ? e.message : undefined); }
-            }}>
+            <button className={styles.deactivateBtn} disabled={statusSaving}
+              onClick={() => hub.status === 'Active' ? setConfirmDeactivate(true) : setHubStatus('Active')}>
               {hub.status === 'Active' ? <><UilPower size={14}/> Deactivate Hub</> : <><UilPower size={14}/> Activate Hub</>}
             </button>
           </>
@@ -260,9 +361,22 @@ export const HubDetailPage: React.FC = () => {
       <Tabs
         tabs={[
           { id: 'details', label: 'Details', content: detailsContent },
+          { id: 'orders', label: 'Recent orders', content: ordersContent },
+          { id: 'activity', label: 'Activity', content: activityContent },
           { id: 'stock', label: 'Capacity & Stock', content: stockContent },
           { id: 'roster', label: 'Staff roster', content: rosterContent },
         ]}
+      />
+
+      <ConfirmDialog
+        open={confirmDeactivate}
+        title="Deactivate this hub?"
+        message={`${hub.name} will stop accepting new orders. Existing orders are unaffected. You can reactivate it anytime.`}
+        confirmLabel="Deactivate hub"
+        variant="danger"
+        loading={statusSaving}
+        onConfirm={() => setHubStatus('Inactive')}
+        onCancel={() => setConfirmDeactivate(false)}
       />
     </div>
   );
