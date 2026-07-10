@@ -185,6 +185,7 @@ export interface AuditEntry {
   entityType: string;
   entityId: string;
   ip: string;
+  details?: unknown; // T2-22: the audit row's jsonb detail (reason, before/after, etc.)
 }
 
 export interface WaitlistEntry {

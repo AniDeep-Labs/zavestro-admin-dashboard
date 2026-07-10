@@ -1,6 +1,8 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { auditApi } from '../../api/adminApi';
 import type { AuditEntry } from '../../api/adminApi';
+import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './AuditLogPage.module.css';
 import { UilAngleDown, UilAngleLeft, UilAngleRight, UilAngleUp, UilImport, UilSearch, UilTimes } from "@iconscout/react-unicons";
 
@@ -9,8 +11,15 @@ const LIMIT = 50;
 const ACTION_TYPES = ['All', 'update_order_stage', 'order_status_update', 'user_deactivate', 'config_update', 'catalog_create', 'catalog_update', 'content_publish', 'support_ticket_resolved', 'promo_create', 'bulk_status_update'];
 
 // Break-glass = manual stage overrides (the Wave-2 reason-required action).
-// Pinned as its own view because it's the highest-trust thing to watch (P10⑧).
 const BREAK_GLASS_ACTION = 'update_order_stage';
+
+// T2-22: entity types with a real detail page — their IDs deep-link to the record.
+const ENTITY_ROUTE: Record<string, ((id: string) => string) | undefined> = {
+  order: (id) => `/admin/orders/${id}`,
+  user: (id) => `/admin/users/${id}`,
+  return: (id) => `/admin/returns/${id}`,
+  hub: (id) => `/admin/hubs/${id}`,
+};
 
 function useDebounce<T>(value: T, delay: number): T {
   const [dv, setDv] = React.useState(value);
@@ -24,26 +33,43 @@ function useDebounce<T>(value: T, delay: number): T {
 export const AuditLogPage: React.FC = () => {
   const [search, setSearch] = React.useState('');
   const [actionFilter, setActionFilter] = React.useState('All');
+  const [actor, setActor] = React.useState('');
+  const [entityType, setEntityType] = React.useState('');
+  const [entityId, setEntityId] = React.useState('');
+  const [from, setFrom] = React.useState('');
+  const [to, setTo] = React.useState('');
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const [page, setPage] = React.useState(1);
 
+  const [facets, setFacets] = React.useState<{ actors: string[]; entity_types: string[] }>({ actors: [], entity_types: [] });
   const [entries, setEntries] = React.useState<AuditEntry[]>([]);
   const [total, setTotal] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
+  const [exporting, setExporting] = React.useState(false);
 
   const debouncedSearch = useDebounce(search, 350);
+  const debouncedEntityId = useDebounce(entityId, 350);
+
+  React.useEffect(() => {
+    auditApi.facets().then(setFacets).catch(() => {});
+  }, []);
+
+  const filters = React.useMemo(() => ({
+    search: debouncedSearch || undefined,
+    action: actionFilter !== 'All' ? actionFilter : undefined,
+    actor: actor || undefined,
+    entity_type: entityType || undefined,
+    entity_id: debouncedEntityId || undefined,
+    from: from || undefined,
+    to: to || undefined,
+  }), [debouncedSearch, actionFilter, actor, entityType, debouncedEntityId, from, to]);
 
   React.useEffect(() => {
     setLoading(true);
     setError('');
-    auditApi.list({
-      search: debouncedSearch || undefined,
-      action: actionFilter !== 'All' ? actionFilter : undefined,
-      page,
-      limit: LIMIT,
-    })
+    auditApi.list({ ...filters, page, limit: LIMIT })
       .then(res => {
         setEntries(res.entries ?? []);
         setTotal(res.total ?? 0);
@@ -51,12 +77,58 @@ export const AuditLogPage: React.FC = () => {
       })
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load audit log'))
       .finally(() => setLoading(false));
-  }, [debouncedSearch, actionFilter, page]);
+  }, [filters, page]);
 
   const clearFilters = () => {
-    setSearch('');
-    setActionFilter('All');
-    setPage(1);
+    setSearch(''); setActionFilter('All'); setActor(''); setEntityType(''); setEntityId(''); setFrom(''); setTo(''); setPage(1);
+  };
+  const hasFilters = !!(search || actionFilter !== 'All' || actor || entityType || entityId || from || to);
+
+  // T2-22: working Export CSV — pulls every page matching the current filters.
+  const exportCsv = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const all: AuditEntry[] = [];
+      for (let p = 1; p <= 500; p++) {
+        const res = await auditApi.list({ ...filters, page: p, limit: 100 });
+        all.push(...res.entries);
+        if (p >= (res.totalPages || 1) || res.entries.length === 0) break;
+      }
+      downloadCsv<AuditEntry>(
+        datedFilename('audit-log'),
+        [
+          { header: 'Timestamp', value: e => e.timestamp },
+          { header: 'Admin', value: e => e.admin },
+          { header: 'Action', value: e => e.action },
+          { header: 'Entity type', value: e => e.entityType },
+          { header: 'Entity ID', value: e => e.entityId },
+          { header: 'IP', value: e => e.ip },
+          { header: 'Details', value: e => (e.details != null ? JSON.stringify(e.details) : '') },
+        ],
+        all,
+      );
+    } catch {
+      setError('Export failed. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const entityCell = (entry: AuditEntry) => {
+    const route = ENTITY_ROUTE[entry.entityType];
+    return (
+      <>
+        <span className={styles.entityType}>{entry.entityType}</span>
+        {route && entry.entityId ? (
+          <Link className={styles.entityLink} to={route(entry.entityId)} onClick={e => e.stopPropagation()}>
+            {entry.entityId}
+          </Link>
+        ) : (
+          <span className={styles.entityId}>{entry.entityId}</span>
+        )}
+      </>
+    );
   };
 
   return (
@@ -64,7 +136,7 @@ export const AuditLogPage: React.FC = () => {
       <h1 className={styles.title}>Audit Log</h1>
       <div className={styles.subtitle}>Read-only. Every admin write action is automatically logged with the admin's identity.</div>
 
-      {/* Pinned views (P10⑧): break-glass overrides lead — the highest-trust action */}
+      {/* Pinned views: break-glass overrides lead — the highest-trust action */}
       <div className={styles.pinnedViews}>
         <button
           className={`${styles.viewChip} ${actionFilter === 'All' ? styles.viewChipActive : ''}`}
@@ -85,20 +157,35 @@ export const AuditLogPage: React.FC = () => {
           <UilSearch size={15} className={styles.searchIcon} />
           <input
             className={styles.searchInput}
-            placeholder="Search by action, entity ID, or admin email…"
+            placeholder="Search action, entity ID, or admin…"
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-        <select
-          className={styles.filterSelect}
-          value={actionFilter}
-          onChange={e => { setActionFilter(e.target.value); setPage(1); }}
-        >
+        <select className={styles.filterSelect} value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(1); }}>
           {ACTION_TYPES.map(a => <option key={a}>{a}</option>)}
         </select>
-        <button className={styles.clearBtn} onClick={clearFilters}><UilTimes size={14} /> Clear</button>
-        <button className={styles.exportBtn}><UilImport size={14} /> Export CSV</button>
+        <select className={styles.filterSelect} value={actor} onChange={e => { setActor(e.target.value); setPage(1); }} aria-label="Actor">
+          <option value="">All actors</option>
+          {facets.actors.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <select className={styles.filterSelect} value={entityType} onChange={e => { setEntityType(e.target.value); setPage(1); }} aria-label="Entity type">
+          <option value="">All entities</option>
+          {facets.entity_types.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <input
+          className={styles.filterSelect}
+          placeholder="Entity ID…"
+          value={entityId}
+          onChange={e => { setEntityId(e.target.value); setPage(1); }}
+          aria-label="Entity ID"
+        />
+        <input className={styles.dateInput} type="date" value={from} onChange={e => { setFrom(e.target.value); setPage(1); }} aria-label="From date" />
+        <input className={styles.dateInput} type="date" value={to} onChange={e => { setTo(e.target.value); setPage(1); }} aria-label="To date" />
+        {hasFilters && <button className={styles.clearBtn} onClick={clearFilters}><UilTimes size={14} /> Clear</button>}
+        <button className={styles.exportBtn} onClick={exportCsv} disabled={exporting || total === 0}>
+          <UilImport size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}
+        </button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -138,10 +225,7 @@ export const AuditLogPage: React.FC = () => {
                     <td className={styles.timestamp}>{entry.timestamp}</td>
                     <td className={styles.admin}>{entry.admin}</td>
                     <td className={styles.action}>{entry.action}</td>
-                    <td>
-                      <span className={styles.entityType}>{entry.entityType}</span>
-                      <span className={styles.entityId}>{entry.entityId}</span>
-                    </td>
+                    <td>{entityCell(entry)}</td>
                     <td className={styles.ip}>{entry.ip}</td>
                     <td>
                       <button className={styles.expandBtn}>{expandedId === entry.id ? <UilAngleUp size={14}/> : <UilAngleDown size={14}/>}</button>
@@ -152,7 +236,7 @@ export const AuditLogPage: React.FC = () => {
                       <td colSpan={6}>
                         <div className={styles.expandedContent}>
                           <div className={styles.expandedLabel}>Full detail:</div>
-                          <pre className={styles.jsonBlock}>{JSON.stringify(entry, null, 2)}</pre>
+                          <pre className={styles.jsonBlock}>{JSON.stringify(entry.details ?? entry, null, 2)}</pre>
                         </div>
                       </td>
                     </tr>
@@ -169,19 +253,11 @@ export const AuditLogPage: React.FC = () => {
           {loading ? 'Loading…' : `${total} entries total · Newest first`}
         </span>
         <div className={styles.pageButtons}>
-          <button
-            className={styles.pageBtn}
-            disabled={page <= 1 || loading}
-            onClick={() => setPage(p => p - 1)}
-          >
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}>
             <UilAngleLeft size={15}/> Prev
           </button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
-          <button
-            className={styles.pageBtn}
-            disabled={page >= totalPages || loading}
-            onClick={() => setPage(p => p + 1)}
-          >
+          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>
             Next <UilAngleRight size={15}/>
           </button>
         </div>
@@ -189,3 +265,5 @@ export const AuditLogPage: React.FC = () => {
     </div>
   );
 };
+
+export default AuditLogPage;

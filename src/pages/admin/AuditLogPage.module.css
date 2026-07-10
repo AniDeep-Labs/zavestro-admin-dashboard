@@ -79,6 +79,10 @@
 .action { font-size: 13px; font-weight: var(--font-weight-medium); }
 .entityType { display: inline-block; font-size: 11px; background: var(--color-bg-secondary); padding: 2px 6px; border-radius: var(--radius-sm); color: var(--color-text-tertiary); margin-right: 6px; }
 .entityId { font-size: 12px; font-family: monospace; color: var(--color-primary); }
+/* T2-22 */
+.dateInput { height: 38px; padding: 0 10px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; }
+.entityLink { font-size: 12px; font-family: monospace; color: var(--color-primary); text-decoration: none; }
+.entityLink:hover { text-decoration: underline; }
 .ip { font-size: 12px; font-family: monospace; color: var(--color-text-tertiary); }
 .expandBtn { background: none; border: none; cursor: pointer; font-size: 12px; color: var(--color-text-tertiary); padding: 4px 8px; display: flex; align-items: center; }
 .expandedRow td { padding: 0 !important; }
