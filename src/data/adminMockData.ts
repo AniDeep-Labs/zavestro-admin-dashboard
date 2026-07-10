@@ -176,6 +176,9 @@ export interface SupportTicket {
   created: string;
   lastActivity: string;
   messages?: TicketMessage[];
+  // T2-30 (SP-3) inbox worklist fields — present only from supportApi.inbox().
+  waitingHours?: number; // hours since the last customer message (drives the SLA chip)
+  lastSender?: "customer" | "staff" | null;
 }
 
 export interface AuditEntry {
