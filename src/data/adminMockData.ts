@@ -242,6 +242,13 @@ export interface ConfigItem {
   label: string;
   value: number | boolean | string;
   type: 'currency' | 'percentage' | 'days' | 'boolean' | 'hours' | 'number';
+  // T2-25: registry metadata + last-changed
+  description?: string | null;
+  min?: number | null;
+  max?: number | null;
+  dangerous?: boolean;
+  updatedByEmail?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface ConfigGroup {

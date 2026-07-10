@@ -12,6 +12,8 @@ export const AppConfigPage: React.FC = () => {
   const [values, setValues] = React.useState<Record<string, ConfigItem['value']>>({});
   const [dirty, setDirty] = React.useState<Set<string>>(new Set());
   const [showConfirm, setShowConfirm] = React.useState(false);
+  // T2-25: per-dangerous-flag typed confirmation (must type the exact flag key).
+  const [typedConfirm, setTypedConfirm] = React.useState<Record<string, string>>({});
   const [saved, setSaved] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
   const [saving, setSaving] = React.useState(false);
@@ -65,6 +67,34 @@ export const AppConfigPage: React.FC = () => {
     return '';
   };
 
+  // T2-25: a dirty numeric value outside the registry bounds blocks the save.
+  const outOfBounds = (item: ConfigItem): boolean => {
+    if (item.type === 'boolean') return false;
+    const v = Number(values[item.key]);
+    if (Number.isNaN(v)) return false;
+    if (item.min != null && v < item.min) return true;
+    if (item.max != null && v > item.max) return true;
+    return false;
+  };
+  const allItems = groups.flatMap(g => g.items);
+  const dirtyItems = allItems.filter(i => dirty.has(i.key));
+  const boundsErrors = dirtyItems.filter(outOfBounds);
+  const dangerousDirty = dirtyItems.filter(i => i.dangerous);
+  // Every dangerous change must be confirmed by typing its exact key.
+  const confirmReady = dangerousDirty.every(i => (typedConfirm[i.key] ?? '').trim() === i.key);
+
+  const openConfirm = () => {
+    if (boundsErrors.length > 0) {
+      setSaveError(`Out of range: ${boundsErrors.map(b => b.key).join(', ')}. Fix before saving.`);
+      return;
+    }
+    setSaveError('');
+    setTypedConfirm({});
+    setShowConfirm(true);
+  };
+
+  const fmtWhen = (iso?: string | null) => iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : null;
+
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>App Configuration</h1>
@@ -112,11 +142,24 @@ export const AppConfigPage: React.FC = () => {
               const isDirty = dirty.has(item.key);
               const val = values[item.key];
 
+              const oob = isDirty && outOfBounds(item);
+              const lastChanged = fmtWhen(item.updatedAt);
               return (
                 <div key={item.key} className={`${styles.configRow} ${isDirty ? styles.configRowDirty : ''}`}>
                   <div className={styles.configLabel}>
-                    {item.label}
-                    {isDirty && <span className={styles.unsavedBadge}>unsaved</span>}
+                    <span>
+                      {item.label}
+                      {item.dangerous && <span className={styles.dangerBadge}>dangerous</span>}
+                      {isDirty && <span className={styles.unsavedBadge}>unsaved</span>}
+                    </span>
+                    {item.description && <span className={styles.configDesc}>{item.description}</span>}
+                    <span className={styles.configMeta}>
+                      <code className={styles.configKey}>{item.key}</code>
+                      {(item.min != null || item.max != null) && (
+                        <span> · range {item.min ?? '–'}…{item.max ?? '–'}</span>
+                      )}
+                      {lastChanged && <span> · last changed {lastChanged}{item.updatedByEmail ? ` by ${item.updatedByEmail}` : ''}</span>}
+                    </span>
                   </div>
                   <div className={styles.configControl}>
                     {item.type === 'boolean' ? (
@@ -135,8 +178,10 @@ export const AppConfigPage: React.FC = () => {
                         {item.type === 'currency' && <span className={styles.unit}>₹</span>}
                         <input
                           type="number"
-                          className={styles.numInput}
+                          className={`${styles.numInput} ${oob ? styles.numInputError : ''}`}
                           value={val as number}
+                          min={item.min ?? undefined}
+                          max={item.max ?? undefined}
                           onChange={e => handleChange(item.key, Number(e.target.value))}
                         />
                         {item.type !== 'currency' && <span className={styles.unit}>{formatUnit(item)}</span>}
@@ -161,7 +206,7 @@ export const AppConfigPage: React.FC = () => {
           }}>
             Discard
           </button>
-          <button className={styles.saveBtn} onClick={() => setShowConfirm(true)}>
+          <button className={styles.saveBtn} onClick={openConfirm}>
             Save Changes ({dirty.size})
           </button>
         </div>
@@ -180,9 +225,26 @@ export const AppConfigPage: React.FC = () => {
             <p className={styles.modalText}>
               You are updating {dirty.size} config value{dirty.size > 1 ? 's' : ''}. These changes are immediate and logged with your admin account.
             </p>
+            {dangerousDirty.length > 0 && (
+              <div className={styles.dangerConfirm}>
+                <p className={styles.dangerConfirmTitle}>⚠ Dangerous change — type each flag's key to confirm:</p>
+                {dangerousDirty.map(item => (
+                  <div key={item.key} className={styles.dangerConfirmRow}>
+                    <label className={styles.dangerConfirmLabel}>Type <code>{item.key}</code></label>
+                    <input
+                      className={styles.dangerConfirmInput}
+                      value={typedConfirm[item.key] ?? ''}
+                      onChange={e => setTypedConfirm(prev => ({ ...prev, [item.key]: e.target.value }))}
+                      placeholder={item.key}
+                      autoComplete="off"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} onClick={() => setShowConfirm(false)}>Cancel</button>
-              <button className={styles.confirmBtn} disabled={saving} onClick={handleSave}>{saving ? 'Saving…' : 'Confirm'}</button>
+              <button className={styles.confirmBtn} disabled={saving || !confirmReady} onClick={handleSave}>{saving ? 'Saving…' : 'Confirm'}</button>
             </div>
           </div>
         </div>
