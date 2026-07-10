@@ -52,6 +52,8 @@ export interface OverviewExceptionsProps<T> {
   csvName: string;
   // Optional extra filter controls (e.g. aging-days) rendered in the filter bar.
   extraFilters?: React.ReactNode;
+  // Optional content rendered above the filters (e.g. Supply's stock KPIs).
+  headerExtra?: React.ReactNode;
 }
 
 // A single generic that TS is happy to erase per-tab.
@@ -85,6 +87,8 @@ export function OverviewExceptions<T>(props: OverviewExceptionsProps<T>) {
           <UilImport size={14} /> Export CSV
         </button>
       </div>
+
+      {props.headerExtra}
 
       {/* Filters */}
       <div className={ov.filterBar}>
