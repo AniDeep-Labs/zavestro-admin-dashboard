@@ -93,3 +93,11 @@
 .countMeta { font-size: 0.85rem; color: var(--color-text-tertiary); }
 .countForm { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; flex: 1; }
 .countActions { display: flex; gap: 8px; align-items: center; }
+
+/* T2-13: per-lot wash-test / pre-shrunk panel */
+.lotsSection { margin-top: 20px; }
+.shrinkWarn { margin: 8px 0 12px; padding: 10px 14px; border: 1px solid var(--color-error, #c0392b); border-radius: var(--radius-md); background: rgba(215, 91, 91, 0.08); color: var(--color-text-primary); font-size: var(--font-size-sm); }
+.lotsTable { width: 100%; border-collapse: collapse; font-size: var(--font-size-base); }
+.lotsTable th { padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--color-border-light); }
+.lotsTable td { padding: 9px 12px; border-bottom: 1px solid var(--color-border-light); color: var(--color-text-primary); }
+.lotsTable tr:last-child td { border-bottom: none; }

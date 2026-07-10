@@ -2778,6 +2778,21 @@ export interface FabricInput {
   width_cm?: number | null; // T0-6
 }
 
+// T2-13: per-lot wash-test / pre-shrunk QC + shrink-risk.
+export interface FabricLotRow {
+  lot_code: string;
+  wash_tested: boolean;
+  pre_shrunk: boolean;
+  measured_shrinkage_pct: number | null;
+  note: string | null;
+  tested_at: string | null;
+  shrink_risk: boolean;
+}
+export interface FabricLots {
+  fabric_shrinkage_pct: number;
+  shrink_prone: boolean;
+  lots: FabricLotRow[];
+}
 export const fabricsApi = {
   list: async (
     params: { q?: string; active?: boolean; low?: boolean } = {},
@@ -2826,6 +2841,18 @@ export const fabricsApi = {
     req<FabricAtHub>(
       `/api/admin/fabrics/at-hub?hub_id=${hubId}&fabric_id=${fabricId}`,
     ),
+  // T2-13: per-lot wash-test / pre-shrunk QC.
+  lots: async (fabricId: string): Promise<FabricLots> =>
+    req<FabricLots>(`/api/admin/fabrics/${fabricId}/lots`),
+  setLot: async (
+    fabricId: string,
+    lotCode: string,
+    body: { wash_tested?: boolean; pre_shrunk?: boolean; measured_shrinkage_pct?: number | null; note?: string },
+  ): Promise<FabricLots> =>
+    req<FabricLots>(`/api/admin/fabrics/${fabricId}/lots/${encodeURIComponent(lotCode)}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   // T1-10: count-adjust a hub's shelf to the physical truth (logs a count_adjust movement).
   adjustHubStock: async (input: { hub_id: string; fabric_id: string; counted_meters: number; note: string }): Promise<{ previous: number; counted: number; variance: number; at_hub: FabricAtHub }> =>
     req(`/api/admin/fabrics/hub-stock/adjust`, { method: "POST", body: JSON.stringify(input) }),
