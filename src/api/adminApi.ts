@@ -2379,11 +2379,33 @@ export interface SettlementDay {
   refunded: number;
   net_settled: number;
 }
+// T2-18: actual Razorpay settlement, ingested (manual / csv / api)
+export interface SettlementRow {
+  settlement_id: string;
+  settled_on: string;
+  gross_amount: number;
+  refunds_amount: number;
+  fees_amount: number;
+  tax_amount: number;
+  net_deposited: number;
+  utr?: string | null;
+  status?: string | null;
+  source?: string | null;
+}
+// T2-18: account-level Razorpay-vs-books reconciliation
+export interface SettlementReconciliation {
+  settlements: number;
+  book: { gross_online: number; refunded: number; fees: number; fee_tax: number; expected_deposit: number };
+  actual: { gross: number; refunds: number; fees: number; tax: number; net_deposited: number };
+  variance: number;
+  by_settlement: SettlementRow[];
+}
 export interface SettlementReport {
   method: string;
   hubs: SettlementHub[];
   by_day?: SettlementDay[];
   variance_tracked?: boolean;
+  reconciliation?: SettlementReconciliation;
   totals: { gross_online: number; refunded: number; net_settled: number };
 }
 export interface PnlHub {
@@ -2436,6 +2458,15 @@ export const financeApi = {
     req<SettlementReport>(`/api/admin/finance/settlement${financeQs(p)}`),
   pnl: (p: FinanceReportParams = {}): Promise<PnlReport> =>
     req<PnlReport>(`/api/admin/finance/pnl${financeQs(p)}`),
+  // T2-18: actual Razorpay settlement ingestion (writes need refunds:approve).
+  listSettlements: (p: { start_date?: string; end_date?: string } = {}): Promise<SettlementRow[]> =>
+    req<SettlementRow[]>(`/api/admin/finance/settlements${financeQs(p)}`),
+  recordSettlement: (body: Partial<SettlementRow> & { settlement_id: string; settled_on: string; net_deposited: number }): Promise<{ settlement_id: string; inserted: boolean }> =>
+    req(`/api/admin/finance/settlements`, { method: "POST", body: JSON.stringify(body) }),
+  deleteSettlement: (id: string): Promise<{ removed: boolean }> =>
+    req(`/api/admin/finance/settlements/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  syncSettlements: (from: string, to: string): Promise<{ synced: number; inserted: number }> =>
+    req(`/api/admin/finance/settlements/sync`, { method: "POST", body: JSON.stringify({ from, to }) }),
 };
 
 // ─── Fit feedback (Support console — per-order fit ratings) ───────────────────
