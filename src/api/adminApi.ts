@@ -179,6 +179,8 @@ export interface OrdersParams {
   paymentMethod?: string;
   /** in-flight orders unmoved for 48h+ (the "Stuck" saved view) */
   stuck?: boolean;
+  /** T2-17: filter the stuck exception inbox by ownership */
+  owner?: "unowned" | "mine" | "all";
   page?: number;
   limit?: number;
 }
@@ -189,6 +191,45 @@ export interface OrdersResponse {
   totalPages: number;
 }
 
+// T2-17: order-exception ownership — claim / assign / release a stuck order so it has a
+// single, time-boxed owner and can't be silently double-worked or ignored.
+export interface ExceptionClaim {
+  claim_id: string;
+  order_id: string;
+  claimed_by: string;
+  claimed_by_name: string | null;
+  assigned_by: string | null;
+  assigned_by_name: string | null;
+  ack_note: string | null;
+  ttl_hours: number;
+  claimed_at: string;
+  resolves_at: string;
+  overdue: boolean;
+}
+export interface AssignableAdmin {
+  id: string;
+  name: string;
+  role: string;
+}
+export const orderExceptionsApi = {
+  assignable: (): Promise<AssignableAdmin[]> =>
+    req<AssignableAdmin[]>(`/api/admin/order-exceptions/assignable`),
+  active: (orderId: string): Promise<ExceptionClaim | null> =>
+    req<ExceptionClaim | null>(`/api/admin/order-exceptions/${orderId}`),
+  claim: (
+    orderId: string,
+    body: { assigned_to?: string; ack_note?: string; ttl_hours?: number } = {},
+  ): Promise<ExceptionClaim> =>
+    req<ExceptionClaim>(`/api/admin/order-exceptions/${orderId}/claim`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  release: (orderId: string): Promise<{ released: boolean }> =>
+    req<{ released: boolean }>(`/api/admin/order-exceptions/${orderId}/resolve`, {
+      method: "POST",
+    }),
+};
+
 export const ordersApi = {
   list: async (params: OrdersParams = {}): Promise<OrdersResponse> => {
     const qs = new URLSearchParams();
@@ -198,6 +239,7 @@ export const ordersApi = {
     if (params.userId) qs.set("user_id", params.userId);
     if (params.paymentMethod) qs.set("payment_method", params.paymentMethod);
     if (params.stuck) qs.set("stuck", "1");
+    if (params.owner && params.owner !== "all") qs.set("owner", params.owner);
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
     return req<OrdersResponse>(`/api/admin/orders?${qs}`);
@@ -2337,11 +2379,33 @@ export interface SettlementDay {
   refunded: number;
   net_settled: number;
 }
+// T2-18: actual Razorpay settlement, ingested (manual / csv / api)
+export interface SettlementRow {
+  settlement_id: string;
+  settled_on: string;
+  gross_amount: number;
+  refunds_amount: number;
+  fees_amount: number;
+  tax_amount: number;
+  net_deposited: number;
+  utr?: string | null;
+  status?: string | null;
+  source?: string | null;
+}
+// T2-18: account-level Razorpay-vs-books reconciliation
+export interface SettlementReconciliation {
+  settlements: number;
+  book: { gross_online: number; refunded: number; fees: number; fee_tax: number; expected_deposit: number };
+  actual: { gross: number; refunds: number; fees: number; tax: number; net_deposited: number };
+  variance: number;
+  by_settlement: SettlementRow[];
+}
 export interface SettlementReport {
   method: string;
   hubs: SettlementHub[];
   by_day?: SettlementDay[];
   variance_tracked?: boolean;
+  reconciliation?: SettlementReconciliation;
   totals: { gross_online: number; refunded: number; net_settled: number };
 }
 export interface PnlHub {
@@ -2394,6 +2458,15 @@ export const financeApi = {
     req<SettlementReport>(`/api/admin/finance/settlement${financeQs(p)}`),
   pnl: (p: FinanceReportParams = {}): Promise<PnlReport> =>
     req<PnlReport>(`/api/admin/finance/pnl${financeQs(p)}`),
+  // T2-18: actual Razorpay settlement ingestion (writes need refunds:approve).
+  listSettlements: (p: { start_date?: string; end_date?: string } = {}): Promise<SettlementRow[]> =>
+    req<SettlementRow[]>(`/api/admin/finance/settlements${financeQs(p)}`),
+  recordSettlement: (body: Partial<SettlementRow> & { settlement_id: string; settled_on: string; net_deposited: number }): Promise<{ settlement_id: string; inserted: boolean }> =>
+    req(`/api/admin/finance/settlements`, { method: "POST", body: JSON.stringify(body) }),
+  deleteSettlement: (id: string): Promise<{ removed: boolean }> =>
+    req(`/api/admin/finance/settlements/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  syncSettlements: (from: string, to: string): Promise<{ synced: number; inserted: number }> =>
+    req(`/api/admin/finance/settlements/sync`, { method: "POST", body: JSON.stringify({ from, to }) }),
 };
 
 // ─── Fit feedback (Support console — per-order fit ratings) ───────────────────
@@ -2793,6 +2866,27 @@ export interface FabricLots {
   shrink_prone: boolean;
   lots: FabricLotRow[];
 }
+// T2-15: dead-stock aging + capital ₹.
+export interface DeadStockRow {
+  hub_id: string | null;
+  hub_name: string | null;
+  fabric_id: string;
+  fabric_code: string | null;
+  fabric_name: string | null;
+  available_meters: number;
+  days_idle: number;
+  bucket: "0-30" | "30-60" | "60-90" | "90+";
+  last_movement: string | null;
+  capital: number;
+  markdown_flagged: boolean;
+  markdown_note: string | null;
+}
+export interface DeadStock {
+  items: DeadStockRow[];
+  capital_by_bucket: Record<string, number>;
+  total_capital: number;
+  min_days: number;
+}
 export const fabricsApi = {
   list: async (
     params: { q?: string; active?: boolean; low?: boolean } = {},
@@ -2856,6 +2950,14 @@ export const fabricsApi = {
   // T1-10: count-adjust a hub's shelf to the physical truth (logs a count_adjust movement).
   adjustHubStock: async (input: { hub_id: string; fabric_id: string; counted_meters: number; note: string }): Promise<{ previous: number; counted: number; variance: number; at_hub: FabricAtHub }> =>
     req(`/api/admin/fabrics/hub-stock/adjust`, { method: "POST", body: JSON.stringify(input) }),
+  // T2-14: write off unusable-remnant metres as a 'scrap' movement.
+  recordScrap: async (input: { hub_id: string; fabric_id: string; meters: number; note: string }): Promise<{ previous: number; scrapped: number; remaining: number; at_hub: FabricAtHub }> =>
+    req(`/api/admin/fabrics/hub-stock/scrap`, { method: "POST", body: JSON.stringify(input) }),
+  // T2-15: dead-stock aging + markdown flag.
+  deadStock: async (hubId?: string): Promise<DeadStock> =>
+    req<DeadStock>(`/api/admin/fabrics/dead-stock${hubId ? `?hub_id=${hubId}` : ""}`),
+  flagMarkdown: async (input: { hub_id: string; fabric_id: string; flagged: boolean; note?: string }): Promise<{ markdown_flagged: boolean }> =>
+    req(`/api/admin/fabrics/hub-stock/markdown`, { method: "POST", body: JSON.stringify(input) }),
   hubStockVariance: async (): Promise<HubStockVariance[]> =>
     req<HubStockVariance[]>(`/api/admin/fabrics/hub-stock/variance`),
   // T1-12: stale-reservation exception view + guarded release.

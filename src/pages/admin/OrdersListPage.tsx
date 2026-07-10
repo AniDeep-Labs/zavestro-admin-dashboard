@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ordersApi } from '../../api/adminApi';
-import type { AdminOrder } from '../../api/adminApi';
+import { ordersApi, orderExceptionsApi } from '../../api/adminApi';
+import type { AdminOrder, AssignableAdmin } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { StatusBadge, statusLabel } from '../../components/StatusBadge';
@@ -52,6 +52,9 @@ export const OrdersListPage: React.FC = () => {
   const search = sp.get('search') ?? '';
   const stageFilter = sp.get('stage') ?? '';
   const page = Math.max(1, Number(sp.get('page')) || 1);
+  // T2-17: the stuck view is an exception inbox — default to what needs an owner (Unclaimed).
+  const isStuck = view === 'stuck';
+  const ownerFilter = (isStuck ? (sp.get('owner') ?? 'unowned') : 'all') as 'unowned' | 'mine' | 'all';
 
   const setParam = (key: string, value: string) => {
     setSp(prev => {
@@ -69,6 +72,9 @@ export const OrdersListPage: React.FC = () => {
   const [error, setError] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [exporting, setExporting] = React.useState(false);
+  const [assignable, setAssignable] = React.useState<AssignableAdmin[]>([]);
+  const [assignOpenId, setAssignOpenId] = React.useState<string | null>(null);
+  const [busyId, setBusyId] = React.useState<string | null>(null);
   const debouncedSearch = useDebounce(search, 350);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
@@ -81,18 +87,47 @@ export const OrdersListPage: React.FC = () => {
       search: debouncedSearch || undefined,
       stage: stageFilter || undefined,
       ...viewParams,
+      owner: isStuck ? ownerFilter : undefined,
       page: p,
       limit,
     };
-  }, [debouncedSearch, stageFilter, view]);
+  }, [debouncedSearch, stageFilter, view, isStuck, ownerFilter]);
 
-  React.useEffect(() => {
+  const reload = React.useCallback(() => {
     setLoading(true); setError('');
     ordersApi.list(queryParams(page, LIMIT))
       .then(r => { setOrders(r.orders); setTotal(r.total); setTotalPages(r.totalPages); })
       .catch(e => { const msg = e instanceof Error ? e.message : 'Failed to load'; setError(msg); showToast('error', 'Load failed', msg); })
       .finally(() => setLoading(false));
   }, [queryParams, page]);
+
+  React.useEffect(() => { reload(); }, [reload]);
+
+  // Load the assignee picker lazily the first time the stuck (exception) view is opened.
+  React.useEffect(() => {
+    if (isStuck && assignable.length === 0) {
+      orderExceptionsApi.assignable().then(setAssignable).catch(() => { /* picker just stays empty */ });
+    }
+  }, [isStuck, assignable.length]);
+
+  // Exception actions operate on the real order UUID (o.uuid); refresh the list + badge after.
+  const runAction = async (label: string, fn: () => Promise<unknown>) => {
+    if (busyId) return;
+    setBusyId(label);
+    try {
+      await fn();
+      setAssignOpenId(null);
+      reload();
+    } catch (e) {
+      showToast('error', 'Action failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setBusyId(null);
+    }
+  };
+  const claim = (o: AdminOrder) => runAction(o.id, () => orderExceptionsApi.claim(o.uuid ?? o.id));
+  const release = (o: AdminOrder) => runAction(o.id, () => orderExceptionsApi.release(o.uuid ?? o.id));
+  const assign = (o: AdminOrder, adminId: string) =>
+    runAction(o.id, () => orderExceptionsApi.claim(o.uuid ?? o.id, { assigned_to: adminId }));
 
   // Exports ALL orders matching the current filters (not just the current page).
   const exportCSV = async () => {
@@ -155,6 +190,22 @@ export const OrdersListPage: React.FC = () => {
         ))}
       </div>
 
+      {/* T2-17: ownership sub-filter for the stuck exception inbox */}
+      {isStuck && (
+        <div className={styles.subFilter}>
+          <span className={styles.subFilterLabel}>Ownership</span>
+          {(['unowned', 'mine', 'all'] as const).map(k => (
+            <button
+              key={k}
+              className={`${styles.viewChip} ${ownerFilter === k ? styles.viewChipActive : ''}`}
+              onClick={() => setParam('owner', k)}
+            >
+              {k === 'unowned' ? 'Unclaimed' : k === 'mine' ? 'Mine' : 'All'}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
           <UilSearch size={15} className={styles.searchIcon} />
@@ -175,12 +226,13 @@ export const OrdersListPage: React.FC = () => {
           <thead><tr>
             <th>Ref</th><th>Order ID</th><th>Customer</th><th>Products</th>
             <th>Stage</th><th>Age</th><th>Hub</th><th>Total</th><th>Date</th>
+            {isStuck && <th>Owner</th>}
           </tr></thead>
           <tbody>
             {loading ? Array.from({length: 8}).map((_, i) => (
-              <tr key={i}>{Array.from({length: 9}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
+              <tr key={i}>{Array.from({length: isStuck ? 10 : 9}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
             )) : error ? (
-              <tr><td colSpan={9}>
+              <tr><td colSpan={isStuck ? 10 : 9}>
                 <EmptyState
                   title="Couldn't load orders"
                   body={error}
@@ -189,7 +241,7 @@ export const OrdersListPage: React.FC = () => {
                 />
               </td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={9}>
+              <tr><td colSpan={isStuck ? 10 : 9}>
                 <EmptyState
                   title={EMPTY_COPY[view].title}
                   body={hasFilters && view === 'all' ? 'Nothing matches the current filters.' : EMPTY_COPY[view].body}
@@ -215,6 +267,36 @@ export const OrdersListPage: React.FC = () => {
                 <td className={styles.hub}>{o.hub}</td>
                 <td><MoneyCell amount={o.total} /></td>
                 <td className={styles.date}>{o.created}</td>
+                {isStuck && (
+                  <td className={styles.ownerCell} onClick={e => e.stopPropagation()}>
+                    {o.exception_owner ? (
+                      <div className={styles.ownedWrap}>
+                        <span className={styles.ownerChip} title={`Owned since ${o.exception_claimed_at ? new Date(o.exception_claimed_at).toLocaleString('en-IN') : ''}`}>
+                          {o.exception_owner}
+                        </span>
+                        <button className={styles.ownerBtn} disabled={busyId === o.id} onClick={() => release(o)}>Release</button>
+                      </div>
+                    ) : assignOpenId === o.id ? (
+                      <select
+                        className={styles.assignSelect}
+                        autoFocus
+                        defaultValue=""
+                        disabled={busyId === o.id}
+                        onChange={e => { if (e.target.value) assign(o, e.target.value); }}
+                        onBlur={() => setAssignOpenId(null)}
+                      >
+                        <option value="" disabled>Assign to…</option>
+                        {assignable.map(a => <option key={a.id} value={a.id}>{a.name} · {a.role}</option>)}
+                      </select>
+                    ) : (
+                      <div className={styles.ownedWrap}>
+                        <span className={styles.unownedChip}>Unclaimed</span>
+                        <button className={styles.ownerBtn} disabled={busyId === o.id} onClick={() => claim(o)}>Claim</button>
+                        <button className={styles.ownerBtnGhost} disabled={busyId === o.id || assignable.length === 0} onClick={() => setAssignOpenId(o.id)}>Assign</button>
+                      </div>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

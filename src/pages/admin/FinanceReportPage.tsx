@@ -6,6 +6,7 @@ import type {
   SettlementReport,
   SettlementHub,
   SettlementDay,
+  SettlementRow,
   PnlReport,
   PnlHub,
   Hub,
@@ -14,6 +15,7 @@ import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { PageHeader, EmptyState } from "../../components";
 import { Button } from "../../components/Button/Button";
+import { Can } from "../../components/Can/Can";
 import styles from "./OrdersListPage.module.css";
 import s from "./CodReconciliationPage.module.css";
 import ds from "./DistributionPage.module.css";
@@ -48,6 +50,11 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
   const [pnl, setPnl] = React.useState<PnlReport | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  // T2-18: manual settlement entry form (finance ingests actual Razorpay deposits)
+  const emptyForm = { settlement_id: "", settled_on: "", gross_amount: "", refunds_amount: "", fees_amount: "", tax_amount: "", net_deposited: "", utr: "" };
+  const [showForm, setShowForm] = React.useState(false);
+  const [form, setForm] = React.useState(emptyForm);
+  const [saving, setSaving] = React.useState(false);
 
   const dismissToast = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
   const showToast = (type: ToastData["type"], title: string, msg?: string) =>
@@ -76,6 +83,59 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
 
   const clearFilters = () => { setHubId(""); setStartDate(""); setEndDate(""); };
   const filtered = !!(hubId || startDate || endDate);
+
+  // T2-18: record one actual settlement, then refresh the reconciliation.
+  const submitSettlement = async () => {
+    if (!form.settlement_id.trim() || !form.settled_on || form.net_deposited === "") {
+      showToast("error", "Missing fields", "Settlement ID, date and net deposited are required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await financeApi.recordSettlement({
+        settlement_id: form.settlement_id.trim(),
+        settled_on: form.settled_on,
+        gross_amount: Number(form.gross_amount) || 0,
+        refunds_amount: Number(form.refunds_amount) || 0,
+        fees_amount: Number(form.fees_amount) || 0,
+        tax_amount: Number(form.tax_amount) || 0,
+        net_deposited: Number(form.net_deposited),
+        utr: form.utr.trim() || undefined,
+      });
+      showToast("success", "Settlement recorded");
+      setForm(emptyForm);
+      setShowForm(false);
+      load();
+    } catch (e) {
+      showToast("error", "Save failed", e instanceof Error ? e.message : undefined);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeSettlement = async (id: string) => {
+    try {
+      await financeApi.deleteSettlement(id);
+      showToast("success", "Settlement removed");
+      load();
+    } catch (e) {
+      showToast("error", "Delete failed", e instanceof Error ? e.message : undefined);
+    }
+  };
+
+  const syncFromRazorpay = async () => {
+    if (!startDate || !endDate) {
+      showToast("error", "Pick a window", "Set a start and end date to sync from Razorpay.");
+      return;
+    }
+    try {
+      const r = await financeApi.syncSettlements(startDate, endDate);
+      showToast("success", "Synced", `${r.synced} settlement(s), ${r.inserted} new.`);
+      load();
+    } catch (e) {
+      showToast("info", "Sync unavailable", e instanceof Error ? e.message : undefined);
+    }
+  };
 
   const handleExport = () => {
     if (mode === "settlement" && settlement) {
@@ -184,11 +244,88 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
           <EmptyState title="No online settlements in this window" body="Captured online payments will appear here. Try widening the date range or clearing the hub filter." />
         ) : (
           <>
-            {settlement!.variance_tracked === false && (
-              <p className={s.summarySub} style={{ marginBottom: 12 }}>
-                Book side only — what Razorpay actually settled (deposited amount, fees) isn't ingested yet, so a Razorpay-vs-books variance isn't tracked.
-              </p>
-            )}
+            {/* T2-18: Razorpay-vs-books reconciliation — book expected deposit vs actual, once
+                real settlements are ingested. Until then the page stays honest that it's book-only. */}
+            <section className={ds.section}>
+              <div className={s.reconHead}>
+                <h2 className={ds.sectionTitle}>Razorpay reconciliation</h2>
+                <Can cap="refunds:approve">
+                  <div className={s.reconActions}>
+                    <Button variant="secondary" size="sm" onClick={() => setShowForm((v) => !v)}>
+                      {showForm ? "Cancel" : "Record settlement"}
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={syncFromRazorpay}>Sync from Razorpay</Button>
+                  </div>
+                </Can>
+              </div>
+
+              {showForm && (
+                <div className={s.reconForm}>
+                  {([
+                    ["settlement_id", "Settlement ID *", "text"],
+                    ["settled_on", "Settled on *", "date"],
+                    ["gross_amount", "Gross (₹)", "number"],
+                    ["refunds_amount", "Refunds (₹)", "number"],
+                    ["fees_amount", "Fees (₹)", "number"],
+                    ["tax_amount", "GST on fees (₹)", "number"],
+                    ["net_deposited", "Net deposited (₹) *", "number"],
+                    ["utr", "Bank UTR", "text"],
+                  ] as const).map(([k, label, type]) => (
+                    <label key={k} className={s.reconField}>
+                      <span>{label}</span>
+                      <input
+                        className={s.dateInput}
+                        type={type}
+                        value={(form as Record<string, string>)[k]}
+                        onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                      />
+                    </label>
+                  ))}
+                  <Button size="sm" onClick={submitSettlement} state={saving ? "loading" : "default"}>Save settlement</Button>
+                </div>
+              )}
+
+              {settlement!.variance_tracked === false || !settlement!.reconciliation ? (
+                <p className={s.summarySub}>
+                  Book side only — no actual Razorpay settlement is ingested for this window yet, so the
+                  Razorpay-vs-books variance isn't tracked. Record one above (or sync once keys are live).
+                </p>
+              ) : (
+                <>
+                  <div className={`${s.summary} ${s.reconKpis}`}>
+                    <SummaryCard label="Book expected deposit" value={settlement!.reconciliation.book.expected_deposit} loading={false} />
+                    <SummaryCard label="Razorpay deposited (actual)" value={settlement!.reconciliation.actual.net_deposited} loading={false} />
+                    <SummaryCard label="Variance (actual − book)" value={settlement!.reconciliation.variance} loading={false} accent={Math.abs(settlement!.reconciliation.variance) >= 1} />
+                  </div>
+                  <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                      <thead><tr><th>Settlement</th><th>Date</th><th>Gross</th><th>Refunds</th><th>Fees</th><th>GST</th><th>Net deposited</th><th>UTR</th><th>Src</th><th></th></tr></thead>
+                      <tbody>
+                        {settlement!.reconciliation.by_settlement.map((r: SettlementRow) => (
+                          <tr key={r.settlement_id} className={styles.row}>
+                            <td className={styles.orderId}>{r.settlement_id}</td>
+                            <td className={styles.date}>{fmtDay(r.settled_on)}</td>
+                            <td>{fmtINR(r.gross_amount)}</td>
+                            <td>{fmtINR(r.refunds_amount)}</td>
+                            <td>{fmtINR(r.fees_amount)}</td>
+                            <td>{fmtINR(r.tax_amount)}</td>
+                            <td className={styles.total}>{fmtINR(r.net_deposited)}</td>
+                            <td>{r.utr ?? "—"}</td>
+                            <td>{r.source}</td>
+                            <td>
+                              <Can cap="refunds:approve">
+                                <button className={styles.clearBtn} onClick={() => removeSettlement(r.settlement_id)}><UilTimes size={13} /></button>
+                              </Can>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </section>
+
             {(settlement!.by_day?.length ?? 0) > 0 && (
               <section className={ds.section}>
                 <h2 className={ds.sectionTitle}>By day <span className={ds.count}>{settlement!.by_day!.length}</span></h2>
