@@ -15,3 +15,13 @@
 .bulkReject { background: var(--color-error); color: var(--color-on-accent); }
 .bulkClear { background: none; color: var(--color-text-secondary); margin-left: auto; }
 .bulkApprove:disabled, .bulkReject:disabled { opacity: 0.6; cursor: default; }
+
+/* T2-36 (SP-5): verified-purchase chip + reject-with-reason modal. */
+.verifiedChip { display: inline-block; margin-top: 3px; padding: 1px 8px; border-radius: var(--radius-full); font-size: 11px; font-weight: var(--font-weight-semibold); background: rgba(31,107,79,0.1); color: #1F6B4F; white-space: nowrap; }
+.modalOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: var(--z-modal, 1000); padding: 16px; }
+.modal { background: var(--color-bg-primary); border-radius: var(--radius-xl); padding: 24px; width: 100%; max-width: 460px; box-shadow: var(--shadow-xl); display: flex; flex-direction: column; gap: 12px; }
+.modalTitle { font-family: var(--font-display); font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); margin: 0; }
+.modalHint { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0; line-height: 1.45; }
+.reasonInput { padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; resize: vertical; width: 100%; box-sizing: border-box; }
+.reasonInput:focus { border-color: var(--color-primary); }
+.modalActions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 4px; }

@@ -1655,6 +1655,9 @@ export interface AdminReview {
   reviewed_by: string | null;
   created_at: string;
   updated_at: string;
+  // T2-36 (SP-5): verified-purchase compliance artifact + rejection reason.
+  verified_purchase?: boolean;
+  rejection_reason?: string | null;
 }
 
 export interface PendingReviewsResponse {
@@ -1670,10 +1673,11 @@ export const reviewsApi = {
       `/api/reviews/pending?page=${page}&limit=${limit}`,
     ),
 
-  moderate: (id: string, approve: boolean): Promise<void> =>
+  // T2-36 (SP-5): a rejection carries a reason (required server-side).
+  moderate: (id: string, approve: boolean, reason?: string): Promise<void> =>
     req<void>(`/api/reviews/${id}/moderate`, {
       method: "POST",
-      body: JSON.stringify({ approve }),
+      body: JSON.stringify({ approve, ...(reason ? { reason } : {}) }),
     }),
 };
 
