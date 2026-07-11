@@ -2990,6 +2990,10 @@ export interface FabricLedgerEntry {
   note: string | null;
   lot_code: string | null;
   created_at: string;
+  // T2-29: order that caused this out-flow (reserve/release/reconcile); null for
+  // received/scrap/adjust and un-backfilled historical rows.
+  order_id: string | null;
+  order_number: string | null;
 }
 export interface FabricDesignUse {
   id: string;
