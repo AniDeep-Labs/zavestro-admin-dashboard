@@ -23,6 +23,8 @@
 /* Status pills */
 .onTrack { color: var(--color-success); font-weight: var(--font-weight-semibold); display: inline-flex; align-items: center; gap: 4px; }
 .behind  { color: var(--color-error);   font-weight: var(--font-weight-semibold); display: inline-flex; align-items: center; gap: 4px; }
+/* T2-34 (F-5): avg ₹/order subtext under the total promo spend. */
+.avgSpend { font-size: 11px; color: var(--color-text-tertiary); margin-top: 1px; }
 
 /* Modal */
 .modalOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: var(--z-modal); padding: 16px; }
