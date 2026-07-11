@@ -1,7 +1,7 @@
 import React from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { returnsApi, ordersApi } from '../../api/adminApi';
-import type { ReturnRequest, AdminOrder, CustomerLookupResult } from '../../api/adminApi';
+import type { ReturnRequest, AdminOrder, CustomerLookupResult, ReturnSection } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Modal } from '../../components/Modal/Modal';
@@ -9,11 +9,18 @@ import { Button } from '../../components/Button/Button';
 import { Textarea } from '../../components/Textarea/Textarea';
 import { CustomerQuickLookup } from '../../components/CustomerQuickLookup/CustomerQuickLookup';
 import styles from './OrdersListPage.module.css';
+import ds from './DistributionPage.module.css';
 import d from './AlterationsListPage.module.css';
-import { UilAngleLeft, UilAngleRight, UilSearch, UilTimes, UilPlus } from "@iconscout/react-unicons";
-import { StatusBadge, statusLabel } from '../../components';
+import { UilSearch, UilTimes, UilPlus } from "@iconscout/react-unicons";
+import { StatusBadge } from '../../components';
 
-const RETURN_STATUSES = ['requested', 'defect_confirmed', 'refund_initiated', 'refunded', 'defect_rejected', 'rejected'];
+// T2-31 (SP-4): the sectioned worklist. Order matters — the actionable bucket leads.
+const SECTIONS: { key: ReturnSection; title: string }[] = [
+  { key: 'needs_action', title: 'Needs action' },
+  { key: 'pickup', title: 'Pickup & inspection' },
+  { key: 'refund', title: 'Refund in progress' },
+  { key: 'closed', title: 'Closed' },
+];
 const RETURN_REASONS = [
   { v: 'defective', l: 'Defective / quality issue → refund' },
   { v: 'wrong_item', l: 'Wrong item received → refund' },
@@ -30,12 +37,8 @@ function useDebounce<T>(v: T, d: number) {
 
 export const ReturnsListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [search, setSearch] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState(searchParams.get('status') ?? '');
-  const [page, setPage] = React.useState(1);
   const [returns, setReturns] = React.useState<ReturnRequest[]>([]);
-  const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const debouncedSearch = useDebounce(search, 350);
@@ -55,13 +58,15 @@ export const ReturnsListPage: React.FC = () => {
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
 
+  // Worklist: pull the newest 100 and group by section client-side (RefundsPage pattern).
+  // Closed returns age out naturally since the list is newest-first.
   React.useEffect(() => {
     setLoading(true);
-    returnsApi.list({ status: statusFilter || undefined, page, limit: 25 })
-      .then(r => { setReturns(r.returns); setTotal(r.total); })
+    returnsApi.list({ limit: 100 })
+      .then(r => setReturns(r.returns))
       .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-  }, [statusFilter, page, refreshTick]);
+  }, [refreshTick]);
 
   React.useEffect(() => {
     if (!selCustomer) { setCustOrders([]); setSelOrderId(''); return; }
@@ -110,6 +115,41 @@ export const ReturnsListPage: React.FC = () => {
       )
     : returns;
 
+  const bySection = (key: ReturnSection) => filtered.filter(r => (r.section ?? 'closed') === key);
+
+  const renderSection = ({ key, title }: { key: ReturnSection; title: string }) => {
+    const list = bySection(key);
+    return (
+      <section className={ds.section} key={key}>
+        <h2 className={ds.sectionTitle}>{title} <span className={ds.count}>{list.length}</span></h2>
+        {list.length === 0 ? (
+          <p className={styles.pagination}>Nothing here.</p>
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead><tr>
+                <th>Order</th><th>Customer</th><th>Phone</th><th>Reason</th><th>Policy</th><th>Status</th><th>Date</th>
+              </tr></thead>
+              <tbody>
+                {list.map(r => (
+                  <tr key={r.id} className={styles.row} onClick={() => navigate(`/admin/returns/${r.id}`)}>
+                    <td className={styles.orderId}>{r.order_number}</td>
+                    <td><div className={styles.customerName}>{r.customer_name}</div></td>
+                    <td><div className={styles.customerPhone}>{r.customer_phone}</div></td>
+                    <td className={styles.reasonCell}>{r.reason}</td>
+                    <td>{r.policy_verdict?.label ?? '—'}</td>
+                    <td><StatusBadge status={r.status} /></td>
+                    <td className={styles.date}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    );
+  };
+
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -124,47 +164,28 @@ export const ReturnsListPage: React.FC = () => {
         <div className={styles.searchWrap}>
           <UilSearch size={15} className={styles.searchIcon} />
           <input className={styles.searchInput} placeholder="Search order or customer…"
-            value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+            value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className={styles.filterSelect} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
-          <option value="">All Statuses</option>
-          {RETURN_STATUSES.map((v) => <option key={v} value={v}>{statusLabel(v)}</option>)}
-        </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}><UilTimes size={14}/> Clear</button>
+        {search && (
+          <button className={styles.clearBtn} onClick={() => setSearch('')}><UilTimes size={14}/> Clear</button>
+        )}
       </div>
 
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead><tr>
-            <th>Order</th><th>Customer</th><th>Phone</th><th>Reason</th><th>Status</th><th>Date</th>
-          </tr></thead>
-          <tbody>
-            {loading ? Array.from({ length: 6 }).map((_, i) => (
+      {loading ? (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}><tbody>
+            {Array.from({ length: 6 }).map((_, i) => (
               <tr key={i}>{Array.from({ length: 6 }).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
-            )) : filtered.length === 0 ? (
-              <tr><td colSpan={6} className={styles.empty}>No return requests found.</td></tr>
-            ) : filtered.map(r => (
-              <tr key={r.id} className={styles.row} onClick={() => navigate(`/admin/returns/${r.id}`)}>
-                <td className={styles.orderId}>{r.order_number}</td>
-                <td><div className={styles.customerName}>{r.customer_name}</div></td>
-                <td><div className={styles.customerPhone}>{r.customer_phone}</div></td>
-                <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.reason}</td>
-                <td><StatusBadge status={r.status} /></td>
-                <td className={styles.date}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-              </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className={styles.paginationRow}>
-        <span className={styles.pagination}>{loading ? 'Loading…' : `${total} return${total !== 1 ? 's' : ''} total`}</span>
-        <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><UilAngleLeft size={15}/> Prev</button>
-          <span className={styles.pageIndicator}>Page {page} of {Math.max(1, Math.ceil(total / 25))}</span>
-          <button className={styles.pageBtn} disabled={returns.length < 25 || loading} onClick={() => setPage(p => p + 1)}>Next <UilAngleRight size={15}/></button>
+          </tbody></table>
         </div>
-      </div>
+      ) : filtered.length === 0 ? (
+        <div className={styles.tableWrap}><table className={styles.table}><tbody>
+          <tr><td colSpan={7} className={styles.empty}>No return requests found.</td></tr>
+        </tbody></table></div>
+      ) : (
+        SECTIONS.map(renderSection)
+      )}
 
       {/* Create on behalf — search customer → pick delivered order → reason */}
       <Modal open={showCreate} onClose={resetCreate} title="New return request">

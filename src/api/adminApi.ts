@@ -1637,6 +1637,16 @@ export const reviewsApi = {
 
 // ─── Returns ──────────────────────────────────────────────────────────────────
 
+// T2-31 (SP-4): the policy verdict a support agent reads before acting.
+export type PolicyTone = "success" | "info" | "danger" | "neutral";
+export interface PolicyVerdict {
+  outcome: "refund" | "alteration" | "declined" | "manual";
+  label: string;
+  detail: string;
+  tone: PolicyTone;
+}
+export type ReturnSection = "needs_action" | "pickup" | "refund" | "closed";
+
 export interface ReturnRequest {
   id: string;
   order_id: string;
@@ -1650,6 +1660,9 @@ export interface ReturnRequest {
   payable_amount?: number | string; // order total; pg numeric → string over the wire
   created_at: string;
   updated_at: string;
+  // T2-31: worklist bucket + policy verdict (present from list + detail endpoints).
+  section?: ReturnSection;
+  policy_verdict?: PolicyVerdict;
 }
 
 export interface ReturnsResponse {

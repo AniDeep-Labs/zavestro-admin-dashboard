@@ -13,6 +13,12 @@ import styles from './OrdersListPage.module.css';
 import d from './ReturnDetailPage.module.css';
 import { UilAngleLeft } from "@iconscout/react-unicons";
 
+// T2-31: map a policy tone to its CSS-module class.
+const toneClass = (tone: string) =>
+  ({ success: 'toneSuccess', info: 'toneInfo', danger: 'toneDanger', neutral: 'toneNeutral' })[
+    tone
+  ] ?? 'toneNeutral';
+
 export const ReturnDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -104,6 +110,19 @@ export const ReturnDetailPage: React.FC = () => {
               <div><div className={styles.metaLabel}>Status</div><div className={styles.metaValue}><StatusBadge status={ret.status} /></div></div>
               <div><div className={styles.metaLabel}>Submitted</div><div className={styles.metaValue}>{new Date(ret.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
             </div>
+            {/* T2-31 (SP-4): the policy verdict — what the brand owes on this return, so
+                support enforces the written policy instead of improvising. */}
+            {ret.policy_verdict && (
+              <div className={d.policyBanner}>
+                <span className={`${d.policyChip} ${d[toneClass(ret.policy_verdict.tone)]}`}>
+                  {ret.policy_verdict.label}
+                </span>
+                <div className={d.policyBody}>
+                  <span className={d.policyLabel}>Policy</span>
+                  <span className={d.policyDetail}>{ret.policy_verdict.detail}</span>
+                </div>
+              </div>
+            )}
             <div style={{ marginTop: 16 }}>
               <div className={styles.metaLabel}>Reason</div>
               <div style={{ marginTop: 6, padding: '12px 14px', background: 'var(--color-bg-secondary)', borderRadius: 8, fontSize: 14 }}>{ret.reason}</div>
