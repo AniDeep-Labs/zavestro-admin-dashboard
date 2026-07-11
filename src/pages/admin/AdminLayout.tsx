@@ -46,6 +46,7 @@ import {
   UilMoon,
   UilPlus,
   UilProcess,
+  UilQuestionCircle,
   UilReceipt,
   UilRuler,
   UilSearch,
@@ -953,6 +954,15 @@ const AdminLayoutInner: React.FC = () => {
               </div>
             )}
 
+            {/* T3-2 (W-U1) / S-4: help + shortcuts. */}
+            <button
+              className={styles.iconBtn}
+              onClick={() => setHelpOpen((h) => !h)}
+              aria-label="Help & shortcuts"
+              title="Help & shortcuts (?)"
+            >
+              <UilQuestionCircle size={18} />
+            </button>
             <button
               className={styles.iconBtn}
               onClick={() => {
@@ -1080,6 +1090,13 @@ const AdminLayoutInner: React.FC = () => {
               <li><kbd>?</kbd> — this help</li>
               <li><kbd>esc</kbd> — close</li>
             </ul>
+            {/* T3-2 (W-U1): link into the per-console help page. */}
+            <button
+              className={styles.helpConsoleLink}
+              onClick={() => { setHelpOpen(false); navigate("/admin/help"); }}
+            >
+              How this console works →
+            </button>
             <button className={styles.helpClose} onClick={() => setHelpOpen(false)}>Close</button>
           </div>
         </div>
