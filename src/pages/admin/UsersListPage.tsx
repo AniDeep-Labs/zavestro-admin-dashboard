@@ -102,6 +102,7 @@ export const UsersListPage: React.FC = () => {
           { header: "Email", value: (u) => u.email },
           { header: "City", value: (u) => u.city },
           { header: "Orders", value: (u) => u.orders },
+          { header: "LTV", value: (u) => u.ltv },
           { header: "Credits", value: (u) => u.credits },
           { header: "Joined", value: (u) => u.joined },
           { header: "Status", value: (u) => u.status },
@@ -187,6 +188,7 @@ export const UsersListPage: React.FC = () => {
               <th>Email</th>
               <th>City</th>
               <th>Orders</th>
+              <th>LTV</th>
               <th>Credits</th>
               <th>Joined</th>
               <th>Status</th>
@@ -196,7 +198,7 @@ export const UsersListPage: React.FC = () => {
             {loading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 9 }).map((__, j) => (
+                  {Array.from({ length: 10 }).map((__, j) => (
                     <td key={j}>
                       <div className={styles.skeleton} />
                     </td>
@@ -205,7 +207,7 @@ export const UsersListPage: React.FC = () => {
               ))
             ) : error ? (
               <tr>
-                <td colSpan={9} className={styles.empty}>
+                <td colSpan={10} className={styles.empty}>
                   {error}
                   <br />
                   <button
@@ -218,7 +220,7 @@ export const UsersListPage: React.FC = () => {
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={9} className={styles.empty}>
+                <td colSpan={10} className={styles.empty}>
                   No customers found.
                 </td>
               </tr>
@@ -244,6 +246,7 @@ export const UsersListPage: React.FC = () => {
                   <td className={styles.email}>{u.email || "—"}</td>
                   <td>{u.city || "—"}</td>
                   <td className={styles.orders}>{u.orders}</td>
+                  <td className={styles.credits}>₹{u.ltv?.toLocaleString("en-IN")}</td>
                   <td className={styles.credits}>
                     ₹{u.credits?.toLocaleString("en-IN")}
                   </td>

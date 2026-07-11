@@ -22,6 +22,7 @@ import {
   UilAngleLeft,
   UilGift,
   UilLock,
+  UilTrashAlt,
   UilUserCheck,
   UilUserTimes,
 } from "@iconscout/react-unicons";
@@ -29,6 +30,16 @@ import {
 // W-5: support's inline credit ceiling — above this, the credit is submitted to
 // finance for approval (must match SUPPORT_CREDIT_CAP in the backend handler).
 const SUPPORT_CREDIT_CAP = 500;
+
+// T2-35 (SP-6): fit-outcome strip order + labels (from v_fit_outcomes).
+const FIT_OUTCOMES: [string, string][] = [
+  ["perfect", "Perfect"],
+  ["ok", "OK"],
+  ["altered", "Altered"],
+  ["poor", "Poor"],
+  ["refunded", "Refunded"],
+  ["no_response", "No feedback"],
+];
 
 export const UserDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +53,10 @@ export const UserDetailPage: React.FC = () => {
   const [showCreditsModal, setShowCreditsModal] = React.useState(false);
   const [creditsAmount, setCreditsAmount] = React.useState("");
   const [creditsReason, setCreditsReason] = React.useState("");
+  // T2-35 (SP-6): DPDP erasure — super-only, typed-confirm.
+  const [showErase, setShowErase] = React.useState(false);
+  const [eraseText, setEraseText] = React.useState("");
+  const [erasing, setErasing] = React.useState(false);
   const [notes, setNotes] = React.useState<CustomerNote[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [fitProfiles, setFitProfiles] = React.useState<AdminFitProfile[]>([]);
@@ -282,6 +297,25 @@ export const UserDetailPage: React.FC = () => {
     }
   };
 
+  // T2-35 (SP-6): DPDP erasure — irreversible PII redaction + measurement purge. Super-only
+  // (backend enforces system:manage); typed "ERASE" gate prevents an accidental destructive click.
+  const handleErase = async () => {
+    if (!user || eraseText !== "ERASE") return;
+    setErasing(true);
+    try {
+      await usersApi.eraseData(user.id);
+      showToast("success", "Customer data erased", "PII redacted and measurements purged (financial records retained).");
+      setShowErase(false);
+      setEraseText("");
+      const fresh = await usersApi.get(user.id);
+      setUser(fresh);
+    } catch (e) {
+      showToast("error", "Erase failed", e instanceof Error ? e.message : undefined);
+    } finally {
+      setErasing(false);
+    }
+  };
+
   const handleReactivate = async () => {
     if (!user) return;
     try {
@@ -430,6 +464,34 @@ export const UserDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {/* T2-35 (SP-6): customer value at a glance — realized LTV + fit-outcome strip. */}
+      <div className={styles.card}>
+        <h3 className={styles.sectionTitle}>Customer value</h3>
+        <div className={styles.valueRow}>
+          <div>
+            <div className={styles.metaLabel}>Lifetime value</div>
+            <div className={styles.ltvValue}>₹{(user.ltv ?? 0).toLocaleString("en-IN")}</div>
+          </div>
+          <div>
+            <div className={styles.metaLabel}>Orders</div>
+            <div className={styles.metaValue}>{user.orders}</div>
+          </div>
+        </div>
+        {user.fit_outcomes && Object.keys(user.fit_outcomes).length > 0 ? (
+          <div className={styles.fitStrip}>
+            {FIT_OUTCOMES.map(([key, label]) =>
+              (user.fit_outcomes?.[key] ?? 0) > 0 ? (
+                <span key={key} className={`${styles.fitChip} ${styles[`fit_${key}`] ?? ""}`}>
+                  {label}: {user.fit_outcomes?.[key]}
+                </span>
+              ) : null,
+            )}
+          </div>
+        ) : (
+          <p className={styles.fitEmpty}>No delivered-order fit outcomes yet.</p>
+        )}
+      </div>
+
       <Can cap="customers:write">
         <div className={styles.card}>
           <h3 className={styles.sectionTitle}>Account Actions</h3>
@@ -486,6 +548,23 @@ export const UserDetailPage: React.FC = () => {
         >
           View All Tickets →
         </button>
+      </div>
+
+      {/* T2-35 (SP-6): DPDP erasure SOP — the P11 data-deletion path finally has a UI pointer.
+          Note for everyone; the irreversible action itself is super-only (system:manage). */}
+      <div className={styles.card}>
+        <h3 className={styles.sectionTitle}>Data &amp; privacy (DPDP)</h3>
+        <p className={styles.dpdpNote}>
+          Erasure is <strong>irreversible</strong>: it redacts contact PII and purges saved
+          measurements, retaining only financial records required by law. A customer's
+          erasure request is a <strong>super-admin action</strong> — support escalates it,
+          then confirms the identity before it's run.
+        </p>
+        <Can cap="system:manage">
+          <button className={styles.eraseBtn} onClick={() => setShowErase(true)}>
+            <UilTrashAlt size={14} /> Erase customer data
+          </button>
+        </Can>
       </div>
     </>
   );
@@ -884,6 +963,52 @@ export const UserDetailPage: React.FC = () => {
                 onClick={handleDeactivate}
               >
                 {saving ? "Deactivating…" : "Confirm Deactivation"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* T2-35 (SP-6): DPDP erase — typed-confirm on an irreversible destructive action. */}
+      {showErase && (
+        <div className={styles.modalOverlay} onClick={() => setShowErase(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalIcon}>
+              <UilTrashAlt size={22} />
+            </div>
+            <h3 className={styles.modalTitle}>Erase {user.name}'s data?</h3>
+            <p className={styles.modalWarning}>
+              This <strong>cannot be undone</strong>. Contact PII is redacted and saved
+              measurements are purged; financial records are retained for compliance. Only run
+              this against a verified DPDP erasure request.
+            </p>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>
+                Type <strong>ERASE</strong> to confirm
+              </label>
+              <input
+                className={styles.fieldInput}
+                value={eraseText}
+                onChange={(e) => setEraseText(e.target.value)}
+                placeholder="ERASE"
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => {
+                  setShowErase(false);
+                  setEraseText("");
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.confirmDeactivateBtn}
+                disabled={eraseText !== "ERASE" || erasing}
+                onClick={handleErase}
+              >
+                {erasing ? "Erasing…" : "Erase data"}
               </button>
             </div>
           </div>
