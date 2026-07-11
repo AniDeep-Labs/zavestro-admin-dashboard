@@ -977,11 +977,6 @@
   flex-shrink: 0;
 }
 
-.modeBarLuxe {
-  flex: 1;
-  background: var(--color-secondary);
-}
-
 .modeDivider { border-top: 1px solid var(--color-border-light); }
 
 .modeAOV {
@@ -1313,17 +1308,7 @@
   transition: opacity var(--transition-fast);
 }
 
-.chartBarLuxe {
-  flex: 1;
-  background: var(--color-secondary);
-  opacity: 0.75;
-  border-radius: 3px 3px 0 0;
-  min-height: 4px;
-  transition: opacity var(--transition-fast);
-}
-
-.chartBarGroup:hover .chartBarSimplified,
-.chartBarGroup:hover .chartBarLuxe { opacity: 1; }
+.chartBarGroup:hover .chartBarSimplified { opacity: 1; }
 
 .chartXAxis {
   display: flex;
@@ -1355,7 +1340,6 @@
 }
 
 .legendSimplified { color: var(--color-primary); }
-.legendLuxe       { color: var(--color-secondary-dark); }
 
 /* ── Recent Activity ── */
 .activityList {
