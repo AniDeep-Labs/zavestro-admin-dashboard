@@ -112,9 +112,12 @@ export interface AdminUser {
   email: string;
   city: string;
   orders: number;
+  ltv: number; // T2-35 (SP-6): realized lifetime value (₹, excl. cancelled/refunded)
   credits: number;
   joined: string;
   status: 'Active' | 'Deactivated';
+  // T2-35 (SP-6): fit-outcome counts for delivered orders (detail endpoint only).
+  fit_outcomes?: Record<string, number>;
 }
 
 export interface Hub {

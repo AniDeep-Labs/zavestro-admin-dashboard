@@ -478,6 +478,8 @@ function mapUser(u: Record<string, unknown>): AdminUser {
     email: (u.email ?? "") as string,
     city: (u.city ?? "") as string,
     orders: (u.order_count ?? u.orders ?? 0) as number,
+    ltv: Math.round(parseFloat(String(u.ltv ?? 0))), // T2-35 (SP-6)
+    fit_outcomes: (u.fit_outcomes ?? undefined) as Record<string, number> | undefined,
     credits: Math.round(parseFloat(String(u.credits ?? u.wallet_balance ?? 0))),
     joined: u.created_at
       ? new Date(u.created_at as string).toLocaleDateString("en-IN")
@@ -526,6 +528,11 @@ export const usersApi = {
     });
     return mapUser(u);
   },
+
+  // T2-35 (SP-6): DPDP erasure — irreversible PII redaction + measurement purge. Super-only
+  // (system:manage); the backend enforces the cap. Returns a summary of what was purged.
+  eraseData: (id: string): Promise<Record<string, unknown>> =>
+    req<Record<string, unknown>>(`/api/admin/users/${id}/data`, { method: "DELETE" }),
 
   create: async (data: {
     phone: string;
