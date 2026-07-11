@@ -1828,6 +1828,8 @@ export interface SampleJob {
   fabric_image_keys: string[] | null;
   tailor_name: string | null;
   hub_name: string | null;
+  // T2-32 (D-1): give-back — # hubs the CM has this design+fabric live at (0 = not listed yet).
+  listed_hub_count: number;
 }
 
 export interface SampleComment {
@@ -1847,6 +1849,7 @@ export interface SampleJobDetail {
   tailor_name: string | null;
   created_at: string;
   updated_at: string;
+  listed_hub_count: number; // T2-32 (D-1): give-back
   comments: SampleComment[];
   design: {
     id: string;

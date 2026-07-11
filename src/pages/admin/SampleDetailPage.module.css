@@ -80,6 +80,23 @@
   justify-content: space-between;
   gap: var(--spacing-md);
 }
+/* T2-32 (D-1): status + design→CM give-back chip, stacked at the header's right. */
+.headerStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.listedChip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  background: rgba(31, 107, 79, 0.1);
+  color: #1f6b4f;
+  white-space: nowrap;
+}
 .title {
   margin: 0;
   font-size: var(--font-size-2xl);

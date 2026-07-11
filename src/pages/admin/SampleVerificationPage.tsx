@@ -55,6 +55,12 @@ export const SampleVerificationPage: React.FC<{ embedded?: boolean }> = ({ embed
           <div className={s.sampleText}>
             <span className={s.designName}>{j.design_name}</span>
             <span className={s.fabric}>{j.fabric_name}</span>
+            {/* T2-32 (D-1): the give-back — this design+fabric went live at N hubs. */}
+            {j.listed_hub_count > 0 && (
+              <span className={s.listedChip}>
+                Listed ✓{j.listed_hub_count > 1 ? ` · ${j.listed_hub_count} hubs` : ''}
+              </span>
+            )}
           </div>
         </div>
       </td>
