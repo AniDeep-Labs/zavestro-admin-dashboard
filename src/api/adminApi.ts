@@ -3671,6 +3671,9 @@ export interface PromoCode {
   valid_until?: string;
   is_active: boolean;
   created_at: string;
+  // T2-34 (F-5): actual redemptions + total ₹ discount spent (net of cancelled/refunded).
+  usage_count?: number;
+  total_spend?: number;
 }
 
 export interface PromosResponse {

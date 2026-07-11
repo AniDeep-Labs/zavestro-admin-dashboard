@@ -193,7 +193,7 @@ export const PromoCodesPage: React.FC = () => {
         <div className={styles.card}>
           <table className={styles.table}>
             <thead>
-              <tr><th>Code</th><th>Type</th><th>Value</th><th>Min Order</th><th>Max Uses</th><th>Expiry</th><th>Status</th><th>Actions</th></tr>
+              <tr><th>Code</th><th>Type</th><th>Value</th><th>Min Order</th><th>Uses</th><th>Spend</th><th>Expiry</th><th>Status</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {promos.map(p => {
@@ -206,7 +206,18 @@ export const PromoCodesPage: React.FC = () => {
                     <td>{p.discount_type === 'percent' ? 'Percentage' : 'Flat (₹)'}</td>
                     <td>{p.discount_type === 'percent' ? `${p.discount_value}%` : `₹${p.discount_value}`}</td>
                     <td>{p.min_order_amount > 0 ? `₹${p.min_order_amount}` : '—'}</td>
-                    <td>{p.max_uses ?? '∞'}</td>
+                    {/* T2-34 (F-5): actual redemptions / max, then total ₹ spent (avg/order). */}
+                    <td>{(p.usage_count ?? 0).toLocaleString('en-IN')} / {p.max_uses ?? '∞'}</td>
+                    <td>
+                      {(p.usage_count ?? 0) > 0 ? (
+                        <>
+                          ₹{Math.round(p.total_spend ?? 0).toLocaleString('en-IN')}
+                          <div className={styles.avgSpend}>
+                            avg ₹{Math.round((p.total_spend ?? 0) / (p.usage_count ?? 1)).toLocaleString('en-IN')}
+                          </div>
+                        </>
+                      ) : '—'}
+                    </td>
                     <td>
                       {p.valid_until ? (
                         <span style={{ color: expired ? 'var(--color-error, #D75B5B)' : 'inherit' }}>
