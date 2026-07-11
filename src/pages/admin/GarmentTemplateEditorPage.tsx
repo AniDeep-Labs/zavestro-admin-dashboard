@@ -220,6 +220,11 @@ export const GarmentTemplateEditorPage: React.FC = () => {
     if (f && !fields.includes(f)) setFields([...fields, f]);
     setFieldDraft('');
   };
+  // T2-39 (§3.3): removing a field must clean EVERY structure that references it, or orphaned
+  // deltas / QC-bands / length rows survive and mis-drive the engine. Audited the full state:
+  // fields, capture set, pains, chart cells, shape deltas (ShapeRow.field), tolerance QC-bands
+  // (keyed by field), and length bands (LengthBand.length_field). Preset params (ease params
+  // like chest_ease) and seam allowances are NOT field-keyed, so they're left alone.
   const removeField = (f: string) => {
     setFields(fields.filter((x) => x !== f));
     setCaptureSet(captureSet.filter((x) => x !== f));
@@ -229,6 +234,13 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       delete m[f];
       return { ...r, measurements: m };
     }));
+    setShapes(shapes.filter((s) => s.field !== f)); // orphan body-shape deltas
+    setTolerances((prev) => {
+      const t = { ...prev };
+      delete t[f]; // orphan QC band
+      return t;
+    });
+    setLengthBands(lengthBands.filter((b) => b.length_field !== f)); // orphan length rows
   };
   const addPreset = () => {
     const p = presetDraft.trim().toLowerCase();
