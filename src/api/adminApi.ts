@@ -2891,11 +2891,34 @@ export interface PincodeDemand {
   first_signup_at: string;
 }
 
+// T2-37 (SP-7): a single waiting customer (the notify-cohort export row).
+export interface PincodeCohortEntry {
+  pincode: string;
+  phone: string;
+  name: string;
+  area_name: string | null;
+  city: string | null;
+  joined_at: string;
+  notified_at: string | null;
+}
+
 export const pincodeWaitlistApi = {
   list: async (): Promise<PincodeDemand[]> =>
     req<{ waitlist: PincodeDemand[] }>(
       `/api/admin/system/pincode-waitlist`,
     ).then((r) => r.waitlist),
+
+  // T2-37 (SP-7): per-customer cohort for outreach (audited PII export). Optional single
+  // pincode (per-row) or unserved-only.
+  cohort: async (opts: { pincode?: string; unserved?: boolean } = {}): Promise<PincodeCohortEntry[]> => {
+    const qs = new URLSearchParams();
+    if (opts.pincode) qs.set("pincode", opts.pincode);
+    if (opts.unserved) qs.set("unserved", "1");
+    const q = qs.toString();
+    return req<{ cohort: PincodeCohortEntry[] }>(
+      `/api/admin/system/pincode-waitlist/cohort${q ? `?${q}` : ""}`,
+    ).then((r) => r.cohort);
+  },
 };
 
 // ─── Design analytics (fit accuracy + design performance) ─────────────────────
