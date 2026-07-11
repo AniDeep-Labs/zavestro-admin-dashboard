@@ -115,7 +115,8 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
       toast('success', 'Distribution created', `${meters}m in transit to the hub.`);
       setPush(null);
       loadFabric();
-      if (id) fabricsApi.movements(id).then(setMovements).catch(() => {});
+      // id is guaranteed non-null by the early return above; refresh the ledger.
+      fabricsApi.movements(id).then(setMovements).catch(() => {});
     } catch (e) {
       toast('error', 'Distribute failed', e instanceof Error ? e.message : undefined);
     } finally {
