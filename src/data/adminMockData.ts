@@ -182,6 +182,7 @@ export interface SupportTicket {
   // T2-30 (SP-3) inbox worklist fields — present only from supportApi.inbox().
   waitingHours?: number; // hours since the last customer message (drives the SLA chip)
   lastSender?: "customer" | "staff" | null;
+  snoozeUntil?: string | null; // T3-3 (W-S3): follow-up / snooze time
 }
 
 export interface AuditEntry {

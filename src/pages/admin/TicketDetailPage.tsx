@@ -18,7 +18,7 @@ import { catalogApi } from "../../api/catalogApi";
 import type { AdminUser } from "../../api/catalogApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
-import { StatusBadge, PageHeader, DetailShell } from "../../components";
+import { StatusBadge, PageHeader, DetailShell, PolicyCard } from "../../components";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
 import styles from "./TicketDetailPage.module.css";
 import {
@@ -30,15 +30,29 @@ import {
   UilMessage,
   UilNotes,
   UilSearch,
+  UilTimes,
+  UilClock,
   UilUserCheck,
 } from "@iconscout/react-unicons";
 
-const TEMPLATES = [
+// T3-3 (W-S4): canned responses are now the agent's OWN, editable + persisted (localStorage),
+// seeded with these defaults. No more four hardcoded strings you can't change.
+const DEFAULT_TEMPLATES = [
   "Thank you for reaching out to Zavestro support.",
   "We've reviewed your order and are looking into this.",
   "Your refund has been processed and will reflect in 3–5 days.",
   "I'll escalate this to our operations team right away.",
 ];
+const TEMPLATES_KEY = "zavestro_support_templates";
+const loadTemplates = (): string[] => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "null");
+    return Array.isArray(saved) ? saved : DEFAULT_TEMPLATES;
+  } catch {
+    return DEFAULT_TEMPLATES;
+  }
+};
+const saveTemplates = (t: string[]) => localStorage.setItem(TEMPLATES_KEY, JSON.stringify(t));
 
 export const TicketDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +62,20 @@ export const TicketDetailPage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [reply, setReply] = React.useState("");
   const [showTemplates, setShowTemplates] = React.useState(false);
+  // T3-3 (W-S4): the agent's own editable canned responses.
+  const [templates, setTemplates] = React.useState<string[]>(loadTemplates);
+  const addTemplate = () => {
+    const v = reply.trim();
+    if (!v || templates.includes(v)) return;
+    const next = [...templates, v];
+    setTemplates(next);
+    saveTemplates(next);
+  };
+  const removeTemplate = (i: number) => {
+    const next = templates.filter((_, j) => j !== i);
+    setTemplates(next);
+    saveTemplates(next);
+  };
   const [resolveOnReply, setResolveOnReply] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"reply" | "notes">("reply");
   const [internalNote, setInternalNote] = React.useState("");
@@ -404,6 +432,28 @@ export const TicketDetailPage: React.FC = () => {
     }
   };
 
+  // T3-3 (W-S3): snooze the ticket to a follow-up time (or clear it). Snoozed
+  // tickets leave "Needs reply" until the time passes.
+  const [savingSnooze, setSavingSnooze] = React.useState(false);
+  const handleSnooze = async (value: string | null) => {
+    if (!ticket) return;
+    setSavingSnooze(true);
+    try {
+      // datetime-local gives a local wall-clock string; send it as an ISO instant.
+      const iso = value ? new Date(value).toISOString() : null;
+      const updated = await supportApi.setSnooze(ticket.id, iso);
+      setTicket(updated);
+      showToast(
+        "success",
+        iso ? "Follow-up set" : "Follow-up cleared",
+      );
+    } catch (e) {
+      showToast("error", "Failed", e instanceof Error ? e.message : undefined);
+    } finally {
+      setSavingSnooze(false);
+    }
+  };
+
   if (loading)
     return (
       <div className={styles.page}>
@@ -530,6 +580,59 @@ export const TicketDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* T3-3 (W-S3): snooze / follow-up. Waiting on the customer or a callback?
+          park the ticket to a time so it leaves "Needs reply" until then. */}
+      <div className={styles.card}>
+        <h3 className={styles.sectionTitle}>
+          <UilClock
+            size={15}
+            style={{ marginRight: 6, verticalAlign: "-2px" }}
+          />
+          Follow-up
+        </h3>
+        {ticket.snoozeUntil ? (
+          <div className={styles.metaValue} style={{ marginBottom: 8 }}>
+            {new Date(ticket.snoozeUntil).getTime() > Date.now()
+              ? "Snoozed until "
+              : "Was due "}
+            {new Date(ticket.snoozeUntil).toLocaleString("en-IN", {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          </div>
+        ) : (
+          <div className={styles.metaLabel} style={{ marginBottom: 8 }}>
+            No follow-up set — stays in the active queue.
+          </div>
+        )}
+        <input
+          type="datetime-local"
+          className={styles.fieldSelect}
+          disabled={savingSnooze}
+          value={
+            ticket.snoozeUntil
+              ? // to a local datetime-local value (drops seconds/zone)
+                new Date(
+                  new Date(ticket.snoozeUntil).getTime() -
+                    new Date().getTimezoneOffset() * 60000,
+                )
+                  .toISOString()
+                  .slice(0, 16)
+              : ""
+          }
+          onChange={(e) => handleSnooze(e.target.value || null)}
+        />
+        {ticket.snoozeUntil && (
+          <button
+            className={styles.linkBtn}
+            disabled={savingSnooze}
+            onClick={() => handleSnooze(null)}
+          >
+            Clear follow-up
+          </button>
+        )}
       </div>
 
       <div className={styles.card}>
@@ -763,6 +866,9 @@ export const TicketDetailPage: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* T3-3 (W-S5): the policy written where the agent works. */}
+      <PolicyCard />
     </>
   );
 
@@ -847,18 +953,34 @@ export const TicketDetailPage: React.FC = () => {
                   </button>
                   {showTemplates && (
                     <div className={styles.templateDropdown}>
-                      {TEMPLATES.map((t, i) => (
-                        <button
-                          key={i}
-                          className={styles.templateItem}
-                          onClick={() => {
-                            setReply(t);
-                            setShowTemplates(false);
-                          }}
-                        >
-                          {t}
-                        </button>
+                      {templates.map((t, i) => (
+                        <div key={i} className={styles.templateRow}>
+                          <button
+                            className={styles.templateItem}
+                            onClick={() => {
+                              setReply(t);
+                              setShowTemplates(false);
+                            }}
+                          >
+                            {t}
+                          </button>
+                          <button
+                            className={styles.templateDelete}
+                            title="Remove this canned response"
+                            onClick={(e) => { e.stopPropagation(); removeTemplate(i); }}
+                          >
+                            <UilTimes size={13} />
+                          </button>
+                        </div>
                       ))}
+                      {/* T3-3 (W-S4): save the current reply as a reusable canned response. */}
+                      <button
+                        className={styles.templateAdd}
+                        disabled={!reply.trim()}
+                        onClick={() => addTemplate()}
+                      >
+                        + Save current reply as a template
+                      </button>
                     </div>
                   )}
                 </div>

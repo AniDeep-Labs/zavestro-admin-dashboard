@@ -348,3 +348,9 @@
   font-family: inherit;
   font-size: var(--font-size-sm);
 }
+
+/* SP-9: quick-look peek body — a compact definition list of the row's essentials. */
+.peekList { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.peekRow { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: baseline; }
+.peekRow dt { font-size: 12px; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
+.peekRow dd { margin: 0; font-size: var(--font-size-sm); color: var(--color-text-primary); }

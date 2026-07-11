@@ -143,3 +143,8 @@
 .slaPlain { color: var(--color-text-secondary); }
 .slaAmber { background: rgba(228, 149, 42,0.14); color: #9E7340; }
 .slaRed { background: rgba(215, 91, 91,0.1); color: var(--color-error); }
+
+/* T3-3 (W-S3): follow-up state on an inbox row (own line so it isn't clipped). */
+.snoozeChip { display: inline-block; width: fit-content; margin-top: 4px; padding: 1px 8px; border-radius: var(--radius-full); font-size: 11px; font-weight: var(--font-weight-semibold); white-space: nowrap; }
+.snoozeParked { background: var(--color-bg-secondary); color: var(--color-text-secondary); }
+.snoozeDue { background: rgba(228, 149, 42,0.14); color: #9E7340; }

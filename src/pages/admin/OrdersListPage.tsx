@@ -7,6 +7,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import { StatusBadge, statusLabel } from '../../components/StatusBadge';
 import { EmptyState } from '../../components/EmptyState';
 import { CopyId, AgeCell, MoneyCell } from '../../components/DataCells';
+import { PeekDrawer } from '../../components/PeekDrawer';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './OrdersListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilImport, UilSearch, UilTimes } from "@iconscout/react-unicons";
@@ -81,6 +82,8 @@ export const OrdersListPage: React.FC = () => {
   const [assignable, setAssignable] = React.useState<AssignableAdmin[]>([]);
   const [assignOpenId, setAssignOpenId] = React.useState<string | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
+  // SP-9: quick-look peek so an operator can triage a row without leaving the queue.
+  const [peek, setPeek] = React.useState<AdminOrder | null>(null);
   const debouncedSearch = useDebounce(search, 350);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
@@ -284,7 +287,7 @@ export const OrdersListPage: React.FC = () => {
               </td></tr>
             ) : orders.map(o => (
               <tr key={o.id} className={`${styles.row} ${o.overdue ? styles.rowOverdue : ''}`}
-                onClick={() => navigate(`/admin/orders/${o.id}`)}>
+                onClick={() => setPeek(o)}>
                 <td>{o.reference_id ? <CopyId value={o.reference_id} /> : '—'}</td>
                 <td className={styles.orderId}>{o.id}</td>
                 <td>
@@ -335,6 +338,63 @@ export const OrdersListPage: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* SP-9: quick-look — triage a row (stage, age, hub, ₹, contact) without
+          leaving the queue; escalate to the full order only when needed. */}
+      <PeekDrawer
+        open={peek !== null}
+        onClose={() => setPeek(null)}
+        title={peek ? peek.customer : ''}
+        subtitle={peek ? (peek.reference_id ?? peek.id) : undefined}
+        status={peek ? <StatusBadge status={peek.stage} /> : undefined}
+        fullLink={
+          peek
+            ? {
+                label: 'Open full order',
+                onClick: () => navigate(`/admin/orders/${peek.id}`),
+              }
+            : undefined
+        }
+      >
+        {peek && (
+          <dl className={styles.peekList}>
+            <div className={styles.peekRow}>
+              <dt>Contact</dt>
+              <dd>{peek.phone || '—'}</dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Products</dt>
+              <dd>{peek.products?.length ? peek.products.join(', ') : '—'}</dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Age in stage</dt>
+              <dd><AgeCell since={peek.updated_at} /></dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Hub</dt>
+              <dd>{peek.hub || '—'}</dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Total</dt>
+              <dd><MoneyCell amount={peek.total} /></dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Payment</dt>
+              <dd>{peek.payment_method ? peek.payment_method.toUpperCase() : '—'}</dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Placed</dt>
+              <dd>{peek.created}</dd>
+            </div>
+            {peek.exception_owner && (
+              <div className={styles.peekRow}>
+                <dt>Exception owner</dt>
+                <dd>{peek.exception_owner}</dd>
+              </div>
+            )}
+          </dl>
+        )}
+      </PeekDrawer>
 
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} order${total !== 1 ? 's' : ''} total`}</span>

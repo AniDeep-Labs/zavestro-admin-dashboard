@@ -106,6 +106,13 @@
 .templateDropdown { position: absolute; top: 34px; left: 0; background: var(--color-bg-primary); border: 1px solid var(--color-border-light); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: var(--z-dropdown); width: 320px; }
 .templateItem { display: block; width: 100%; text-align: left; padding: 10px 14px; background: none; border: none; cursor: pointer; font-family: var(--font-family); font-size: 13px; color: var(--color-text-secondary); transition: background var(--transition-fast); }
 .templateItem:hover { background: var(--color-bg-secondary); }
+/* T3-3 (W-S4): editable canned responses. */
+.templateRow { display: flex; align-items: stretch; }
+.templateRow .templateItem { flex: 1; }
+.templateDelete { border: none; background: none; padding: 0 10px; color: var(--color-text-tertiary); cursor: pointer; display: flex; align-items: center; }
+.templateDelete:hover { color: var(--color-error); }
+.templateAdd { display: block; width: 100%; text-align: left; padding: 9px 14px; border: none; border-top: 1px solid var(--color-border-light); background: none; color: var(--color-primary); font-family: var(--font-family); font-size: 12px; font-weight: var(--font-weight-medium); cursor: pointer; }
+.templateAdd:disabled { color: var(--color-text-tertiary); cursor: default; }
 .replyTextarea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; resize: vertical; box-sizing: border-box; }
 .replyTextarea:focus { border-color: var(--color-primary); }
 .replyFooter { display: flex; align-items: center; justify-content: space-between; }
