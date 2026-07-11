@@ -210,7 +210,15 @@ export const SampleDetailPage: React.FC = () => {
             View design <UilAngleRightB size={14} />
           </Link>
         </div>
-        <StatusBadge status={sample.status} />
+        <div className={styles.headerStatus}>
+          <StatusBadge status={sample.status} />
+          {/* T2-32 (D-1): the give-back — this design+fabric is now live at N hubs. */}
+          {sample.listed_hub_count > 0 && (
+            <span className={styles.listedChip}>
+              Listed ✓{sample.listed_hub_count > 1 ? ` · ${sample.listed_hub_count} hubs` : ''}
+            </span>
+          )}
+        </div>
       </div>
 
       {sample.status === 'rejected' && sample.rejection_reason && (
