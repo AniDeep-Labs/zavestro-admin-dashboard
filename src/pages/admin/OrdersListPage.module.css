@@ -223,6 +223,36 @@
 }
 
 /* T2-17 exception ownership — stuck-inbox sub-filter + owner column */
+/* T2-33 (F-4): drill link on Finance P&L / settlement hub + day cells. */
+.drillLink { color: var(--color-primary); font-weight: var(--font-weight-medium); text-decoration: none; }
+.drillLink:hover { text-decoration: underline; }
+/* T2-33 (F-4): Finance drill-down filter banner. */
+.drillBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 9px 14px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+.drillClear {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 4px 10px;
+  font-family: var(--font-family);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
 .subFilter {
   display: flex;
   align-items: center;

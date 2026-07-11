@@ -198,9 +198,40 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
   const settlementEmpty = !settlement || (settlement.hubs.length === 0 && (settlement.by_day?.length ?? 0) === 0);
   const pnlEmpty = !pnl || pnl.hubs.length === 0;
 
+  // T2-33 (F-4): a P&L / settlement row drills to its records — the orders behind it, by
+  // hub and/or day. A hub row carries the page's date window; a day row pins from=to=day
+  // and carries the page's hub filter. The whole scope lands as URL filters on the orders list.
+  const drillHref = (o: { hub_id?: string | null; hub_name?: string | null; day?: string }) => {
+    const qs = new URLSearchParams();
+    const hid = o.hub_id ?? (hubId || undefined);
+    if (hid) qs.set("hub_id", hid);
+    if (o.hub_name) qs.set("hub_name", o.hub_name);
+    if (o.day) {
+      qs.set("from", o.day);
+      qs.set("to", o.day);
+    } else {
+      if (startDate) qs.set("from", startDate);
+      if (endDate) qs.set("to", endDate);
+    }
+    return `/admin/orders?${qs.toString()}`;
+  };
+
+  // Hub cell: drills to the hub's orders (in the date window). "Unassigned" (no hub_id) is
+  // not drillable — there's no hub to scope to.
+  const hubCell = (hid: string | null, name: string | null) =>
+    hid ? (
+      <Link className={styles.drillLink} to={drillHref({ hub_id: hid, hub_name: name })}>
+        {name ?? "—"}
+      </Link>
+    ) : (
+      (name ?? "Unassigned")
+    );
+
   const dayRow = (d: SettlementDay) => (
     <tr key={d.day} className={styles.row}>
-      <td className={styles.date}>{fmtDay(d.day)}</td>
+      <td className={styles.date}>
+        <Link className={styles.drillLink} to={drillHref({ day: d.day })}>{fmtDay(d.day)}</Link>
+      </td>
       <td>{d.orders}</td>
       <td className={styles.total}>{fmtINR(d.gross_online)}</td>
       <td>{fmtINR(d.refunded)}</td>
@@ -367,7 +398,7 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                   <tbody>
                     {settlement!.hubs.map((h, i) => (
                       <tr key={h.hub_id ?? i} className={styles.row}>
-                        <td>{h.hub_name ?? "Unassigned"}</td>
+                        <td>{hubCell(h.hub_id, h.hub_name)}</td>
                         <td>{h.orders}</td>
                         <td className={styles.total}>{fmtINR(h.gross_online)}</td>
                         <td>{fmtINR(h.refunded)}</td>
@@ -403,7 +434,7 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
             <tbody>
               {pnl!.hubs.map((h, i) => (
                 <tr key={h.hub_id ?? i} className={styles.row}>
-                  <td>{h.hub_name ?? "Unassigned"}</td>
+                  <td>{hubCell(h.hub_id, h.hub_name)}</td>
                   <td>{h.orders}</td>
                   <td>{fmtINR(h.revenue)}</td>
                   <td>{fmtINR(h.fabric_cost)}</td>
