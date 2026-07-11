@@ -55,6 +55,12 @@ export const OrdersListPage: React.FC = () => {
   // T2-17: the stuck view is an exception inbox — default to what needs an owner (Unclaimed).
   const isStuck = view === 'stuck';
   const ownerFilter = (isStuck ? (sp.get('owner') ?? 'unowned') : 'all') as 'unowned' | 'mine' | 'all';
+  // T2-33 (F-4): the Finance P&L / settlement drill-down lands here with a hub + date window.
+  const hubIdFilter = sp.get('hub_id') ?? '';
+  const fromFilter = sp.get('from') ?? '';
+  const toFilter = sp.get('to') ?? '';
+  const hubLabel = sp.get('hub_name') ?? ''; // display only, carried by the drill link
+  const drillActive = !!(hubIdFilter || fromFilter || toFilter);
 
   const setParam = (key: string, value: string) => {
     setSp(prev => {
@@ -88,10 +94,13 @@ export const OrdersListPage: React.FC = () => {
       stage: stageFilter || undefined,
       ...viewParams,
       owner: isStuck ? ownerFilter : undefined,
+      hub_id: hubIdFilter || undefined,
+      from: fromFilter || undefined,
+      to: toFilter || undefined,
       page: p,
       limit,
     };
-  }, [debouncedSearch, stageFilter, view, isStuck, ownerFilter]);
+  }, [debouncedSearch, stageFilter, view, isStuck, ownerFilter, hubIdFilter, fromFilter, toFilter]);
 
   const reload = React.useCallback(() => {
     setLoading(true); setError('');
@@ -189,6 +198,30 @@ export const OrdersListPage: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {/* T2-33 (F-4): drill-down filter banner — shown when arriving from a Finance P&L /
+          settlement row. Makes the scope explicit and one-click clearable. */}
+      {drillActive && (
+        <div className={styles.drillBanner}>
+          <span>
+            Filtered from Finance
+            {hubLabel ? ` · ${hubLabel}` : hubIdFilter ? ' · one hub' : ''}
+            {fromFilter || toFilter ? ` · ${fromFilter || '…'} → ${toFilter || '…'}` : ''}
+          </span>
+          <button
+            className={styles.drillClear}
+            onClick={() =>
+              setSp(prev => {
+                const next = new URLSearchParams(prev);
+                ['hub_id', 'from', 'to', 'hub_name', 'page'].forEach(k => next.delete(k));
+                return next;
+              }, { replace: true })
+            }
+          >
+            <UilTimes size={14} /> Clear
+          </button>
+        </div>
+      )}
 
       {/* T2-17: ownership sub-filter for the stuck exception inbox */}
       {isStuck && (

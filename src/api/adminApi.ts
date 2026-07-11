@@ -181,6 +181,10 @@ export interface OrdersParams {
   stuck?: boolean;
   /** T2-17: filter the stuck exception inbox by ownership */
   owner?: "unowned" | "mine" | "all";
+  /** T2-33 (F-4): hub + created-at window — the Finance P&L / settlement drill-down. */
+  hub_id?: string;
+  from?: string; // YYYY-MM-DD, inclusive
+  to?: string; // YYYY-MM-DD, inclusive of the whole day
   page?: number;
   limit?: number;
 }
@@ -240,6 +244,9 @@ export const ordersApi = {
     if (params.paymentMethod) qs.set("payment_method", params.paymentMethod);
     if (params.stuck) qs.set("stuck", "1");
     if (params.owner && params.owner !== "all") qs.set("owner", params.owner);
+    if (params.hub_id) qs.set("hub_id", params.hub_id);
+    if (params.from) qs.set("from", params.from);
+    if (params.to) qs.set("to", params.to);
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
     return req<OrdersResponse>(`/api/admin/orders?${qs}`);
