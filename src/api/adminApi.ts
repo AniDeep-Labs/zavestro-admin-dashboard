@@ -2977,7 +2977,26 @@ export interface Fabric {
   total_reserved?: number;
   low_somewhere?: boolean;
   stock_value?: number | null;
-  stock?: { hub_id: string; hub_name: string; available_meters: number; reserved_meters: number }[];
+  stock?: { hub_id: string; hub_name: string; available_meters: number; reserved_meters: number; reorder_meters?: number | null }[];
+}
+// T2-28 (PR-1) fabric cockpit — one movement-ledger row (distinct from the request-event
+// FabricMovement + the shared FabricStockMovement; this one carries id + hub_name).
+export interface FabricLedgerEntry {
+  id: string;
+  kind: string;
+  hub_name: string;
+  delta_meters: number;
+  balance_after: number;
+  note: string | null;
+  lot_code: string | null;
+  created_at: string;
+}
+export interface FabricDesignUse {
+  id: string;
+  name: string;
+  garment_type: string;
+  status: string;
+  live_listings: number;
 }
 export interface FabricInput {
   name: string;
@@ -3049,6 +3068,11 @@ export const fabricsApi = {
   },
   get: async (id: string): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics/${id}`),
+  // T2-28 (PR-1): fabric cockpit — movement ledger + designs-using-this-fabric.
+  movements: async (id: string, limit = 50): Promise<FabricLedgerEntry[]> =>
+    req<FabricLedgerEntry[]>(`/api/admin/fabrics/${id}/movements?limit=${limit}`),
+  designsUsing: async (id: string): Promise<FabricDesignUse[]> =>
+    req<FabricDesignUse[]>(`/api/admin/fabrics/${id}/designs`),
   create: async (input: FabricInput): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics`, {
       method: "POST",
