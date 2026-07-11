@@ -5,7 +5,7 @@ import type { RestockRequest, Fabric, Hub, FabricStockRow } from '../../api/admi
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { StatusBadge, PageHeader, EmptyState } from '../../components';
+import { StatusBadge, PageHeader, EmptyState, NoHubAssigned } from '../../components';
 import { AgeCell } from '../../components/DataCells';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -50,6 +50,7 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
   // CM request form (hub is locked to the signed-in CM's own hub).
   const [fabrics, setFabrics] = React.useState<Fabric[]>([]);
   const [myHubId, setMyHubId] = React.useState<string | null>(null);
+  const [hubResolved, setHubResolved] = React.useState(false); // T2-38: me() has answered
   const [fFabric, setFFabric] = React.useState('');
   const [fQty, setFQty] = React.useState('');
   const [fNote, setFNote] = React.useState('');
@@ -78,7 +79,10 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
     hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
     if (isCm) {
       fabricsApi.list({ active: true }).then(setFabrics).catch(() => {});
-      adminAuthExtApi.me().then((m) => setMyHubId(m.hubId ?? null)).catch(() => {});
+      adminAuthExtApi.me()
+        .then((m) => setMyHubId(m.hubId ?? null))
+        .catch(() => {})
+        .finally(() => setHubResolved(true));
     } else {
       fabricsApi
         .stock()
@@ -269,7 +273,10 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
         meta={!loading && <span className={rs.headCount}>{pending.length} open · {rows.length} total</span>}
       />
 
-      {isCm && (
+      {/* T2-38 (PR-5): a hub-less CM can't request restocks (they're hub-scoped) — show the
+          honest dead-end instead of a form that fails on submit. */}
+      {isCm && hubResolved && !myHubId && <NoHubAssigned action="request restocks" />}
+      {isCm && (!hubResolved || myHubId) && (
         <section className={`${styles.modalGrid} ${rs.requestCard}`}>
           <label className={styles.fieldLabel}>Fabric
             <select className={styles.filterSelect} value={fFabric} onChange={(e) => setFFabric(e.target.value)}>

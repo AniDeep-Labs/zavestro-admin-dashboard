@@ -8,7 +8,7 @@ import { Input } from '../../components/Input/Input';
 import { Modal } from '../../components/Modal/Modal';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
-import { StatusBadge, PageHeader, EmptyState } from '../../components';
+import { StatusBadge, PageHeader, EmptyState, NoHubAssigned } from '../../components';
 import { AgeCell } from '../../components/DataCells';
 import base from './OrdersListPage.module.css';
 import ds from './DistributionPage.module.css';
@@ -51,6 +51,7 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
 
   // CM form (hub locked to the signed-in CM's own hub)
   const [myHubId, setMyHubId] = React.useState<string | null>(null);
+  const [hubResolved, setHubResolved] = React.useState(false); // T2-38: me() has answered
   const [fDesign, setFDesign] = React.useState('');
   const [fFabric, setFFabric] = React.useState('');
   const [fQty, setFQty] = React.useState('');
@@ -81,7 +82,10 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
     if (!isProc) {
       designsApi.list({ status: 'published' }).then(setDesigns).catch(() => {});
       fabricsApi.list({ active: true }).then(setFabrics).catch(() => {});
-      adminAuthExtApi.me().then((m) => setMyHubId(m.hubId ?? null)).catch(() => {});
+      adminAuthExtApi.me()
+        .then((m) => setMyHubId(m.hubId ?? null))
+        .catch(() => {})
+        .finally(() => setHubResolved(true));
     }
   }, [isProc]);
 
@@ -254,8 +258,10 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
         meta={!loading && <span className={s.cardAge}>{pending.length} open · {rows.length} total</span>}
       />
 
+      {/* T2-38 (PR-5): a hub-less CM can't raise listing requests (hub-scoped) — dead-end honestly. */}
+      {!isProc && hubResolved && !myHubId && <NoHubAssigned action="raise listing requests" />}
       {/* CM: create a request */}
-      {!isProc && (
+      {!isProc && (!hubResolved || myHubId) && (
         <section className={s.form}>
           <h3 className={s.formTitle}>Request a fabric to list</h3>
           <div className={s.formGrid}>
