@@ -847,7 +847,19 @@ function mapTicket(t: Record<string, unknown>): SupportTicket {
         })
       : ((t.lastActivity as string) ?? ""),
     messages: (t.messages as SupportTicket["messages"]) ?? undefined,
+    // T2-30 inbox fields (present only from supportApi.inbox()).
+    waitingHours:
+      t.waiting_hours != null ? Number(t.waiting_hours) : undefined,
+    lastSender: (t.last_sender ?? null) as SupportTicket["lastSender"],
   };
+}
+
+// T2-30 (SP-3): the inbox worklist — three buckets + counts.
+export interface SupportInbox {
+  needs_reply: SupportTicket[];
+  waiting: SupportTicket[];
+  resolved: SupportTicket[];
+  counts: { needs_reply: number; waiting: number; resolved: number };
 }
 
 export const supportApi = {
@@ -873,6 +885,22 @@ export const supportApi = {
       totalPages: number;
     }>(`/api/admin/support?${qs}`);
     return { ...raw, tickets: raw.tickets.map(mapTicket) };
+  },
+
+  // T2-30 (SP-3): inbox worklist — needs-reply / waiting / resolved buckets.
+  inbox: async (): Promise<SupportInbox> => {
+    const raw = await req<{
+      needs_reply: Record<string, unknown>[];
+      waiting: Record<string, unknown>[];
+      resolved: Record<string, unknown>[];
+      counts: { needs_reply: number; waiting: number; resolved: number };
+    }>(`/api/admin/support/inbox`);
+    return {
+      needs_reply: raw.needs_reply.map(mapTicket),
+      waiting: raw.waiting.map(mapTicket),
+      resolved: raw.resolved.map(mapTicket),
+      counts: raw.counts,
+    };
   },
 
   get: async (id: string): Promise<SupportTicket> => {
