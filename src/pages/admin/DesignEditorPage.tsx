@@ -46,7 +46,9 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
   const [meters, setMeters] = React.useState('');
   // Size-aware fabric (INVENTORY-FABRIC-MODEL §1): size_label → metres. Edited as rows.
   const [metersBySize, setMetersBySize] = React.useState<{ size: string; meters: string }[]>([]);
-  const [matched, setMatched] = React.useState<{ fabric_id: string; meters: string }[]>([]);
+  // T2-40 (D-5): matched fabrics link by id only. The dead per-fabric metreage is dropped —
+  // production metreage comes from the design-level meters/metersBySize + width adjustment.
+  const [matched, setMatched] = React.useState<string[]>([]);
   const [captureSet, setCaptureSet] = React.useState<string[]>([]);
   const [painPoints, setPainPoints] = React.useState<string[]>([]);
   const [techRows, setTechRows] = React.useState<{ k: string; v: string }[]>([]);
@@ -108,7 +110,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
           setMetersBySize(
             Object.entries(d.meters_by_size ?? {}).map(([size, m]) => ({ size, meters: String(m) })),
           );
-          setMatched(d.fabrics.map((f) => ({ fabric_id: f.id, meters: f.meters_per_garment ?? '' })));
+          setMatched(d.fabrics.map((f) => f.id));
           setCaptureSet(Array.isArray(d.capture_set) ? (d.capture_set as string[]) : []);
           setPainPoints(d.pain_point_menu ? Object.keys(d.pain_point_menu) : []);
           setTechRows(
@@ -237,10 +239,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
       pain_point_menu: Object.keys(pain_point_menu).length ? pain_point_menu : null,
       reference_image_keys: refKeys,
       spec_sheet_key: specSheetKey || null,
-      fabrics: matched.map((m) => ({
-        fabric_id: m.fabric_id,
-        meters_per_garment: m.meters ? Number(m.meters) : null,
-      })),
+      fabrics: matched.map((fabric_id) => ({ fabric_id })),
     };
   };
 
@@ -323,7 +322,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
     }
   };
 
-  const matchedIds = new Set(matched.map((m) => m.fabric_id));
+  const matchedIds = new Set(matched);
   const q = fabricSearch.trim().toLowerCase();
   const availableFabrics = fabrics.filter(
     (f) =>
@@ -710,10 +709,10 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
             <span className={s.hint}>No fabrics matched yet — pick from below.</span>
           ) : (
             <div className={s.matchedList}>
-              {matched.map((m) => {
-                const f = fabrics.find((x) => x.id === m.fabric_id);
+              {matched.map((id) => {
+                const f = fabrics.find((x) => x.id === id);
                 return (
-                  <div key={m.fabric_id} className={s.matchedRow}>
+                  <div key={id} className={s.matchedRow}>
                     <span className={s.matchedSwatch}>
                       {f && url(f.image_keys?.[0]) ? <img src={url(f.image_keys[0])} alt={f.name} /> : <UilImage size={16} />}
                     </span>
@@ -721,7 +720,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                       <strong>{f?.name ?? 'Fabric'}</strong>
                       {f?.code ? <em> · {f.code}</em> : null}
                     </div>
-                    <button type="button" className={s.matchedRemove} onClick={() => setMatched(matched.filter((x) => x.fabric_id !== m.fabric_id))}>
+                    <button type="button" className={s.matchedRemove} onClick={() => setMatched(matched.filter((x) => x !== id))}>
                       <UilTimes size={15} />
                     </button>
                   </div>
@@ -745,7 +744,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                   key={f.id}
                   type="button"
                   className={s.pickCard}
-                  onClick={() => setMatched([...matched, { fabric_id: f.id, meters: '' }])}
+                  onClick={() => setMatched([...matched, f.id])}
                 >
                   <span className={s.pickSwatch}>
                     {url(f.image_keys?.[0]) ? <img src={url(f.image_keys[0])} alt={f.name} /> : <UilImage size={18} />}
