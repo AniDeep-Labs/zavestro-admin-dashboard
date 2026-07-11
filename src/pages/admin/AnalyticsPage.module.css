@@ -97,7 +97,6 @@
 .chartBars { display: flex; align-items: flex-end; gap: 3px; height: 140px; }
 .barGroup { flex: 1; display: flex; align-items: flex-end; gap: 1px; height: 100%; }
 .barSimplified { flex: 1; background: var(--color-primary); opacity: 0.8; border-radius: 3px 3px 0 0; min-height: 4px; }
-.barLuxe { flex: 1; background: var(--color-secondary); opacity: 0.9; border-radius: 3px 3px 0 0; min-height: 4px; }
 .legend { display: flex; gap: 16px; font-size: 12px; }
 .legendGreen { color: var(--color-primary); }
 .legendGold { color: var(--color-secondary-dark); }
