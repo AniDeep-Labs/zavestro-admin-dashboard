@@ -99,3 +99,15 @@
 /* T1-16: listing sales signal */
 .salesLine { font-size: 0.75rem; color: var(--color-text-secondary); font-weight: 500; }
 .salesNone { font-size: 0.75rem; color: var(--color-text-tertiary); }
+
+/* T3-6 (W-C3): photo standards hint + single-photo nudge. */
+.photoHint { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--color-text-secondary); }
+.photoNudge { margin: 4px 0 0; font-size: 12px; font-weight: var(--font-weight-semibold); color: #9E7340; }
+
+/* T3-6 (W-C2): read-only fabric facts that auto-assemble onto the PDP. */
+.autoFacts { margin-top: 12px; border: 1px dashed var(--color-border); border-radius: var(--radius-md); padding: 10px 12px; background: var(--color-bg-secondary); }
+.autoFactsHead { font-size: 11px; font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-tertiary); margin-bottom: 8px; }
+.autoFactsList { margin: 0; display: flex; flex-direction: column; gap: 5px; }
+.autoFactsList > div { display: grid; grid-template-columns: 96px 1fr; gap: 10px; }
+.autoFactsList dt { margin: 0; font-size: 12px; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
+.autoFactsList dd { margin: 0; font-size: var(--font-size-sm); color: var(--color-text-primary); }

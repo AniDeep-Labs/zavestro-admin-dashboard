@@ -210,28 +210,22 @@ export const CategoriesPage: React.FC = () => {
     }
   };
 
-  // Swap display_order with the adjacent sibling (same parent).
+  // T3-6 (§5.3): move within the sibling group and persist ATOMICALLY. The old code fired
+  // two independent PATCHes to swap display_order — if one failed the order corrupted. Now
+  // we send the whole reordered sibling-id list to one transactional endpoint and adopt its
+  // authoritative result.
   const move = async (cat: ProductCategory, dir: -1 | 1) => {
     if (busy) return;
     const sibs = cat.parent_id ? childrenOf(cat.parent_id) : mains;
     const idx = sibs.findIndex((c) => c.id === cat.id);
-    const other = sibs[idx + dir];
-    if (!other) return;
+    const j = idx + dir;
+    if (j < 0 || j >= sibs.length) return;
+    const reordered = [...sibs];
+    [reordered[idx], reordered[j]] = [reordered[j], reordered[idx]];
     setBusy(true);
     try {
-      await Promise.all([
-        categoriesAdminApi.update(cat.id, { display_order: other.display_order ?? 0 }),
-        categoriesAdminApi.update(other.id, { display_order: cat.display_order ?? 0 }),
-      ]);
-      setCategories((p) =>
-        p.map((c) =>
-          c.id === cat.id
-            ? { ...c, display_order: other.display_order }
-            : c.id === other.id
-              ? { ...c, display_order: cat.display_order }
-              : c,
-        ),
-      );
+      const fresh = await categoriesAdminApi.reorder(reordered.map((c) => c.id));
+      setCategories(fresh);
     } catch (e) {
       showToast("error", "Reorder failed", e instanceof Error ? e.message : undefined);
     } finally {

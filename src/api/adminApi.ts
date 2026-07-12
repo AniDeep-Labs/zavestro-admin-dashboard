@@ -3648,6 +3648,7 @@ export interface CmListing {
   hub_id: string;
   price: string;
   description: string | null;
+  fit_notes: string | null; // T3-6 (W-C2): authored fit guidance
   photo_keys: string[];
   is_active: boolean;
   created_at: string;
@@ -3659,6 +3660,12 @@ export interface CmListing {
   fabric_color: string | null;
   fabric_image_keys: string[] | null;
   hub_name: string;
+  // T3-6 (W-C2): auto-assembled fabric facts (from the paired fabric) — shown read-only in
+  // the editor; the PDP renders these so the CM writes the story, not the specs.
+  fabric_composition?: string | null;
+  fabric_weight_gsm?: number | null;
+  fabric_weave?: string | null;
+  fabric_care?: string[] | null;
   // G-24: per-fabric shared availability at the listing's hub (derived server-side).
   meters_per_garment?: string | number | null;
   in_stock?: boolean;
@@ -3691,6 +3698,7 @@ export interface CmListingInput {
   hub_id: string;
   price: number;
   description?: string | null;
+  fit_notes?: string | null; // T3-6 (W-C2)
   photo_keys?: string[];
   is_active?: boolean;
   allow_below_cost?: boolean; // G-26: confirm an intentional below-cost price
@@ -3717,6 +3725,7 @@ export const cmListingsApi = {
       price: number;
       photo_keys?: string[];
       description?: string;
+      fit_notes?: string | null; // T3-6 (W-C2)
       is_active?: boolean;
       allow_below_cost?: boolean;
     },
@@ -4452,6 +4461,16 @@ export const categoriesAdminApi = {
       method: "PATCH",
       body: JSON.stringify({ image_key: imageKey }),
     });
+  },
+  // T3-6 (§5.3): atomically renumber display_order from a single ordered id list.
+  // Returns the fresh admin category list.
+  reorder: async (ids: string[]): Promise<ProductCategory[]> => {
+    return (
+      (await req<ProductCategory[]>("/api/catalog/admin/categories/reorder", {
+        method: "POST",
+        body: JSON.stringify({ ids }),
+      })) ?? []
+    );
   },
 };
 
