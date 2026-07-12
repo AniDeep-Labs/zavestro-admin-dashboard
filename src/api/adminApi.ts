@@ -865,6 +865,7 @@ function mapTicket(t: Record<string, unknown>): SupportTicket {
     waitingHours:
       t.waiting_hours != null ? Number(t.waiting_hours) : undefined,
     lastSender: (t.last_sender ?? null) as SupportTicket["lastSender"],
+    snoozeUntil: (t.snooze_until ?? null) as string | null, // T3-3 (W-S3)
   };
 }
 
@@ -946,6 +947,22 @@ export const supportApi = {
       method: "PATCH",
       body: JSON.stringify(body),
     });
+    return mapTicket(raw);
+  },
+
+  // T3-3 (W-S3): set a follow-up time (ISO) or clear it (null). Snoozed tickets
+  // drop out of "Needs reply" until the time passes.
+  setSnooze: async (
+    id: string,
+    snoozeUntil: string | null,
+  ): Promise<SupportTicket> => {
+    const raw = await req<Record<string, unknown>>(
+      `/api/admin/support/${id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ snooze_until: snoozeUntil }),
+      },
+    );
     return mapTicket(raw);
   },
 

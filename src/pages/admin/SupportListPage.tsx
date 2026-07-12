@@ -224,7 +224,23 @@ export const SupportListPage: React.FC = () => {
         <div className={styles.customerName}>{t.customer}</div>
         <div className={styles.customerPhone}>{t.phone}</div>
       </td>
-      <td className={styles.subject}>{t.subject}</td>
+      <td className={styles.subject}>
+        {t.subject}
+        {t.snoozeUntil &&
+          (new Date(t.snoozeUntil).getTime() > Date.now() ? (
+            <span className={`${styles.snoozeChip} ${styles.snoozeParked}`}>
+              Snoozed ·{" "}
+              {new Date(t.snoozeUntil).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+              })}
+            </span>
+          ) : (
+            <span className={`${styles.snoozeChip} ${styles.snoozeDue}`}>
+              Follow-up due
+            </span>
+          ))}
+      </td>
       <td>
         <span
           className={`${styles.priorityPill} ${styles[priorityCss[t.priority]]}`}

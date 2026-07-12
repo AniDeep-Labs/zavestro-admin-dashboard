@@ -104,6 +104,7 @@ export type { StatusBadgeProps, StatusTone } from './StatusBadge';
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 export { NoHubAssigned } from './NoHubAssigned/NoHubAssigned';
+export { PolicyCard } from './PolicyCard/PolicyCard';
 export { CopyId, AgeCell, MoneyCell, ageLabel } from './DataCells';
 export type { AgeCellProps } from './DataCells';
 

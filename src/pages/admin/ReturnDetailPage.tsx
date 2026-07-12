@@ -5,7 +5,7 @@ import type { ReturnRequest } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
-import { StatusBadge } from '../../components';
+import { StatusBadge, PolicyCard } from '../../components';
 import { Can } from '../../components/Can/Can';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { DispositionPanel } from '../../components/DispositionPanel/DispositionPanel';
@@ -203,6 +203,9 @@ export const ReturnDetailPage: React.FC = () => {
           <div className={styles.card}>
             <DispositionPanel orderId={ret.order_id} source="return" />
           </div>
+
+          {/* T3-3 (W-S5): the policy written where the agent works (pairs with the verdict chip). */}
+          <PolicyCard />
         </div>
       </div>
 
