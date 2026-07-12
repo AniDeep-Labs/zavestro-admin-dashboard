@@ -2726,6 +2726,10 @@ export interface RefundEntry {
   status: string;
   created_at: string;
   customer_id?: string | null;
+  // T3-7 (W-F3): "where's my money?" — the gateway refund ref + when it should land.
+  razorpay_refund_id?: string | null;
+  expected_settlement_at?: string | null; // initiated + N business days (in-flight only)
+  settlement_business_days?: number;
 }
 export const refundsApi = {
   list: (status?: string): Promise<RefundEntry[]> =>
