@@ -535,3 +535,10 @@
 .railOptional { color: var(--color-text-muted); }
 .railOptional .railTick { color: var(--color-text-muted); }
 .railMuted { color: var(--color-text-muted); font-size: var(--font-size-xs); }
+
+/* W-D2: header actions cluster (Paste/import + Generate). */
+.sectionHeadActions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* W-D2: paste/import textarea — monospace so pasted columns line up. */
+.importArea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.5; outline: none; resize: vertical; margin-bottom: 12px; white-space: pre; }
+.importArea:focus { border-color: var(--color-primary); }

@@ -54,6 +54,9 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
   const [techRows, setTechRows] = React.useState<{ k: string; v: string }[]>([]);
   const [refKeys, setRefKeys] = React.useState<string[]>([]);
   const [specSheetKey, setSpecSheetKey] = React.useState('');
+  // T3-5 (W-D3): free-form tags / drop labels (e.g. "AW25").
+  const [tags, setTags] = React.useState<string[]>([]);
+  const [tagInput, setTagInput] = React.useState('');
   const [uploading, setUploading] = React.useState(false);
   const [uploadingSpec, setUploadingSpec] = React.useState(false);
   const [fabricSearch, setFabricSearch] = React.useState('');
@@ -67,7 +70,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
 
   // Dirty tracking via a load-time snapshot (W-21 canon — same as GarmentTemplateEditor).
   const snap = () =>
-    JSON.stringify({ name, categoryId, garmentType, gender, fitPreset, meters, metersBySize, matched, captureSet, painPoints, techRows, refKeys, specSheetKey });
+    JSON.stringify({ name, categoryId, garmentType, gender, fitPreset, meters, metersBySize, matched, captureSet, painPoints, techRows, refKeys, specSheetKey, tags });
   const [baseline, setBaseline] = React.useState('');
   const dirty = !loading && baseline !== '' && baseline !== snap();
   useDirtyGuard(dirty);
@@ -123,6 +126,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
           );
           setRefKeys(d.reference_image_keys ?? []);
           setSpecSheetKey(d.spec_sheet_key ?? '');
+          setTags(d.tags ?? []);
         })
         .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
         .finally(() => setLoading(false));
@@ -131,6 +135,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
       setName(''); setCategoryId(''); setGarmentType(''); setGender('men');
       setFitPreset(''); setMeters(''); setMetersBySize([]); setMatched([]); setCaptureSet([]);
       setPainPoints([]); setTechRows([]); setRefKeys([]); setSpecSheetKey('');
+      setTags([]); setTagInput('');
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -239,6 +244,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
       pain_point_menu: Object.keys(pain_point_menu).length ? pain_point_menu : null,
       reference_image_keys: refKeys,
       spec_sheet_key: specSheetKey || null,
+      tags,
       fabrics: matched.map((fabric_id) => ({ fabric_id })),
     };
   };
@@ -461,6 +467,40 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                 { label: 'Women', value: 'women' },
                 { label: 'Unisex', value: 'unisex' },
               ]}
+            />
+          </div>
+          {/* T3-5 (W-D3): tags / drop labels — a "drop" (AW25) is just a tag; the library
+              filters and groups by these. Enter or comma commits a chip. */}
+          <label className={s.fieldLabel}>Tags / drop <span className={s.req}>· e.g. AW25, festive, bestseller</span></label>
+          <div className={s.tagField}>
+            {tags.map((t) => (
+              <span key={t} className={s.tagChip}>
+                {t}
+                <button type="button" aria-label={`Remove ${t}`} onClick={() => setTags(tags.filter((x) => x !== t))}>×</button>
+              </span>
+            ))}
+            <input
+              className={s.tagInput}
+              value={tagInput}
+              placeholder={tags.length ? 'Add another…' : 'Add a tag…'}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                  e.preventDefault();
+                  const t = tagInput.trim().replace(/,$/, '').slice(0, 40);
+                  if (t && !tags.some((x) => x.toLowerCase() === t.toLowerCase()) && tags.length < 20) {
+                    setTags([...tags, t]);
+                  }
+                  setTagInput('');
+                } else if (e.key === 'Backspace' && !tagInput && tags.length) {
+                  setTags(tags.slice(0, -1));
+                }
+              }}
+              onBlur={() => {
+                const t = tagInput.trim().replace(/,$/, '').slice(0, 40);
+                if (t && !tags.some((x) => x.toLowerCase() === t.toLowerCase()) && tags.length < 20) setTags([...tags, t]);
+                setTagInput('');
+              }}
             />
           </div>
         </section>

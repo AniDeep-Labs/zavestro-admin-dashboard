@@ -199,3 +199,9 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* T3-5 (W-D3): tag/drop pills on a design card. */
+.tagRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.tagPill { border: 1px solid var(--color-border); background: var(--color-bg-secondary); color: var(--color-text-secondary); border-radius: var(--radius-full); padding: 1px 9px; font-size: 11px; font-weight: var(--font-weight-medium); cursor: pointer; }
+.tagPill:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.tagMore { font-size: 11px; color: var(--color-text-tertiary); align-self: center; }
