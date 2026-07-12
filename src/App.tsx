@@ -193,6 +193,8 @@ const AdminProfilePage = lazyPage(
   () => import("./pages/admin/AdminProfilePage"),
   "AdminProfilePage",
 );
+// T3-2 (W-U1): per-console in-product help.
+const HelpPage = lazyPage(() => import("./pages/admin/HelpPage"), "HelpPage");
 const GarmentTypeTemplatesPage = lazyPage(
   () => import("./pages/admin/GarmentTypeTemplatesPage"),
   "GarmentTypeTemplatesPage",
@@ -468,6 +470,7 @@ function App() {
           <Route path="pincode-waitlist" element={<PincodeWaitlistPage />} />
           <Route path="promo-codes" element={<PromoCodesPage />} />
           <Route path="profile" element={<AdminProfilePage />} />
+          <Route path="help" element={<HelpPage />} />
           {/* measurement-bookings routes removed (G-21): System-2 model retired;
               the backend router is unmounted — these pages 404'd on every call. */}
           <Route path="reviews" element={<ReviewsListPage />} />
