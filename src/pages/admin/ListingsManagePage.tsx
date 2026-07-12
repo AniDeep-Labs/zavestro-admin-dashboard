@@ -19,6 +19,7 @@ import type {
 } from "../../api/adminApi";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
+import { Textarea } from "../../components/Textarea";
 import { Modal } from "../../components/Modal/Modal";
 import { Spinner } from "../../components/Spinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -81,8 +82,14 @@ type Editor = {
   fabricLabel: string;
   price: string;
   description: string;
+  fitNotes: string; // T3-6 (W-C2): authored fit guidance
   photos: string[];
   isActive: boolean;
+  // T3-6 (W-C2): auto-assembled fabric facts (edit mode; read-only reference).
+  fabricComposition?: string | null;
+  fabricWeightGsm?: number | null;
+  fabricWeave?: string | null;
+  fabricCare?: string[] | null;
   /** G-26: cost-floor inputs when known (edit mode from the listing row) */
   pricePerMeter?: string | number | null;
   metersPerGarment?: string | number | null;
@@ -171,6 +178,7 @@ export const ListingsManagePage: React.FC = () => {
       fabricLabel: `${r.fabric_name} (${r.fabric_code})`,
       price: "",
       description: "",
+      fitNotes: "",
       photos: r.sample_photos ?? [],
       isActive: true,
     });
@@ -184,6 +192,7 @@ export const ListingsManagePage: React.FC = () => {
       fabricLabel: "",
       price: "",
       description: "",
+      fitNotes: "",
       photos: [],
       isActive: true,
     });
@@ -198,11 +207,16 @@ export const ListingsManagePage: React.FC = () => {
       fabricLabel: `${l.fabric_name} (${l.fabric_code})`,
       price: l.price ?? "",
       description: l.description ?? "",
+      fitNotes: l.fit_notes ?? "",
       photos: l.photo_keys ?? [],
       isActive: l.is_active,
       pricePerMeter: l.price_per_meter,
       metersPerGarment: l.meters_per_garment,
       inStock: l.in_stock,
+      fabricComposition: l.fabric_composition,
+      fabricWeightGsm: l.fabric_weight_gsm,
+      fabricWeave: l.fabric_weave,
+      fabricCare: l.fabric_care,
     });
   // §6C: Duplicate — listings are variations; open a NEW listing (direct mode, editable
   // design/fabric/hub pickers) pre-filled from this one, starting as a draft to review.
@@ -216,8 +230,13 @@ export const ListingsManagePage: React.FC = () => {
       fabricLabel: "",
       price: l.price ?? "",
       description: l.description ?? "",
+      fitNotes: l.fit_notes ?? "",
       photos: l.photo_keys ?? [],
       isActive: false,
+      fabricComposition: l.fabric_composition,
+      fabricWeightGsm: l.fabric_weight_gsm,
+      fabricWeave: l.fabric_weave,
+      fabricCare: l.fabric_care,
     });
 
   const onUpload = async (files: FileList | null) => {
@@ -275,6 +294,7 @@ export const ListingsManagePage: React.FC = () => {
     setSaving(true);
     const price = Number(editor.price);
     const description = editor.description.trim() || undefined;
+    const fit_notes = editor.fitNotes.trim() || undefined;
     const is_active = publish;
     try {
       if (editor.mode === "sample" && editor.sampleId) {
@@ -282,6 +302,7 @@ export const ListingsManagePage: React.FC = () => {
           price,
           photo_keys: editor.photos,
           description,
+          fit_notes,
           is_active,
           allow_below_cost: belowCostOk,
         });
@@ -290,6 +311,7 @@ export const ListingsManagePage: React.FC = () => {
           price,
           photo_keys: editor.photos,
           description: description ?? null,
+          fit_notes: fit_notes ?? null,
           is_active,
           allow_below_cost: belowCostOk,
         });
@@ -301,6 +323,7 @@ export const ListingsManagePage: React.FC = () => {
           price,
           photo_keys: editor.photos,
           description,
+          fit_notes,
           is_active,
           allow_below_cost: belowCostOk,
         });
@@ -669,6 +692,14 @@ export const ListingsManagePage: React.FC = () => {
               <span className={s.photosLabel}>
                 Photos <span className={s.req}>· what the customer sees</span>
               </span>
+              {/* T3-6 (W-C3): photo standards so listing quality doesn't vary by CM. */}
+              <p className={s.photoHint}>
+                Aim for <strong>2+</strong>: a full-length front shot and a fabric/detail close-up.
+                Plain light background, portrait 3:4, garment fills the frame.
+              </p>
+              {editor.photos.length === 1 && (
+                <p className={s.photoNudge}>Add one more — a single photo undersells the garment.</p>
+              )}
               <div className={s.thumbs}>
                 {editor.photos.map((k, i) => (
                   <div key={k} className={s.thumb}>
@@ -747,12 +778,39 @@ export const ListingsManagePage: React.FC = () => {
                 can go live (drafts are fine) — request one from the design console.
               </div>
             )}
-            <Input
-              label="Description (optional)"
+            {/* T3-6 (W-C2): the PDP content model. The CM writes the story + fit; the fabric
+                facts below auto-assemble from the paired fabric — no re-typing specs. */}
+            <Textarea
+              label="Description / product story (optional)"
               value={editor.description}
               onChange={(v) => setEditor({ ...editor, description: v })}
-              placeholder="Short selling line"
+              placeholder="A paragraph on the look, occasion and why it's worth buying."
+              rows={4}
             />
+            <Textarea
+              label="Fit notes (optional)"
+              value={editor.fitNotes}
+              onChange={(v) => setEditor({ ...editor, fitNotes: v })}
+              placeholder="e.g. Regular fit through the chest; size up if between sizes."
+              rows={3}
+            />
+            {(editor.fabricComposition || editor.fabricCare?.length || editor.fabricWeightGsm || editor.fabricWeave) && (
+              <div className={s.autoFacts}>
+                <div className={s.autoFactsHead}>Auto-included on the PDP (from the fabric)</div>
+                <dl className={s.autoFactsList}>
+                  {editor.fabricComposition && (
+                    <div><dt>Composition</dt><dd>{editor.fabricComposition}</dd></div>
+                  )}
+                  {editor.fabricWeave && <div><dt>Weave</dt><dd>{editor.fabricWeave}</dd></div>}
+                  {editor.fabricWeightGsm != null && (
+                    <div><dt>Weight</dt><dd>{editor.fabricWeightGsm} gsm</dd></div>
+                  )}
+                  {editor.fabricCare && editor.fabricCare.length > 0 && (
+                    <div><dt>Care</dt><dd>{editor.fabricCare.join(" · ")}</dd></div>
+                  )}
+                </dl>
+              </div>
+            )}
           </div>
         )}
       </Modal>

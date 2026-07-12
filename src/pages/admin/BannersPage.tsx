@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- this page also exports the
    reusable BannerHero renderer + layout helpers, shared by the collection studio. */
 import React from 'react';
-import { bannersApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
+import { bannersApi, collectionsApi, categoriesAdminApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import { istDayStart, istDayEnd } from '../../utils/dateWindow';
 import type { Banner, BannerPayload, BannerLayout, BannerTextPosition, BannerTextColor, BannerImageFit, BannerMode, BannerCtaStyle, BannerComposeStyle } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -563,6 +563,36 @@ function BannerForm({
     : linkType === 'category' ? (linkValue.trim() ? `/categories/${linkValue.trim()}` : '/categories')
       : linkValue.trim();
 
+  // CM-5: real collection/category slugs so a CTA can't typo its way to a 404. The 'url' type
+  // keeps a free-text input for arbitrary paths.
+  const [collOpts, setCollOpts] = React.useState<{ slug: string; name: string }[]>([]);
+  const [catOpts, setCatOpts] = React.useState<{ slug: string; name: string }[]>([]);
+  React.useEffect(() => {
+    collectionsApi.list({ status: 'active' })
+      .then((r) => setCollOpts(r.collections.filter((c) => c.slug).map((c) => ({ slug: c.slug, name: c.name }))))
+      .catch(() => {});
+    categoriesAdminApi.list()
+      .then((cs) => setCatOpts(cs.filter((c) => c.is_active && c.slug).map((c) => ({ slug: c.slug, name: c.name }))))
+      .catch(() => {});
+  }, []);
+  // The CTA-destination control: a real-slug picker for collection/category, free text for url.
+  // The unknown current slug (e.g. an archived collection) is preserved as an extra option so
+  // editing an old banner never silently drops its link.
+  const linkValueControl = (() => {
+    if (linkType === 'url') {
+      return <input value={linkValue} onChange={(e) => setLinkValue(e.target.value)} className={b.input} placeholder="/categories" />;
+    }
+    const opts = linkType === 'collection' ? collOpts : catOpts;
+    const known = opts.some((o) => o.slug === linkValue);
+    return (
+      <select className={b.input} value={linkValue} onChange={(e) => setLinkValue(e.target.value)}>
+        <option value="">{linkType === 'category' ? 'All categories' : 'Select a collection…'}</option>
+        {!known && linkValue && <option value={linkValue}>{linkValue} (current)</option>}
+        {opts.map((o) => <option key={o.slug} value={o.slug}>{o.name} · {o.slug}</option>)}
+      </select>
+    );
+  })();
+
   // Active-device accessors
   const mode = dev === 'mobile' ? modeMobile : modeWeb;
   const setMode = dev === 'mobile' ? setModeMobile : setModeWeb;
@@ -794,8 +824,8 @@ function BannerForm({
                   <div className={b.fieldRowS}><label className={b.label}>Links to</label>
                     <select className={b.input} value={linkType} onChange={e => setLinkType(e.target.value as typeof linkType)}>
                       <option value="category">Category</option><option value="collection">Collection</option><option value="url">Custom path</option></select></div>
-                  <div className={b.fieldRowS}><label className={b.label}>{linkType === 'collection' ? 'Collection slug' : linkType === 'category' ? 'Category slug' : 'Path'}</label>
-                    <input value={linkValue} onChange={e => setLinkValue(e.target.value)} className={b.input} placeholder={linkType === 'url' ? '/categories' : 'e.g. wedding'} /></div>
+                  <div className={b.fieldRowS}><label className={b.label}>{linkType === 'collection' ? 'Collection' : linkType === 'category' ? 'Category' : 'Path'}</label>
+                    {linkValueControl}</div>
                 </div>
               </div>
             </>)}
@@ -897,8 +927,8 @@ function BannerForm({
                   <select className={b.input} value={linkType} onChange={e => setLinkType(e.target.value as typeof linkType)}>
                     <option value="category">Category</option><option value="collection">Collection</option><option value="url">Custom path</option></select></div>
               </div>
-              <div className={b.fieldRowS}><label className={b.label}>{linkType === 'collection' ? 'Collection slug' : linkType === 'category' ? 'Category slug (blank = all)' : 'Path'}</label>
-                <input value={linkValue} onChange={e => setLinkValue(e.target.value)} className={b.input} placeholder={linkType === 'url' ? '/categories' : 'e.g. wedding'} />
+              <div className={b.fieldRowS}><label className={b.label}>{linkType === 'collection' ? 'Collection' : linkType === 'category' ? 'Category (blank = all)' : 'Path'}</label>
+                {linkValueControl}
                 <span className={b.hint}>Resolves to <code>{ctaLink || '/categories'}</code></span></div>
               <div className={b.grid3}>
                 <div className={b.fieldRowS}><label className={b.label}>Start date</label><input type="date" value={startsAt} onChange={e => setStartsAt(e.target.value)} className={b.input} /></div>
