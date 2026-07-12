@@ -76,8 +76,10 @@ export const RefundsPage: React.FC = () => {
         { header: "Account type", value: (r) => r.refund_account_type },
         { header: "Account detail", value: (r) => r.refund_account_detail },
         { header: "Refund status", value: (r) => r.refund_status },
+        { header: "Provider ref", value: (r) => r.razorpay_refund_id ?? "" },
         { header: "Failure reason", value: (r) => r.refund_failure_reason ?? "" },
         { header: "Initiated at", value: (r) => r.refund_initiated_at },
+        { header: "Expected by", value: (r) => r.expected_settlement_at ?? "" },
         { header: "Completed at", value: (r) => r.refund_completed_at },
         { header: "Created at", value: (r) => r.created_at },
       ],
@@ -110,6 +112,26 @@ export const RefundsPage: React.FC = () => {
       : r.refund_method === "razorpay"
         ? "Original payment (Razorpay)"
         : "—";
+
+  // T3-7 (W-F3): the "where's my money?" cell — the gateway refund reference (read out to the
+  // customer) + the date the money should arrive by, for in-flight refunds.
+  const refCell = (r: RefundEntry) => (
+    <div>
+      {r.razorpay_refund_id ? (
+        <div style={{ fontFamily: "monospace", fontSize: 12 }}>{r.razorpay_refund_id}</div>
+      ) : (
+        <div style={{ color: "var(--color-text-tertiary)" }}>
+          {r.refund_method === "razorpay" ? "ref pending" : "manual transfer"}
+        </div>
+      )}
+      {r.expected_settlement_at && (
+        <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+          Expected by {fmtDate(r.expected_settlement_at)}
+          {r.settlement_business_days ? ` (~${r.settlement_business_days} business days)` : ""}
+        </div>
+      )}
+    </div>
+  );
 
   const customerCell = (r: RefundEntry) => (
     <td>
@@ -168,6 +190,8 @@ export const RefundsPage: React.FC = () => {
               <tr>
                 <th>Order</th><th>Customer</th><th>Hub</th><th>Amount</th><th>To</th>
                 {kind === "failed" && <th>Why it failed</th>}
+                {/* T3-7 (W-F3): the gateway ref + expected-by for "where's my money?" */}
+                {(kind === "auto" || kind === "completed") && <th>Reference</th>}
                 {(kind === "awaiting" || kind === "failed" || kind === "auto") && <th>Age</th>}
                 {kind === "completed" ? <th>Completed</th> : <th>Action</th>}
               </tr>
@@ -181,6 +205,7 @@ export const RefundsPage: React.FC = () => {
                   <td className={styles.total}>{fmtINR(amount(r))}</td>
                   <td style={{ color: "var(--color-text-secondary)" }}>{destination(r)}</td>
                   {kind === "failed" && <td className={s.pendingAccent}>{r.refund_failure_reason ?? "unknown error"}</td>}
+                  {(kind === "auto" || kind === "completed") && <td>{refCell(r)}</td>}
                   {(kind === "awaiting" || kind === "failed" || kind === "auto") && (
                     <td><AgeCell since={r.refund_initiated_at ?? r.created_at} warnAfterH={48} alertAfterH={120} /></td>
                   )}
