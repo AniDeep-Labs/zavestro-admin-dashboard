@@ -1,9 +1,18 @@
 # ============================================================================
 # Zavestro Admin Dashboard — CI (quality gate)
 #
-# Runs on every PR (into develop/main) and push to develop. No secrets — proves
-# the code lints, type-checks and builds. Real VITE_* values are injected at
-# image build time in deploy.yml (they're build-baked into the bundle).
+# Runs on every PR (into develop/main) and on pushes to develop AND main. No
+# secrets — proves the code lints, type-checks and builds.
+#
+# NOTE ON BRANCHES: a PR-triggered run is labelled by its HEAD branch (the branch
+# the change comes FROM, e.g. `develop`) even when the PR targets `main` — that's
+# GitHub's naming, not where it merged. The `push: main` trigger below means a
+# MERGE to main also produces a clearly `main`-labelled run, so it's obvious the
+# code landed on main.
+#
+# DEPLOY: there is NO GitHub-Actions deploy. The admin dashboard deploys via
+# **Cloudflare Pages** (production branch = `main` -> https://admin.zavestro.in;
+# `develop` pushes = Preview URLs). This CI is the quality gate only.
 # ============================================================================
 
 name: CI
@@ -12,7 +21,7 @@ on:
   pull_request:
     branches: [develop, main]
   push:
-    branches: [develop]
+    branches: [develop, main]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -40,3 +49,13 @@ jobs:
       # `npm run build` = `tsc -b && vite build` → this IS the typecheck + build gate.
       - name: Typecheck + Build
         run: npm run build
+      # Make it obvious in the Actions UI that a main run == production.
+      - name: Production note
+        if: github.ref == 'refs/heads/main'
+        run: |
+          {
+            echo "## ✅ Merged to \`main\` — production"
+            echo ""
+            echo "Commit \`${GITHUB_SHA::7}\` is on **main**. The live admin dashboard deploys from"
+            echo "here via **Cloudflare Pages** → https://admin.zavestro.in (this CI does not deploy)."
+          } >> "$GITHUB_STEP_SUMMARY"
