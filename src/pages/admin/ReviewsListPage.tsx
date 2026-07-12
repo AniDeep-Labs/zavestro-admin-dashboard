@@ -1,10 +1,11 @@
 import React from 'react';
-import { Search, X, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { reviewsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { AdminReview } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import rs from './ReviewsListPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilSearch, UilStar, UilTimes } from "@iconscout/react-unicons";
 
 const LIMIT = 25;
 
@@ -12,11 +13,11 @@ function StarRating({ rating }: { rating: number }) {
   return (
     <span style={{ display: 'inline-flex', gap: 2, verticalAlign: 'middle' }}>
       {Array.from({ length: 5 }).map((_, i) => (
-        <Star
+        <UilStar
           key={i}
           size={13}
-          fill={i < rating ? 'var(--color-gold, #C9995E)' : 'none'}
-          stroke={i < rating ? 'var(--color-gold, #C9995E)' : 'var(--color-text-muted, #9A9188)'}
+          fill={i < rating ? 'var(--color-gold, #D4A574)' : 'none'}
+          stroke={i < rating ? 'var(--color-gold, #D4A574)' : 'var(--color-text-muted, #9A9188)'}
         />
       ))}
     </span>
@@ -30,6 +31,11 @@ export const ReviewsListPage: React.FC = () => {
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [actionId, setActionId] = React.useState<string | null>(null);
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [bulkRunning, setBulkRunning] = React.useState(false);
+  // T2-36 (SP-5): reject-with-reason modal — holds the target review ids (single or bulk).
+  const [rejectIds, setRejectIds] = React.useState<string[] | null>(null);
+  const [rejectReason, setRejectReason] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
@@ -51,18 +57,45 @@ export const ReviewsListPage: React.FC = () => {
       )
     : reviews;
 
-  const handleModerate = async (id: string, approve: boolean) => {
-    setActionId(id);
-    try {
-      await reviewsApi.moderate(id, approve);
-      setReviews(prev => prev.filter(r => r.id !== id));
-      setTotal(prev => Math.max(0, prev - 1));
-      showToast('success', approve ? 'Review approved' : 'Review rejected');
-    } catch (e) {
-      showToast('error', 'Action failed', e instanceof Error ? e.message : undefined);
-    } finally {
-      setActionId(null);
+  // Shared worker: moderate a set of ids. Only rows that SUCCEED leave the list; failed rows
+  // stay put (and stay selected) so a partial bulk failure never makes rows silently vanish.
+  const runModerate = async (ids: string[], approve: boolean, reason?: string) => {
+    if (ids.length === 0) return;
+    if (ids.length === 1) setActionId(ids[0]); else setBulkRunning(true);
+    const done = new Set<string>();
+    for (const id of ids) {
+      try {
+        await reviewsApi.moderate(id, approve, reason);
+        done.add(id);
+      } catch { /* keep going; failed rows remain visible */ }
     }
+    setReviews(prev => prev.filter(r => !done.has(r.id)));
+    setTotal(prev => Math.max(0, prev - done.size));
+    setSelected(prev => { const n = new Set(prev); done.forEach(id => n.delete(id)); return n; });
+    setActionId(null);
+    setBulkRunning(false);
+    const failed = ids.length - done.size;
+    const verb = approve ? 'approved' : 'rejected';
+    if (failed === 0) showToast('success', `${done.size} ${verb}`);
+    else showToast('info', `${done.size}/${ids.length} ${verb}`, `${failed} failed and remain in the list.`);
+  };
+
+  const toggle = (id: string) =>
+    setSelected(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  const toggleAll = () =>
+    setSelected(prev => (prev.size === filtered.length ? new Set() : new Set(filtered.map(r => r.id))));
+
+  // A rejection needs a reason (T2-36 / SP-5): open the modal with the target ids (single or bulk).
+  const openReject = (ids: string[]) => { if (ids.length) { setRejectIds(ids); setRejectReason(''); } };
+  const confirmReject = async () => {
+    if (!rejectIds) return;
+    const ids = rejectIds;
+    setRejectIds(null);
+    await runModerate(ids, false, rejectReason.trim());
   };
 
   return (
@@ -77,7 +110,7 @@ export const ReviewsListPage: React.FC = () => {
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input
             className={styles.searchInput}
             placeholder="Search customer or product…"
@@ -86,14 +119,36 @@ export const ReviewsListPage: React.FC = () => {
           />
         </div>
         <button className={styles.clearBtn} onClick={() => { setSearch(''); setPage(1); }}>
-          <X size={14} /> Clear
+          <UilTimes size={14} /> Clear
         </button>
       </div>
+
+      {/* BulkBar (FABLE-ADMIN-UIUX §2.2) — appears on multi-select */}
+      {selected.size > 0 && (
+        <div className={rs.bulkBar}>
+          <span className={rs.bulkCount}>{selected.size} selected</span>
+          <button className={rs.bulkApprove} disabled={bulkRunning} onClick={() => runModerate([...selected], true)}>
+            {bulkRunning ? 'Working…' : 'Approve selected'}
+          </button>
+          <button className={rs.bulkReject} disabled={bulkRunning} onClick={() => openReject([...selected])}>
+            Reject selected
+          </button>
+          <button className={rs.bulkClear} onClick={() => setSelected(new Set())}>Clear</button>
+        </div>
+      )}
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
             <tr>
+              <th className={rs.checkCol}>
+                <input
+                  type="checkbox"
+                  checked={filtered.length > 0 && selected.size === filtered.length}
+                  onChange={toggleAll}
+                  aria-label="Select all"
+                />
+              </th>
               <th>Customer</th>
               <th>Product</th>
               <th>Rating</th>
@@ -107,7 +162,7 @@ export const ReviewsListPage: React.FC = () => {
             {loading
               ? Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 7 }).map((__, j) => (
+                    {Array.from({ length: 8 }).map((__, j) => (
                       <td key={j}><div className={styles.skeleton} /></td>
                     ))}
                   </tr>
@@ -115,12 +170,19 @@ export const ReviewsListPage: React.FC = () => {
               : filtered.length === 0
               ? (
                 <tr>
-                  <td colSpan={7} className={styles.empty}>No pending reviews.</td>
+                  <td colSpan={8} className={styles.empty}>No pending reviews.</td>
                 </tr>
               )
               : filtered.map(r => (
                 <tr key={r.id} className={styles.row}>
-                  <td><div className={styles.customerName}>{r.user_name}</div></td>
+                  <td className={rs.checkCol} onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label="Select review" />
+                  </td>
+                  <td>
+                    <div className={styles.customerName}>{r.user_name}</div>
+                    {/* T2-36 (SP-5): verified-purchase compliance artifact. */}
+                    {r.verified_purchase && <span className={rs.verifiedChip}>✓ Verified purchase</span>}
+                  </td>
                   <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {r.product_name}
                   </td>
@@ -161,16 +223,16 @@ export const ReviewsListPage: React.FC = () => {
                     <button
                       className={styles.actionBtn}
                       disabled={actionId === r.id}
-                      onClick={() => handleModerate(r.id, true)}
-                      style={{ marginRight: 4, background: 'var(--green, #1C5C42)', color: '#fff', border: 'none' }}
+                      onClick={() => runModerate([r.id], true)}
+                      style={{ marginRight: 4, background: 'var(--green, #1F6B4F)', color: '#fff', border: 'none' }}
                     >
                       {actionId === r.id ? '…' : 'Approve'}
                     </button>
                     <button
                       className={styles.actionBtn}
                       disabled={actionId === r.id}
-                      onClick={() => handleModerate(r.id, false)}
-                      style={{ background: 'var(--color-error, #dc3545)', color: '#fff', border: 'none' }}
+                      onClick={() => openReject([r.id])}
+                      style={{ background: 'var(--color-error, #D75B5B)', color: '#fff', border: 'none' }}
                     >
                       Reject
                     </button>
@@ -182,17 +244,48 @@ export const ReviewsListPage: React.FC = () => {
         </table>
       </div>
 
+      {/* T2-36 (SP-5): reject-with-reason — required for single AND bulk (one shared reason). */}
+      {rejectIds && (
+        <div className={rs.modalOverlay} onClick={() => setRejectIds(null)}>
+          <div className={rs.modal} onClick={e => e.stopPropagation()}>
+            <h3 className={rs.modalTitle}>
+              Reject {rejectIds.length > 1 ? `${rejectIds.length} reviews` : 'review'}?
+            </h3>
+            <p className={rs.modalHint}>
+              A reason is recorded with the rejection (compliance). The customer isn't shown this.
+            </p>
+            <textarea
+              className={rs.reasonInput}
+              rows={3}
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="e.g. Off-topic / abusive language / not about the product"
+            />
+            <div className={rs.modalActions}>
+              <button className={styles.clearBtn} onClick={() => setRejectIds(null)}>Cancel</button>
+              <button
+                className={rs.bulkReject}
+                disabled={!rejectReason.trim() || bulkRunning}
+                onClick={confirmReject}
+              >
+                {bulkRunning ? 'Rejecting…' : 'Reject with reason'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>
           {loading ? 'Loading…' : `${total} pending review${total !== 1 ? 's' : ''}`}
         </span>
         <div className={styles.pageButtons}>
           <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}>
-            <ChevronLeft size={15} /> Prev
+            <UilAngleLeft size={15} /> Prev
           </button>
           <span className={styles.pageIndicator}>Page {page} of {Math.max(1, Math.ceil(total / LIMIT))}</span>
           <button className={styles.pageBtn} disabled={reviews.length < LIMIT || loading} onClick={() => setPage(p => p + 1)}>
-            Next <ChevronRight size={15} />
+            Next <UilAngleRight size={15} />
           </button>
         </div>
       </div>

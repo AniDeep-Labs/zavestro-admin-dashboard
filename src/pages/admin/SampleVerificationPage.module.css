@@ -1,0 +1,46 @@
+/* Sample Review — sectioned worklist (FABLE §4C: Awaiting review → In progress → Reviewed). */
+
+.subtitle {
+  margin: 4px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.section { margin-top: var(--spacing-lg); }
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 var(--spacing-sm);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+.sectionMuted { color: var(--color-text-secondary); }
+.count {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-section);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+}
+
+.sampleCell { display: flex; align-items: center; gap: 10px; }
+.thumb {
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-tertiary);
+}
+.sampleText { display: flex; flex-direction: column; line-height: 1.3; }
+.designName { font-weight: var(--font-weight-medium); color: var(--color-text); }
+.fabric { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+/* T2-32 (D-1): the design→CM give-back chip. */
+.listedChip { align-self: flex-start; margin-top: 3px; display: inline-block; padding: 1px 8px; border-radius: var(--radius-full); font-size: 11px; font-weight: var(--font-weight-semibold); background: rgba(31, 107, 79, 0.1); color: #1F6B4F; white-space: nowrap; }
+.muted { color: var(--color-text-tertiary); }

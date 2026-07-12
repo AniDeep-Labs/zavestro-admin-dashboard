@@ -1,10 +1,10 @@
 import React from 'react';
-import { Send, AlertTriangle } from 'lucide-react';
 import { notificationsAdminApi } from '../../api/adminApi';
-import type { BlastPayload } from '../../api/adminApi';
+import type { BlastPayload, BlastHistoryRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
+import { UilExclamationTriangle, UilMessage } from "@iconscout/react-unicons";
 
 export const NotificationBlastPage: React.FC = () => {
   const [form, setForm] = React.useState<BlastPayload>({
@@ -12,13 +12,29 @@ export const NotificationBlastPage: React.FC = () => {
   });
   const [confirming, setConfirming] = React.useState(false);
   const [sending, setSending] = React.useState(false);
+  const [audienceCount, setAudienceCount] = React.useState<number | null>(null);
+  const [history, setHistory] = React.useState<BlastHistoryRow[] | null>(null); // T2-26 SU-7
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
 
+  const loadHistory = React.useCallback(() => {
+    notificationsAdminApi.history().then(setHistory).catch(() => setHistory([]));
+  }, []);
+  React.useEffect(() => { loadHistory(); }, [loadHistory]);
+
   const set = <K extends keyof BlastPayload>(k: K, v: BlastPayload[K]) => setForm(f => ({ ...f, [k]: v }));
   const valid = form.subject.trim() && form.headline.trim() && form.body.trim();
+
+  const openConfirm = () => {
+    setAudienceCount(null);
+    setConfirming(true);
+    notificationsAdminApi
+      .audienceCount(form.segment ?? 'opted_in')
+      .then(setAudienceCount)
+      .catch(() => setAudienceCount(null));
+  };
 
   const send = async () => {
     setSending(true);
@@ -33,6 +49,7 @@ export const NotificationBlastPage: React.FC = () => {
       showToast('success', 'Blast queued', `Sending to ${users_targeted} customer${users_targeted !== 1 ? 's' : ''} (in-app + email + push).`);
       setConfirming(false);
       setForm({ subject: '', headline: '', body: '', pushBody: '', ctaText: '', ctaUrl: '', segment: 'opted_in' });
+      loadHistory(); // T2-26: reflect the just-sent blast in the history table
     } catch (e) {
       showToast('error', 'Send failed', e instanceof Error ? e.message : undefined);
     } finally { setSending(false); }
@@ -80,19 +97,50 @@ export const NotificationBlastPage: React.FC = () => {
           </div>
         </div>
         <div className={styles.modalActions} style={{ marginTop: 18 }}>
-          <button className={styles.createBtn} disabled={!valid} onClick={() => setConfirming(true)}>
-            <Send size={14} /> Review & Send
+          <button className={styles.createBtn} disabled={!valid} onClick={openConfirm}>
+            <UilMessage size={14} /> Review & Send
           </button>
         </div>
+      </div>
+
+      {/* T2-26 (SU-7): sent history — every blast, to whom, by whom, when. */}
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead><tr><th>Sent</th><th>Headline</th><th>Audience</th><th>Recipients</th><th>By</th></tr></thead>
+          <tbody>
+            {history === null ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <tr key={i}>{Array.from({ length: 5 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
+              ))
+            ) : history.length === 0 ? (
+              <tr><td colSpan={5} className={styles.empty}>No blasts sent yet.</td></tr>
+            ) : (
+              history.map(h => (
+                <tr key={h.id}>
+                  <td className={styles.date}>{new Date(h.sent_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>{h.headline || h.subject || '—'}</td>
+                  <td>{h.segment === 'all' ? 'All active' : 'Opted-in'}</td>
+                  <td>{h.users_targeted.toLocaleString('en-IN')}</td>
+                  <td>{h.sent_by_email ?? '—'}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       {confirming && (
         <div className={styles.modalOverlay} onClick={() => !sending && setConfirming(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalTitle}><AlertTriangle size={16} style={{ verticalAlign: -2, marginRight: 6, color: '#B45309' }} />Send this blast?</div>
+            <div className={styles.modalTitle}><UilExclamationTriangle size={16} style={{ verticalAlign: -2, marginRight: 6, color: '#B45309' }} />Send this blast?</div>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, lineHeight: 1.5 }}>
-              This will queue <strong>{form.segment === 'all' ? 'all active customers' : 'all opted-in customers'}</strong> to receive
-              “<strong>{form.headline}</strong>” via in-app inbox, email, and push. This cannot be recalled once sent.
+              This will queue{' '}
+              <strong>
+                {audienceCount === null
+                  ? form.segment === 'all' ? 'all active customers' : 'all opted-in customers'
+                  : `~${audienceCount.toLocaleString('en-IN')} ${form.segment === 'all' ? 'active' : 'opted-in'} customer${audienceCount === 1 ? '' : 's'}`}
+              </strong>{' '}
+              to receive “<strong>{form.headline}</strong>” via in-app inbox, email, and push. This cannot be recalled once sent.
             </p>
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} disabled={sending} onClick={() => setConfirming(false)}>Cancel</button>

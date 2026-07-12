@@ -1,8 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { UilSync, UilTruck, UilRuler, UilCheckCircle, UilReceipt, UilBox, UilExclamationTriangle, UilShoppingBag, UilHistory, UilProcess } from '@iconscout/react-unicons';
 import { dashboardApi, hasCapability } from '../../api/adminApi';
 import type { DashboardData } from '../../api/adminApi';
 import { clearAdminToken } from '../../api/catalogApi';
+import { Sparkline, AreaTrendChart, BarMini, STAGE_COLORS, fmtINRShort } from '../../components/charts/Charts';
+import { ActionInbox } from '../../components/ActionInbox';
 import styles from './AdminDashboardPage.module.css';
 
 /* ── Inline SVG icons (Lucide-style) ── */
@@ -96,29 +99,34 @@ type Accent = 'Emerald' | 'Amber' | 'Red' | 'Gold';
 // `cap` gates each KPI to the roles that should see it (undefined = everyone).
 const kpis: { label: string; key: string; format: (v: number) => string; icon: IconKey; accent: Accent; navPath: string; cap?: string }[] = [
   { label: 'Total Orders',     key: 'totalOrders',     format: v => v.toLocaleString(),                   icon: 'Package',       accent: 'Emerald', navPath: '/admin/orders', cap: 'orders:read' },
-  { label: 'Active Orders',    key: 'activeOrders',    format: v => v.toLocaleString(),                   icon: 'Activity',      accent: 'Emerald', navPath: '/admin/orders', cap: 'orders:read' },
+  { label: 'Active Orders',    key: 'activeOrders',    format: v => v.toLocaleString(),                   icon: 'Activity',      accent: 'Emerald', navPath: '/admin/orders?view=stuck', cap: 'orders:read' },
   { label: 'GMV',              key: 'gmv',             format: v => '₹' + (v / 100000).toFixed(1) + 'L', icon: 'IndianRupee',   accent: 'Emerald', navPath: '/admin/analytics/revenue', cap: 'reports:read' },
-  { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders', cap: 'orders:read' },
+  { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders?stage=pending_payment', cap: 'orders:read' },
   { label: 'Open Tickets',     key: 'openTickets',     format: v => v.toLocaleString(),                   icon: 'Headphones',    accent: 'Red',     navPath: '/admin/support', cap: 'customers:write' },
   { label: 'New Customers',    key: 'newCustomers',    format: v => v.toLocaleString(),                   icon: 'UserPlus',      accent: 'Emerald', navPath: '/admin/users', cap: 'customers:read' },
-  { label: 'Waitlist Signups', key: 'waitlistSignups', format: v => v.toLocaleString(),                   icon: 'ClipboardList', accent: 'Gold',    navPath: '/admin/system/waitlist', cap: 'system:manage' },
-  { label: 'Pending Sessions', key: 'pendingMeasurementSessions', format: v => v.toLocaleString(),        icon: 'ClipboardList', accent: 'Amber',   navPath: '/admin/measurement-bookings', cap: 'orders:write' },
 ];
 
 // Each dashboard card section → the capability that should see it.
 const CARD_CAP = {
-  pipeline: 'orders:read', sessions: 'orders:write', hubPerf: 'reports:read',
+  pipeline: 'orders:read', hubPerf: 'reports:read',
   support: 'customers:write', revenue: 'reports:read',
 } as const;
 
-const ACTIVITY_ICON: Record<string, IconKey> = {
-  '📦': 'Package', '🏷️': 'Tag', '💳': 'CreditCard',
-  '👤': 'User',    '⚠️': 'AlertTriangle', '✅': 'CheckCircle',
-};
-
-function fmtRupees(n: number) {
-  if (n === 0) return '₹0';
-  return n >= 100000 ? '₹' + (n / 100000).toFixed(1) + 'L' : '₹' + n.toLocaleString('en-IN');
+// Infer a meaningful, colour-coded icon for each activity from its text.
+type ActivityIconFC = React.FC<{ size?: number }>;
+const ACTIVITY_VISUAL: { re: RegExp; Icon: ActivityIconFC; tint: string }[] = [
+  { re: /deliver/i,                    Icon: UilTruck,               tint: 'avEmerald' },
+  { re: /\bqc\b|quality/i,             Icon: UilCheckCircle,         tint: 'avEmerald' },
+  { re: /cash|cod|paid|payment|refund/i, Icon: UilReceipt,           tint: 'avGold' },
+  { re: /dispatch|courier|ship|track/i, Icon: UilTruck,              tint: 'avBlue' },
+  { re: /measure/i,                    Icon: UilRuler,               tint: 'avPurple' },
+  { re: /fabric|sourc/i,               Icon: UilBox,                 tint: 'avGold' },
+  { re: /alterat|stitch|re-?delivery/i, Icon: UilProcess,            tint: 'avAmber' },
+  { re: /seam|defect|fail|reject|cancel/i, Icon: UilExclamationTriangle, tint: 'avRed' },
+  { re: /order|placed|created|confirm/i, Icon: UilShoppingBag,       tint: 'avEmerald' },
+];
+function activityVisual(text: string): { Icon: ActivityIconFC; tint: string } {
+  return ACTIVITY_VISUAL.find(v => v.re.test(text)) ?? { Icon: UilHistory, tint: 'avNeutral' };
 }
 
 export const AdminDashboardPage: React.FC = () => {
@@ -128,18 +136,90 @@ export const AdminDashboardPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [apiError, setApiError] = React.useState<string | null>(null);
   const [apiErrorStatus, setApiErrorStatus] = React.useState<number | null>(null);
+  const [refreshTick, setRefreshTick] = React.useState(0);
+  const refresh = React.useCallback(() => setRefreshTick(t => t + 1), []);
 
-  const pipelinePhase = React.useMemo<Record<string, string>>(() => ({
-    payment_pending:   styles.pipelinePhasePayment,
-    payment_confirmed: styles.pipelinePhasePayment,
-    fabric_sourced:    styles.pipelinePhaseProduction,
-    in_tailoring:      styles.pipelinePhaseProduction,
-    quality_check:     styles.pipelinePhaseProduction,
-    ready_to_dispatch: styles.pipelinePhaseProduction,
-    dispatched:        styles.pipelinePhaseDispatched,
-  }), []);
+  const revenueTotal = React.useMemo(
+    () => (data?.revenue ?? []).reduce((sum, r) => sum + (r.simplified || 0), 0),
+    [data],
+  );
+  const aov = React.useMemo(() => {
+    const orders = (data?.stats?.totalOrders?.value as number) ?? 0;
+    return orders > 0 ? Math.round(revenueTotal / orders) : 0;
+  }, [data, revenueTotal]);
+  const avgQc = React.useMemo(() => {
+    const hubs = data?.hubPerformance ?? [];
+    return hubs.length ? Math.round(hubs.reduce((s, h) => s + (h.qcPassRate || 0), 0) / hubs.length) : 0;
+  }, [data]);
+  const funnelData = React.useMemo(
+    () => (data?.ordersByStage ?? []).map(s => ({ name: s.label, count: s.count })),
+    [data],
+  );
+  const funnelColors = React.useMemo(
+    () => (data?.ordersByStage ?? []).map((_, i) => STAGE_COLORS[i % STAGE_COLORS.length]),
+    [data],
+  );
+  const hubData = React.useMemo(
+    () => (data?.hubPerformance ?? []).map(h => ({ name: h.name, capacity: h.capacity })),
+    [data],
+  );
+  const [perfTab, setPerfTab] = React.useState<'Revenue' | 'Hubs'>('Revenue');
+
+  const visibleKpis = React.useMemo(
+    () => kpis.filter(k => !k.cap || hasCapability(k.cap)),
+    [],
+  );
+
+  // One metric cell inside the unified instrument panel: label + tinted icon,
+  // big number with an inline coloured delta, and a quiet sparkline.
+  const renderMetricCell = (kpi: (typeof kpis)[number]) => {
+    const stat = data?.stats[kpi.key];
+    // P-5 (T3-8): only a REAL series — no fabricated fallback. Point-in-time KPIs
+    // (active orders, pending payments, open tickets) have no daily series → no sparkline.
+    const sparks = data?.sparklines?.[kpi.key];
+    const isUp = stat ? stat.up : true;
+    const KpiIcon = Icons[kpi.icon];
+    const iconTint = (styles as Record<string, string>)[`iconTint${kpi.accent}`];
+    return (
+      <div
+        key={kpi.key}
+        className={`${styles.metricCell} ${loading ? styles.kpiCardLoading : ''}`}
+        onClick={() => navigate(kpi.navPath)}
+        role="button" tabIndex={0}
+        onKeyDown={e => e.key === 'Enter' && navigate(kpi.navPath)}
+      >
+        <div className={styles.metricTop}>
+          <span className={styles.metricLabel}>{kpi.label}</span>
+          <span className={`${styles.metricIcon} ${iconTint ?? ''}`}><KpiIcon /></span>
+        </div>
+        <div className={styles.metricValueRow}>
+          <span className={styles.metricValue}>{kpi.format(stat?.value ?? 0)}</span>
+          {stat && stat.trend && (
+            <span className={`${styles.metricDelta} ${stat.up ? styles.deltaUp : styles.deltaDown}`}>
+              {stat.up ? <Icons.TrendUp /> : <Icons.TrendDown />}{stat.trend}
+            </span>
+          )}
+        </div>
+        <div className={styles.metricSpark}>
+          {!loading && sparks && sparks.length > 0 && (
+            <Sparkline data={sparks} up={isUp} height={30} color={isUp ? '#5BC08D' : '#EFA6A6'} />
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Roles with no company KPIs/charts (design/procurement) are 403'd on the
+  // dashboard data endpoint by the read-policy (G-82) — skip the fetch so they
+  // get the ActionInbox + workspace pointer, not an error banner.
+  const hasDashData =
+    hasCapability('orders:read') || hasCapability('reports:read') || hasCapability('customers:write');
 
   React.useEffect(() => {
+    if (!hasDashData) {
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
     setApiError(null);
@@ -155,13 +235,7 @@ export const AdminDashboardPage: React.FC = () => {
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [period]);
-
-  const { maxRevenue, yLabels } = React.useMemo(() => {
-    const rev = data?.revenue ?? [];
-    const max = Math.max(...rev.map(r => r.simplified), 1);
-    return { maxRevenue: max, yLabels: [fmtRupees(max), fmtRupees(Math.round(max * 0.5)), '₹0'] };
-  }, [data?.revenue]);
+  }, [period, refreshTick, hasDashData]);
 
   return (
     <div className={styles.page}>
@@ -174,199 +248,161 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Dashboard</h1>
-        <div className={styles.periodSelector}>
-          {Object.keys(PERIOD_MAP).map(p => (
+      {/* What needs me today (role-aware) — leads the page above the vanity stats */}
+      <ActionInbox />
+
+      {/* Overview — dark hero panel: title + period toggle + refresh. Hidden when the
+          role has no company KPIs (design/procurement) so there's no empty band. */}
+      {visibleKpis.length > 0 && (
+      <div className={styles.overviewPanel}>
+        <div className={styles.overviewHead}>
+          <div className={styles.overviewTitleWrap}>
+            <span className={styles.overviewTitle}>Overview</span>
+            <span className={styles.overviewLive}><span className={styles.liveDot} aria-hidden /> Live</span>
+          </div>
+          <div className={styles.overviewControls}>
+            <div className={styles.periodToggle}>
+              {Object.keys(PERIOD_MAP).map(p => (
+                <button
+                  key={p}
+                  className={`${styles.periodTab} ${period === p ? styles.periodTabActive : ''}`}
+                  onClick={() => setPeriod(p)}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
             <button
-              key={p}
-              className={`${styles.periodBtn} ${period === p ? styles.periodBtnActive : ''}`}
-              onClick={() => setPeriod(p)}
+              className={`${styles.overviewRefresh} ${loading ? styles.refreshSpinning : ''}`}
+              onClick={refresh} disabled={loading} title="Refresh data" aria-label="Refresh data"
             >
-              {p}
+              <UilSync size={15} />
             </button>
-          ))}
+          </div>
+        </div>
+        <div className={styles.metricsPanel}>
+          {visibleKpis.map(kpi => renderMetricCell(kpi))}
         </div>
       </div>
+      )}
 
-      {/* KPI Grid — each card gated to roles with the capability */}
-      <div className={styles.kpiGrid}>
-        {kpis.filter(k => !k.cap || hasCapability(k.cap)).map(kpi => {
-          const stat = data?.stats[kpi.key];
-          const sparks = data?.sparklines?.[kpi.key] ?? [40, 55, 48, 62, 70, 58, 75];
-          const isUp = stat ? stat.up : true;
-          const KpiIcon = Icons[kpi.icon];
-          const accentClass = (styles as Record<string, string>)[`kpiAccent${kpi.accent}`];
-          const iconClass = (styles as Record<string, string>)[`kpiIcon${kpi.accent}`];
-          return (
+      {/* ── Mini metrics + Production funnel + Performance (TailAdmin arrangement) ── */}
+      {(hasCapability('orders:read') || hasCapability('reports:read')) && (
+      <div className={styles.cardsGrid}>
+        <div className={styles.cardsLeft}>
+          {/* mini metric cards — QC pass rate + AOV are company ops/financial → reports:read */}
+          {hasCapability('reports:read') && (
+          <div className={styles.miniRow}>
             <div
-              key={kpi.key}
-              className={`${styles.kpiCard} ${accentClass ?? ''} ${loading ? styles.kpiCardLoading : ''}`}
-              onClick={() => navigate(kpi.navPath)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && navigate(kpi.navPath)}
+              className={styles.miniCard} role="button" tabIndex={0}
+              onClick={() => navigate('/admin/hubs')}
+              onKeyDown={e => e.key === 'Enter' && navigate('/admin/hubs')}
             >
-              <div className={styles.kpiCardTop}>
-                <div className={styles.kpiLabel}>{kpi.label}</div>
-                <div className={`${styles.kpiIcon} ${iconClass ?? ''}`}>
-                  <KpiIcon />
-                </div>
+              <div className={styles.miniHead}>
+                <span className={styles.miniTitle}>QC Pass Rate</span>
+                <span className={styles.miniSub}>across hubs</span>
               </div>
-              <div className={styles.kpiValue}>{kpi.format(stat?.value ?? 0)}</div>
-              {stat && (
-                <div className={`${styles.kpiTrend} ${stat.up ? styles.trendUp : styles.trendDown}`}>
-                  <span className={styles.kpiTrendIcon}>
-                    {stat.up ? <Icons.TrendUp /> : <Icons.TrendDown />}
-                  </span>
-                  {stat.trend} vs last period
+              <div className={styles.miniValue}>{avgQc ? `${avgQc}%` : '—'}</div>
+              {/* P-5 (T3-8): no daily QC series exists → draw nothing (was borrowing the
+                  activeOrders series, which describes a different quantity). */}
+            </div>
+            <div
+              className={styles.miniCard} role="button" tabIndex={0}
+              onClick={() => navigate('/admin/orders')}
+              onKeyDown={e => e.key === 'Enter' && navigate('/admin/orders')}
+            >
+              <div className={styles.miniHead}>
+                <span className={styles.miniTitle}>Avg. Order Value</span>
+                <span className={styles.miniSub}>per order</span>
+              </div>
+              <div className={styles.miniValue}>{aov ? '₹' + aov.toLocaleString('en-IN') : '₹0'}</div>
+              {/* P-5 (T3-8): AOV's own daily series (was mislabeled — it borrowed the GMV series). */}
+              {!loading && data?.sparklines?.aov && data.sparklines.aov.length > 0 && (
+                <div className={styles.miniSpark}>
+                  <Sparkline data={data.sparklines.aov} up height={42} />
                 </div>
               )}
-              <div className={styles.sparkline}>
-                {sparks.map((h, i) => (
-                  <div
-                    key={i}
-                    className={`${styles.sparkBar} ${isUp ? styles.sparkBarUp : styles.sparkBarDown}`}
-                    style={{ height: `${h}%` }}
-                  />
-                ))}
-              </div>
             </div>
-          );
-        })}
-      </div>
+          </div>
+          )}
 
-      {/* Order Stage Pipeline */}
-      {hasCapability(CARD_CAP.pipeline) && (
-      <div className={styles.card}>
-        <div className={styles.cardHeader}>
-          <h2 className={styles.cardTitle}>Order Pipeline</h2>
-          <button className={styles.cardLink} onClick={() => navigate('/admin/orders')}>View All Orders →</button>
+          {/* Production funnel — orders by stage as coloured bars */}
+          {hasCapability(CARD_CAP.pipeline) && (
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>Production Funnel</h2>
+              <button className={styles.cardLink} onClick={() => navigate('/admin/orders')}>View orders →</button>
+            </div>
+            {loading
+              ? <div className={`${styles.skeletonBlock} ${styles.skeletonPulse}`} style={{ height: 240 }} />
+              : funnelData.some(f => f.count > 0)
+                ? <BarMini data={funnelData} xKey="name" dataKey="count" height={240} colors={funnelColors} />
+                : <div className={styles.emptyState}>No orders in the pipeline yet</div>}
+          </div>
+          )}
         </div>
-        <div className={styles.pipeline}>
-          {(data?.ordersByStage ?? []).length > 0
-            ? (data?.ordersByStage ?? []).map((s, i, arr) => (
-                <React.Fragment key={s.stage}>
-                  <div
-                    className={`${styles.pipelineStage} ${s.overdue > 0 ? styles.pipelineStageOverdue : ''} ${pipelinePhase[s.stage] ?? ''}`}
-                    onClick={() => navigate(`/admin/orders?stage=${s.stage}`)}
-                  >
-                    <div className={styles.pipelineCount}>{s.count}</div>
-                    <div className={styles.pipelineLabel}>{s.label}</div>
-                    {s.overdue > 0 && (
-                      <div className={styles.pipelineOverdueBadge}>
-                        <span className={styles.overdueBadgeIcon}><Icons.AlertTriangle /></span>
-                        {s.overdue} overdue
-                      </div>
-                    )}
-                  </div>
-                  {i < arr.length - 1 && (
-                    <div className={styles.pipelineArrow}><Icons.ArrowRight /></div>
-                  )}
-                </React.Fragment>
-              ))
-            : loading
-              ? [1, 2, 3, 4, 5, 6, 7].map(i => <div key={i} className={`${styles.pipelineSkeleton} ${styles.skeletonPulse}`} />)
-              : <div className={styles.emptyState}>No pipeline data</div>
-          }
-        </div>
-        {(data?.overdueOrders ?? []).length > 0 && (
-          <div className={styles.overdueList}>
-            <div className={styles.overdueTitle}>Overdue Orders</div>
-            {data!.overdueOrders.map(o => (
-              <div key={o.id} className={styles.overdueRow} onClick={() => navigate(`/admin/orders/${o.id}`)}>
-                <span className={styles.overdueId}>{o.id}</span>
-                <span className={styles.overdueCustomer}>{o.customer}</span>
-                <span className={styles.overdueStage}>{o.stage.replace(/_/g, ' ')}</span>
-                <span className={styles.overdueHub}>{o.hub}</span>
-                <span className={styles.overdueCreated}>{o.created}</span>
-                <span className={styles.overdueArrow}><Icons.ArrowRight /></span>
-              </div>
+
+        {/* Performance — tabbed (Revenue / Hubs): company financials → reports:read */}
+        {hasCapability('reports:read') && (
+        <div className={`${styles.card} ${styles.perfCard}`}>
+          <div className={styles.cardHeader}><h2 className={styles.cardTitle}>Performance</h2></div>
+          <div className={styles.perfTabs}>
+            {(['Revenue', 'Hubs'] as const).map(t => (
+              <button
+                key={t}
+                className={`${styles.perfTab} ${perfTab === t ? styles.perfTabActive : ''}`}
+                onClick={() => setPerfTab(t)}
+              >
+                {t}
+              </button>
             ))}
           </div>
+          <div className={styles.perfBody}>
+            {loading ? (
+              <div className={`${styles.skeletonBlock} ${styles.skeletonPulse}`} style={{ height: 260 }} />
+            ) : perfTab === 'Revenue' ? (
+              (data?.revenue ?? []).length > 0
+                ? <AreaTrendChart data={data!.revenue as unknown as Record<string, string | number>[]} xKey="label" dataKey="simplified" height={262} valueFormatter={fmtINRShort} />
+                : <div className={styles.emptyState}>No revenue yet</div>
+            ) : (
+              hubData.length > 0
+                ? <BarMini data={hubData} xKey="name" dataKey="capacity" height={262} valueFormatter={v => `${v}%`} />
+                : <div className={styles.emptyState}>No hub data</div>
+            )}
+          </div>
+        </div>
         )}
       </div>
       )}
 
-      {/* Measurement Sessions Today + Hub Performance */}
-      <div className={styles.twoCol}>
-        {/* Measurement Sessions Today */}
-        {hasCapability(CARD_CAP.sessions) && (
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Today's Measurement Sessions</h2>
-            <button className={styles.cardLink} onClick={() => navigate('/admin/measurement-bookings')}>View All →</button>
-          </div>
-          {loading ? (
-            <div className={`${styles.skeletonBlock} ${styles.skeletonPulse}`} />
-          ) : (
-            <div className={styles.modeAOV} style={{ flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Confirmed / In-Progress Today</span>
-                <strong style={{ fontSize: '1.5rem', color: 'var(--color-primary)' }}>
-                  {data?.stats?.pendingMeasurementSessions?.value ?? 0}
-                </strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Orders awaiting measurement</span>
-                <strong>
-                  {(data?.ordersByStage ?? []).find(s => s.stage === 'awaiting_measurement')?.count ?? 0}
-                </strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Orders with measurement complete</span>
-                <strong>
-                  {(data?.ordersByStage ?? []).find(s => s.stage === 'measurement_complete')?.count ?? 0}
-                </strong>
-              </div>
-            </div>
-          )}
+      {/* Overdue Orders (stage breakdown now lives in the Production Funnel above) */}
+      {hasCapability(CARD_CAP.pipeline) && (data?.overdueOrders ?? []).length > 0 && (
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h2 className={styles.cardTitle}>Overdue Orders</h2>
+          <button className={styles.cardLink} onClick={() => navigate('/admin/orders')}>View All Orders →</button>
         </div>
-        )}
-
-        {/* Hub Performance */}
-        {hasCapability(CARD_CAP.hubPerf) && (
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Hub Performance</h2>
-            <button className={styles.cardLink} onClick={() => navigate('/admin/hubs')}>View All →</button>
-          </div>
-          {(data?.hubPerformance ?? []).length > 0 ? (
-            <div className={styles.hubList}>
-              <div className={styles.hubHeader}>
-                <span className={styles.hubColName}>Hub</span>
-                <span className={styles.hubColBar}>Capacity</span>
-                <span className={styles.hubColPct}>Load</span>
-                <span className={styles.hubColQC}>QC</span>
-              </div>
-              {(data?.hubPerformance ?? []).map(hub => (
-                <div key={hub.name} className={styles.hubRow} onClick={() => navigate('/admin/hubs')}>
-                  <div className={styles.hubName}>{hub.name}</div>
-                  <div className={styles.hubBar}>
-                    <div
-                      className={`${styles.hubBarFill} ${hub.capacity >= 100 ? styles.hubBarFull : hub.capacity >= 80 ? styles.hubBarHigh : styles.hubBarNormal}`}
-                      style={{ width: `${hub.capacity}%` }}
-                    />
-                  </div>
-                  <div className={styles.hubCapacity}>{hub.capacity}%</div>
-                  <div className={`${styles.hubQC} ${hub.qcPassRate < 93 ? styles.hubQCLow : hub.qcPassRate < 97 ? styles.hubQCMid : ''}`}>
-                    {hub.qcPassRate}%
-                  </div>
-                </div>
-              ))}
+        <div className={styles.overdueList}>
+          {data!.overdueOrders.map(o => (
+            <div key={o.id} className={styles.overdueRow} onClick={() => navigate(`/admin/orders/${o.id}`)}>
+              <span className={styles.overdueDot} aria-hidden />
+              <span className={styles.overdueId}>{o.id}</span>
+              <span className={styles.overdueCustomer}>{o.customer}</span>
+              <span className={styles.overdueStage}>{o.stage.replace(/_/g, ' ')}</span>
+              <span className={styles.overdueHub}>{o.hub}</span>
+              <span className={styles.overdueCreated}>{o.created}</span>
+              <span className={styles.overdueArrow}><Icons.ArrowRight /></span>
             </div>
-          ) : (
-            loading
-              ? <div className={`${styles.skeletonBlock} ${styles.skeletonPulse}`} />
-              : <div className={styles.emptyState}>No hub data</div>
-          )}
+          ))}
         </div>
-        )}
       </div>
+      )}
 
-      {/* Urgent Tickets + Alerts */}
+      {/* Urgent tickets (support) + Alerts (company ops → reports:read) */}
+      {(hasCapability(CARD_CAP.support) || hasCapability('reports:read')) && (
       <div className={styles.twoCol}>
+        {/* Hub Performance lives in the Performance card's "Hubs" tab —
+            Urgent Tickets & Alerts share this operational row. */}
         {/* High-priority tickets */}
         {hasCapability(CARD_CAP.support) && (
         <div className={styles.card}>
@@ -394,7 +430,8 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
         )}
 
-        {/* Alerts */}
+        {/* Alerts — company ops summary → reports:read */}
+        {hasCapability('reports:read') && (
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Alerts</h2>
@@ -408,7 +445,7 @@ export const AdminDashboardPage: React.FC = () => {
                   className={`${styles.alertItem} ${alert.level === 'red' ? styles.alertRed : styles.alertYellow}`}
                   onClick={() => navigate(alert.link)}
                 >
-                  <span className={styles.alertDot} />
+                  <span className={styles.alertIcon}><UilExclamationTriangle size={15} /></span>
                   <span className={styles.alertText}>{alert.text}</span>
                   <span className={styles.alertArrow}><Icons.ArrowRight /></span>
                 </div>
@@ -420,52 +457,12 @@ export const AdminDashboardPage: React.FC = () => {
             <div className={styles.emptyState}>No active alerts — all systems good.</div>
           )}
         </div>
-      </div>
-
-      {/* Revenue chart */}
-      {hasCapability(CARD_CAP.revenue) && (
-      <div className={styles.card}>
-        <div className={styles.cardHeader}>
-          <h2 className={styles.cardTitle}>Revenue Trend — {period}</h2>
-          <button className={styles.cardLink} onClick={() => navigate('/admin/analytics/revenue')}>Full Report →</button>
-        </div>
-        <div className={styles.chartWrap}>
-          <div className={styles.chartYAxis}>
-            {yLabels.map((l, i) => <span key={i} className={styles.chartYLabel}>{l}</span>)}
-          </div>
-          <div className={styles.chartMain}>
-            <div className={styles.chartBars}>
-              <div className={`${styles.chartGridline} ${styles.chartGridlineTop}`} />
-              <div className={`${styles.chartGridline} ${styles.chartGridlineMid}`} />
-              <div className={`${styles.chartGridline} ${styles.chartGridlineBot}`} />
-              {(data?.revenue ?? []).map((d, i) => (
-                <div
-                  key={i}
-                  className={styles.chartBarGroup}
-                  title={`${d.label}: ${fmtRupees(d.simplified)}`}
-                >
-                  <div className={styles.chartBarSimplified} style={{ height: `${Math.max(2, (d.simplified / maxRevenue) * 100)}%` }} />
-                </div>
-              ))}
-            </div>
-            <div className={styles.chartXAxis}>
-              {(() => {
-                const rev = data?.revenue ?? [];
-                const step = Math.max(1, Math.ceil(rev.length / 8));
-                return rev.map((d, i) => (
-                  <div key={i} className={`${styles.chartXLabel} ${i % step !== 0 ? styles.chartXLabelHidden : ''}`}>{d.label}</div>
-                ));
-              })()}
-            </div>
-          </div>
-        </div>
-        <div className={styles.chartLegend}>
-          <span className={styles.legendSimplified}>■ Revenue</span>
-        </div>
+        )}
       </div>
       )}
 
-      {/* Recent Activity */}
+      {/* Recent Activity — company audit feed → reports:read */}
+      {hasCapability('reports:read') && (
       <div className={styles.card}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>Recent Activity</h2>
@@ -474,12 +471,11 @@ export const AdminDashboardPage: React.FC = () => {
         <div className={styles.activityList}>
           {(data?.recentActivity ?? []).length > 0
             ? (data?.recentActivity ?? []).map((item, i) => {
-                const iconKey = ACTIVITY_ICON[item.icon];
-                const ActivityIcon = iconKey ? Icons[iconKey] : null;
+                const { Icon: AIcon, tint } = activityVisual(item.text);
                 return (
                   <div key={i} className={styles.activityItem}>
-                    <span className={styles.activityIcon}>
-                      {ActivityIcon ? <ActivityIcon /> : item.icon}
+                    <span className={`${styles.activityIcon} ${(styles as Record<string, string>)[tint] ?? ''}`}>
+                      <AIcon size={15} />
                     </span>
                     <span className={styles.activityText}>{item.text}</span>
                     <span className={styles.activityTime}>{item.time}</span>
@@ -492,6 +488,17 @@ export const AdminDashboardPage: React.FC = () => {
           }
         </div>
       </div>
+      )}
+
+      {/* Role with no company widgets (e.g. design/procurement): the ActionInbox above
+          carries their actionable work; point them at their workspace. */}
+      {!hasCapability('orders:read') && !hasCapability('reports:read') && !hasCapability('customers:write') && (
+        <div className={styles.card}>
+          <div className={styles.emptyState}>
+            Your day-to-day lives in your workspace — use the left nav. Anything needing you shows up at the top.
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,0 +1,311 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  max-width: 1400px;
+}
+
+/* ── Search-first (no caller yet) ── */
+.searchPanel {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-3xl) var(--spacing-lg);
+}
+.searchInner {
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+}
+.searchIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-secondary);
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-md);
+}
+.searchTitle {
+  font-family: var(--font-display);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 4px;
+}
+.searchHint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-lg);
+}
+
+/* ── Cards (shared) ── */
+.card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+.cardHint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* ── Caller card ── */
+.callerTop {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+}
+.callerName {
+  min-width: 0;
+  flex: 1;
+}
+.name {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+.sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+.verifiedTag,
+.maskedTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.verifiedTag {
+  background: var(--status-done-bg);
+  color: var(--status-done-fg);
+}
+.maskedTag {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-tertiary);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-xs) 0 0;
+}
+.facts dt {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+.facts dd {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  word-break: break-word;
+}
+.linkBtn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: var(--spacing-xs);
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+.linkBtn:hover {
+  text-decoration: underline;
+}
+
+/* ── Verify checklist ── */
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.check input {
+  margin-top: 2px;
+  accent-color: var(--color-primary);
+}
+
+/* ── Gate (pre-verify main) ── */
+.gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-3xl) var(--spacing-lg);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-card);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.gateTitle {
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+.gateText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 460px;
+  margin: 0;
+}
+
+/* ── Lists (tickets / orders) ── */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+.row,
+.orderRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  cursor: pointer;
+}
+.row:hover,
+.orderRow:hover {
+  border-color: var(--color-primary);
+}
+.rowMain {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.orderRowActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-extra-light, var(--color-bg-secondary));
+}
+.orderRef {
+  font-family: var(--font-family-mono, monospace);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+}
+.orderTotal {
+  margin-left: auto;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+.orderDate {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+.pickedTag {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+}
+
+/* ── Problem capture form ── */
+.field,
+.amountInput {
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+.field:focus,
+.amountInput:focus {
+  border-color: var(--color-primary);
+}
+/* G-93 caller-verification claim fields */
+.fieldLabel {
+  display: block;
+  margin: 10px 0 4px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.fieldLabel:first-of-type {
+  margin-top: 4px;
+}
+.selectRow {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+.select {
+  flex: 1;
+  height: 40px;
+  padding: 0 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  outline: none;
+}
+.creditRow {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-xs);
+}

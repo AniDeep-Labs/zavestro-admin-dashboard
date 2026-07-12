@@ -22,7 +22,7 @@
 }
 
 [data-theme="dark"] .successIcon {
-  background: rgba(22, 163, 74, 0.15);
+  background: rgba(42, 155, 91, 0.15);
   color: var(--color-primary-light);
 }
 

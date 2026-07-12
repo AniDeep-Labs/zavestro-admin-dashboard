@@ -1,0 +1,45 @@
+.shell {
+  width: 100%;
+}
+
+.grid {
+  display: grid;
+  /* Mirror the proven admin two-col layout (1fr + 340px). minmax(0,1fr) keeps
+     the main column from overflowing on long content. */
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--spacing-lg);
+  align-items: start;
+}
+
+.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-width: 0;
+}
+
+/* Opt-in sticky rail — off by default so it matches the admin's scroll model
+   (the content area is itself overflow:auto; a tall sticky aside would float). */
+.asideSticky {
+  position: sticky;
+  top: var(--spacing-lg);
+}
+
+/* Collapse to one column early enough that the 340px rail never crams the main
+   column at typical admin widths (the left nav already takes ~240px). */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .asideSticky { position: static; }
+  .asideFirst { order: -1; }
+}

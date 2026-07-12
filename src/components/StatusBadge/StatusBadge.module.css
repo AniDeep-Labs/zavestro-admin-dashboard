@@ -1,0 +1,72 @@
+/* StatusBadge — the one status pill. Tones per FABLE-ADMIN-UIUX §2.1.
+   All colors come from the --status-* tokens in styles/variables.css
+   (light + dark defined there — no raw color values in this file). */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  border-radius: 999px;
+  font-weight: var(--font-weight-medium);
+  border: 1px solid transparent;
+  line-height: 1;
+}
+
+.size-md { padding: 4px 10px; font-size: 12px; }
+.size-sm { padding: 2.5px 8px; font-size: 11px; }
+
+/* pending — waiting on customer/payment */
+.tone-pending {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border-light);
+  color: var(--color-text-secondary);
+}
+
+/* fit — measurement/fit */
+.tone-fit {
+  background: var(--status-fit-bg);
+  border-color: var(--status-fit-border);
+  color: var(--status-fit-fg);
+}
+
+/* making — production (gold) */
+.tone-making {
+  background: var(--status-making-bg);
+  border-color: var(--status-making-border);
+  color: var(--status-making-fg);
+}
+
+/* qc — quality (amber) */
+.tone-qc {
+  background: var(--status-qc-bg);
+  border-color: var(--status-qc-border);
+  color: var(--status-qc-fg);
+}
+
+/* transit — moving (emerald tint) */
+.tone-transit {
+  background: var(--status-transit-bg);
+  border-color: var(--status-transit-border);
+  color: var(--status-transit-fg);
+}
+
+/* done — completed/healthy */
+.tone-done {
+  background: var(--status-done-bg);
+  border-color: var(--status-done-border);
+  color: var(--status-done-fg);
+}
+
+/* blocked — problem */
+.tone-blocked {
+  background: var(--status-blocked-bg);
+  border-color: var(--status-blocked-border);
+  color: var(--status-blocked-fg);
+}
+
+/* neutral — informational */
+.tone-neutral {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}

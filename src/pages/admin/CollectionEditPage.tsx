@@ -1,13 +1,16 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Image } from 'lucide-react';
 import { collectionsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
+import { useDirtyGuard } from '../../hooks/useDirtyGuard';
 import styles from './CollectionEditPage.module.css';
+import { UilAngleLeft, UilImage } from "@iconscout/react-unicons";
+import { CollectionStudio, DEFAULT_DESIGN, type CollectionDesign } from './CollectionStudio';
+import type { BannerLayout, BannerTextPosition, BannerTextColor, BannerComposeStyle } from '../../api/adminApi';
 
 function useDebounce<T>(value: T, delay: number): T {
   const [dv, setDv] = React.useState(value);
@@ -18,10 +21,19 @@ function useDebounce<T>(value: T, delay: number): T {
   return dv;
 }
 
-export const CollectionEditPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+export const CollectionEditPage: React.FC<{
+  /** When rendered inside a modal, the id + done callback come as props (no routing). */
+  idProp?: string;
+  onClose?: () => void;
+  onSaved?: () => void;
+}> = ({ idProp, onClose, onSaved }) => {
+  const routeParams = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const id = idProp ?? routeParams.id;
   const isNew = id === 'new';
+  const inModal = !!onClose;
+  // In a modal, finishing closes the popup; as a page, it navigates back to the list.
+  const done = () => { if (onClose) { onSaved?.(); onClose(); } else navigate('/admin/catalog/collections'); };
 
   const [name, setName] = React.useState('');
 
@@ -33,20 +45,36 @@ export const CollectionEditPage: React.FC = () => {
   const [featured, setFeatured] = React.useState(false);
   const [sortOrder, setSortOrder] = React.useState('');
   const [season, setSeason] = React.useState('');
-  const [type, setType] = React.useState<'standard' | 'new_arrivals' | 'occasion' | 'featured'>('standard');
+  // Default new collections to `occasion` — the only type the storefront renders today.
+  const [type, setType] = React.useState<'standard' | 'new_arrivals' | 'occasion' | 'featured'>('occasion');
   const [subtitle, setSubtitle] = React.useState('');
-  const [bgColor1, setBgColor1] = React.useState('#1C5C42');
+  const [bgColor1, setBgColor1] = React.useState('#1F6B4F');
   const [bgColor2, setBgColor2] = React.useState('#0D3D2C');
   const [productSearch, setProductSearch] = React.useState('');
   const [selectedProducts, setSelectedProducts] = React.useState<{id: string; name: string}[]>([]);
   const [searchResults, setSearchResults] = React.useState<ApiProduct[]>([]);
   const [coverImageKey, setCoverImageKey] = React.useState('');
+  const [design, setDesign] = React.useState<CollectionDesign>(DEFAULT_DESIGN);
   const [imageUploading, setImageUploading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [loadError, setLoadError] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [submitted, setSubmitted] = React.useState(false);
   const bannerInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Dirty guard (§6C) — warn on leaving with unsaved form edits. Products auto-save
+  // in edit mode, so only the form fields are tracked.
+  const [ready, setReady] = React.useState(false);
+  const snap = () => JSON.stringify({
+    name, slug, description, status, featured, sortOrder, season, type, subtitle, bgColor1, bgColor2, coverImageKey, design,
+  });
+  const [baseline, setBaseline] = React.useState('');
+  const dirty = ready && baseline !== '' && baseline !== snap();
+  useDirtyGuard(dirty);
+  React.useEffect(() => {
+    if (ready && baseline === '') setBaseline(snap());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   const debouncedProductSearch = useDebounce(productSearch, 350);
 
@@ -55,20 +83,39 @@ export const CollectionEditPage: React.FC = () => {
     setToasts(t => [...t, createToast(type, title, message)]);
 
   React.useEffect(() => {
-    if (isNew) return;
+    if (isNew) { setReady(true); return; }
     collectionsApi.get(id!)
       .then(async col => {
         setName(col.name);
         setSlug(col.slug);
         setDescription(col.description ?? '');
         setStatus(col.status);
+        setFeatured(col.is_featured ?? false); // bug fix: edit was silently un-featuring
         setSortOrder(String(col.sortOrder));
         setSeason(col.season);
         setType((col.type ?? 'standard') as 'standard' | 'new_arrivals' | 'occasion' | 'featured');
         setSubtitle(col.subtitle ?? '');
-        setBgColor1(col.bg_color_1 || '#1C5C42');
+        setBgColor1(col.bg_color_1 || '#1F6B4F');
         setBgColor2(col.bg_color_2 || '#0D3D2C');
         setCoverImageKey(col.cover_image ?? '');
+        setDesign({
+          card_layout: (col.card_layout ?? 'full_image') as BannerLayout,
+          hero_layout: (col.hero_layout ?? 'showcase') as BannerLayout,
+          card_aspect: col.card_aspect ?? 0.8,
+          hero_aspect: col.hero_aspect ?? 2.4,
+          card_focal_x: col.card_focal_x ?? 50, card_focal_y: col.card_focal_y ?? 50,
+          hero_focal_x: col.hero_focal_x ?? 50, hero_focal_y: col.hero_focal_y ?? 50,
+          image_fit: (col.image_fit ?? 'cover') as 'cover' | 'contain',
+          image_zoom: col.image_zoom ?? 100,
+          text_position: (col.text_position ?? 'bottom') as BannerTextPosition,
+          text_color: (col.text_color ?? 'light') as BannerTextColor,
+          overlay: col.overlay ?? 40,
+          gradient_angle: col.gradient_angle ?? 135,
+          gradient_solid: col.gradient_solid ?? false,
+          logo_key: col.logo_key ?? '',
+          cta_text: col.cta_text ?? 'Explore',
+          compose_style: (col.compose_style ?? {}) as BannerComposeStyle,
+        });
         const pids = col.productIds ?? [];
         setSelectedProducts(pids.map(id => ({ id, name: '' })));
         if (pids.length > 0) {
@@ -77,6 +124,7 @@ export const CollectionEditPage: React.FC = () => {
           );
           setSelectedProducts(resolved);
         }
+        setReady(true);
       })
       .catch(err => setLoadError(err instanceof Error ? err.message : 'Failed to load collection'));
   }, [id, isNew]);
@@ -121,12 +169,14 @@ export const CollectionEditPage: React.FC = () => {
   };
 
   const removeProduct = async (pid: string) => {
+    const removed = selectedProducts.find(p => p.id === pid);
     setSelectedProducts(prev => prev.filter(p => p.id !== pid));
     if (!isNew) {
       try {
         await collectionsApi.removeProduct(id!, pid);
       } catch {
         showToast('error', 'Failed to remove product');
+        if (removed) setSelectedProducts(prev => prev.some(p => p.id === pid) ? prev : [...prev, removed]); // rollback the optimistic remove
       }
     }
   };
@@ -150,18 +200,36 @@ export const CollectionEditPage: React.FC = () => {
         type, subtitle: subtitle.trim() || undefined,
         bg_color_1: bgColor1, bg_color_2: bgColor2,
         cover_image: coverImageKey || undefined,
+        // Collection studio design
+        card_layout: design.card_layout, hero_layout: design.hero_layout,
+        card_aspect: design.card_aspect, hero_aspect: design.hero_aspect,
+        card_focal_x: design.card_focal_x, card_focal_y: design.card_focal_y,
+        hero_focal_x: design.hero_focal_x, hero_focal_y: design.hero_focal_y,
+        image_fit: design.image_fit, image_zoom: design.image_zoom,
+        text_position: design.text_position, text_color: design.text_color,
+        overlay: design.overlay, gradient_angle: design.gradient_angle,
+        gradient_solid: design.gradient_solid,
+        logo_key: design.logo_key || undefined, cta_text: design.cta_text,
+        compose_style: design.compose_style,
       };
       if (isNew) {
         const created = await collectionsApi.create(payload as never);
+        const failed: string[] = [];
         for (const p of selectedProducts) {
-          await collectionsApi.addProduct(created.id, p.id).catch(() => {});
+          try { await collectionsApi.addProduct(created.id, p.id); }
+          catch { failed.push(p.name || p.id); }
         }
-        showToast('success', 'Collection created', name);
+        if (failed.length) {
+          showToast('error', `${failed.length} product${failed.length === 1 ? '' : 's'} couldn't be added`, `Collection created, but re-add: ${failed.join(', ')}`);
+        } else {
+          showToast('success', 'Collection created', name);
+        }
       } else {
         await collectionsApi.update(id!, payload as never);
         showToast('success', 'Collection saved', name);
       }
-      setTimeout(() => navigate('/admin/catalog/collections'), 600);
+      setBaseline(snap()); // clear dirty so the post-save navigate isn't blocked
+      setTimeout(done, 600);
     } catch (err) {
       showToast('error', 'Save failed', err instanceof Error ? err.message : undefined);
     } finally {
@@ -171,20 +239,22 @@ export const CollectionEditPage: React.FC = () => {
 
   if (loadError) {
     return (
-      <div className={styles.page}>
-        <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/collections')}><ChevronLeft size={15}/> Back to Collections</button>
-        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-error)' }}>{loadError}</div>
+      <div className={inModal ? styles.pageModal : styles.page}>
+        {!inModal && <button className={styles.backBtn} onClick={done}><UilAngleLeft size={15}/> Back to Collections</button>}
+        <div className={styles.loadError}>{loadError}</div>
       </div>
     );
   }
 
   return (
-    <div className={styles.page}>
+    <div className={inModal ? styles.pageModal : styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/collections')}>
-        <ChevronLeft size={15}/> Back to Collections
-      </button>
-      <h1 className={styles.title}>{isNew ? 'Create Collection' : `Edit: ${name}`}</h1>
+      {!inModal && (
+        <button className={styles.backBtn} onClick={done}>
+          <UilAngleLeft size={15}/> Back to Collections
+        </button>
+      )}
+      {!inModal && <h1 className={styles.title}>{isNew ? 'Create Collection' : `Edit: ${name}`}</h1>}
 
       <div className={styles.twoCol}>
         <div className={styles.main}>
@@ -226,16 +296,25 @@ export const CollectionEditPage: React.FC = () => {
                 </div>
                 <div className={styles.field}>
                   <label className={styles.label}>Collection Type</label>
+                  {/* Only `occasion` collections currently render on the storefront — the
+                      other types are saved but shown nowhere (verified: every web
+                      getCollections() call is type='occasion'). So we offer only Occasion
+                      for new/edited collections; a pre-existing legacy type stays selectable
+                      (so old rows aren't orphaned) but is clearly marked. P5 can re-enable
+                      the rest once they render. */}
                   <select className={styles.select} value={type} onChange={e => setType(e.target.value as typeof type)}>
-                    <option value="standard">Standard</option>
-                    <option value="new_arrivals">New Arrivals</option>
                     <option value="occasion">Occasion</option>
-                    <option value="featured">Featured</option>
+                    {type !== 'occasion' && (
+                      <option value={type}>
+                        {({ standard: 'Standard', new_arrivals: 'New Arrivals', featured: 'Featured' } as Record<string, string>)[type] ?? type} (legacy — not shown on storefront)
+                      </option>
+                    )}
                   </select>
+                  <span className={styles.hint}>Only <strong>Occasion</strong> collections appear on the storefront today.</span>
                 </div>
               </div>
               <div className={styles.field}>
-                <label className={styles.label}>Subtitle <span style={{ fontWeight: 400, color: 'var(--color-text-secondary)' }}>(shown on home screen cards)</span></label>
+                <label className={styles.label}>Subtitle <span className={styles.labelHint}>(shown on home screen cards)</span></label>
                 <input
                   className={styles.input}
                   value={subtitle}
@@ -246,24 +325,24 @@ export const CollectionEditPage: React.FC = () => {
               <div className={styles.fieldRow}>
                 <div className={styles.field}>
                   <label className={styles.label}>Card Gradient — Color 1</label>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="color" value={bgColor1} onChange={e => setBgColor1(e.target.value)} style={{ width: 40, height: 36, border: 'none', cursor: 'pointer', borderRadius: 4 }} />
-                    <input className={styles.input} value={bgColor1} onChange={e => setBgColor1(e.target.value)} placeholder="#1C5C42" style={{ flex: 1 }} />
+                  <div className={styles.colorRow}>
+                    <input type="color" value={bgColor1} onChange={e => setBgColor1(e.target.value)} className={styles.colorSwatch} />
+                    <input className={`${styles.input} ${styles.flex1}`} value={bgColor1} onChange={e => setBgColor1(e.target.value)} placeholder="#1F6B4F" />
                   </div>
                 </div>
                 <div className={styles.field}>
                   <label className={styles.label}>Card Gradient — Color 2</label>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="color" value={bgColor2} onChange={e => setBgColor2(e.target.value)} style={{ width: 40, height: 36, border: 'none', cursor: 'pointer', borderRadius: 4 }} />
-                    <input className={styles.input} value={bgColor2} onChange={e => setBgColor2(e.target.value)} placeholder="#0D3D2C" style={{ flex: 1 }} />
+                  <div className={styles.colorRow}>
+                    <input type="color" value={bgColor2} onChange={e => setBgColor2(e.target.value)} className={styles.colorSwatch} />
+                    <input className={`${styles.input} ${styles.flex1}`} value={bgColor2} onChange={e => setBgColor2(e.target.value)} placeholder="#0D3D2C" />
                   </div>
                 </div>
               </div>
               {(type === 'occasion' || type === 'new_arrivals' || type === 'featured') && (
-                <div style={{ background: `linear-gradient(135deg, ${bgColor1}, ${bgColor2})`, borderRadius: 10, padding: '14px 18px', color: '#fff' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.75 }}>Preview</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>{name || 'Collection Name'}</div>
-                  {subtitle && <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>{subtitle}</div>}
+                <div className={styles.previewBox} style={{ background: `linear-gradient(135deg, ${bgColor1}, ${bgColor2})` }}>
+                  <div className={styles.previewLabel}>Preview</div>
+                  <div className={styles.previewName}>{name || 'Collection Name'}</div>
+                  {subtitle && <div className={styles.previewSub}>{subtitle}</div>}
                 </div>
               )}
               <div className={styles.field}>
@@ -299,7 +378,7 @@ export const CollectionEditPage: React.FC = () => {
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Banner Image</label>
-                <input ref={bannerInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+                <input ref={bannerInputRef} type="file" accept="image/*" className={styles.hidden}
                   onChange={async e => {
                     const file = e.target.files?.[0];
                     if (!file) return;
@@ -316,20 +395,20 @@ export const CollectionEditPage: React.FC = () => {
                     }
                   }} />
                 {coverImageKey ? (
-                  <div className={styles.uploadArea} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: '10px 14px' }}>
+                  <div className={`${styles.uploadArea} ${styles.uploadAreaRow}`}>
                     {R2_PUBLIC_URL && (
                       <img src={`${R2_PUBLIC_URL}/${coverImageKey}`} alt="Cover"
-                        style={{ width: 80, height: 44, objectFit: 'cover', borderRadius: 6, flexShrink: 0, border: '1px solid var(--color-border)' }} />
+                        className={styles.coverThumb} />
                     )}
-                    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', flex: 1, wordBreak: 'break-all' }}>{coverImageKey}</span>
+                    <span className={styles.coverKey}>{coverImageKey}</span>
                     <button type="button" onClick={() => setCoverImageKey('')}
-                      style={{ fontSize: 12, color: 'var(--color-error)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      className={styles.coverRemove}>
                       Remove
                     </button>
                   </div>
                 ) : (
                   <div className={styles.uploadArea}>
-                    <span className={styles.uploadIcon}><Image size={22}/></span>
+                    <span className={styles.uploadIcon}><UilImage size={22}/></span>
                     <span className={styles.uploadText}>Upload banner (1200 × 400px recommended)</span>
                     <button className={styles.uploadBtn} type="button" disabled={imageUploading}
                       onClick={() => bannerInputRef.current?.click()}>
@@ -338,12 +417,10 @@ export const CollectionEditPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div className={styles.toggleRow}>
-                <label className={styles.toggleLabel}>
-                  <input type="checkbox" checked={featured} onChange={e => setFeatured(e.target.checked)} />
-                  Featured Collection (appears on home screen)
-                </label>
-              </div>
+              {/* "Pin to home screen" (is_featured) toggle removed — the flag renders
+                  nowhere on the storefront today (no web surface reads is_featured). The
+                  existing value is preserved on save; re-add a real control when a
+                  featured rail actually ships (P5). */}
             </div>
           </div>
         </div>
@@ -391,8 +468,25 @@ export const CollectionEditPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Collection studio — design the card + landing hero */}
+      <div className={`${styles.card} ${styles.studioCard}`}>
+        <h3 className={styles.sectionTitle}>Storefront design</h3>
+        <p className={styles.studioIntro}>Design how this collection looks as a card (in rails) and as its landing-page hero. Live preview for each.</p>
+        <CollectionStudio
+          design={design}
+          onChange={setDesign}
+          name={name}
+          subtitle={subtitle}
+          onContent={p => { if (p.title !== undefined) handleNameChange(p.title); if (p.subtitle !== undefined) setSubtitle(p.subtitle); }}
+          season={season}
+          coverUrl={coverImageKey ? (coverImageKey.startsWith('http') ? coverImageKey : `${R2_PUBLIC_URL}/${coverImageKey}`) : ''}
+          bgColor1={bgColor1}
+          bgColor2={bgColor2}
+        />
+      </div>
+
       <div className={styles.saveBar}>
-        <button className={styles.cancelBtn} onClick={() => navigate('/admin/catalog/collections')}>Cancel</button>
+        <button className={styles.cancelBtn} onClick={done}>Cancel</button>
         <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
           {saving ? 'Saving…' : isNew ? 'Create Collection' : 'Save Changes'}
         </button>

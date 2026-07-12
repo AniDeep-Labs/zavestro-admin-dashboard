@@ -1,57 +1,42 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Download, X, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
-import { ordersApi, usersApi, hubsApi } from '../../api/adminApi';
-import type { AdminOrder, OrderStage, AdminUser, Hub } from '../../api/adminApi';
-import { catalogApi } from '../../api/catalogApi';
-import type { ApiProduct, ApiVariant } from '../../api/catalogApi';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ordersApi, orderExceptionsApi } from '../../api/adminApi';
+import type { AdminOrder, AssignableAdmin } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { StatusBadge, statusLabel } from '../../components/StatusBadge';
+import { EmptyState } from '../../components/EmptyState';
+import { CopyId, AgeCell, MoneyCell } from '../../components/DataCells';
+import { PeekDrawer } from '../../components/PeekDrawer';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './OrdersListPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilImport, UilSearch, UilTimes } from "@iconscout/react-unicons";
 
 const LIMIT = 25;
 
-const stageLabels: Record<OrderStage, string> = {
-  payment_pending: 'Payment Pending', payment_confirmed: 'Payment Confirmed',
-  awaiting_measurement: 'Awaiting Measurement', measurement_complete: 'Measurement Done',
-  fabric_sourced: 'Fabric Sourced', in_tailoring: 'In Tailoring',
-  quality_check: 'Quality Check', ready_to_dispatch: 'Ready to Dispatch',
-  dispatched: 'Dispatched', delivered: 'Delivered',
-  return_requested: 'Return Requested', returned: 'Returned',
-};
+// The stage filter offers the CANONICAL stages (backend order-transitions.ts) —
+// the old dropdown listed legacy names that matched no real rows.
+const FILTER_STAGES = [
+  'pending_payment', 'awaiting_measurement', 'measurement_complete', 'payment_confirmed',
+  'cutting', 'in_tailoring', 'quality_check', 'rework',
+  'ready_for_dispatch', 'shipped', 'delivered', 'delivery_failed', 'cancelled', 'refunded',
+];
 
-const stageCss: Record<OrderStage, string> = {
-  payment_pending: 'stageNeutral', payment_confirmed: 'stageBlue',
-  awaiting_measurement: 'stageWarning', measurement_complete: 'stageBlue',
-  fabric_sourced: 'stageBlue', in_tailoring: 'stageWarning',
-  quality_check: 'stageWarning', ready_to_dispatch: 'stageSuccess',
-  dispatched: 'stageSuccess', delivered: 'stageSuccess',
-  return_requested: 'stageError', returned: 'stageNeutral',
-};
+// Saved views (FABLE-ADMIN-UIUX §8C): the queues an operator actually opens.
+const VIEWS = [
+  { key: 'all', label: 'All', params: {} },
+  { key: 'stuck', label: 'Stuck > 48h', params: { stuck: true } },
+  { key: 'cod', label: 'COD', params: { paymentMethod: 'cod' } },
+  { key: 'measure', label: 'Awaiting measurement', params: { stage: 'awaiting_measurement' } },
+] as const;
+type ViewKey = (typeof VIEWS)[number]['key'];
 
-function getActionNeeded(o: AdminOrder): { label: string; css: string } | null {
-  switch (o.stage) {
-    case 'payment_confirmed':
-      return { label: 'Schedule Visit', css: 'actionWarning' };
-    case 'awaiting_measurement':
-      if (!o.linked_measurement_booking_id) return { label: 'Book Visit', css: 'actionError' };
-      return { label: 'Visit Booked', css: 'actionInfo' };
-    case 'measurement_complete':
-      if (!o.craftsperson_id) return { label: 'Assign Tailor', css: 'actionWarning' };
-      return null;
-    case 'fabric_sourced':
-      return { label: 'Start Tailoring', css: 'actionWarning' };
-    case 'quality_check':
-      return { label: 'QC Needed', css: 'actionWarning' };
-    case 'ready_to_dispatch':
-      return { label: 'Dispatch', css: 'actionWarning' };
-    case 'return_requested':
-      return { label: 'Handle Return', css: 'actionError' };
-    default:
-      return null;
-  }
-}
+const EMPTY_COPY: Record<ViewKey, { title: string; body?: string }> = {
+  all: { title: 'No orders found', body: 'Orders appear here as customers check out.' },
+  stuck: { title: 'No stuck orders ✓', body: 'Nothing has been sitting in a stage for more than 48 hours.' },
+  cod: { title: 'No COD orders', body: 'No cash-on-delivery orders match the current filters.' },
+  measure: { title: 'No orders awaiting measurement', body: 'Every measured-path order has its visit done.' },
+};
 
 function useDebounce<T>(v: T, d: number) {
   const [dv, setDv] = React.useState(v);
@@ -59,19 +44,34 @@ function useDebounce<T>(v: T, d: number) {
   return dv;
 }
 
-interface OrderItem {
-  product_name: string;
-  variant_id?: string;
-  unit_price: number;
-  quantity: number;
-}
-
 export const OrdersListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [search, setSearch] = React.useState('');
-  const [stageFilter, setStageFilter] = React.useState('');
-  const [modeFilter, setModeFilter] = React.useState('');
-  const [page, setPage] = React.useState(1);
+  // List state lives in the URL (search/stage/view/page) so back, refresh and
+  // deep-links all preserve it — the §1.1 back-behavior rule.
+  const [sp, setSp] = useSearchParams();
+  const view = (VIEWS.find(v => v.key === sp.get('view'))?.key ?? 'all') as ViewKey;
+  const search = sp.get('search') ?? '';
+  const stageFilter = sp.get('stage') ?? '';
+  const page = Math.max(1, Number(sp.get('page')) || 1);
+  // T2-17: the stuck view is an exception inbox — default to what needs an owner (Unclaimed).
+  const isStuck = view === 'stuck';
+  const ownerFilter = (isStuck ? (sp.get('owner') ?? 'unowned') : 'all') as 'unowned' | 'mine' | 'all';
+  // T2-33 (F-4): the Finance P&L / settlement drill-down lands here with a hub + date window.
+  const hubIdFilter = sp.get('hub_id') ?? '';
+  const fromFilter = sp.get('from') ?? '';
+  const toFilter = sp.get('to') ?? '';
+  const hubLabel = sp.get('hub_name') ?? ''; // display only, carried by the drill link
+  const drillActive = !!(hubIdFilter || fromFilter || toFilter);
+
+  const setParam = (key: string, value: string) => {
+    setSp(prev => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set(key, value); else next.delete(key);
+      if (key !== 'page') next.delete('page');
+      return next;
+    }, { replace: true });
+  };
+
   const [orders, setOrders] = React.useState<AdminOrder[]>([]);
   const [total, setTotal] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
@@ -79,128 +79,76 @@ export const OrdersListPage: React.FC = () => {
   const [error, setError] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [exporting, setExporting] = React.useState(false);
+  const [assignable, setAssignable] = React.useState<AssignableAdmin[]>([]);
+  const [assignOpenId, setAssignOpenId] = React.useState<string | null>(null);
+  const [busyId, setBusyId] = React.useState<string | null>(null);
+  // SP-9: quick-look peek so an operator can triage a row without leaving the queue.
+  const [peek, setPeek] = React.useState<AdminOrder | null>(null);
   const debouncedSearch = useDebounce(search, 350);
-
-  // Create Order modal state
-  const [showCreate, setShowCreate] = React.useState(false);
-  const [creating, setCreating] = React.useState(false);
-
-  // User search
-  const [userSearch, setUserSearch] = React.useState('');
-  const [userResults, setUserResults] = React.useState<AdminUser[]>([]);
-  const [selectedUser, setSelectedUser] = React.useState<AdminUser | null>(null);
-  const debouncedUserSearch = useDebounce(userSearch, 350);
-
-  // Product search
-  const [productSearch, setProductSearch] = React.useState('');
-  const [productResults, setProductResults] = React.useState<ApiProduct[]>([]);
-  const [orderItems, setOrderItems] = React.useState<OrderItem[]>([]);
-  const [selectedProduct, setSelectedProduct] = React.useState<ApiProduct | null>(null);
-  const [selectedVariant, setSelectedVariant] = React.useState<ApiVariant | null>(null);
-  const debouncedProductSearch = useDebounce(productSearch, 350);
-
-  // Hub + delivery
-  const [hubs, setHubs] = React.useState<Hub[]>([]);
-  const [selectedHubId, setSelectedHubId] = React.useState('');
-  const [addr, setAddr] = React.useState({ line1: '', line2: '', city: '', state: '', pincode: '' });
-  const [paymentMethod, setPaymentMethod] = React.useState<'cod' | 'offline_transfer' | 'already_paid'>('cod');
-  const [internalNote, setInternalNote] = React.useState('');
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
 
-  React.useEffect(() => {
+  const queryParams = React.useCallback((p: number, limit: number) => {
+    const viewParams = VIEWS.find(v => v.key === view)?.params ?? {};
+    return {
+      search: debouncedSearch || undefined,
+      stage: stageFilter || undefined,
+      ...viewParams,
+      owner: isStuck ? ownerFilter : undefined,
+      hub_id: hubIdFilter || undefined,
+      from: fromFilter || undefined,
+      to: toFilter || undefined,
+      page: p,
+      limit,
+    };
+  }, [debouncedSearch, stageFilter, view, isStuck, ownerFilter, hubIdFilter, fromFilter, toFilter]);
+
+  const reload = React.useCallback(() => {
     setLoading(true); setError('');
-    ordersApi.list({ search: debouncedSearch || undefined, stage: stageFilter as OrderStage || undefined, mode: modeFilter || undefined, page, limit: LIMIT })
+    ordersApi.list(queryParams(page, LIMIT))
       .then(r => { setOrders(r.orders); setTotal(r.total); setTotalPages(r.totalPages); })
       .catch(e => { const msg = e instanceof Error ? e.message : 'Failed to load'; setError(msg); showToast('error', 'Load failed', msg); })
       .finally(() => setLoading(false));
-  }, [debouncedSearch, stageFilter, modeFilter, page]);
+  }, [queryParams, page]);
 
+  React.useEffect(() => { reload(); }, [reload]);
+
+  // Load the assignee picker lazily the first time the stuck (exception) view is opened.
   React.useEffect(() => {
-    if (!showCreate) return;
-    hubsApi.list({ status: 'Active' }).then(r => setHubs(r.hubs)).catch(() => {});
-  }, [showCreate]);
+    if (isStuck && assignable.length === 0) {
+      orderExceptionsApi.assignable().then(setAssignable).catch(() => { /* picker just stays empty */ });
+    }
+  }, [isStuck, assignable.length]);
 
-  React.useEffect(() => {
-    if (debouncedUserSearch.length < 2) { setUserResults([]); return; }
-    usersApi.list({ search: debouncedUserSearch, limit: 6 }).then(r => setUserResults(r.users)).catch(() => {});
-  }, [debouncedUserSearch]);
-
-  React.useEffect(() => {
-    if (debouncedProductSearch.length < 2) { setProductResults([]); return; }
-    catalogApi.getProducts({ search: debouncedProductSearch, status: 'active', limit: 8 })
-      .then(r => setProductResults(r.products))
-      .catch(() => {});
-  }, [debouncedProductSearch]);
-
-  const openCreate = () => {
-    setSelectedUser(null); setUserSearch(''); setUserResults([]);
-    setOrderItems([]); setProductSearch(''); setProductResults([]);
-    setSelectedProduct(null); setSelectedVariant(null);
-    setSelectedHubId(''); setAddr({ line1: '', line2: '', city: '', state: '', pincode: '' });
-    setPaymentMethod('cod'); setInternalNote('');
-    setShowCreate(true);
-  };
-
-  const addItem = () => {
-    if (!selectedProduct) return;
-    const price = selectedVariant?.price ?? selectedProduct.base_price;
-    setOrderItems(prev => [...prev, {
-      product_name: selectedProduct.name + (selectedVariant ? ` — ${selectedVariant.size} / ${selectedVariant.color}` : ''),
-      variant_id: selectedVariant?.id,
-      unit_price: price,
-      quantity: 1,
-    }]);
-    setSelectedProduct(null); setSelectedVariant(null); setProductSearch(''); setProductResults([]);
-  };
-
-  const updateItemQty = (i: number, qty: number) => setOrderItems(prev => prev.map((it, idx) => idx === i ? { ...it, quantity: Math.max(1, qty) } : it));
-  const removeItem = (i: number) => setOrderItems(prev => prev.filter((_, idx) => idx !== i));
-
-  const totalAmount = orderItems.reduce((s, it) => s + it.unit_price * it.quantity, 0);
-
-  const handleCreate = async () => {
-    if (!selectedUser) { showToast('error', 'Select a customer'); return; }
-    if (!selectedHubId) { showToast('error', 'Select a hub'); return; }
-    if (orderItems.length === 0) { showToast('error', 'Add at least one product'); return; }
-    if (!addr.line1 || !addr.city || !addr.state || !addr.pincode) { showToast('error', 'Fill in the delivery address'); return; }
-
-    setCreating(true);
+  // Exception actions operate on the real order UUID (o.uuid); refresh the list + badge after.
+  const runAction = async (label: string, fn: () => Promise<unknown>) => {
+    if (busyId) return;
+    setBusyId(label);
     try {
-      const created = await ordersApi.create({
-        user_id: selectedUser.id,
-        hub_id: selectedHubId,
-        mode: 'simplified',
-        delivery_address: addr,
-        items: orderItems,
-        payment_method: paymentMethod,
-        internal_note: internalNote || undefined,
-      });
-      showToast('success', 'Order created', created.order_number ?? created.id);
-      setShowCreate(false);
-      setOrders(prev => [{ id: created.order_number ?? created.id, uuid: created.id, customer: selectedUser.name, phone: selectedUser.phone, email: selectedUser.email, user_id: selectedUser.id, mode: 'Simplified', stage: 'payment_confirmed', status: 'active', hub: hubs.find(h => h.id === selectedHubId)?.name ?? '', total: totalAmount, products: orderItems.map(i => i.product_name), created: new Date().toLocaleDateString('en-IN'), overdue: false, items: [], timeline: [], payments: [] }, ...prev]);
+      await fn();
+      setAssignOpenId(null);
+      reload();
     } catch (e) {
-      showToast('error', 'Failed to create order', e instanceof Error ? e.message : undefined);
-    } finally { setCreating(false); }
+      showToast('error', 'Action failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setBusyId(null);
+    }
   };
+  const claim = (o: AdminOrder) => runAction(o.id, () => orderExceptionsApi.claim(o.uuid ?? o.id));
+  const release = (o: AdminOrder) => runAction(o.id, () => orderExceptionsApi.release(o.uuid ?? o.id));
+  const assign = (o: AdminOrder, adminId: string) =>
+    runAction(o.id, () => orderExceptionsApi.claim(o.uuid ?? o.id, { assigned_to: adminId }));
 
-  // Exports ALL orders matching the current filters (not just the current page),
-  // via the shared CSV util (proper escaping + Excel BOM).
+  // Exports ALL orders matching the current filters (not just the current page).
   const exportCSV = async () => {
     if (exporting) return;
     setExporting(true);
     try {
       const all: AdminOrder[] = [];
       for (let p = 1; p <= 500; p++) {
-        const r = await ordersApi.list({
-          search: debouncedSearch || undefined,
-          stage: (stageFilter as OrderStage) || undefined,
-          mode: modeFilter || undefined,
-          page: p,
-          limit: 100,
-        });
+        const r = await ordersApi.list(queryParams(p, 100));
         all.push(...r.orders);
         if (p >= r.totalPages || r.orders.length === 0) break;
       }
@@ -211,9 +159,9 @@ export const OrdersListPage: React.FC = () => {
           { header: 'Customer', value: o => o.customer },
           { header: 'Phone', value: o => o.phone },
           { header: 'Email', value: o => o.email ?? '' },
-          { header: 'Mode', value: o => o.mode },
-          { header: 'Stage', value: o => stageLabels[o.stage] ?? o.stage },
+          { header: 'Stage', value: o => statusLabel(o.stage) },
           { header: 'Status', value: o => o.status },
+          { header: 'Payment', value: o => o.payment_method ?? '' },
           { header: 'Hub', value: o => o.hub },
           { header: 'Total (INR)', value: o => o.total },
           { header: 'Created', value: o => o.created },
@@ -228,229 +176,236 @@ export const OrdersListPage: React.FC = () => {
     }
   };
 
+  const clearAll = () => setSp(new URLSearchParams(), { replace: true });
+  const hasFilters = !!(search || stageFilter || view !== 'all');
+
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Orders</h1>
         <div className={styles.headerActions}>
-          <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
-          <button className={styles.exportBtn} onClick={openCreate}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green)', color: '#fff', border: 'none' }}>
-            <Plus size={14}/> Create Order
-          </button>
+          <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><UilImport size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
         </div>
       </div>
 
+      {/* Saved views — the operator's queues lead, filters refine */}
+      <div className={styles.viewChips}>
+        {VIEWS.map(v => (
+          <button
+            key={v.key}
+            className={`${styles.viewChip} ${view === v.key ? styles.viewChipActive : ''}`}
+            onClick={() => setParam('view', v.key === 'all' ? '' : v.key)}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {/* T2-33 (F-4): drill-down filter banner — shown when arriving from a Finance P&L /
+          settlement row. Makes the scope explicit and one-click clearable. */}
+      {drillActive && (
+        <div className={styles.drillBanner}>
+          <span>
+            Filtered from Finance
+            {hubLabel ? ` · ${hubLabel}` : hubIdFilter ? ' · one hub' : ''}
+            {fromFilter || toFilter ? ` · ${fromFilter || '…'} → ${toFilter || '…'}` : ''}
+          </span>
+          <button
+            className={styles.drillClear}
+            onClick={() =>
+              setSp(prev => {
+                const next = new URLSearchParams(prev);
+                ['hub_id', 'from', 'to', 'hub_name', 'page'].forEach(k => next.delete(k));
+                return next;
+              }, { replace: true })
+            }
+          >
+            <UilTimes size={14} /> Clear
+          </button>
+        </div>
+      )}
+
+      {/* T2-17: ownership sub-filter for the stuck exception inbox */}
+      {isStuck && (
+        <div className={styles.subFilter}>
+          <span className={styles.subFilterLabel}>Ownership</span>
+          {(['unowned', 'mine', 'all'] as const).map(k => (
+            <button
+              key={k}
+              className={`${styles.viewChip} ${ownerFilter === k ? styles.viewChipActive : ''}`}
+              onClick={() => setParam('owner', k)}
+            >
+              {k === 'unowned' ? 'Unclaimed' : k === 'mine' ? 'Mine' : 'All'}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
-          <input className={styles.searchInput} placeholder="Search order ID or customer…"
-            value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+          <UilSearch size={15} className={styles.searchIcon} />
+          <input className={styles.searchInput} placeholder="Search order ID, customer or phone…"
+            value={search} onChange={e => setParam('search', e.target.value)} />
         </div>
-        <select className={styles.filterSelect} value={stageFilter} onChange={e => { setStageFilter(e.target.value); setPage(1); }}>
+        <select className={styles.filterSelect} value={stageFilter} onChange={e => setParam('stage', e.target.value)}>
           <option value="">All Stages</option>
-          {(Object.keys(stageLabels) as OrderStage[]).map(s => <option key={s} value={s}>{stageLabels[s]}</option>)}
+          {FILTER_STAGES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
         </select>
-        <select className={styles.filterSelect} value={modeFilter} onChange={e => { setModeFilter(e.target.value); setPage(1); }}>
-          <option value="">All Modes</option>
-          <option value="Simplified">Simplified</option>
-        </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStageFilter(''); setModeFilter(''); setPage(1); }}><X size={14} /> Clear</button>
+        {hasFilters && (
+          <button className={styles.clearBtn} onClick={clearAll}><UilTimes size={14} /> Clear</button>
+        )}
       </div>
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead><tr>
-            <th>Ref</th><th>Order ID</th><th>Customer</th><th>Mode</th><th>Products</th>
-            <th>Stage</th><th>Hub</th><th>Total</th><th>Date</th><th>Action Needed</th>
+            <th>Ref</th><th>Order ID</th><th>Customer</th><th>Products</th>
+            <th>Stage</th><th>Age</th><th>Hub</th><th>Total</th><th>Date</th>
+            {isStuck && <th>Owner</th>}
           </tr></thead>
           <tbody>
             {loading ? Array.from({length: 8}).map((_, i) => (
-              <tr key={i}>{Array.from({length: 10}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
+              <tr key={i}>{Array.from({length: isStuck ? 10 : 9}).map((__, j) => <td key={j}><div className={styles.skeleton}/></td>)}</tr>
             )) : error ? (
-              <tr><td colSpan={10} className={styles.empty}>
-                {error}<br/><button className={styles.retryBtn} onClick={() => setPage(1)}>Retry</button>
+              <tr><td colSpan={isStuck ? 10 : 9}>
+                <EmptyState
+                  title="Couldn't load orders"
+                  body={error}
+                  action={{ label: 'Retry', onClick: () => setParam('page', '') }}
+                  size="compact"
+                />
               </td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={10} className={styles.empty}>No orders found.</td></tr>
-            ) : orders.map(o => {
-              const action = getActionNeeded(o);
-              return (
+              <tr><td colSpan={isStuck ? 10 : 9}>
+                <EmptyState
+                  title={EMPTY_COPY[view].title}
+                  body={hasFilters && view === 'all' ? 'Nothing matches the current filters.' : EMPTY_COPY[view].body}
+                  action={hasFilters ? { label: 'Clear filters', onClick: clearAll } : undefined}
+                  size="compact"
+                />
+              </td></tr>
+            ) : orders.map(o => (
               <tr key={o.id} className={`${styles.row} ${o.overdue ? styles.rowOverdue : ''}`}
-                onClick={() => navigate(`/admin/orders/${o.id}`)}>
-                <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>{o.reference_id ?? '—'}</td>
+                onClick={() => setPeek(o)}>
+                <td>{o.reference_id ? <CopyId value={o.reference_id} /> : '—'}</td>
                 <td className={styles.orderId}>{o.id}</td>
                 <td>
                   <div className={styles.customerName}>{o.customer}</div>
                   <div className={styles.customerPhone}>{o.phone}</div>
                 </td>
-                <td><span className={`${styles.modePill} ${styles.pillGreen}`}>{o.mode}</span></td>
                 <td className={styles.products}>
                   {o.products?.slice(0,2).join(', ')}
                   {(o.products?.length ?? 0) > 2 ? ` +${o.products.length - 2}` : ''}
                 </td>
-                <td><span className={`${styles.stagePill} ${styles[stageCss[o.stage]]}`}>{stageLabels[o.stage]}</span></td>
+                <td><StatusBadge status={o.stage} /></td>
+                <td><AgeCell since={o.updated_at} /></td>
                 <td className={styles.hub}>{o.hub}</td>
-                <td className={styles.total}>₹{o.total?.toLocaleString('en-IN')}</td>
+                <td><MoneyCell amount={o.total} /></td>
                 <td className={styles.date}>{o.created}</td>
-                <td>
-                  {action && <span className={`${styles.actionBadge} ${styles[action.css]}`}>{action.label}</span>}
-                </td>
+                {isStuck && (
+                  <td className={styles.ownerCell} onClick={e => e.stopPropagation()}>
+                    {o.exception_owner ? (
+                      <div className={styles.ownedWrap}>
+                        <span className={styles.ownerChip} title={`Owned since ${o.exception_claimed_at ? new Date(o.exception_claimed_at).toLocaleString('en-IN') : ''}`}>
+                          {o.exception_owner}
+                        </span>
+                        <button className={styles.ownerBtn} disabled={busyId === o.id} onClick={() => release(o)}>Release</button>
+                      </div>
+                    ) : assignOpenId === o.id ? (
+                      <select
+                        className={styles.assignSelect}
+                        autoFocus
+                        defaultValue=""
+                        disabled={busyId === o.id}
+                        onChange={e => { if (e.target.value) assign(o, e.target.value); }}
+                        onBlur={() => setAssignOpenId(null)}
+                      >
+                        <option value="" disabled>Assign to…</option>
+                        {assignable.map(a => <option key={a.id} value={a.id}>{a.name} · {a.role}</option>)}
+                      </select>
+                    ) : (
+                      <div className={styles.ownedWrap}>
+                        <span className={styles.unownedChip}>Unclaimed</span>
+                        <button className={styles.ownerBtn} disabled={busyId === o.id} onClick={() => claim(o)}>Claim</button>
+                        <button className={styles.ownerBtnGhost} disabled={busyId === o.id || assignable.length === 0} onClick={() => setAssignOpenId(o.id)}>Assign</button>
+                      </div>
+                    )}
+                  </td>
+                )}
               </tr>
-              );
-            })}
+            ))}
           </tbody>
         </table>
       </div>
 
+      {/* SP-9: quick-look — triage a row (stage, age, hub, ₹, contact) without
+          leaving the queue; escalate to the full order only when needed. */}
+      <PeekDrawer
+        open={peek !== null}
+        onClose={() => setPeek(null)}
+        title={peek ? peek.customer : ''}
+        subtitle={peek ? (peek.reference_id ?? peek.id) : undefined}
+        status={peek ? <StatusBadge status={peek.stage} /> : undefined}
+        fullLink={
+          peek
+            ? {
+                label: 'Open full order',
+                onClick: () => navigate(`/admin/orders/${peek.id}`),
+              }
+            : undefined
+        }
+      >
+        {peek && (
+          <dl className={styles.peekList}>
+            <div className={styles.peekRow}>
+              <dt>Contact</dt>
+              <dd>{peek.phone || '—'}</dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Products</dt>
+              <dd>{peek.products?.length ? peek.products.join(', ') : '—'}</dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Age in stage</dt>
+              <dd><AgeCell since={peek.updated_at} /></dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Hub</dt>
+              <dd>{peek.hub || '—'}</dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Total</dt>
+              <dd><MoneyCell amount={peek.total} /></dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Payment</dt>
+              <dd>{peek.payment_method ? peek.payment_method.toUpperCase() : '—'}</dd>
+            </div>
+            <div className={styles.peekRow}>
+              <dt>Placed</dt>
+              <dd>{peek.created}</dd>
+            </div>
+            {peek.exception_owner && (
+              <div className={styles.peekRow}>
+                <dt>Exception owner</dt>
+                <dd>{peek.exception_owner}</dd>
+              </div>
+            )}
+          </dl>
+        )}
+      </PeekDrawer>
+
       <div className={styles.paginationRow}>
         <span className={styles.pagination}>{loading ? 'Loading…' : `${total} order${total !== 1 ? 's' : ''} total`}</span>
         <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}><ChevronLeft size={15}/> Prev</button>
+          <button className={styles.pageBtn} disabled={page <= 1 || loading} onClick={() => setParam('page', String(page - 1))}><UilAngleLeft size={15}/> Prev</button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
-          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={15}/></button>
+          <button className={styles.pageBtn} disabled={page >= totalPages || loading} onClick={() => setParam('page', String(page + 1))}>Next <UilAngleRight size={15}/></button>
         </div>
       </div>
-
-      {/* ── Create Order modal ─────────────────────────────────────────────── */}
-      {showCreate && (
-        <div className={styles.modalOverlay} onClick={() => setShowCreate(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()} style={{ maxWidth: 640, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 className={styles.modalTitle}>Create Order</h2>
-
-            {/* Step 1: Customer */}
-            <div className={styles.modalSection}>
-              <div className={styles.modalSectionTitle}>1. Customer</div>
-              {selectedUser ? (
-                <div className={styles.selectedCustomer}>
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{selectedUser.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{selectedUser.phone} · {selectedUser.email}</div>
-                  </div>
-                  <button className={styles.clearSelBtn} onClick={() => { setSelectedUser(null); setUserSearch(''); }}>Change</button>
-                </div>
-              ) : (
-                <div style={{ position: 'relative' }}>
-                  <input className={styles.fieldInput} value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search customer by name or phone…" />
-                  {userResults.length > 0 && (
-                    <div className={styles.searchDropdown}>
-                      {userResults.map(u => (
-                        <button key={u.id} className={styles.searchResult} onClick={() => { setSelectedUser(u); setUserSearch(''); setUserResults([]); }}>
-                          <span style={{ fontWeight: 500 }}>{u.name}</span>
-                          <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{u.phone}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {userSearch.length >= 2 && userResults.length === 0 && (
-                    <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)', marginTop: 6 }}>No customers found for "{userSearch}"</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Step 2: Products */}
-            <div className={styles.modalSection}>
-              <div className={styles.modalSectionTitle}>2. Products</div>
-              <div style={{ position: 'relative', marginBottom: 10 }}>
-                <input className={styles.fieldInput} value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search products to add…" />
-                {productResults.length > 0 && (
-                  <div className={styles.searchDropdown}>
-                    {productResults.map(p => (
-                      <button key={p.id} className={styles.searchResult} onClick={() => { setSelectedProduct(p); setSelectedVariant(null); setProductSearch(''); setProductResults([]); }}>
-                        <span style={{ fontWeight: 500 }}>{p.name}</span>
-                        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>₹{p.base_price.toLocaleString('en-IN')}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {selectedProduct && (
-                <div className={styles.variantPicker}>
-                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>{selectedProduct.name}</div>
-                  {selectedProduct.variants.length > 0 ? (
-                    <>
-                      <select className={styles.fieldSelect} value={selectedVariant?.id ?? ''} onChange={e => setSelectedVariant(selectedProduct.variants.find(v => v.id === e.target.value) ?? null)}>
-                        <option value="">— Select variant —</option>
-                        {selectedProduct.variants.map(v => (
-                          <option key={v.id} value={v.id}>{v.size} / {v.color} — ₹{v.price.toLocaleString('en-IN')}</option>
-                        ))}
-                      </select>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>No variants — base price ₹{selectedProduct.base_price.toLocaleString('en-IN')}</div>
-                  )}
-                  <button className={styles.addItemBtn} onClick={addItem} disabled={selectedProduct.variants.length > 0 && !selectedVariant}>
-                    <Plus size={13}/> Add to order
-                  </button>
-                </div>
-              )}
-
-              {orderItems.length > 0 && (
-                <div className={styles.itemsList}>
-                  {orderItems.map((it, i) => (
-                    <div key={i} className={styles.itemRow}>
-                      <span style={{ flex: 1, fontSize: 13 }}>{it.product_name}</span>
-                      <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginRight: 8 }}>₹{it.unit_price.toLocaleString('en-IN')}</span>
-                      <input type="number" min="1" value={it.quantity} onChange={e => updateItemQty(i, parseInt(e.target.value) || 1)}
-                        style={{ width: 48, height: 28, textAlign: 'center', border: '1px solid var(--color-border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 13 }} />
-                      <button onClick={() => removeItem(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', padding: '0 6px' }}><Trash2 size={13}/></button>
-                    </div>
-                  ))}
-                  <div style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', paddingTop: 8, borderTop: '1px solid var(--color-border-light)' }}>
-                    Total: ₹{totalAmount.toLocaleString('en-IN')}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Step 3: Hub */}
-            <div className={styles.modalSection}>
-              <div className={styles.modalSectionTitle}>3. Hub</div>
-              <select className={styles.fieldSelect} value={selectedHubId} onChange={e => setSelectedHubId(e.target.value)}>
-                <option value="">— Select hub —</option>
-                {hubs.map(h => <option key={h.id} value={h.id}>{h.name} ({h.city})</option>)}
-              </select>
-            </div>
-
-            {/* Step 4: Delivery address */}
-            <div className={styles.modalSection}>
-              <div className={styles.modalSectionTitle}>4. Delivery Address</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <input className={styles.fieldInput} value={addr.line1} onChange={e => setAddr(a => ({ ...a, line1: e.target.value }))} placeholder="Address line 1 *" />
-                <input className={styles.fieldInput} value={addr.line2} onChange={e => setAddr(a => ({ ...a, line2: e.target.value }))} placeholder="Line 2 (optional)" />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                  <input className={styles.fieldInput} value={addr.city} onChange={e => setAddr(a => ({ ...a, city: e.target.value }))} placeholder="City *" />
-                  <input className={styles.fieldInput} value={addr.state} onChange={e => setAddr(a => ({ ...a, state: e.target.value }))} placeholder="State *" />
-                  <input className={styles.fieldInput} value={addr.pincode} onChange={e => setAddr(a => ({ ...a, pincode: e.target.value }))} placeholder="Pincode *" maxLength={6} />
-                </div>
-              </div>
-            </div>
-
-            {/* Step 5: Payment + Note */}
-            <div className={styles.modalSection}>
-              <div className={styles.modalSectionTitle}>5. Payment & Notes</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <select className={styles.fieldSelect} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as typeof paymentMethod)}>
-                  <option value="cod">Cash on Delivery</option>
-                  <option value="offline_transfer">Offline Bank Transfer</option>
-                  <option value="already_paid">Already Paid</option>
-                </select>
-                <input className={styles.fieldInput} value={internalNote} onChange={e => setInternalNote(e.target.value)} placeholder="Internal note (optional)" />
-              </div>
-            </div>
-
-            <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setShowCreate(false)}>Cancel</button>
-              <button className={styles.createBtn} disabled={creating} onClick={handleCreate}>
-                {creating ? 'Creating…' : `Create Order${orderItems.length > 0 ? ` — ₹${totalAmount.toLocaleString('en-IN')}` : ''}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
+
+export default OrdersListPage;

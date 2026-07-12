@@ -342,7 +342,8 @@ export const catalogApi = {
     const urlRes = await fetch(`${BASE_URL}/api/admin/media/upload-url`, {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content_type: file.type }),
+      // T1-31: declare the size so the presign enforces the ceiling (was omitted → unbounded).
+      body: JSON.stringify({ content_type: file.type, file_size: file.size }),
     });
     if (urlRes.status === 401) { clearAdminToken(); window.location.href = '/admin/login'; throw new Error('Unauthorized'); }
     if (!urlRes.ok) throw new Error('Failed to get upload URL');
@@ -388,6 +389,14 @@ export const catalogApi = {
     request<{ success: boolean; data: AdminUser }>(`/api/admin/auth/users/${id}/active`, {
       method: 'PATCH',
       body: JSON.stringify({ is_active: isActive }),
+    }).then(res => res.data),
+
+  // T0-1: assign a real role to an admin (approve a `pending` self-registration or fix a
+  // role). The legacy god-mode `admin` is rejected server-side; super_admin stays global.
+  changeAdminRole: (id: string, role: string, hubId?: string | null): Promise<AdminUser> =>
+    request<{ success: boolean; data: AdminUser }>(`/api/admin/auth/users/${id}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role, hubId: hubId ?? null }),
     }).then(res => res.data),
 
   forgotPassword: (email: string): Promise<{ requested: boolean; token?: string }> =>

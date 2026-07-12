@@ -1,11 +1,13 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, X, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct, ApiCategory } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import styles from './ProductsListPage.module.css';
+import { UilAngleLeft, UilAngleRight, UilPlus, UilSearch, UilTimes } from "@iconscout/react-unicons";
+import { StatusBadge, Alert } from '../../components';
 
 const LIMIT = 20;
 
@@ -23,7 +25,9 @@ export const ProductsListPage: React.FC = () => {
   const location = useLocation();
   const [search, setSearch] = React.useState('');
   const [modeFilter, setModeFilter] = React.useState('');
-  const [categoryFilter, setCategoryFilter] = React.useState('');
+  const [categoryFilter, setCategoryFilter] = React.useState(
+    () => new URLSearchParams(location.search).get('category') ?? '',
+  );
   const [statusFilter, setStatusFilter] = React.useState('');
   const [page, setPage] = React.useState(1);
 
@@ -90,9 +94,13 @@ export const ProductsListPage: React.FC = () => {
     setPage(1);
   };
 
-  const handleArchive = async (e: React.MouseEvent, product: ApiProduct) => {
-    e.stopPropagation();
-    if (!confirm(`Archive "${product.name}"? It will no longer appear in the catalog.`)) return;
+  // T3-9 (§5.5): design-system ConfirmDialog instead of the native confirm().
+  const [pendingArchive, setPendingArchive] = React.useState<ApiProduct | null>(null);
+  const [archiving, setArchiving] = React.useState(false);
+  const doArchive = async () => {
+    const product = pendingArchive;
+    if (!product) return;
+    setArchiving(true);
     try {
       await catalogApi.updateProduct(product.id, { status: 'archived' });
       setProducts(prev => prev.filter(p => p.id !== product.id));
@@ -100,6 +108,9 @@ export const ProductsListPage: React.FC = () => {
       showToast('success', 'Product archived', product.name);
     } catch (err) {
       showToast('error', 'Archive failed', err instanceof Error ? err.message : undefined);
+    } finally {
+      setArchiving(false);
+      setPendingArchive(null);
     }
   };
 
@@ -112,13 +123,21 @@ export const ProductsListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Products</h1>
         <button className={styles.addBtn} onClick={() => navigate('/admin/catalog/products/new')}>
-          <Plus size={15}/> Add Product
+          <UilPlus size={15}/> Add Product
         </button>
       </div>
 
+      {/* T1-30 (P-13): make it unmistakable this is the LEGACY catalog. */}
+      <Alert
+        type="warning"
+        title="Legacy catalog — edits here do NOT feed the new listings flow"
+        message="This is the old product catalog kept live only for the legacy customer flow until the P5 cutover. To merchandise the new storefront, use Designs → Listings. Changes here won't appear there."
+      />
+
+
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input
             type="text"
             className={styles.searchInput}
@@ -155,7 +174,7 @@ export const ProductsListPage: React.FC = () => {
           <option value="draft">Draft</option>
           <option value="archived">Archived</option>
         </select>
-        <button className={styles.clearBtn} onClick={clearFilters}><X size={14}/> Clear</button>
+        <button className={styles.clearBtn} onClick={clearFilters}><UilTimes size={14}/> Clear</button>
       </div>
 
       <div className={styles.tableWrap}>
@@ -235,13 +254,7 @@ export const ProductsListPage: React.FC = () => {
                     {product.delivery_days_min}–{product.delivery_days_max} days
                   </td>
                   <td>
-                    <span className={`${styles.statusPill} ${
-                      product.status === 'active' ? styles.statusActive
-                        : product.status === 'draft' ? styles.statusDraft
-                        : styles.statusArchived
-                    }`}>
-                      {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
-                    </span>
+                    <StatusBadge status={product.status} />
                   </td>
                   <td className={styles.date}>
                     {product.updated_at
@@ -259,7 +272,7 @@ export const ProductsListPage: React.FC = () => {
                       {product.status !== 'archived' && (
                         <button
                           className={`${styles.actionBtn} ${styles.archiveBtn}`}
-                          onClick={e => handleArchive(e, product)}
+                          onClick={e => { e.stopPropagation(); setPendingArchive(product); }}
                         >
                           Archive
                         </button>
@@ -283,7 +296,7 @@ export const ProductsListPage: React.FC = () => {
             disabled={page <= 1 || loading}
             onClick={() => setPage(p => p - 1)}
           >
-            <ChevronLeft size={15}/> Prev
+            <UilAngleLeft size={15}/> Prev
           </button>
           <span className={styles.pageIndicator}>Page {page} of {totalPages || 1}</span>
           <button
@@ -291,10 +304,20 @@ export const ProductsListPage: React.FC = () => {
             disabled={page >= totalPages || loading}
             onClick={() => setPage(p => p + 1)}
           >
-            Next <ChevronRight size={15}/>
+            Next <UilAngleRight size={15}/>
           </button>
         </div>
       </div>
+      <ConfirmDialog
+        open={pendingArchive !== null}
+        title="Archive product?"
+        message={pendingArchive ? `Archive "${pendingArchive.name}"? It will no longer appear in the catalog.` : ''}
+        confirmLabel="Archive"
+        variant="danger"
+        loading={archiving}
+        onConfirm={doArchive}
+        onCancel={() => setPendingArchive(null)}
+      />
     </div>
   );
 };

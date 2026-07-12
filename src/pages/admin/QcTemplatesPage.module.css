@@ -1,0 +1,31 @@
+.page { display: flex; flex-direction: column; gap: 20px; max-width: 1200px; }
+.pageHeader { display: flex; flex-direction: column; gap: 4px; }
+.title { font-family: var(--font-display); font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); margin: 0; }
+.subtitle { font-size: var(--font-size-base); color: var(--color-text-secondary); margin: 0; }
+
+.card { background: var(--color-bg-primary); border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.cardTitle { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin: 0; }
+
+.field { display: flex; flex-direction: column; gap: 6px; max-width: 480px; }
+.fieldLabel { font-size: 13px; font-weight: var(--font-weight-medium); color: var(--color-text-secondary); }
+.fieldInput, .fieldSelect { height: 40px; padding: 0 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; width: 100%; box-sizing: border-box; }
+.fieldInput:focus, .fieldSelect:focus { border-color: var(--color-primary); }
+
+.table { width: 100%; border-collapse: collapse; font-size: var(--font-size-base); }
+.table th { padding: 9px 10px; text-align: left; font-size: 11px; font-weight: var(--font-weight-semibold); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--color-border-light); white-space: nowrap; }
+.table td { padding: 7px 10px; border-bottom: 1px solid var(--color-border-light); color: var(--color-text-primary); vertical-align: middle; }
+.cellInput { height: 34px; padding: 0 8px; border: 1.5px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-sm); outline: none; width: 100%; box-sizing: border-box; }
+.cellInput:focus { border-color: var(--color-primary); }
+.numCell { width: 90px; }
+.rowBtn { background: none; border: none; color: var(--color-error); cursor: pointer; display: inline-flex; align-items: center; }
+.muted { color: var(--color-text-tertiary); font-size: var(--font-size-sm); }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.addBtn { height: 36px; padding: 0 14px; background: none; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); color: var(--color-text-secondary); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.addBtn:hover { border-color: var(--color-text-primary); color: var(--color-text-primary); }
+
+.summaryRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border-light); cursor: pointer; }
+.summaryRow:last-child { border-bottom: none; }
+.summaryName { color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
+.badge { font-size: 12px; font-weight: var(--font-weight-semibold); color: var(--color-primary); background: var(--color-primary-surface, rgba(0,0,0,0.05)); padding: 2px 8px; border-radius: var(--radius-sm); }
+.empty { color: var(--color-text-tertiary); font-size: var(--font-size-base); padding: 8px 0; }

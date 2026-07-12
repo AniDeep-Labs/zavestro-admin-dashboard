@@ -1,7 +1,7 @@
 import React from 'react';
-import { ChevronDown, User, X, Briefcase } from 'lucide-react';
 import { hubStaffGlobalApi, hubStaffApi } from '../../api/adminApi';
 import type { HubStaffGlobal, HubStaff } from '../../api/adminApi';
+import { UilAngleDown, UilBriefcaseAlt, UilTimes, UilUser } from "@iconscout/react-unicons";
 
 type StaffOption = (HubStaffGlobal & { active_orders?: number; active_bookings?: number; active_visits?: number }) | HubStaff;
 
@@ -23,16 +23,16 @@ const ROLE_LABELS: Record<string, string> = {
 
 function workloadColor(total: number): string {
   if (total === 0) return 'var(--color-text-tertiary)';
-  if (total <= 3) return '#16a34a';
-  if (total <= 6) return '#d97706';
-  return '#dc2626';
+  if (total <= 3) return '#2A9B5B';
+  if (total <= 6) return '#C77F22';
+  return '#C24B4B';
 }
 
 function WorkloadBadge({ orders = 0, bookings = 0, visits = 0 }: { orders?: number; bookings?: number; visits?: number }) {
   const total = orders + bookings + visits;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, color: workloadColor(total), marginLeft: 6 }}>
-      <Briefcase size={10} />
+      <UilBriefcaseAlt size={10} />
       {total}
     </span>
   );
@@ -104,7 +104,7 @@ export const StaffAssignmentDropdown: React.FC<Props> = ({
           opacity: disabled ? 0.6 : 1,
         }}
       >
-        <User size={14} style={{ flexShrink: 0, color: 'var(--color-text-tertiary)' }} />
+        <UilUser size={14} style={{ flexShrink: 0, color: 'var(--color-text-tertiary)' }} />
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {loading ? 'Loading…' : selected ? (
             <>
@@ -125,13 +125,13 @@ export const StaffAssignmentDropdown: React.FC<Props> = ({
           )}
         </span>
         {value && !disabled ? (
-          <X
+          <UilTimes
             size={14}
             style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }}
             onClick={(e) => { e.stopPropagation(); onChange(null); }}
           />
         ) : (
-          <ChevronDown size={14} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+          <UilAngleDown size={14} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
         )}
       </button>
 
@@ -154,7 +154,7 @@ export const StaffAssignmentDropdown: React.FC<Props> = ({
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-secondary)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'none')}
           >
-            <X size={13} /> Unassign
+            <UilTimes size={13} /> Unassign
           </button>
           {staff.length === 0 && !loading && (
             <div style={{ padding: '12px 14px', fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>
@@ -187,11 +187,11 @@ export const StaffAssignmentDropdown: React.FC<Props> = ({
                     </span>
                     {showWorkload && total > 0 && (
                       <span style={{ fontSize: 11, color: workloadColor(total), display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Briefcase size={10} />{total} active
+                        <UilBriefcaseAlt size={10} />{total} active
                       </span>
                     )}
                     {showWorkload && total === 0 && (
-                      <span style={{ fontSize: 11, color: '#16a34a' }}>Available</span>
+                      <span style={{ fontSize: 11, color: '#2A9B5B' }}>Available</span>
                     )}
                   </div>
                   {hubName(s) && (

@@ -1,14 +1,14 @@
 .page { padding: 24px; max-width: 1400px; }
 .pageHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
 .title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; color: var(--color-text); margin: 0; }
-.addBtn { background: var(--color-primary, #1C5C42); color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 0.875rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.addBtn { background: var(--color-primary, #1F6B4F); color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 0.875rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .addBtn:hover { opacity: 0.9; }
 
 .filterBar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
 .searchWrap { position: relative; flex: 1; min-width: 200px; display: flex; align-items: center; }
 .searchIcon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; display: flex; }
 .searchInput { width: 100%; padding: 8px 12px 8px 34px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: var(--color-bg-card); color: var(--color-text); font-size: 0.875rem; box-sizing: border-box; outline: none; }
-.searchInput:focus { border-color: var(--color-primary, #1C5C42); }
+.searchInput:focus { border-color: var(--color-primary, #1F6B4F); }
 .filterSelect { padding: 8px 12px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: var(--color-bg-card); color: var(--color-text); font-size: 0.875rem; cursor: pointer; outline: none; }
 .clearBtn { padding: 8px 14px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; background: transparent; color: var(--color-text-muted); font-size: 0.875rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
 
@@ -21,14 +21,21 @@
 .empty { text-align: center; color: var(--color-text-muted); padding: 40px !important; }
 
 .dragHandle { color: var(--color-text-muted); cursor: grab; font-size: 1rem; user-select: none; width: 32px; }
-.nameLink { background: none; border: none; color: var(--color-primary, #1C5C42); font-weight: 500; cursor: pointer; padding: 0; font-size: 0.875rem; text-align: left; }
+.nameLink { background: none; border: none; color: var(--color-primary, #1F6B4F); font-weight: 500; cursor: pointer; padding: 0; font-size: 0.875rem; text-align: left; }
 .nameLink:hover { text-decoration: underline; }
 .slug { font-size: 0.75rem; color: var(--color-text-muted); margin-top: 2px; }
 
 .modePill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
-.modeSimplified { background: rgba(28, 92, 66, 0.1); color: #1C5C42; }
-.modeLuxe { background: rgba(201, 153, 94, 0.15); color: #9A6B3A; }
-.modeBoth { background: rgba(99, 102, 241, 0.1); color: #4338CA; }
+.modeSimplified { background: rgba(31, 107, 79, 0.1); color: #1F6B4F; }
+.modeBoth { background: rgba(99, 102, 241, 0.1); color: #4B8DC8; }
+
+.clickRow { cursor: pointer; }
+
+/* Collection-type chip (tokenized; dark-mode safe via alpha tints) */
+.typeChip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: var(--color-bg-secondary); color: var(--color-text-secondary); white-space: nowrap; }
+.typeNewArrivals { background: rgba(31, 107, 79, 0.12); color: var(--color-primary, #1F6B4F); }
+.typeOccasion { background: rgba(122, 28, 92, 0.14); color: #b0468f; }
+.typeFeatured { background: rgba(201, 153, 94, 0.16); color: var(--color-gold, #C9995E); }
 
 .count { font-weight: 500; color: var(--color-text); }
 .sortOrder { color: var(--color-text-muted); font-size: 0.8rem; }
@@ -37,16 +44,18 @@
 .noBanner { color: var(--color-text-muted); }
 
 .statusPill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
-.statusActive { background: rgba(28, 92, 66, 0.1); color: #1C5C42; }
-.statusDraft { background: rgba(100, 116, 139, 0.1); color: #64748b; }
-.statusArchived { background: rgba(239, 68, 68, 0.08); color: #dc2626; }
+.statusActive { background: rgba(31, 107, 79, 0.1); color: #1F6B4F; }
+.statusDraft { background: rgba(120, 113, 108, 0.1); color: #78716C; }
+.statusArchived { background: rgba(215, 91, 91, 0.08); color: #C24B4B; }
 
 .actions { display: flex; gap: 6px; }
 .actionBtn { padding: 4px 10px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 6px; background: transparent; color: var(--color-text); font-size: 0.75rem; cursor: pointer; }
 .actionBtn:hover { background: var(--color-bg-2); }
-.archiveBtn { padding: 4px 10px; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; background: transparent; color: #dc2626; font-size: 0.75rem; cursor: pointer; }
+.archiveBtn { padding: 4px 10px; border: 1px solid rgba(215, 91, 91, 0.3); border-radius: 6px; background: transparent; color: #C24B4B; font-size: 0.75rem; cursor: pointer; }
 
 .pagination { margin-top: 16px; font-size: 0.8rem; color: var(--color-text-muted); }
-.skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #f8fafc) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
+.skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #FAFAFA) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-.retryBtn { margin-top: 10px; padding: 6px 18px; background: var(--color-primary, #1C5C42); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+.retryBtn { margin-top: 10px; padding: 6px 18px; background: var(--color-primary, #1F6B4F); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+
+.editorModal { max-width: 1380px !important; width: 96vw; }

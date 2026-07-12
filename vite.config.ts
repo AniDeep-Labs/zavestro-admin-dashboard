@@ -16,6 +16,9 @@ export default defineConfig({
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('lucide-react')) return 'vendor-icons';
           if (id.includes('@datadog')) return 'vendor-datadog';
+          // Charts (recharts + its d3 deps) — only the Dashboard/Analytics pages
+          // import them, so keep them in a separate lazily-loaded chunk.
+          if (id.includes('recharts') || id.includes('/d3-') || id.includes('victory-vendor')) return 'vendor-charts';
           if (
             id.includes('/react/') ||
             id.includes('/react-dom/') ||
@@ -32,7 +35,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://api.zavestro.in',
+        // Defaults to prod; set VITE_API_PROXY=http://localhost:8080 to develop
+        // against the local Docker backend without touching this file.
+        target: process.env.VITE_API_PROXY || 'https://api.zavestro.in',
         changeOrigin: true,
         secure: true,
         configure: (proxy) => {

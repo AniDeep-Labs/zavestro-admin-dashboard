@@ -1,0 +1,9 @@
+.stepper { display: flex; align-items: center; gap: 8px; }
+.dots { display: flex; gap: 4px; }
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+.dotOn { background: var(--color-primary); }
+.stepLabel { font-size: var(--font-size-sm); color: var(--color-text-secondary); }

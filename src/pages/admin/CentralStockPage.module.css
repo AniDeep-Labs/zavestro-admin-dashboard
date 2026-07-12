@@ -1,0 +1,35 @@
+.toolbar { display: flex; justify-content: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); }
+/* 5 KPI cards fit one tidy row on wide screens (no orphaned card), wrap evenly below. */
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--spacing-md); margin-bottom: var(--spacing-lg); }
+@media (max-width: 1200px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 720px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+.numCol { text-align: right; font-variant-numeric: tabular-nums; }
+.rowActions { display: inline-flex; align-items: center; gap: var(--spacing-md); white-space: nowrap; }
+.linkBtn {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--color-primary); font: inherit; font-size: var(--font-size-sm);
+}
+.linkBtn:hover { text-decoration: underline; }
+
+/* receive / adjust form */
+.form { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.flbl { display: flex; flex-direction: column; gap: 6px; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--color-text); }
+.finp {
+  padding: 9px 11px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
+  font-family: var(--font-family); font-size: var(--font-size-base);
+  background: var(--color-bg-primary); color: var(--color-text-primary);
+}
+.finp:focus { border-color: var(--color-primary); outline: none; }
+.fhint { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.adjustNow { font-size: var(--font-size-sm); color: var(--color-text-secondary); background: var(--color-bg-section); border-radius: var(--radius-md); padding: 10px 12px; }
+.adjustNow strong { color: var(--color-text); }
+
+/* history ledger */
+.ledger { display: flex; flex-direction: column; gap: var(--spacing-sm); max-height: 50vh; overflow-y: auto; }
+.ledgerRow { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--color-border); }
+.ledgerRow:last-child { border-bottom: none; }
+.ledgerMeta { display: flex; flex-direction: column; gap: 2px; }
+.ledgerNote { font-size: var(--font-size-sm); color: var(--color-text); }
+.ledgerSub { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.ledgerPos { color: var(--color-success, #1c7c4a); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.ledgerNeg { color: var(--color-error); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }

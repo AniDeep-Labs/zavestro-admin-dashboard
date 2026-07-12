@@ -1,10 +1,12 @@
 import React from 'react';
-import { Plus, ToggleLeft, ToggleRight, BarChart2, Copy, Check, Pencil, Trash2 } from 'lucide-react';
 import { promosApi } from '../../api/adminApi';
 import type { PromoCode } from '../../api/adminApi';
+import { istDayEnd } from '../../utils/dateWindow';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import styles from './PromoCodesPage.module.css';
+import { UilChartBar, UilCheck, UilCopy, UilPen, UilPlus, UilToggleOff, UilToggleOn, UilTrashAlt } from "@iconscout/react-unicons";
 
 function isExpired(p: PromoCode) {
   return !!p.valid_until && new Date(p.valid_until) < new Date();
@@ -24,6 +26,8 @@ function PromoForm({
   const [minOrder, setMinOrder] = React.useState(initial.min_order_amount != null && initial.min_order_amount > 0 ? String(initial.min_order_amount) : '');
   const [maxUses, setMaxUses] = React.useState(initial.max_uses != null ? String(initial.max_uses) : '');
   const [expiry, setExpiry] = React.useState(initial.valid_until ? initial.valid_until.slice(0, 10) : '');
+  // Tomorrow, computed once (lazy init keeps render pure — no Date.now() in render body).
+  const [minDate] = React.useState(() => new Date(Date.now() + 86400000).toISOString().slice(0, 10));
 
   return (
     <div className={styles.fields}>
@@ -42,9 +46,10 @@ function PromoForm({
         </select>
       </div>
       <div className={styles.field}>
-        <label className={styles.fieldLabel}>Value *</label>
+        <label className={styles.fieldLabel}>Value * {type === 'percent' ? '(0–100%)' : '(₹, max 100000)'}</label>
         <input className={styles.fieldInput} placeholder={type === 'percent' ? 'e.g., 10' : 'e.g., 200'}
-          value={value} onChange={e => setValue(e.target.value)} type="number" min="0" />
+          value={value} onChange={e => setValue(e.target.value)} type="number" min="0"
+          max={type === 'percent' ? 100 : 100000} />
       </div>
       <div className={styles.field}>
         <label className={styles.fieldLabel}>Min Order Amount (₹)</label>
@@ -59,15 +64,15 @@ function PromoForm({
       <div className={styles.field}>
         <label className={styles.fieldLabel}>Expiry Date *</label>
         <input type="date" className={styles.fieldInput} required
-          min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
+          min={minDate}
           value={expiry} onChange={e => setExpiry(e.target.value)} />
-        {!expiry && <span style={{ fontSize: 12, color: 'var(--color-danger, #d9534f)' }}>An expiry date is required.</span>}
+        {!expiry && <span style={{ fontSize: 12, color: 'var(--color-danger, #D75B5B)' }}>An expiry date is required.</span>}
       </div>
       <div className={styles.modalActions}>
         <button className={styles.cancelModalBtn} onClick={onCancel}>Cancel</button>
         <button className={styles.saveModalBtn}
           disabled={saving || !code.trim() || !value || !expiry}
-          onClick={() => onSave({ code: code.trim().toUpperCase(), discount_type: type, discount_value: parseFloat(value), min_order_amount: minOrder ? parseFloat(minOrder) : 0, max_uses: maxUses ? parseInt(maxUses) : undefined, valid_until: new Date(expiry).toISOString() })}>
+          onClick={() => onSave({ code: code.trim().toUpperCase(), discount_type: type, discount_value: parseFloat(value), min_order_amount: minOrder ? parseFloat(minOrder) : 0, max_uses: maxUses ? parseInt(maxUses) : undefined, valid_until: istDayEnd(expiry) })}>
           {saving ? 'Saving…' : initial.id ? 'Save Changes' : 'Create'}
         </button>
       </div>
@@ -94,8 +99,21 @@ export const PromoCodesPage: React.FC = () => {
     promosApi.list().then(r => setPromos(r.promos)).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  // T1-25: guard the value bounds client-side (backend zod enforces the same — percent ≤ 100,
+  // flat ≤ 100000) so a fat-finger is caught before the server rejects it.
+  const promoBoundError = (data: Partial<PromoCode>): string | null => {
+    const v = data.discount_value;
+    if (v == null) return null; // not being set in this (partial) edit
+    if (v <= 0) return 'Discount value must be positive';
+    if (data.discount_type === 'percent' && v > 100) return "A percentage discount can't exceed 100%";
+    if (data.discount_type === 'flat' && v > 100000) return 'Flat discount is too large (max ₹100000)';
+    return null;
+  };
+
   const handleCreate = async (data: Partial<PromoCode>) => {
     if (!data.code?.trim() || data.discount_value == null) { showToast('error', 'Code and value are required'); return; }
+    const boundErr = promoBoundError(data);
+    if (boundErr) { showToast('error', boundErr); return; }
     setSavingPromo(true);
     try {
       const created = await promosApi.create(data as Parameters<typeof promosApi.create>[0]);
@@ -109,6 +127,8 @@ export const PromoCodesPage: React.FC = () => {
 
   const handleEdit = async (data: Partial<PromoCode>) => {
     if (!editingPromo) return;
+    const boundErr = promoBoundError(data);
+    if (boundErr) { showToast('error', boundErr); return; }
     setSavingPromo(true);
     try {
       const updated = await promosApi.update(editingPromo.id, data);
@@ -130,13 +150,17 @@ export const PromoCodesPage: React.FC = () => {
     } finally { setTogglingId(null); }
   };
 
-  const handleDelete = async (promo: PromoCode) => {
-    if (!confirm(`Delete promo code "${promo.code}"? This cannot be undone.`)) return;
+  const [confirmDelete, setConfirmDelete] = React.useState<PromoCode | null>(null);
+
+  const handleDelete = async () => {
+    const promo = confirmDelete;
+    if (!promo) return;
     setDeletingId(promo.id);
     try {
       await promosApi.delete(promo.id);
       setPromos(prev => prev.filter(p => p.id !== promo.id));
       showToast('success', 'Promo deleted');
+      setConfirmDelete(null);
     } catch (e) {
       showToast('error', 'Failed to delete', e instanceof Error ? e.message : undefined);
     } finally { setDeletingId(null); }
@@ -155,21 +179,21 @@ export const PromoCodesPage: React.FC = () => {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Promo Codes</h1>
-        <button className={styles.addBtn} onClick={() => setShowCreateModal(true)}><Plus size={15}/> Create Promo Code</button>
+        <button className={styles.addBtn} onClick={() => setShowCreateModal(true)}><UilPlus size={15}/> Create Promo Code</button>
       </div>
 
       {loading ? (
         <div className={styles.card} style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-tertiary)' }}>Loading…</div>
       ) : promos.length === 0 ? (
         <div className={styles.card} style={{ textAlign: 'center', padding: '48px 24px' }}>
-          <BarChart2 size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+          <UilChartBar size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
           <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>No promo codes yet. Create your first one above.</p>
         </div>
       ) : (
         <div className={styles.card}>
           <table className={styles.table}>
             <thead>
-              <tr><th>Code</th><th>Type</th><th>Value</th><th>Min Order</th><th>Max Uses</th><th>Expiry</th><th>Status</th><th>Actions</th></tr>
+              <tr><th>Code</th><th>Type</th><th>Value</th><th>Min Order</th><th>Uses</th><th>Spend</th><th>Expiry</th><th>Status</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {promos.map(p => {
@@ -182,12 +206,23 @@ export const PromoCodesPage: React.FC = () => {
                     <td>{p.discount_type === 'percent' ? 'Percentage' : 'Flat (₹)'}</td>
                     <td>{p.discount_type === 'percent' ? `${p.discount_value}%` : `₹${p.discount_value}`}</td>
                     <td>{p.min_order_amount > 0 ? `₹${p.min_order_amount}` : '—'}</td>
-                    <td>{p.max_uses ?? '∞'}</td>
+                    {/* T2-34 (F-5): actual redemptions / max, then total ₹ spent (avg/order). */}
+                    <td>{(p.usage_count ?? 0).toLocaleString('en-IN')} / {p.max_uses ?? '∞'}</td>
+                    <td>
+                      {(p.usage_count ?? 0) > 0 ? (
+                        <>
+                          ₹{Math.round(p.total_spend ?? 0).toLocaleString('en-IN')}
+                          <div className={styles.avgSpend}>
+                            avg ₹{Math.round((p.total_spend ?? 0) / (p.usage_count ?? 1)).toLocaleString('en-IN')}
+                          </div>
+                        </>
+                      ) : '—'}
+                    </td>
                     <td>
                       {p.valid_until ? (
-                        <span style={{ color: expired ? 'var(--color-error, #ef4444)' : 'inherit' }}>
+                        <span style={{ color: expired ? 'var(--color-error, #D75B5B)' : 'inherit' }}>
                           {new Date(p.valid_until).toLocaleDateString('en-IN')}
-                          {expired && <span style={{ marginLeft: 6, fontSize: 11, background: '#ef444422', color: '#ef4444', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Expired</span>}
+                          {expired && <span style={{ marginLeft: 6, fontSize: 11, background: '#D75B5B22', color: '#D75B5B', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Expired</span>}
                         </span>
                       ) : '—'}
                     </td>
@@ -199,14 +234,14 @@ export const PromoCodesPage: React.FC = () => {
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <button className={styles.exportBtn} onClick={() => handleCopy(p)} title="Copy code">
-                          {copiedId === p.id ? <Check size={14}/> : <Copy size={14}/>}
+                          {copiedId === p.id ? <UilCheck size={14}/> : <UilCopy size={14}/>}
                         </button>
-                        <button className={styles.exportBtn} onClick={() => setEditingPromo(p)} title="Edit"><Pencil size={14}/></button>
+                        <button className={styles.exportBtn} onClick={() => setEditingPromo(p)} title="Edit"><UilPen size={14}/></button>
                         <button className={styles.exportBtn} disabled={togglingId === p.id} onClick={() => handleToggle(p)} title={p.is_active ? 'Deactivate' : 'Activate'}>
-                          {p.is_active ? <ToggleRight size={14}/> : <ToggleLeft size={14}/>}
+                          {p.is_active ? <UilToggleOn size={14}/> : <UilToggleOff size={14}/>}
                         </button>
-                        <button className={styles.exportBtn} disabled={deletingId === p.id} onClick={() => handleDelete(p)} title="Delete" style={{ color: 'var(--color-error, #ef4444)' }}>
-                          <Trash2 size={14}/>
+                        <button className={styles.exportBtn} disabled={deletingId === p.id} onClick={() => setConfirmDelete(p)} title="Delete" style={{ color: 'var(--color-error, #D75B5B)' }}>
+                          <UilTrashAlt size={14}/>
                         </button>
                       </div>
                     </td>
@@ -235,6 +270,16 @@ export const PromoCodesPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title={`Delete promo "${confirmDelete?.code ?? ''}"?`}
+        message="This permanently removes the promo code. Customers can no longer use it. This cannot be undone."
+        confirmLabel="Delete promo"
+        loading={!!confirmDelete && deletingId === confirmDelete.id}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 };

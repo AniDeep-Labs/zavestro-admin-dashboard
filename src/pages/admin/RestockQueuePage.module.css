@@ -1,0 +1,30 @@
+/* Restock-specific styles (shared page/table/filter classes stay in
+   OrdersListPage.module.css). */
+
+.requestCard {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  align-items: end;
+}
+.clickRow { cursor: pointer; }
+.fabricName { font-weight: 500; }
+.noteCell { color: var(--color-text-secondary); max-width: 240px; }
+.dateCell { color: var(--color-text-secondary); }
+.dim { opacity: 0.5; }
+.headCount { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+
+/* Procurement: requesting hub's current on-hand, inline on a pending row. */
+.stockCtx { display: flex; flex-direction: column; line-height: 1.3; }
+.stockSub { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.stockLow { color: var(--color-warning, #b06d00); font-weight: var(--font-weight-medium); }
+
+/* CM request form: hub is fixed to the signed-in CM's own hub (read-only). */
+.lockedHub {
+  display: flex; align-items: center; height: 38px; padding: 0 10px;
+  border: 1.5px dashed var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-section); color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}

@@ -32,14 +32,14 @@
 .pillGreen { background: var(--color-bg-section); color: var(--color-primary); }
 .pillGold { background: var(--color-secondary-extra-light); color: var(--color-secondary-darker); }
 .statusPill { display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); }
-.statusActive { background: rgba(28,92,66,0.1); color: #1C5C42; }
-.statusDraft { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); }
-.statusArchived { background: rgba(231,76,60,0.08); color: var(--color-error); }
-.statusDeactivated { background: rgba(231,76,60,0.08); color: var(--color-error); }
-.statusExpired { background: rgba(148,163,184,0.12); color: var(--color-text-secondary); }
-[data-theme="dark"] .statusActive { background: rgba(82,184,130,0.2); color: #52B882; }
-[data-theme="dark"] .statusDraft { background: rgba(156,163,175,0.2); color: #D1D5DB; }
-[data-theme="dark"] .statusArchived { background: rgba(239,68,68,0.2); color: #FCA5A5; }
+.statusActive { background: rgba(31, 107, 79,0.1); color: #1F6B4F; }
+.statusDraft { background: rgba(168, 162, 158,0.12); color: var(--color-text-secondary); }
+.statusArchived { background: rgba(215, 91, 91,0.08); color: var(--color-error); }
+.statusDeactivated { background: rgba(215, 91, 91,0.08); color: var(--color-error); }
+.statusExpired { background: rgba(168, 162, 158,0.12); color: var(--color-text-secondary); }
+[data-theme="dark"] .statusActive { background: rgba(78, 168, 122,0.2); color: #4EA87A; }
+[data-theme="dark"] .statusDraft { background: rgba(168, 162, 158,0.2); color: #D6D3D1; }
+[data-theme="dark"] .statusArchived { background: rgba(215, 91, 91,0.2); color: #E89A9A; }
 .actionBtn { background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 4px 10px; font-family: var(--font-family); font-size: 12px; cursor: pointer; color: var(--color-text-secondary); transition: all var(--transition-fast); }
 .actionBtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .actions { display: flex; gap: 4px; }
@@ -60,8 +60,8 @@
 .fieldTextarea:focus { border-color: var(--color-primary); }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .fields { display: flex; flex-direction: column; gap: 14px; }
-.warningBanner { padding: 10px 14px; background: rgba(231,76,60,0.06); border: 1px solid rgba(231,76,60,0.3); border-radius: var(--radius-md); font-size: 13px; color: #991B1B; }
-[data-theme="dark"] .warningBanner { background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.3); color: #FCA5A5; }
+.warningBanner { padding: 10px 14px; background: rgba(215, 91, 91,0.06); border: 1px solid rgba(215, 91, 91,0.3); border-radius: var(--radius-md); font-size: 13px; color: #A8434A; }
+[data-theme="dark"] .warningBanner { background: rgba(215, 91, 91,0.1); border-color: rgba(215, 91, 91,0.3); color: #E89A9A; }
 .miniTable { width: 100%; border-collapse: collapse; font-size: var(--font-size-base); }
 .miniTable th { padding: 8px 12px; text-align: left; font-size: 11px; font-weight: var(--font-weight-semibold); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--color-border-light); }
 .miniTable td { padding: 9px 12px; border-bottom: 1px solid var(--color-border-light); color: var(--color-text-primary); font-size: 13px; }
@@ -77,9 +77,22 @@
 .configList { display: flex; flex-direction: column; gap: 0; }
 .configRow { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--color-border-light); gap: 16px; }
 .configRow:last-child { border-bottom: none; }
-.configRowDirty { background: rgba(201,153,94,0.05); margin: 0 -20px; padding-left: 20px; padding-right: 20px; border-radius: var(--radius-md); }
-.configLabel { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-base); font-weight: var(--font-weight-medium); color: var(--color-text-primary); }
+.configRowDirty { background: rgba(212, 165, 116,0.05); margin: 0 -20px; padding-left: 20px; padding-right: 20px; border-radius: var(--radius-md); }
+.configLabel { display: flex; flex-direction: column; gap: 3px; font-size: var(--font-size-base); font-weight: var(--font-weight-medium); color: var(--color-text-primary); min-width: 0; }
+.configLabel > span:first-child { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .unsavedBadge { background: var(--color-secondary); color: #fff; font-size: 10px; font-weight: var(--font-weight-bold); padding: 2px 6px; border-radius: var(--radius-full); }
+/* T2-25 */
+.dangerBadge { background: var(--color-error); color: #fff; font-size: 10px; font-weight: var(--font-weight-bold); padding: 2px 6px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.03em; }
+.configDesc { font-size: var(--font-size-sm); font-weight: 400; color: var(--color-text-secondary); }
+.configMeta { font-size: 11px; color: var(--color-text-tertiary); font-weight: 400; }
+.configKey { font-family: monospace; font-size: 11px; color: var(--color-text-tertiary); }
+.numInputError { border-color: var(--color-error) !important; }
+.dangerConfirm { border: 1px solid var(--color-error); border-radius: var(--radius-md); padding: 12px; background: rgba(215,91,91,0.06); display: flex; flex-direction: column; gap: 8px; }
+.dangerConfirmTitle { margin: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-error); }
+.dangerConfirmRow { display: flex; flex-direction: column; gap: 3px; }
+.dangerConfirmLabel { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.dangerConfirmInput { height: 36px; padding: 0 10px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: monospace; font-size: var(--font-size-base); background: var(--color-bg-primary); color: var(--color-text-primary); outline: none; }
+.dangerConfirmInput:focus { border-color: var(--color-error); }
 .configControl { flex-shrink: 0; }
 .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .toggleInput { position: absolute; opacity: 0; width: 0; height: 0; }

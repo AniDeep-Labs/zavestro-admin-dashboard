@@ -1,22 +1,18 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Plus } from 'lucide-react';
 import { hubsApi } from '../../api/adminApi';
 import type { Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './HubsListPage.module.css';
+import { UilPlus, UilTimes } from "@iconscout/react-unicons";
+import { StatusBadge } from '../../components';
 
 function useDebounce<T>(v: T, d: number) {
   const [dv, setDv] = React.useState(v);
   React.useEffect(() => { const t = setTimeout(() => setDv(v), d); return () => clearTimeout(t); }, [v, d]);
   return dv;
 }
-
-const statusCss: Record<string, string> = {
-  Active: 'statusActive', Inactive: 'statusInactive',
-  'At Capacity': 'statusCapacity', Critical: 'statusCritical',
-};
 
 export const HubsListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -33,20 +29,24 @@ export const HubsListPage: React.FC = () => {
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
 
+  // T3-9 (§2.3): a bump key so Retry actually re-runs the load (the old Retry did
+  // setSearch(s => s), a no-op that never changed state → never refetched).
+  const [reloadKey, setReloadKey] = React.useState(0);
+
   React.useEffect(() => {
     setLoading(true); setError('');
     hubsApi.list({ search: debouncedSearch || undefined, status: statusFilter || undefined })
       .then(r => { setHubs(r.hubs); setTotal(r.total); })
       .catch(e => { const msg = e instanceof Error ? e.message : 'Failed to load'; setError(msg); showToast('error', 'Load failed', msg); })
       .finally(() => setLoading(false));
-  }, [debouncedSearch, statusFilter]);
+  }, [debouncedSearch, statusFilter, reloadKey]);
 
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Stitching Hubs</h1>
-        <button className={styles.addBtn} onClick={() => navigate('/admin/hubs/new')}><Plus size={15}/> Add Hub</button>
+        <button className={styles.addBtn} onClick={() => navigate('/admin/hubs/new')}><UilPlus size={15}/> Add Hub</button>
       </div>
 
       <div className={styles.filterBar}>
@@ -55,13 +55,12 @@ export const HubsListPage: React.FC = () => {
         <select className={styles.filterSelect} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">All Status</option>
           <option>Active</option><option>Inactive</option>
-          <option>At Capacity</option><option>Critical</option>
         </select>
-        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); }}><X size={14}/> Clear</button>
+        <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter(''); }}><UilTimes size={14}/> Clear</button>
       </div>
 
       {error && !loading && (
-        <div className={styles.errorBanner}>{error} <button className={styles.retryBtn} onClick={() => setSearch(s => s)}>Retry</button></div>
+        <div className={styles.errorBanner}>{error} <button className={styles.retryBtn} onClick={() => setReloadKey(k => k + 1)}>Retry</button></div>
       )}
 
       {loading ? (
@@ -79,14 +78,14 @@ export const HubsListPage: React.FC = () => {
                   <div className={styles.hubName}>
                     {hub.name}
                     {hub.reference_id && (
-                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 500, marginLeft: 8, padding: '1px 6px', background: 'var(--color-primary-faint, rgba(28,92,66,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 500, marginLeft: 8, padding: '1px 6px', background: 'var(--color-primary-faint, rgba(31, 107, 79,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
                         {hub.reference_id}
                       </span>
                     )}
                   </div>
                   <div className={styles.hubLocation}>{[hub.city, hub.state].map(s => s?.trim()).filter(Boolean).join(', ')}</div>
                 </div>
-                <span className={`${styles.hubStatus} ${styles[statusCss[hub.status]]}`}>{hub.status}</span>
+                <StatusBadge status={hub.status.toLowerCase()} label={hub.status} />
               </div>
               <div className={styles.hubStats}>
                 <div className={styles.stat}><div className={styles.statVal}>{hub.activeOrders}</div><div className={styles.statLabel}>Active Orders</div></div>

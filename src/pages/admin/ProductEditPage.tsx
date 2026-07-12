@@ -1,13 +1,14 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Image, Check, Plus } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { ApiCategory, ApiVariant, ApiMedia, VariantPayload } from '../../api/catalogApi';
 
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { Alert } from '../../components/Alert';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './ProductEditPage.module.css';
+import { UilAngleLeft, UilCheck, UilImage, UilPlus } from "@iconscout/react-unicons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -373,12 +374,19 @@ export const ProductEditPage: React.FC = () => {
 
       <div className={styles.pageTop}>
         <button className={styles.backBtn} onClick={() => navigate('/admin/catalog/products')}>
-          <ChevronLeft size={15}/> Products
+          <UilAngleLeft size={15}/> Products
         </button>
         <h1 className={styles.title}>
           {isNew ? 'New Product' : name || 'Edit Product'}
         </h1>
       </div>
+
+      {/* T1-30 (P-13): editing the LEGACY catalog — this doesn't feed the new listings flow. */}
+      <Alert
+        type="warning"
+        title="Legacy catalog — this doesn't feed the new listings flow"
+        message="Kept live only for the legacy customer flow until the P5 cutover. To merchandise the new storefront, create a listing from Designs → Listings; edits here won't appear there."
+      />
 
       <div className={styles.twoCol}>
         {/* ── LEFT: product details ── */}
@@ -525,14 +533,14 @@ export const ProductEditPage: React.FC = () => {
                     type="button"
                     aria-label="Remove detail"
                     onClick={() => setAttrs(prev => prev.filter((_, j) => j !== i))}
-                    style={{ height: 38, padding: '0 10px', border: '1px solid #E4E0D6', borderRadius: 8, background: '#fff', cursor: 'pointer', color: '#D75B5B' }}
+                    style={{ height: 38, padding: '0 10px', border: '1px solid #EEEBE6', borderRadius: 8, background: '#fff', cursor: 'pointer', color: '#D75B5B' }}
                   >✕</button>
                 </div>
               ))}
               <button
                 type="button"
                 onClick={() => setAttrs(prev => [...prev, { label: '', value: '' }])}
-                style={{ alignSelf: 'flex-start', marginTop: 4, padding: '6px 12px', border: '1px dashed #C9995E', borderRadius: 8, background: 'transparent', color: '#1C5C42', cursor: 'pointer', fontWeight: 600 }}
+                style={{ alignSelf: 'flex-start', marginTop: 4, padding: '6px 12px', border: '1px dashed #D4A574', borderRadius: 8, background: 'transparent', color: '#1F6B4F', cursor: 'pointer', fontWeight: 600 }}
               >+ Add detail</button>
             </div>
           </div>
@@ -625,7 +633,7 @@ export const ProductEditPage: React.FC = () => {
               Images
               <span
                 className={styles.imageCount}
-                style={allImages.length < MIN_IMAGES ? { color: 'var(--color-danger, #d9534f)' } : undefined}
+                style={allImages.length < MIN_IMAGES ? { color: 'var(--color-danger, #D75B5B)' } : undefined}
               >
                 {allImages.length}/{MAX_IMAGES}
               </span>
@@ -648,7 +656,7 @@ export const ProductEditPage: React.FC = () => {
               role="button"
               aria-label="Upload images"
             >
-              <span className={styles.dropIcon}><Image size={28}/></span>
+              <span className={styles.dropIcon}><UilImage size={28}/></span>
               <span className={styles.dropText}>
                 {isDragging ? 'Drop to upload' : 'Drag & drop or click to upload'}
               </span>
@@ -713,7 +721,7 @@ export const ProductEditPage: React.FC = () => {
             className={styles.addVariantBtn}
             onClick={() => { setShowAddVariant(true); setVariantDraft(emptyVariant()); }}
           >
-            <Plus size={14}/> Add Variant
+            <UilPlus size={14}/> Add Variant
           </button>
         </div>
 
@@ -824,7 +832,7 @@ export const ProductEditPage: React.FC = () => {
                   </td>
                   <td>
                     <div className={styles.variantRowActions}>
-                      <button type="button" className={styles.confirmVariantBtn} onClick={addVariantDraft}><Check size={14}/></button>
+                      <button type="button" className={styles.confirmVariantBtn} onClick={addVariantDraft}><UilCheck size={14}/></button>
                       <button type="button" className={styles.cancelVariantBtn} onClick={() => setShowAddVariant(false)}>×</button>
                     </div>
                   </td>

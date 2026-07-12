@@ -1,5 +1,4 @@
 import React from 'react';
-import { RefreshCw, UserPlus, Key } from 'lucide-react';
 import { catalogApi } from '../../api/catalogApi';
 import type { AdminUser } from '../../api/catalogApi';
 import { adminAuthExtApi, hubsApi } from '../../api/adminApi';
@@ -7,16 +6,30 @@ import type { Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AdminUsersManagePage.module.css';
+import { UilKeySkeletonAlt, UilRefresh, UilUserPlus } from "@iconscout/react-unicons";
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin',
-  admin: 'Admin',
-  catalog_manager: 'Catalog / Content',
-  merchandiser: 'Merchandiser',
-  pricing_manager: 'Pricing',
-  support: 'Operations & Support',
+  design: 'Design',
+  procurement: 'Procurement',
+  catalog_manager: 'Catalog Manager',
+  support: 'Support',
   finance: 'Finance',
-  analyst: 'Analyst',
+  pricing_manager: 'Pricing & Promotions',
+  // legacy role — kept for displaying existing god-mode accounts (not creatable)
+  admin: 'Admin',
+};
+
+// W-18: human-readable capability summary per role (mirrors backend permissions.ts).
+// Shown when creating an admin so the grant is understood, not guessed.
+const ROLE_CAP_SUMMARY: Record<string, string> = {
+  design: 'Designs + fabric match, sample review/verdict, fit analytics (read).',
+  procurement: 'Fabrics master, distribution to hubs, restock fulfilment, reports.',
+  catalog_manager: 'Listings + pricing + storefront CMS (their hub), restock requests, samples.',
+  support: 'Orders (CX: notes/hold/cancel/link-fit/re-measure), customers + credits (≤₹500), returns, reviews.',
+  finance: 'Refunds, COD confirmation, invoices, settlement/P&L (read). No floor or catalog writes.',
+  pricing_manager: 'Brand-wide promo codes + business analytics (read). Global. Does NOT set listing prices — that is the catalog manager (per hub).',
+  super_admin: 'Everything — hubs, staff, config, break-glass overrides, DPDP erasure. Oversight, not daily ops.',
 };
 
 export const AdminUsersManagePage: React.FC = () => {
@@ -36,10 +49,16 @@ export const AdminUsersManagePage: React.FC = () => {
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');
-  type AdminRole = 'super_admin' | 'catalog_manager' | 'support' | 'finance';
+  type AdminRole = 'super_admin' | 'design' | 'procurement' | 'catalog_manager' | 'support' | 'finance' | 'pricing_manager';
   const [newRole, setNewRole] = React.useState<AdminRole>('catalog_manager');
   const [newHubId, setNewHubId] = React.useState('');
   const [creating, setCreating] = React.useState(false);
+
+  // T0-1: approving a self-registered `pending` account requires assigning a real role
+  // (the account is created capless). Per-user role/hub selection for the pending cards.
+  const [approveRole, setApproveRole] = React.useState<Record<string, AdminRole | ''>>({});
+  const [approveHub, setApproveHub] = React.useState<Record<string, string>>({});
+  const [approving, setApproving] = React.useState<string | null>(null);
 
   // Hubs for the hub-scoping selectors
   const [hubs, setHubs] = React.useState<Hub[]>([]);
@@ -70,6 +89,31 @@ export const AdminUsersManagePage: React.FC = () => {
     }
   };
 
+  // T0-1: assign the chosen role FIRST, then activate — the account is never
+  // active-but-capless, and never silently god-mode.
+  const handleApprovePending = async (user: AdminUser) => {
+    const role = approveRole[user.id];
+    if (!role) {
+      showToast('error', 'Choose a role', 'Pick the role this person should have before approving.');
+      return;
+    }
+    const hubScoped = role !== 'super_admin' && role !== 'pricing_manager';
+    const hubId = hubScoped ? approveHub[user.id] || null : null;
+    setApproving(user.id);
+    try {
+      await catalogApi.changeAdminRole(user.id, role, hubId);
+      const updated = await catalogApi.setAdminActive(user.id, true);
+      setUsers(prev =>
+        prev.map(u => (u.id === user.id ? { ...u, ...updated, role, hub_id: hubId } : u)),
+      );
+      showToast('success', 'Approved', `${user.email} is now ${ROLE_LABELS[role] ?? role}`);
+    } catch (err) {
+      showToast('error', 'Failed to approve', err instanceof Error ? err.message : '');
+    } finally {
+      setApproving(null);
+    }
+  };
+
   const handleResetLink = async (user: AdminUser) => {
     setResetting(user.id);
     try {
@@ -95,8 +139,9 @@ export const AdminUsersManagePage: React.FC = () => {
     }
     setCreating(true);
     try {
-      // super_admin must stay global (no hub); others may be hub-scoped.
-      const hubId = newRole === 'super_admin' ? null : (newHubId || null);
+      // super_admin + pricing_manager are global (oversight / brand-wide promos);
+      // others may be hub-scoped.
+      const hubId = newRole === 'super_admin' || newRole === 'pricing_manager' ? null : (newHubId || null);
       const created = await catalogApi.createAdmin({ name: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole, hubId });
       setUsers(prev => [...prev, created]);
       setShowCreate(false);
@@ -142,10 +187,10 @@ export const AdminUsersManagePage: React.FC = () => {
         <h1 className={styles.title}>Admin Users</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
-            <UserPlus size={14}/> Create Admin
+            <UilUserPlus size={14}/> Create Admin
           </button>
           <button className={styles.refreshBtn} onClick={load} disabled={loading}>
-            <RefreshCw size={14}/> {loading ? 'Loading…' : 'Refresh'}
+            <UilRefresh size={14}/> {loading ? 'Loading…' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -169,11 +214,59 @@ export const AdminUsersManagePage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className={styles.cardActions}>
-                  <button className={styles.activateBtn} onClick={() => handleToggleActive(user)}>
-                    Activate
-                  </button>
-                </div>
+                {user.role === 'pending' ? (
+                  // Self-registered, capless: super must assign a real role before activating.
+                  <div className={styles.cardActions}>
+                    <select
+                      className={styles.fieldInput}
+                      value={approveRole[user.id] ?? ''}
+                      onChange={e =>
+                        setApproveRole(r => ({ ...r, [user.id]: e.target.value as AdminRole | '' }))
+                      }
+                      aria-label="Assign role"
+                    >
+                      <option value="">Choose role…</option>
+                      <option value="design">Design (central)</option>
+                      <option value="procurement">Procurement (central)</option>
+                      <option value="catalog_manager">Catalog Manager (per-hub)</option>
+                      <option value="pricing_manager">Pricing &amp; Promotions (central)</option>
+                      <option value="support">Support</option>
+                      <option value="finance">Finance</option>
+                      <option value="super_admin">Super Admin</option>
+                    </select>
+                    {(() => {
+                      const role = approveRole[user.id];
+                      const hubScoped = role && role !== 'super_admin' && role !== 'pricing_manager';
+                      return hubScoped ? (
+                        <select
+                          className={styles.fieldInput}
+                          value={approveHub[user.id] ?? ''}
+                          onChange={e => setApproveHub(h => ({ ...h, [user.id]: e.target.value }))}
+                          aria-label="Assign hub"
+                        >
+                          <option value="">Global (no hub)</option>
+                          {hubs.map(h => (
+                            <option key={h.id} value={h.id}>{h.name}</option>
+                          ))}
+                        </select>
+                      ) : null;
+                    })()}
+                    <button
+                      className={styles.activateBtn}
+                      disabled={!approveRole[user.id] || approving === user.id}
+                      onClick={() => handleApprovePending(user)}
+                    >
+                      {approving === user.id ? 'Approving…' : 'Approve & activate'}
+                    </button>
+                  </div>
+                ) : (
+                  // Deactivated account that already has a real role — just reactivate.
+                  <div className={styles.cardActions}>
+                    <button className={styles.activateBtn} onClick={() => handleToggleActive(user)}>
+                      Reactivate
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -251,7 +344,7 @@ export const AdminUsersManagePage: React.FC = () => {
                           onClick={() => { setShowTempPw(user); setTempPw(''); }}
                           title="Set temporary password"
                         >
-                          <Key size={13}/> Temp Pw
+                          <UilKeySkeletonAlt size={13}/> Temp Pw
                         </button>
                         {user.role !== 'super_admin' && (
                           <button
@@ -339,13 +432,18 @@ export const AdminUsersManagePage: React.FC = () => {
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Role</label>
                 <select className={styles.fieldInput} value={newRole} onChange={e => setNewRole(e.target.value as AdminRole)}>
-                  <option value="catalog_manager">Catalog / Content Manager</option>
-                  <option value="support">Operations &amp; Support</option>
+                  <option value="design">Design (central)</option>
+                  <option value="procurement">Procurement (central)</option>
+                  <option value="catalog_manager">Catalog Manager (per-hub)</option>
+                  <option value="pricing_manager">Pricing &amp; Promotions (central)</option>
+                  <option value="support">Support</option>
                   <option value="finance">Finance</option>
                   <option value="super_admin">Super Admin</option>
                 </select>
+                {/* W-18: what this role can actually do (mirrors permissions.ts) */}
+                <p className={styles.roleCaps}>{ROLE_CAP_SUMMARY[newRole]}</p>
               </div>
-              {newRole !== 'super_admin' && (
+              {newRole !== 'super_admin' && newRole !== 'pricing_manager' && (
                 <div className={styles.field}>
                   <label className={styles.fieldLabel}>Hub Scope</label>
                   <select className={styles.fieldInput} value={newHubId} onChange={e => setNewHubId(e.target.value)}>

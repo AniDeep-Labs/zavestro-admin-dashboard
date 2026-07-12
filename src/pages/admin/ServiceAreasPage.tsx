@@ -1,10 +1,12 @@
 import React from 'react';
-import { Plus, Trash2, ToggleLeft, ToggleRight, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { serviceAreasApi, hubsApi } from '../../api/adminApi';
 import type { ServicePincode, Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import styles from './PromoCodesPage.module.css';
+import { UilPlus, UilSearch, UilToggleOff, UilToggleOn, UilTrashAlt } from "@iconscout/react-unicons";
 
 function EmptyState({ message }: { message: string }) {
   return (
@@ -57,8 +59,9 @@ export const ServiceAreasPage: React.FC = () => {
   }, []);
 
   const handleAdd = async () => {
-    const lines = bulkInput.split(/[\s,\n]+/).map(p => p.trim()).filter(p => /^\d{4,6}$/.test(p));
-    if (lines.length === 0) { showToast('error', 'Enter at least one valid 4-6 digit pincode'); return; }
+    // T3-9 (§2.4): Indian pincodes are exactly 6 digits (was /^\d{4,6}$/, which let typos in).
+    const lines = bulkInput.split(/[\s,\n]+/).map(p => p.trim()).filter(p => /^\d{6}$/.test(p));
+    if (lines.length === 0) { showToast('error', 'Enter at least one valid 6-digit pincode'); return; }
     setSaving(true);
     try {
       const payload = lines.map(pincode => ({
@@ -88,8 +91,11 @@ export const ServiceAreasPage: React.FC = () => {
     } finally { setTogglingId(null); }
   };
 
-  const handleDelete = async (p: ServicePincode) => {
-    if (!confirm(`Delete pincode ${p.pincode}?`)) return;
+  // T3-9 (§2.4): design-system ConfirmDialog instead of the native confirm().
+  const [pendingDelete, setPendingDelete] = React.useState<ServicePincode | null>(null);
+  const doDelete = async () => {
+    const p = pendingDelete;
+    if (!p) return;
     setDeletingId(p.id);
     try {
       await serviceAreasApi.remove(p.id);
@@ -98,7 +104,7 @@ export const ServiceAreasPage: React.FC = () => {
       showToast('success', `Pincode ${p.pincode} deleted`);
     } catch (e) {
       showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
-    } finally { setDeletingId(null); }
+    } finally { setDeletingId(null); setPendingDelete(null); }
   };
 
   const totalPages = Math.ceil(total / LIMIT);
@@ -114,12 +120,16 @@ export const ServiceAreasPage: React.FC = () => {
             {total} pincode{total !== 1 ? 's' : ''} configured
           </p>
         </div>
-        <button className={styles.addBtn} onClick={() => setShowModal(true)}><Plus size={15}/> Add Pincodes</button>
+        <div className={styles.headerActions}>
+          {/* T2-26 (SU-8): unserviced demand lives on Pincode Demand — cross-link the two. */}
+          <Link className={styles.crossLink} to="/admin/pincode-waitlist">View pincode demand →</Link>
+          <button className={styles.addBtn} onClick={() => setShowModal(true)}><UilPlus size={15}/> Add Pincodes</button>
+        </div>
       </div>
 
       {/* Search bar */}
       <div style={{ position: 'relative', maxWidth: 360 }}>
-        <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
+        <UilSearch size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
         <input
           className={styles.fieldInput}
           style={{ paddingLeft: 32 }}
@@ -167,16 +177,16 @@ export const ServiceAreasPage: React.FC = () => {
                         title={p.is_active ? 'Deactivate' : 'Activate'}
                         style={{ padding: '0 10px', height: 32, fontSize: 12 }}
                       >
-                        {p.is_active ? <ToggleRight size={14}/> : <ToggleLeft size={14}/>}
+                        {p.is_active ? <UilToggleOn size={14}/> : <UilToggleOff size={14}/>}
                       </button>
                       <button
                         className={styles.exportBtn}
                         disabled={deletingId === p.id}
-                        onClick={() => handleDelete(p)}
+                        onClick={() => setPendingDelete(p)}
                         title="Delete"
                         style={{ padding: '0 10px', height: 32, fontSize: 12, color: 'var(--color-error)' }}
                       >
-                        <Trash2 size={14}/>
+                        <UilTrashAlt size={14}/>
                       </button>
                     </div>
                   </td>
@@ -235,6 +245,16 @@ export const ServiceAreasPage: React.FC = () => {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete pincode?"
+        message={pendingDelete ? `Remove ${pendingDelete.pincode} from the service area? Customers there can no longer check out.` : ''}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deletingId === pendingDelete?.id}
+        onConfirm={doDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 };

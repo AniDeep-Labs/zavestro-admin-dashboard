@@ -27,7 +27,47 @@
   margin-top: 4px;
 }
 .pendingAccent { color: #B45309; }
+
+/* T2-18: Razorpay settlement reconciliation — header actions + manual entry form */
+.reconHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.reconActions { display: flex; gap: 8px; }
+.reconForm {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 14px;
+  align-items: end;
+  padding: 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+.reconField { display: flex; flex-direction: column; gap: 4px; font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.reconKpis { margin-bottom: 12px; }
+@media (max-width: 720px) { .reconForm { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* "est." marker on P&L lines computed from configurable constants (delivery, guarantee)
+   rather than ingested actuals — honest about which numbers are exact vs estimated. */
+.estTag {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  vertical-align: middle;
+}
+/* Width-capped wrapper beats the global `input[type=date]{width:100%}` — the input
+   fills the 168px wrapper instead of stretching the whole row. */
+.dateWrap { flex: 0 0 auto; width: 168px; display: inline-flex; }
 .dateInput {
+  width: 100%;
   height: 38px;
   padding: 0 10px;
   border: 1.5px solid var(--color-border);
@@ -38,11 +78,36 @@
   font-size: var(--font-size-base);
   outline: none;
 }
+.dateInput:focus { border-color: var(--color-primary); }
 .depositId {
   font-family: var(--font-mono, monospace);
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
+
+/* Finance confirm modal (G-28/D19) */
+.confirmBody { display: flex; flex-direction: column; gap: 14px; }
+.confirmMeta { margin: 0; font-size: var(--font-size-base); color: var(--color-text-secondary); }
+.confirmLabel { display: flex; flex-direction: column; gap: 6px; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--color-text-primary); }
+.confirmNote { margin: 0; font-size: var(--font-size-sm); color: var(--color-text-tertiary); }
+
 @media (max-width: 900px) {
   .summary { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* expandable "orders covered" list */
+.expandBtn {
+  background: none; border: none; padding: 0; font: inherit; cursor: pointer;
+  color: var(--color-primary); text-decoration: underline; font-variant-numeric: tabular-nums;
+}
+.orderList { background: var(--color-bg-section); }
+.orderList td { padding: 0; }
+.orderInner { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; }
+.orderRow { display: flex; gap: 10px; align-items: center; font-size: var(--font-size-sm); }
+.orderRow a { color: var(--color-primary); text-decoration: none; font-variant-numeric: tabular-nums; }
+.orderRow a:hover { text-decoration: underline; }
+.orderRowMuted { color: var(--color-text-secondary); }
+.varianceNote { font-size: var(--font-size-sm); color: var(--color-error); }
+
+/* shared by Fit Outcomes (W-12) */
+.subHeading { font-size: 1.1rem; font-weight: var(--font-weight-bold); color: var(--color-text-primary); margin: 8px 0; }

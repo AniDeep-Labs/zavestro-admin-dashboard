@@ -1,144 +1,228 @@
-import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
-  ChevronLeft, Check, MessageSquare, UserCheck, PauseCircle,
-  FileText, Scissors, ShieldCheck, Ruler, AlertCircle, Clock,
-  CheckCircle2, Truck, Package,
-} from 'lucide-react';
-import { ordersApi, invoicesApi, measurementBookingsApi, customerMeasurementsApi } from '../../api/adminApi';
-import type { AdminOrder, OrderStage, OrderTimelineEntry, MeasurementBooking, CustomerMeasurementsData } from '../../api/adminApi';
-import { StaffAssignmentDropdown } from '../../components/StaffAssignmentDropdown/StaffAssignmentDropdown';
-import { ToastContainer, createToast } from '../../components/Toast/Toast';
-import type { ToastData } from '../../components/Toast/Toast';
-import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
-import { Can } from '../../components/Can/Can';
-import styles from './OrderDetailPage.module.css';
+  ordersApi,
+  invoicesApi,
+  customerMeasurementsApi,
+  usersApi,
+  alterationsApi,
+  returnsApi,
+} from "../../api/adminApi";
+import type {
+  AdminOrder,
+  OrderStage,
+  OrderTimelineEntry,
+  CustomerMeasurementsData,
+} from "../../api/adminApi";
+import { StaffAssignmentDropdown } from "../../components/StaffAssignmentDropdown/StaffAssignmentDropdown";
+import { ToastContainer, createToast } from "../../components/Toast/Toast";
+import type { ToastData } from "../../components/Toast/Toast";
+import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
+import { Can } from "../../components/Can/Can";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { DispositionPanel } from "../../components/DispositionPanel/DispositionPanel";
+import { StatusBadge, statusLabel } from "../../components/StatusBadge";
+import { PageHeader, DetailShell } from "../../components";
+import styles from "./OrderDetailPage.module.css";
+import {
+  UilAngleLeft,
+  UilBox,
+  UilCheck,
+  UilCheckCircle,
+  UilClock,
+  UilCommentDots,
+  UilExclamationCircle,
+  UilFileAlt,
+  UilPauseCircle,
+  UilProcess,
+  UilRuler,
+  UilShieldCheck,
+  UilTruck,
+  UilUserCheck,
+} from "@iconscout/react-unicons";
 
 // ── Stage stepper config ─────────────────────────────────────────────────────
+// Canonical stages per the backend state machine (order-transitions.ts). Legacy
+// rows may still carry old names — normalizeStage maps them so the stepper,
+// the next-step card and the override dropdown all speak the real machine.
 
-const STAGES: { key: OrderStage; label: string }[] = [
-  { key: 'payment_pending',      label: 'Payment\nPending' },
-  { key: 'payment_confirmed',    label: 'Payment\nConfirmed' },
-  { key: 'awaiting_measurement', label: 'Awaiting\nMeasurement' },
-  { key: 'measurement_complete', label: 'Measurement\nDone' },
-  { key: 'in_tailoring',         label: 'In\nTailoring' },
-  { key: 'quality_check',        label: 'Quality\nCheck' },
-  { key: 'ready_to_dispatch',    label: 'Ready to\nDispatch' },
-  { key: 'dispatched',           label: 'Dispatched' },
-  { key: 'delivered',            label: 'Delivered' },
+const STAGE_ALIAS: Record<string, string> = {
+  payment_pending: "pending_payment",
+  ready_to_dispatch: "ready_for_dispatch",
+  dispatched: "shipped",
+};
+const normalizeStage = (s: string): string => STAGE_ALIAS[s] ?? s;
+
+// The happy path, in order (rework / delivery_failed / cancelled / refunded are
+// off-path and render as a banner above the stepper instead).
+const STAGES: { key: string; label: string }[] = [
+  { key: "pending_payment", label: "Payment\nPending" },
+  { key: "payment_confirmed", label: "Payment\nConfirmed" },
+  { key: "awaiting_measurement", label: "Awaiting\nMeasurement" },
+  { key: "measurement_complete", label: "Measurement\nDone" },
+  { key: "cutting", label: "Cutting" },
+  { key: "in_tailoring", label: "In\nTailoring" },
+  { key: "quality_check", label: "Quality\nCheck" },
+  { key: "ready_for_dispatch", label: "Ready for\nDispatch" },
+  { key: "shipped", label: "Shipped" },
+  { key: "delivered", label: "Delivered" },
 ];
 
-const STAGE_IDX = Object.fromEntries(STAGES.map((s, i) => [s.key, i])) as Record<string, number>;
+const STAGE_IDX = Object.fromEntries(
+  STAGES.map((s, i) => [s.key, i]),
+) as Record<string, number>;
+
+// Where an off-path stage rejoins the happy path (for stepper progress display).
+const OFFPATH_NEAR: Record<string, string> = {
+  rework: "quality_check",
+  delivery_failed: "shipped",
+  fabric_sourcing: "measurement_complete",
+  fabric_sourced: "measurement_complete",
+};
+
+// Every stage the break-glass override may target = the state machine's keys.
+const OVERRIDE_STAGES: string[] = [
+  "pending_payment", "payment_confirmed", "awaiting_measurement", "measurement_complete",
+  "fabric_sourcing", "fabric_sourced", "cutting", "in_tailoring",
+  "quality_check", "rework", "ready_for_dispatch", "shipped",
+  "delivered", "delivery_failed", "cancelled", "refunded",
+];
 
 // ── Timeline helpers ─────────────────────────────────────────────────────────
 
 function timelineClass(eventType?: string): string {
   switch (eventType) {
-    case 'note':                return styles.timelineNote;
-    case 'assignment':          return styles.timelineAssign;
-    case 'craftsperson_assigned':
-    case 'qc_staff_assigned':   return styles.timelineAssign;
-    case 'measurement_linked':  return styles.timelineAssign;
-    case 'hold':                return styles.timelineHold;
-    case 'admin_override':      return styles.timelineAdmin;
-    default:                    return '';
+    case "note":
+      return styles.timelineNote;
+    case "assignment":
+      return styles.timelineAssign;
+    case "craftsperson_assigned":
+    case "qc_staff_assigned":
+      return styles.timelineAssign;
+    case "measurement_linked":
+      return styles.timelineAssign;
+    case "hold":
+      return styles.timelineHold;
+    case "admin_override":
+      return styles.timelineAdmin;
+    default:
+      return "";
   }
 }
 
 function timelineIcon(eventType?: string) {
   switch (eventType) {
-    case 'note':                return <MessageSquare size={13} />;
-    case 'assignment':
-    case 'craftsperson_assigned':
-    case 'qc_staff_assigned':   return <UserCheck size={13} />;
-    case 'measurement_linked':  return <Ruler size={13} />;
-    case 'hold':                return <PauseCircle size={13} />;
-    case 'admin_override':      return <FileText size={13} />;
-    default:                    return <Check size={13} />;
+    case "note":
+      return <UilCommentDots size={13} />;
+    case "assignment":
+    case "craftsperson_assigned":
+    case "qc_staff_assigned":
+      return <UilUserCheck size={13} />;
+    case "measurement_linked":
+      return <UilRuler size={13} />;
+    case "hold":
+      return <UilPauseCircle size={13} />;
+    case "admin_override":
+      return <UilFileAlt size={13} />;
+    default:
+      return <UilCheck size={13} />;
   }
 }
 
 function timelineText(entry: OrderTimelineEntry): string {
-  const et = entry.event_type ?? 'stage_change';
-  if (et === 'note') return entry.note ?? 'Note added';
-  if (et === 'assignment' || et === 'craftsperson_assigned' || et === 'qc_staff_assigned') return entry.note ?? 'Staff assigned';
-  if (et === 'measurement_linked') return entry.note ?? 'Measurement booking linked';
-  if (et === 'hold') return entry.note ? `On hold: ${entry.note}` : 'Order placed on hold';
-  return `Stage → ${entry.to_stage.replace(/_/g, ' ')}${entry.note ? ` — ${entry.note}` : ''}`;
+  const et = entry.event_type ?? "stage_change";
+  if (et === "note") return entry.note ?? "Note added";
+  if (
+    et === "assignment" ||
+    et === "craftsperson_assigned" ||
+    et === "qc_staff_assigned"
+  )
+    return entry.note ?? "Staff assigned";
+  if (et === "measurement_linked")
+    return entry.note ?? "Measurement booking linked";
+  if (et === "hold")
+    return entry.note ? `On hold: ${entry.note}` : "Order placed on hold";
+  return `Stage → ${entry.to_stage.replace(/_/g, " ")}${entry.note ? ` — ${entry.note}` : ""}`;
 }
 
 // ── Next-step card ────────────────────────────────────────────────────────────
 
 interface NextStepProps {
   order: AdminOrder;
-  customerBookings: MeasurementBooking[];
-  bookingsLoading: boolean;
-  customerFitProfiles: CustomerMeasurementsData['profiles'];
+  customerFitProfiles: CustomerMeasurementsData["profiles"];
   profilesLoading: boolean;
   advancingStage: boolean;
   assigningCraft: boolean;
   assigningQC: boolean;
-  onLinkMeasurement: (bookingId: string) => Promise<void>;
   onAdvance: (stage: OrderStage, note?: string) => Promise<void>;
   onAssignCraft: (staffId: string | null) => Promise<void>;
   onAssignQC: (staffId: string | null) => Promise<void>;
-  onCreateMeasurementBooking: () => void;
   onUseFitProfile: (profileId: string) => Promise<void>;
 }
 
 const NextStepCard: React.FC<NextStepProps> = ({
-  order, customerBookings, bookingsLoading,
-  customerFitProfiles, profilesLoading,
-  advancingStage, assigningCraft, assigningQC,
-  onLinkMeasurement, onAdvance, onAssignCraft, onAssignQC,
-  onCreateMeasurementBooking, onUseFitProfile,
+  order,
+  customerFitProfiles,
+  profilesLoading,
+  advancingStage,
+  assigningCraft,
+  assigningQC,
+  onAdvance,
+  onAssignCraft,
+  onAssignQC,
+  onUseFitProfile,
 }) => {
-  const [selectedBookingId, setSelectedBookingId] = React.useState('');
-  const [selectedProfileId, setSelectedProfileId] = React.useState('');
-  const navigate = useNavigate();
+  const [selectedProfileId, setSelectedProfileId] = React.useState("");
 
-  const stage = order.stage;
+  // Normalized: legacy stage names map onto the canonical machine.
+  const stage = normalizeStage(order.stage);
 
   // Payment not confirmed yet
-  if (stage === 'payment_pending') {
+  if (stage === "pending_payment") {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(148,163,184,0.12)', color: 'var(--color-text-tertiary)' }}>
-          <Clock size={18} />
+        <div className={`${styles.nextStepIcon} ${styles.stepIconMuted}`}>
+          <UilClock size={18} />
         </div>
         <div className={styles.nextStepTitle}>Awaiting Payment</div>
-        <div className={styles.nextStepDesc}>Payment has not been confirmed yet. Once confirmed, schedule a measurement visit.</div>
+        <div className={styles.nextStepDesc}>
+          Payment has not been confirmed yet. Once confirmed, schedule a
+          measurement visit.
+        </div>
       </div>
     );
   }
 
   // Payment confirmed — determine measurement path
-  if (stage === 'payment_confirmed') {
+  if (stage === "payment_confirmed") {
     const hasSavedProfiles = !profilesLoading && customerFitProfiles.length > 0;
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(201,153,94,0.12)', color: '#9A6B3A' }}>
-          <Ruler size={18} />
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGold}`}>
+          <UilRuler size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 1 — Measurements</div>
 
         {profilesLoading ? (
-          <div className={styles.nextStepLoading}>Checking saved measurements…</div>
+          <div className={styles.nextStepLoading}>
+            Checking saved measurements…
+          </div>
         ) : hasSavedProfiles ? (
           <>
-            <div className={styles.nextStepDesc} style={{ color: 'var(--color-primary)', fontWeight: 500 }}>
+            <div className={`${styles.nextStepDesc} ${styles.nextStepGood}`}>
               ✓ This customer has saved measurements
             </div>
             <div className={styles.nextStepLabel}>Select fit profile</div>
             <select
               className={styles.nextStepSelect}
               value={selectedProfileId}
-              onChange={e => setSelectedProfileId(e.target.value)}
+              onChange={(e) => setSelectedProfileId(e.target.value)}
             >
               <option value="">Choose a profile…</option>
-              {customerFitProfiles.map(p => (
+              {customerFitProfiles.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — {p.category} — {new Date(p.created_at).toLocaleDateString('en-IN')}
+                  {p.name} — {p.category} —{" "}
+                  {new Date(p.created_at).toLocaleDateString("en-IN")}
                 </option>
               ))}
             </select>
@@ -147,7 +231,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
               disabled={!selectedProfileId || advancingStage}
               onClick={() => onUseFitProfile(selectedProfileId)}
             >
-              {advancingStage ? 'Applying…' : 'Use Saved Measurements →'}
+              {advancingStage ? "Applying…" : "Use Saved Measurements →"}
             </button>
             <div className={styles.nextStepOr}>or schedule a new visit</div>
           </>
@@ -157,106 +241,54 @@ const NextStepCard: React.FC<NextStepProps> = ({
           </div>
         )}
 
-        {/* Measurement booking path */}
-        {bookingsLoading ? (
-          <div className={styles.nextStepLoading}>Loading bookings…</div>
-        ) : customerBookings.length > 0 ? (
-          <>
-            <div className={styles.nextStepLabel}>Link existing booking</div>
-            <select
-              className={styles.nextStepSelect}
-              value={selectedBookingId}
-              onChange={e => setSelectedBookingId(e.target.value)}
-            >
-              <option value="">Select a booking…</option>
-              {customerBookings.map(b => (
-                <option key={b.id} value={b.id}>
-                  {b.reference_id ?? b.booking_ref} — {b.status} — {b.scheduled_at ? new Date(b.scheduled_at).toLocaleDateString('en-IN') : 'Unscheduled'}
-                </option>
-              ))}
-            </select>
-            <button
-              className={styles.nextStepSecondary}
-              disabled={!selectedBookingId || advancingStage}
-              onClick={() => onLinkMeasurement(selectedBookingId)}
-            >
-              {advancingStage ? 'Linking…' : 'Link Booking & Schedule Visit'}
-            </button>
-          </>
-        ) : null}
-        <button className={styles.nextStepSecondary} onClick={onCreateMeasurementBooking}>
-          Create New Measurement Booking →
-        </button>
-        <div className={styles.nextStepEmpty} style={{ marginTop: 6 }}>
-          Customer can also submit self-measurements via the app to skip the home visit.
+        {/* Dark-store: measurement is captured by the field agent on the home visit
+            (booked at checkout) and recorded via the ops app — no admin booking here. */}
+        <div className={`${styles.nextStepEmpty} ${styles.nextStepEmptyGap}`}>
+          {order.linked_home_visit_id
+            ? "An agent home visit is booked — the agent captures measurements on the visit (via the ops app)."
+            : "If there are no saved measurements, an agent home visit captures them after checkout."}
         </div>
       </div>
     );
   }
 
   // Measurement visit scheduled — waiting for specialist to visit
-  if (stage === 'awaiting_measurement') {
-    const booking = order.linked_measurement_booking_id;
+  if (stage === "awaiting_measurement") {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--color-info)' }}>
-          <Clock size={18} />
+        <div className={`${styles.nextStepIcon} ${styles.stepIconBlue}`}>
+          <UilClock size={18} />
         </div>
-        <div className={styles.nextStepTitle}>Waiting for Measurement Visit</div>
-        {!booking ? (
-          <div className={styles.nextStepDesc} style={{ color: '#9A6B3A' }}>
-            ⚠ No measurement booking linked. Use the "Schedule Measurement Visit" step to link or create one first.
-          </div>
-        ) : (
-          <div className={styles.nextStepDesc}>
-            The measurement specialist will visit the customer's home and upload measurements via the ops app. This card will automatically advance once the booking is marked complete.
-          </div>
-        )}
-        {booking && (
-          <button className={styles.nextStepSecondary} onClick={() => navigate(`/admin/measurement-bookings/${booking}`)}>
-            View Booking →
-          </button>
-        )}
-        {booking && (
-          <>
-            <div className={styles.nextStepOr}>If the ops app didn't auto-advance:</div>
-            <button
-              className={styles.nextStepPrimary}
-              style={{ opacity: 0.75, fontSize: '0.8rem' }}
-              disabled={advancingStage}
-              onClick={() => onAdvance('measurement_complete', 'Measurements verified manually')}
-            >
-              {advancingStage ? 'Advancing…' : 'Manually Mark Complete'}
-            </button>
-          </>
-        )}
-        {!booking && (
-          <button className={styles.nextStepSecondary} onClick={onCreateMeasurementBooking}>
-            Create Measurement Booking →
-          </button>
-        )}
+        <div className={styles.nextStepTitle}>
+          Waiting for Measurement Visit
+        </div>
+        <div className={styles.nextStepDesc}>
+          {order.linked_home_visit_id
+            ? "An agent home visit is scheduled. The agent records the measurements via the ops app, which advances this order automatically."
+            : "Awaiting measurement. The agent home visit (booked at checkout) captures measurements via the ops app and advances the order automatically."}
+        </div>
       </div>
     );
   }
 
   // Measurements done — assign craftsperson
-  if (stage === 'measurement_complete') {
+  if (stage === "measurement_complete") {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(28,92,66,0.08)', color: 'var(--color-primary)' }}>
-          <Scissors size={18} />
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGreen}`}>
+          <UilProcess size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 2 — Assign Craftsperson</div>
         <div className={styles.nextStepDesc}>
           Measurements are ready. Assign a tailor or cutter to begin stitching.
         </div>
-        <div style={{ marginBottom: 10 }}>
+        <div className={styles.nextStepField}>
           <StaffAssignmentDropdown
             value={order.craftsperson_id ?? null}
             onChange={onAssignCraft}
             hubId={order.hub_id ?? undefined}
             showWorkload
-            filterRoles={['tailor', 'cutter', 'finisher']}
+            filterRoles={["tailor", "cutter", "finisher"]}
             disabled={assigningCraft}
             placeholder="Assign craftsperson…"
           />
@@ -265,130 +297,214 @@ const NextStepCard: React.FC<NextStepProps> = ({
           <button
             className={styles.nextStepPrimary}
             disabled={advancingStage}
-            onClick={() => onAdvance('in_tailoring', 'Garment sent to tailoring')}
+            onClick={() =>
+              onAdvance("in_tailoring", "Garment sent to tailoring")
+            }
           >
-            {advancingStage ? 'Advancing…' : 'Start Tailoring →'}
+            {advancingStage ? "Advancing…" : "Start Tailoring →"}
           </button>
         )}
       </div>
     );
   }
 
-  // In tailoring / fabric sourced
-  if (stage === 'in_tailoring' || stage === 'fabric_sourced') {
+  // Cutting (dark-store: the engine→physical bridge; ops floor owns it — this
+  // card is the super break-glass view)
+  if (stage === "cutting") {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(201,153,94,0.12)', color: '#9A6B3A' }}>
-          <Scissors size={18} />
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGold}`}>
+          <UilProcess size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Cutting</div>
+        <div className={styles.nextStepDesc}>
+          Fabric is being cut on the hub floor. The ops app advances this order;
+          advance manually only if the floor can't.
+        </div>
+        <button
+          className={styles.nextStepPrimary}
+          disabled={advancingStage}
+          onClick={() => onAdvance("in_tailoring", "Cut complete — sent to tailoring")}
+        >
+          {advancingStage ? "Advancing…" : "Cut Complete → Tailoring"}
+        </button>
+      </div>
+    );
+  }
+
+  // In tailoring / fabric sourced
+  if (stage === "in_tailoring" || stage === "fabric_sourced" || stage === "fabric_sourcing") {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGold}`}>
+          <UilProcess size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 3 — In Production</div>
         <div className={styles.nextStepDesc}>
           {order.craftsperson_name
             ? `Assigned to ${order.craftsperson_name}. Mark complete once stitching is done.`
-            : 'Stitching in progress. Mark complete once done.'}
+            : "Stitching in progress. Mark complete once done."}
         </div>
         <button
           className={styles.nextStepPrimary}
           disabled={advancingStage}
-          onClick={() => onAdvance('quality_check', 'Tailoring complete — sent to QC')}
+          onClick={() =>
+            onAdvance("quality_check", "Tailoring complete — sent to QC")
+          }
         >
-          {advancingStage ? 'Advancing…' : 'Tailoring Complete → QC'}
+          {advancingStage ? "Advancing…" : "Tailoring Complete → QC"}
         </button>
       </div>
     );
   }
 
   // Quality check
-  if (stage === 'quality_check') {
+  if (stage === "quality_check") {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--color-info)' }}>
-          <ShieldCheck size={18} />
+        <div className={`${styles.nextStepIcon} ${styles.stepIconBlue}`}>
+          <UilShieldCheck size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 4 — Quality Check</div>
-        <div className={styles.nextStepDesc}>Assign QC staff and review the garment.</div>
-        <div style={{ marginBottom: 10 }}>
+        <div className={styles.nextStepDesc}>
+          Assign QC staff and review the garment.
+        </div>
+        <div className={styles.nextStepField}>
           <StaffAssignmentDropdown
             value={order.qc_staff_id ?? null}
             onChange={onAssignQC}
             hubId={order.hub_id ?? undefined}
             showWorkload
-            filterRoles={['quality_checker']}
+            filterRoles={["quality_checker"]}
             disabled={assigningQC}
             placeholder="Assign QC staff…"
           />
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className={styles.qcBtnRow}>
           <button
-            className={styles.nextStepPrimary}
-            style={{ flex: 1 }}
+            className={`${styles.nextStepPrimary} ${styles.qcBtn}`}
             disabled={advancingStage}
-            onClick={() => onAdvance('ready_to_dispatch', 'QC passed')}
+            onClick={() => onAdvance("ready_for_dispatch", "QC passed")}
           >
-            {advancingStage ? '…' : '✓ QC Pass'}
+            {advancingStage ? "…" : "✓ QC Pass"}
           </button>
           <button
-            className={styles.nextStepDanger}
-            style={{ flex: 1 }}
+            className={`${styles.nextStepDanger} ${styles.qcBtn}`}
             disabled={advancingStage}
-            onClick={() => onAdvance('in_tailoring', 'QC failed — returned to tailoring')}
+            onClick={() =>
+              onAdvance("rework", "QC failed — sent for rework")
+            }
           >
-            {advancingStage ? '…' : '✗ QC Fail'}
+            {advancingStage ? "…" : "✗ QC Fail"}
           </button>
         </div>
       </div>
     );
   }
 
-  // Ready to dispatch
-  if (stage === 'ready_to_dispatch') {
+  // Ready for dispatch
+  if (stage === "ready_for_dispatch") {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(28,92,66,0.08)', color: 'var(--color-primary)' }}>
-          <Package size={18} />
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGreen}`}>
+          <UilBox size={18} />
         </div>
         <div className={styles.nextStepTitle}>Step 5 — Dispatch</div>
-        <div className={styles.nextStepDesc}>Garment passed QC. Ready to hand off to courier.</div>
+        <div className={styles.nextStepDesc}>
+          Garment passed QC. Ready to hand off to courier.
+        </div>
         <button
           className={styles.nextStepPrimary}
           disabled={advancingStage}
-          onClick={() => onAdvance('dispatched', 'Order dispatched to customer')}
+          onClick={() =>
+            onAdvance("shipped", "Order dispatched to customer")
+          }
         >
-          {advancingStage ? 'Advancing…' : 'Mark Dispatched →'}
+          {advancingStage ? "Advancing…" : "Mark Dispatched →"}
         </button>
       </div>
     );
   }
 
-  // Dispatched
-  if (stage === 'dispatched') {
+  // Shipped
+  if (stage === "shipped") {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--color-info)' }}>
-          <Truck size={18} />
+        <div className={`${styles.nextStepIcon} ${styles.stepIconBlue}`}>
+          <UilTruck size={18} />
         </div>
         <div className={styles.nextStepTitle}>Out for Delivery</div>
-        <div className={styles.nextStepDesc}>Order is with courier. Confirm once delivered.</div>
+        <div className={styles.nextStepDesc}>
+          Order is with courier. Confirm once delivered.
+        </div>
         <button
           className={styles.nextStepPrimary}
           disabled={advancingStage}
-          onClick={() => onAdvance('delivered', 'Order delivered to customer')}
+          onClick={() => onAdvance("delivered", "Order delivered to customer")}
         >
-          {advancingStage ? 'Advancing…' : 'Mark Delivered ✓'}
+          {advancingStage ? "Advancing…" : "Mark Delivered ✓"}
+        </button>
+      </div>
+    );
+  }
+
+  // Rework (off-path: QC failed, garment back with the tailor)
+  if (stage === "rework") {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGold}`}>
+          <UilProcess size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>In Rework</div>
+        <div className={styles.nextStepDesc}>
+          QC failed — the garment is back with the tailor. It returns to
+          Quality Check when fixed.
+        </div>
+        <button
+          className={styles.nextStepPrimary}
+          disabled={advancingStage}
+          onClick={() => onAdvance("quality_check", "Rework complete — back to QC")}
+        >
+          {advancingStage ? "Advancing…" : "Rework Done → QC"}
+        </button>
+      </div>
+    );
+  }
+
+  // Delivery failed (off-path)
+  if (stage === "delivery_failed") {
+    return (
+      <div className={styles.nextStepCard}>
+        <div className={`${styles.nextStepIcon} ${styles.stepIconBlue}`}>
+          <UilTruck size={18} />
+        </div>
+        <div className={styles.nextStepTitle}>Delivery Failed</div>
+        <div className={styles.nextStepDesc}>
+          The last delivery attempt failed. Re-ship when the customer confirms
+          availability.
+        </div>
+        <button
+          className={styles.nextStepPrimary}
+          disabled={advancingStage}
+          onClick={() => onAdvance("shipped", "Re-shipped after failed delivery")}
+        >
+          {advancingStage ? "Advancing…" : "Re-ship →"}
         </button>
       </div>
     );
   }
 
   // Delivered
-  if (stage === 'delivered') {
+  if (stage === "delivered") {
     return (
       <div className={styles.nextStepCard}>
-        <div className={styles.nextStepIcon} style={{ background: 'rgba(28,92,66,0.08)', color: 'var(--color-primary)' }}>
-          <CheckCircle2 size={18} />
+        <div className={`${styles.nextStepIcon} ${styles.stepIconGreen}`}>
+          <UilCheckCircle size={18} />
         </div>
         <div className={styles.nextStepTitle}>Order Complete</div>
-        <div className={styles.nextStepDesc}>This order has been delivered successfully.</div>
+        <div className={styles.nextStepDesc}>
+          This order has been delivered successfully.
+        </div>
       </div>
     );
   }
@@ -405,13 +521,17 @@ export const OrderDetailPage: React.FC = () => {
   const [order, setOrder] = React.useState<AdminOrder | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  // T2-8: item-level cancel (+ partial refund) target + reason.
+  const [cancelItem, setCancelItem] = React.useState<{ id: string; name: string } | null>(null);
+  const [cancelItemReason, setCancelItemReason] = React.useState("");
+  const [cancellingItem, setCancellingItem] = React.useState(false);
 
   // Customer measurement bookings (for linking)
-  const [customerBookings, setCustomerBookings] = React.useState<MeasurementBooking[]>([]);
-  const [bookingsLoading, setBookingsLoading] = React.useState(false);
 
   // Customer fit profiles (for "Use Saved Measurements" path)
-  const [customerFitProfiles, setCustomerFitProfiles] = React.useState<CustomerMeasurementsData['profiles']>([]);
+  const [customerFitProfiles, setCustomerFitProfiles] = React.useState<
+    CustomerMeasurementsData["profiles"]
+  >([]);
   const [profilesLoading, setProfilesLoading] = React.useState(false);
 
   // Action states
@@ -421,8 +541,19 @@ export const OrderDetailPage: React.FC = () => {
 
   // Override modal
   const [showOverrideModal, setShowOverrideModal] = React.useState(false);
-  const [overrideReason, setOverrideReason] = React.useState('');
-  const [overrideStage, setOverrideStage] = React.useState('');
+  // G-37 re-measure (with this order as context)
+  const [showRemeasure, setShowRemeasure] = React.useState(false);
+  const [remeasureReason, setRemeasureReason] = React.useState("");
+  const [showAlteration, setShowAlteration] = React.useState(false);
+  const [alterationDesc, setAlterationDesc] = React.useState("");
+  const [requestingAlteration, setRequestingAlteration] = React.useState(false);
+  const [showReturn, setShowReturn] = React.useState(false);
+  const [returnReason, setReturnReason] = React.useState("defective");
+  const [returnDesc, setReturnDesc] = React.useState("");
+  const [requestingReturn, setRequestingReturn] = React.useState(false);
+  const [requestingRemeasure, setRequestingRemeasure] = React.useState(false);
+  const [overrideReason, setOverrideReason] = React.useState("");
+  const [overrideStage, setOverrideStage] = React.useState("");
   const [overrideChecks, setOverrideChecks] = React.useState([false, false]);
   const [overriding, setOverriding] = React.useState(false);
 
@@ -431,88 +562,134 @@ export const OrderDetailPage: React.FC = () => {
   const [invoiceGenerating, setInvoiceGenerating] = React.useState(false);
 
   // Note entry
-  const [noteText, setNoteText] = React.useState('');
+  const [noteText, setNoteText] = React.useState("");
   const [addingNote, setAddingNote] = React.useState(false);
 
   // Delivery date inline edit
   const [editingDelivery, setEditingDelivery] = React.useState(false);
-  const [deliveryDate, setDeliveryDate] = React.useState('');
+  const [deliveryDate, setDeliveryDate] = React.useState("");
   const [savingDelivery, setSavingDelivery] = React.useState(false);
+
+  // Delivery address inline edit (T1-15 — support, pre-dispatch, dark-store hub-guarded)
+  const emptyAddr = { name: "", phone: "", line1: "", line2: "", city: "", state: "", pincode: "" };
+  const [editingAddress, setEditingAddress] = React.useState(false);
+  const [addrForm, setAddrForm] = React.useState(emptyAddr);
+  const [savingAddress, setSavingAddress] = React.useState(false);
+  const ADDRESS_LOCKED = ["shipped", "delivered", "delivery_failed", "rto"];
 
   // Hold reason inline edit
   const [editingHold, setEditingHold] = React.useState(false);
-  const [holdReason, setHoldReason] = React.useState('');
+  const [holdReason, setHoldReason] = React.useState("");
   const [savingHold, setSavingHold] = React.useState(false);
 
-  const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
-  const showToast = (type: ToastData['type'], title: string, msg?: string) =>
-    setToasts(t => [...t, createToast(type, title, msg)]);
+  const dismissToast = (tid: string) =>
+    setToasts((t) => t.filter((x) => x.id !== tid));
+  const showToast = (type: ToastData["type"], title: string, msg?: string) =>
+    setToasts((t) => [...t, createToast(type, title, msg)]);
 
-  useBreadcrumbTitle(order ? `Order ${order.reference_id ?? order.id}` : undefined);
+  useBreadcrumbTitle(
+    order ? `Order ${order.reference_id ?? order.id}` : undefined,
+  );
 
   const reload = React.useCallback(() => {
     if (!id) return;
-    ordersApi.get(id).then(o => {
-      setOrder(o);
-      setDeliveryDate(o.estimated_delivery_date ?? '');
-      setHoldReason(o.on_hold_reason ?? '');
-    }).catch(() => {});
+    ordersApi
+      .get(id)
+      .then((o) => {
+        setOrder(o);
+        setDeliveryDate(o.estimated_delivery_date ?? "");
+        setHoldReason(o.on_hold_reason ?? "");
+      })
+      .catch(() => {});
   }, [id]);
+
+  // T2-8: cancel one item in a multi-item order (+ partial refund of its line).
+  const doCancelItem = async () => {
+    if (!order || !cancelItem) return;
+    setCancellingItem(true);
+    try {
+      const res = await ordersApi.cancelItem(
+        order.uuid ?? order.id,
+        cancelItem.id,
+        cancelItemReason.trim() || undefined,
+      );
+      showToast(
+        "success",
+        "Item cancelled",
+        res.refunded > 0
+          ? `₹${res.refunded.toLocaleString("en-IN")} refunded to source.`
+          : "Order total reduced.",
+      );
+      setCancelItem(null);
+      setCancelItemReason("");
+      reload();
+    } catch (e) {
+      showToast("error", "Could not cancel item", e instanceof Error ? e.message : undefined);
+    } finally {
+      setCancellingItem(false);
+    }
+  };
+  const ITEM_CANCEL_LOCKED = ["delivered", "shipped", "cancelled", "refunded", "rto", "delivery_failed"];
+  const activeItemCount = (order?.items ?? []).filter((it) => !it.cancelled_at).length;
+  const canCancelItems = !!order && !ITEM_CANCEL_LOCKED.includes(order.stage) && activeItemCount >= 2;
 
   React.useEffect(() => {
     if (!id) return;
     setLoading(true);
-    ordersApi.get(id)
-      .then(o => {
+    ordersApi
+      .get(id)
+      .then((o) => {
         setOrder(o);
-        setDeliveryDate(o.estimated_delivery_date ?? '');
-        setHoldReason(o.on_hold_reason ?? '');
+        setDeliveryDate(o.estimated_delivery_date ?? "");
+        setHoldReason(o.on_hold_reason ?? "");
       })
-      .catch(e => showToast('error', 'Failed to load order', e instanceof Error ? e.message : undefined))
+      .catch((e) =>
+        showToast(
+          "error",
+          "Failed to load order",
+          e instanceof Error ? e.message : undefined,
+        ),
+      )
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Load customer measurement bookings + fit profiles at payment_confirmed stage
+  // Load customer fit profiles at payment_confirmed (for the "use saved measurements" path)
   React.useEffect(() => {
-    if (!order?.user_id || order.stage !== 'payment_confirmed') return;
-    setBookingsLoading(true);
+    if (!order?.user_id || order.stage !== "payment_confirmed") return;
     setProfilesLoading(true);
-    measurementBookingsApi.list({ user_id: order.user_id, limit: 20 })
-      .then(r => setCustomerBookings(r.bookings ?? []))
-      .catch(() => setCustomerBookings([]))
-      .finally(() => setBookingsLoading(false));
-    customerMeasurementsApi.get(order.user_id)
-      .then(d => setCustomerFitProfiles(d.profiles ?? []))
+    customerMeasurementsApi
+      .get(order.user_id)
+      .then((d) => setCustomerFitProfiles(d.profiles ?? []))
       .catch(() => setCustomerFitProfiles([]))
       .finally(() => setProfilesLoading(false));
   }, [order?.user_id, order?.stage]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleLinkMeasurement = async (bookingId: string) => {
-    if (!order) return;
-    setAdvancingStage(true);
-    try {
-      await ordersApi.linkMeasurement(order.uuid ?? order.id, bookingId);
-      showToast('success', 'Measurement booking linked');
-      reload();
-    } catch (e) {
-      showToast('error', 'Failed to link', e instanceof Error ? e.message : undefined);
-    } finally {
-      setAdvancingStage(false);
-    }
-  };
-
   const handleUseFitProfile = async (profileId: string) => {
     if (!order) return;
     setAdvancingStage(true);
     try {
-      await ordersApi.updateLifecycle(order.uuid ?? order.id, { fit_profile_id: profileId });
-      await ordersApi.advance(order.uuid ?? order.id, 'measurement_complete', 'Using saved fit profile — skipped home visit');
-      showToast('success', 'Saved measurements applied', 'Order advanced to Measurement Done');
+      await ordersApi.updateLifecycle(order.uuid ?? order.id, {
+        fit_profile_id: profileId,
+      });
+      await ordersApi.advance(
+        order.uuid ?? order.id,
+        "measurement_complete",
+        "Using saved fit profile — skipped home visit",
+      );
+      showToast(
+        "success",
+        "Saved measurements applied",
+        "Order advanced to Measurement Done",
+      );
       reload();
     } catch (e) {
-      showToast('error', 'Failed to apply measurements', e instanceof Error ? e.message : undefined);
+      showToast(
+        "error",
+        "Failed to apply measurements",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setAdvancingStage(false);
     }
@@ -523,16 +700,24 @@ export const OrderDetailPage: React.FC = () => {
     setAdvancingStage(true);
     try {
       await ordersApi.advance(order.uuid ?? order.id, toStage, note);
-      showToast('success', `Advanced to ${toStage.replace(/_/g, ' ')}`);
+      showToast("success", `Advanced to ${toStage.replace(/_/g, " ")}`);
       reload();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes('MEASUREMENT_INCOMPLETE')) {
-        showToast('error', 'Measurements not ready', 'The linked booking is not completed. Wait for the ops app upload.');
-      } else if (msg.includes('CRAFTSPERSON_REQUIRED')) {
-        showToast('error', 'Assign craftsperson first', 'A craftsperson must be assigned before starting tailoring.');
+      if (msg.includes("MEASUREMENT_INCOMPLETE")) {
+        showToast(
+          "error",
+          "Measurements not ready",
+          "The linked booking is not completed. Wait for the ops app upload.",
+        );
+      } else if (msg.includes("CRAFTSPERSON_REQUIRED")) {
+        showToast(
+          "error",
+          "Assign craftsperson first",
+          "A craftsperson must be assigned before starting tailoring.",
+        );
       } else {
-        showToast('error', 'Failed to advance', msg);
+        showToast("error", "Failed to advance", msg);
       }
     } finally {
       setAdvancingStage(false);
@@ -544,13 +729,20 @@ export const OrderDetailPage: React.FC = () => {
     setAssigningCraft(true);
     try {
       await ordersApi.assignCraftsperson(order.uuid ?? order.id, staffId);
-      showToast('success', staffId ? 'Craftsperson assigned' : 'Craftsperson unassigned');
+      showToast(
+        "success",
+        staffId ? "Craftsperson assigned" : "Craftsperson unassigned",
+      );
       reload();
     } catch (e) {
       const msg = e instanceof Error ? e.message : undefined;
-      showToast('error', 'Assignment failed', msg?.includes('MEASUREMENT_REQUIRED')
-        ? 'Measurements must be completed before assigning a craftsperson.'
-        : msg);
+      showToast(
+        "error",
+        "Assignment failed",
+        msg?.includes("MEASUREMENT_REQUIRED")
+          ? "Measurements must be completed before assigning a craftsperson."
+          : msg,
+      );
     } finally {
       setAssigningCraft(false);
     }
@@ -561,10 +753,17 @@ export const OrderDetailPage: React.FC = () => {
     setAssigningQC(true);
     try {
       await ordersApi.assignQCStaff(order.uuid ?? order.id, staffId);
-      showToast('success', staffId ? 'QC staff assigned' : 'QC staff unassigned');
+      showToast(
+        "success",
+        staffId ? "QC staff assigned" : "QC staff unassigned",
+      );
       reload();
     } catch (e) {
-      showToast('error', 'Assignment failed', e instanceof Error ? e.message : undefined);
+      showToast(
+        "error",
+        "Assignment failed",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setAssigningQC(false);
     }
@@ -574,15 +773,135 @@ export const OrderDetailPage: React.FC = () => {
     if (!order || !overrideStage) return;
     setOverriding(true);
     try {
-      const { stage, status } = await ordersApi.updateStage(order.uuid ?? order.id, overrideStage as OrderStage, overrideReason);
-      setOrder(prev => prev ? { ...prev, stage, status } : prev);
+      const { stage, status } = await ordersApi.updateStage(
+        order.uuid ?? order.id,
+        overrideStage as OrderStage,
+        overrideReason,
+      );
+      setOrder((prev) => (prev ? { ...prev, stage, status } : prev));
       setShowOverrideModal(false);
-      setOverrideReason(''); setOverrideStage(''); setOverrideChecks([false, false]);
-      showToast('success', 'Stage updated', `Order moved to ${overrideStage.replace(/_/g, ' ')}`);
+      setOverrideReason("");
+      setOverrideStage("");
+      setOverrideChecks([false, false]);
+      showToast(
+        "success",
+        "Stage updated",
+        `Order moved to ${overrideStage.replace(/_/g, " ")}`,
+      );
     } catch (e) {
-      showToast('error', 'Override failed', e instanceof Error ? e.message : undefined);
+      showToast(
+        "error",
+        "Override failed",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setOverriding(false);
+    }
+  };
+
+  const submitRemeasure = async () => {
+    if (!order || !remeasureReason.trim()) {
+      showToast("error", "Add a reason for the re-measure");
+      return;
+    }
+    if (!order.user_id) {
+      showToast("error", "This order has no linked customer");
+      return;
+    }
+    setRequestingRemeasure(true);
+    try {
+      await usersApi.requestRemeasure(order.user_id, {
+        reason: remeasureReason.trim(),
+        order_id: order.uuid ?? order.id,
+        ...(order.fit_profile_id ? { fit_profile_id: order.fit_profile_id } : {}),
+      });
+      showToast("success", "Re-measure requested", "Ops will schedule a free agent visit.");
+      setShowRemeasure(false);
+      setRemeasureReason("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("already has an open") ? "Already requested" : "Failed",
+        msg,
+      );
+    } finally {
+      setRequestingRemeasure(false);
+    }
+  };
+
+  const submitAlteration = async () => {
+    if (!order?.user_id) {
+      showToast("error", "This order has no linked customer");
+      return;
+    }
+    if (!alterationDesc.trim()) {
+      showToast("error", "Describe the alteration needed");
+      return;
+    }
+    setRequestingAlteration(true);
+    try {
+      await alterationsApi.create({
+        user_id: order.user_id,
+        order_id: order.uuid ?? order.id,
+        description: alterationDesc.trim(),
+      });
+      showToast("success", "Alteration requested", "First alteration on the order is free.");
+      setShowAlteration(false);
+      setAlterationDesc("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("already exists")
+          ? "An alteration is already open on this order"
+          : msg?.includes("delivered")
+            ? "Only delivered orders can be altered"
+            : "Failed",
+        msg,
+      );
+    } finally {
+      setRequestingAlteration(false);
+    }
+  };
+
+  const RETURN_REASONS = [
+    { v: "defective", l: "Defective / quality issue → refund" },
+    { v: "wrong_item", l: "Wrong item received → refund" },
+    { v: "wrong_measurements", l: "Fit / measurements wrong → alteration" },
+    { v: "changed_mind", l: "Changed mind → declined" },
+    { v: "other", l: "Other → manual review" },
+  ];
+
+  const submitReturn = async () => {
+    if (!order?.user_id) {
+      showToast("error", "This order has no linked customer");
+      return;
+    }
+    setRequestingReturn(true);
+    try {
+      await returnsApi.create({
+        user_id: order.user_id,
+        order_id: order.uuid ?? order.id,
+        reason: returnReason,
+        description: returnDesc.trim() || undefined,
+      });
+      showToast("success", "Return started", "Ops will inspect; finance approves any refund.");
+      setShowReturn(false);
+      setReturnDesc("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : undefined;
+      showToast(
+        "error",
+        msg?.includes("already exists")
+          ? "A return is already open on this order"
+          : msg?.includes("delivered")
+            ? "Only delivered orders can be returned"
+            : "Failed",
+        msg,
+      );
+    } finally {
+      setRequestingReturn(false);
     }
   };
 
@@ -591,9 +910,13 @@ export const OrderDetailPage: React.FC = () => {
     setInvoiceGenerating(true);
     try {
       await invoicesApi.generateForOrder(order.uuid ?? order.id);
-      showToast('success', 'Invoice queued');
+      showToast("success", "Invoice queued");
     } catch (e) {
-      showToast('error', 'Invoice error', e instanceof Error ? e.message : undefined);
+      showToast(
+        "error",
+        "Invoice error",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setInvoiceGenerating(false);
     }
@@ -603,15 +926,22 @@ export const OrderDetailPage: React.FC = () => {
     if (!order) return;
     setInvoiceLoading(true);
     try {
-      const { invoices } = await invoicesApi.list({ orderId: order.uuid ?? order.id, limit: 1 });
-      if (invoices.length === 0 || invoices[0].status !== 'generated') {
-        showToast('info', 'No invoice ready', 'Use "Generate Invoice" first.');
+      const { invoices } = await invoicesApi.list({
+        orderId: order.uuid ?? order.id,
+        limit: 1,
+      });
+      if (invoices.length === 0 || invoices[0].status !== "generated") {
+        showToast("info", "No invoice ready", 'Use "Generate Invoice" first.');
       } else {
         const { url } = await invoicesApi.getDownloadUrl(invoices[0].id);
-        window.open(url, '_blank');
+        window.open(url, "_blank");
       }
     } catch (e) {
-      showToast('error', 'Invoice error', e instanceof Error ? e.message : undefined);
+      showToast(
+        "error",
+        "Invoice error",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setInvoiceLoading(false);
     }
@@ -621,12 +951,21 @@ export const OrderDetailPage: React.FC = () => {
     if (!order || !noteText.trim()) return;
     setAddingNote(true);
     try {
-      const entry = await ordersApi.addTimelineNote(order.uuid ?? order.id, noteText.trim());
-      setOrder(prev => prev ? { ...prev, timeline: [entry, ...(prev.timeline ?? [])] } : prev);
-      setNoteText('');
-      showToast('success', 'Note added');
+      const entry = await ordersApi.addTimelineNote(
+        order.uuid ?? order.id,
+        noteText.trim(),
+      );
+      setOrder((prev) =>
+        prev ? { ...prev, timeline: [entry, ...(prev.timeline ?? [])] } : prev,
+      );
+      setNoteText("");
+      showToast("success", "Note added");
     } catch (e) {
-      showToast('error', 'Failed to add note', e instanceof Error ? e.message : undefined);
+      showToast(
+        "error",
+        "Failed to add note",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setAddingNote(false);
     }
@@ -636,14 +975,71 @@ export const OrderDetailPage: React.FC = () => {
     if (!order) return;
     setSavingDelivery(true);
     try {
-      await ordersApi.updateLifecycle(order.uuid ?? order.id, { estimated_delivery_date: deliveryDate || null });
-      setOrder(prev => prev ? { ...prev, estimated_delivery_date: deliveryDate || null } : prev);
+      await ordersApi.updateLifecycle(order.uuid ?? order.id, {
+        estimated_delivery_date: deliveryDate || null,
+      });
+      setOrder((prev) =>
+        prev
+          ? { ...prev, estimated_delivery_date: deliveryDate || null }
+          : prev,
+      );
       setEditingDelivery(false);
-      showToast('success', 'Delivery date updated');
+      showToast("success", "Delivery date updated");
     } catch (e) {
-      showToast('error', 'Update failed', e instanceof Error ? e.message : undefined);
+      showToast(
+        "error",
+        "Update failed",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setSavingDelivery(false);
+    }
+  };
+
+  const openEditAddress = () => {
+    const a = order?.delivery_address;
+    setAddrForm({
+      name: a?.name ?? order?.customer ?? "",
+      phone: a?.phone ?? order?.phone ?? "",
+      line1: a?.line1 ?? "",
+      line2: a?.line2 ?? "",
+      city: a?.city ?? "",
+      state: a?.state ?? "",
+      pincode: a?.pincode ?? "",
+    });
+    setEditingAddress(true);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!order) return;
+    const f = addrForm;
+    if (!f.name.trim() || !f.phone.trim() || !f.line1.trim() || !f.city.trim() || !f.state.trim()) {
+      showToast("error", "Name, phone, line 1, city and state are required");
+      return;
+    }
+    if (!/^\d{6}$/.test(f.pincode.trim())) {
+      showToast("error", "Pincode must be 6 digits");
+      return;
+    }
+    setSavingAddress(true);
+    try {
+      const res = await ordersApi.editAddress(order.uuid ?? order.id, {
+        name: f.name.trim(),
+        phone: f.phone.trim(),
+        line1: f.line1.trim(),
+        line2: f.line2.trim() || undefined,
+        city: f.city.trim(),
+        state: f.state.trim(),
+        pincode: f.pincode.trim(),
+      });
+      setOrder((prev) => (prev ? { ...prev, delivery_address: res.delivery_address } : prev));
+      setEditingAddress(false);
+      showToast("success", "Delivery address updated");
+    } catch (e) {
+      // Server enforces the dark-store hub guard — surface its message (cross-hub, unserviceable, locked).
+      showToast("error", "Couldn't update address", e instanceof Error ? e.message : undefined);
+    } finally {
+      setSavingAddress(false);
     }
   };
 
@@ -651,12 +1047,20 @@ export const OrderDetailPage: React.FC = () => {
     if (!order) return;
     setSavingHold(true);
     try {
-      await ordersApi.updateLifecycle(order.uuid ?? order.id, { on_hold_reason: holdReason || null });
-      setOrder(prev => prev ? { ...prev, on_hold_reason: holdReason || null } : prev);
+      await ordersApi.updateLifecycle(order.uuid ?? order.id, {
+        on_hold_reason: holdReason || null,
+      });
+      setOrder((prev) =>
+        prev ? { ...prev, on_hold_reason: holdReason || null } : prev,
+      );
       setEditingHold(false);
-      showToast('success', holdReason ? 'Hold reason saved' : 'Hold cleared');
+      showToast("success", holdReason ? "Hold reason saved" : "Hold cleared");
     } catch (e) {
-      showToast('error', 'Update failed', e instanceof Error ? e.message : undefined);
+      showToast(
+        "error",
+        "Update failed",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setSavingHold(false);
     }
@@ -664,68 +1068,107 @@ export const OrderDetailPage: React.FC = () => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  if (loading) return <div className={styles.page}><div className={styles.loadingMsg}>Loading order…</div></div>;
-  if (!order) return <div className={styles.page}><div className={styles.loadingMsg}>Order not found.</div></div>;
+  if (loading)
+    return (
+      <div className={styles.page}>
+        <div className={styles.loadingMsg}>Loading order…</div>
+      </div>
+    );
+  if (!order)
+    return (
+      <div className={styles.page}>
+        <div className={styles.loadingMsg}>Order not found.</div>
+      </div>
+    );
 
-  const currentIdx = STAGE_IDX[order.stage] ?? -1;
+  const normStage = normalizeStage(order.stage);
+  const offPath = !(normStage in STAGE_IDX);
+  const currentIdx = STAGE_IDX[normStage] ?? STAGE_IDX[OFFPATH_NEAR[normStage]] ?? -1;
 
-  return (
-    <div className={styles.page}>
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <button className={styles.backBtn} onClick={() => navigate('/admin/orders')}>
-        <ChevronLeft size={15} /> Back to Orders
-      </button>
-
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className={styles.card}>
-        <div className={styles.orderHeader}>
-          <div>
-            <div className={styles.orderId}>
-              {order.id}
-              {order.reference_id && <span className={styles.refBadge}>{order.reference_id}</span>}
-            </div>
-            <div className={styles.orderMeta}>
-              Created {order.created}
-              {order.customer_ref && (
-                <span style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 11, background: 'var(--color-bg-secondary)', padding: '1px 5px', borderRadius: 3 }}>
-                  {order.customer_ref}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className={styles.badges}>
-            <span className={`${styles.pill} ${styles.pillGreen}`}>{order.mode}</span>
-            <span className={`${styles.statusPill} ${styles[`status-${order.status}`]}`}>{order.status}</span>
-            {order.on_hold_reason && (
-              <span style={{ fontSize: 12, padding: '3px 9px', borderRadius: 20, background: 'rgba(201,153,94,0.15)', color: '#9A6B3A', fontWeight: 600 }}>
-                ⏸ On Hold
-              </span>
+  // ── Canon header (W-11): order identity + status/mode chips; the customer/hub
+  //    strip and the stage stepper stay full-width in the header slot (which
+  //    spans both DetailShell columns). The SSE-fed timeline stays bespoke. ──
+  const header = (
+    <>
+      <PageHeader
+        above={
+          <button
+            className={styles.backBtn}
+            onClick={() => navigate("/admin/orders")}
+          >
+            <UilAngleLeft size={15} /> Back to Orders
+          </button>
+        }
+        eyebrow="Order"
+        title={
+          <>
+            {order.id}
+            {order.reference_id && (
+              <span className={styles.refBadge}>{order.reference_id}</span>
             )}
-          </div>
-        </div>
-        <div className={styles.customerRow}>
+          </>
+        }
+        subtitle={`Created ${order.created}`}
+        meta={
+          <>
+            <span className={`${styles.pill} ${styles.pillGreen}`}>
+              {order.mode}
+            </span>
+            <StatusBadge status={order.status} />
+            {order.on_hold_reason && (
+              <span className={styles.holdPill}>⏸ On Hold</span>
+            )}
+            {order.customer_ref && (
+              <span className={styles.refChip}>{order.customer_ref}</span>
+            )}
+          </>
+        }
+      />
+
+      <div className={styles.headerExtras}>
+        <div className={styles.card}>
+          <div className={styles.customerRow}>
           <span className={styles.customerLabel}>Customer</span>
           <span className={styles.customerName}>{order.customer}</span>
           <span className={styles.customerPhone}>{order.phone}</span>
           {order.user_id && (
-            <button className={styles.linkBtn} onClick={() => navigate(`/admin/users/${order.user_id}`)}>View Profile →</button>
+            <button
+              className={styles.linkBtn}
+              onClick={() => navigate(`/admin/users/${order.user_id}`)}
+            >
+              View Profile →
+            </button>
           )}
-          <span className={styles.customerLabel} style={{ marginLeft: 8 }}>Hub</span>
+          <span className={`${styles.customerLabel} ${styles.customerLabelGap}`}>
+            Hub
+          </span>
           <span className={styles.customerName}>{order.hub}</span>
         </div>
       </div>
 
-      {/* ── Stage stepper ────────────────────────────────────────────────────── */}
+      {/* ── Stage stepper ──────────────────────────────────────────────────── */}
       <div className={styles.card}>
-        <h3 className={styles.sectionTitle}>Order Journey</h3>
+        <div className={styles.journeyHeader}>
+          <h3 className={styles.sectionTitle}>Order Journey</h3>
+          <StatusBadge status={order.stage} />
+        </div>
+        {offPath && (
+          <div className={styles.offPathBanner}>
+            This order is off the happy path: <strong>{statusLabel(order.stage)}</strong>
+            {OFFPATH_NEAR[normStage] ? ` — returns at ${statusLabel(OFFPATH_NEAR[normStage])}.` : '.'}
+          </div>
+        )}
         <div className={styles.stepper}>
           {STAGES.map((s, i) => {
             const done = i < currentIdx;
             const current = i === currentIdx;
             return (
-              <div key={s.key} className={`${styles.stepperItem} ${done ? styles.stepDone : ''} ${current ? styles.stepCurrent : ''}`}>
+              <div
+                key={s.key}
+                className={`${styles.stepperItem} ${done ? styles.stepDone : ""} ${current ? styles.stepCurrent : ""}`}
+              >
                 <div className={styles.stepCircle}>
-                  {done ? <Check size={13} /> : <span>{i + 1}</span>}
+                  {done ? <UilCheck size={13} /> : <span>{i + 1}</span>}
                 </div>
                 <div className={styles.stepLabel}>{s.label}</div>
               </div>
@@ -733,59 +1176,399 @@ export const OrderDetailPage: React.FC = () => {
           })}
         </div>
       </div>
+      </div>
+    </>
+  );
 
-      <div className={styles.twoCol}>
-        <div className={styles.main}>
+  // ── Canon right rail (W-11 DetailShell aside): ops break-glass · delivery ·
+  //    admin actions · cancellation — relocated verbatim from the old sidebar. ──
+  const aside = (
+    <>
+      {/* NEXT STEP — the ops-FLOOR action card (advance stage, assign tailor/QC).
+          G-23: these belong to the Ops app (Phase B); until then they're gated to
+          super_admin (system:manage) as break-glass. Support is CX-only and no
+          longer sees this. */}
+      <Can cap="system:manage">
+        <NextStepCard
+          order={order}
+          customerFitProfiles={customerFitProfiles}
+          profilesLoading={profilesLoading}
+          advancingStage={advancingStage}
+          assigningCraft={assigningCraft}
+          assigningQC={assigningQC}
+          onAdvance={handleAdvance}
+          onAssignCraft={handleAssignCraft}
+          onAssignQC={handleAssignQC}
+          onUseFitProfile={handleUseFitProfile}
+        />
+      </Can>
 
+      {/* Delivery date + hold reason — support CX (orders:write) */}
+      <Can cap="orders:write">
+        <div className={styles.card}>
+          <h3 className={styles.sectionTitle}>Delivery</h3>
+          <div className={styles.deliveryBlock}>
+            <div className={styles.metaLabel}>Est. Delivery Date</div>
+            {editingDelivery ? (
+              <div className={styles.inlineEdit}>
+                <input
+                  type="date"
+                  className={styles.inlineInput}
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                />
+                <button
+                  className={styles.inlineSave}
+                  disabled={savingDelivery}
+                  onClick={handleSaveDelivery}
+                >
+                  {savingDelivery ? "…" : "Save"}
+                </button>
+                <button
+                  className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
+                  onClick={() => {
+                    setEditingDelivery(false);
+                    setDeliveryDate(order.estimated_delivery_date ?? "");
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className={styles.inlineEdit}>
+                <span className={styles.metaValue}>
+                  {order.estimated_delivery_date ? (
+                    order.estimated_delivery_date
+                  ) : order.computed_delivery_date ? (
+                    /* T1-20: computed fallback when no human set a date — an estimate, not a guess */
+                    <>
+                      {new Date(order.computed_delivery_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      <span className={styles.estHint}> · estimated (created + {order.delivery_sla_days ?? 7}d)</span>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </span>
+                <button
+                  className={styles.linkBtn}
+                  onClick={() => setEditingDelivery(true)}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+          <div className={styles.deliveryBlock}>
+            <div className={styles.metaLabel}>Delivery Address</div>
+            {editingAddress ? (
+              <div className={styles.holdEditCol}>
+                {([
+                  ["name", "Name"],
+                  ["phone", "Phone"],
+                  ["line1", "Address line 1"],
+                  ["line2", "Address line 2 (optional)"],
+                  ["city", "City"],
+                  ["state", "State"],
+                  ["pincode", "Pincode (6 digits)"],
+                ] as const).map(([key, ph]) => (
+                  <input
+                    key={key}
+                    className={styles.inlineInput}
+                    placeholder={ph}
+                    value={addrForm[key]}
+                    onChange={(e) => setAddrForm({ ...addrForm, [key]: e.target.value })}
+                  />
+                ))}
+                <div className={styles.inlineEdit}>
+                  <button className={styles.inlineSave} disabled={savingAddress} onClick={handleSaveAddress}>
+                    {savingAddress ? "…" : "Save"}
+                  </button>
+                  <button
+                    className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
+                    onClick={() => setEditingAddress(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <span className={styles.addrHint}>
+                  A pincode outside this order's hub can't be set — cancel + re-order to deliver elsewhere.
+                </span>
+              </div>
+            ) : (
+              <div className={styles.inlineEdit}>
+                <span className={styles.metaValue}>
+                  {order.delivery_address
+                    ? `${order.delivery_address.line1}${order.delivery_address.line2 ? `, ${order.delivery_address.line2}` : ""}, ${order.delivery_address.city}, ${order.delivery_address.state} ${order.delivery_address.pincode}`
+                    : "—"}
+                </span>
+                {ADDRESS_LOCKED.includes(order.stage) ? (
+                  <span className={styles.addrHint}>locked (shipped)</span>
+                ) : (
+                  <button className={styles.linkBtn} onClick={openEditAddress}>
+                    Edit
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div>
+            <div className={styles.metaLabel}>On Hold Reason</div>
+            {editingHold ? (
+              <div className={styles.holdEditCol}>
+                <textarea
+                  className={styles.fieldTextarea}
+                  rows={2}
+                  placeholder="Leave empty to clear hold…"
+                  value={holdReason}
+                  onChange={(e) => setHoldReason(e.target.value)}
+                />
+                <div className={styles.holdEditRow}>
+                  <button
+                    className={styles.inlineSave}
+                    disabled={savingHold}
+                    onClick={handleSaveHold}
+                  >
+                    {savingHold ? "…" : "Save"}
+                  </button>
+                  <button
+                    className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
+                    onClick={() => {
+                      setEditingHold(false);
+                      setHoldReason(order.on_hold_reason ?? "");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.inlineEdit}>
+                <span
+                  className={`${styles.metaValue} ${order.on_hold_reason ? styles.holdValue : styles.holdValueNone}`}
+                >
+                  {order.on_hold_reason ?? "Not on hold"}
+                </span>
+                <button
+                  className={styles.linkBtn}
+                  onClick={() => setEditingHold(true)}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </Can>
+
+      {/* Admin actions — Override is super-only break-glass (G-23); invoice +
+          cancel stay available to support (orders:write) / finance. */}
+      <div className={styles.card}>
+        <h3 className={styles.sectionTitle}>Admin Actions</h3>
+        <div className={styles.actionList}>
+          <Can cap="system:manage">
+            <button
+              className={styles.overrideBtn}
+              onClick={() => setShowOverrideModal(true)}
+            >
+              Override Stage
+            </button>
+          </Can>
+          <button
+            className={styles.actionBtnSecondary}
+            disabled={invoiceGenerating}
+            onClick={handleGenerateInvoice}
+          >
+            {invoiceGenerating ? "Queuing…" : "Generate Invoice"}
+          </button>
+          <button
+            className={styles.actionBtnSecondary}
+            disabled={invoiceLoading}
+            onClick={handleDownloadInvoice}
+          >
+            {invoiceLoading ? "Loading…" : "Download Invoice"}
+          </button>
+          {/* G-37: support's re-measure lever, with this order as context */}
+          <Can cap="orders:write">
+            <button
+              className={styles.actionBtnSecondary}
+              onClick={() => setShowRemeasure(true)}
+            >
+              Request re-measure
+            </button>
+          </Can>
+          {/* Alteration & return — only on a delivered order (backend enforces it too) */}
+          {order.stage === "delivered" && (
+            <Can cap="orders:write">
+              <button
+                className={styles.actionBtnSecondary}
+                onClick={() => setShowAlteration(true)}
+              >
+                Request alteration
+              </button>
+            </Can>
+          )}
+          {order.stage === "delivered" && (
+            <Can cap="orders:write">
+              <button
+                className={styles.actionBtnSecondary}
+                onClick={() => setShowReturn(true)}
+              >
+                Start a return
+              </button>
+            </Can>
+          )}
+          {/* Cancel Order removed: the button was dead (no handler). The real
+              cancel flow (allowed-stage check + fabric release + refund
+              linkage) ships later. */}
+        </div>
+      </div>
+
+      {order.cancellation_reason && (
+        <div className={styles.card}>
+          <h3 className={`${styles.sectionTitle} ${styles.sectionTitleError}`}>
+            Cancellation
+          </h3>
+          <div className={styles.cancelReasonText}>
+            {order.cancellation_reason}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <div className={styles.page}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* T2-8: cancel one item (+ partial refund of its line) */}
+      <ConfirmDialog
+        open={!!cancelItem}
+        title="Cancel this item?"
+        message={
+          <>
+            Cancel <strong>{cancelItem?.name}</strong> and refund its line to the customer's
+            original payment method (COD orders just pay less). The rest of the order continues.
+            <input
+              className={styles.reasonInput}
+              value={cancelItemReason}
+              onChange={(e) => setCancelItemReason(e.target.value)}
+              placeholder="Reason (optional) — e.g. fabric defect on this item"
+            />
+          </>
+        }
+        confirmLabel="Cancel item + refund"
+        loading={cancellingItem}
+        onConfirm={doCancelItem}
+        onCancel={() => {
+          setCancelItem(null);
+          setCancelItemReason("");
+        }}
+      />
+      <DetailShell header={header} aside={aside}>
           {/* ── Items ──────────────────────────────────────────────────────── */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Items</h3>
             <table className={styles.itemsTable}>
-              <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th>Total</th>
+                  <th />
+                </tr>
+              </thead>
               <tbody>
                 {(order.items ?? []).length > 0
-                  ? (order.items ?? []).map(it => (
-                    <tr key={it.id}>
-                      <td>{it.product_name}</td>
-                      <td>{it.quantity}</td>
-                      <td>₹{it.unit_price.toLocaleString('en-IN')}</td>
-                      <td>₹{(it.quantity * it.unit_price).toLocaleString('en-IN')}</td>
-                    </tr>
-                  ))
+                  ? (order.items ?? []).map((it) => {
+                      const cancelled = !!it.cancelled_at;
+                      return (
+                        <tr key={it.id} className={cancelled ? styles.itemRowCancelled : undefined}>
+                          <td className={cancelled ? styles.itemStrike : undefined}>
+                            {it.product_name}
+                            {cancelled && (
+                              <span className={styles.metaLabel}> · cancelled</span>
+                            )}
+                          </td>
+                          <td>{it.quantity}</td>
+                          <td>₹{it.unit_price.toLocaleString("en-IN")}</td>
+                          <td>
+                            ₹
+                            {(it.quantity * it.unit_price).toLocaleString("en-IN")}
+                          </td>
+                          <td>
+                            {!cancelled && canCancelItems && (
+                              <Can cap="refunds:approve">
+                                <button
+                                  className={styles.linkBtnDanger}
+                                  onClick={() =>
+                                    setCancelItem({ id: it.id, name: it.product_name })
+                                  }
+                                >
+                                  Cancel item
+                                </button>
+                              </Can>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
                   : order.products.map((p, i) => (
-                    <tr key={i}><td>{p}</td><td>1</td><td>—</td><td>—</td></tr>
-                  ))
-                }
+                      <tr key={i}>
+                        <td>{p}</td>
+                        <td>1</td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td />
+                      </tr>
+                    ))}
               </tbody>
             </table>
-            <div style={{ paddingTop: 12, borderTop: '1px solid var(--color-border-light)', marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
+            <div className={styles.itemsTotalRow}>
               <div>
-                <span className={styles.metaLabel} style={{ marginRight: 8 }}>Total</span>
-                <span style={{ fontSize: 16, fontWeight: 700 }}>₹{order.total.toLocaleString('en-IN')}</span>
+                <span className={`${styles.metaLabel} ${styles.totalLabel}`}>Total</span>
+                <span className={styles.totalValue}>
+                  ₹{order.total.toLocaleString("en-IN")}
+                </span>
               </div>
             </div>
           </div>
+
+          {/* T2-12: an RTO'd made-for-one garment came home — record disposition + write-off */}
+          {order.stage === "rto" && (
+            <div className={styles.card}>
+              <DispositionPanel orderId={order.uuid ?? order.id} source="rto" />
+            </div>
+          )}
 
           {/* ── Measurement + Staff assignments ────────────────────────────── */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Production Assignments</h3>
 
-            {/* Measurement booking */}
-            <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--color-border-light)' }}>
-              <div className={styles.assignLabel}><Ruler size={11} style={{ display: 'inline', marginRight: 4 }} />Measurement Booking</div>
-              {order.linked_measurement_booking_id ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: 'var(--color-primary)' }}>
-                    {order.linked_measurement_booking_ref ?? order.linked_measurement_booking_id.slice(0, 8)}
-                  </span>
-                  <button className={styles.linkBtn} onClick={() => navigate(`/admin/measurement-bookings/${order.linked_measurement_booking_id}`)}>
-                    View →
-                  </button>
-                </div>
+            {/* Measurement (dark-store: fit on file or agent home visit — recorded via the ops app) */}
+            <div className={styles.measureBlock}>
+              <div className={styles.assignLabel}>
+                <UilRuler size={11} className={styles.assignLabelIcon} />
+                Measurement
+              </div>
+              {order.fit_profile_id ? (
+                <span className={styles.measureOnFile}>
+                  ✓ Measurements on file — used for production
+                </span>
+              ) : order.linked_home_visit_id ? (
+                <span className={styles.measureVisit}>
+                  Agent home visit
+                  {order.linked_home_visit_ref
+                    ? ` · ${order.linked_home_visit_ref}`
+                    : ""}{" "}
+                  — captured via the ops app
+                </span>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <AlertCircle size={13} style={{ color: '#9A6B3A' }} />
-                  <span style={{ fontSize: 13, color: '#9A6B3A' }}>Not linked — schedule via "Next Step" card</span>
+                <div className={styles.measureMissing}>
+                  <UilExclamationCircle size={13} />
+                  <span>
+                    No measurements yet — an agent home visit will capture them
+                  </span>
                 </div>
               )}
             </div>
@@ -793,46 +1576,47 @@ export const OrderDetailPage: React.FC = () => {
             {/* Craftsperson + QC */}
             <div className={styles.assignRow}>
               <div>
-                <div className={styles.assignLabel}><Scissors size={11} style={{ display: 'inline', marginRight: 4 }} />Craftsperson</div>
-                {order.stage === 'measurement_complete' || STAGE_IDX[order.stage] > STAGE_IDX['measurement_complete'] ? (
+                <div className={styles.assignLabel}>
+                  <UilProcess size={11} className={styles.assignLabelIcon} />
+                  Craftsperson
+                </div>
+                {normStage === "measurement_complete" ||
+                currentIdx > STAGE_IDX["measurement_complete"] ? (
                   <>
                     <StaffAssignmentDropdown
                       value={order.craftsperson_id ?? null}
                       onChange={handleAssignCraft}
                       hubId={order.hub_id ?? undefined}
                       showWorkload
-                      filterRoles={['tailor', 'cutter', 'finisher']}
+                      filterRoles={["tailor", "cutter", "finisher"]}
                       disabled={assigningCraft}
                     />
                     {order.craftsperson_name && (
-                      <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
-                        {order.craftsperson_role}
-                      </div>
+                      <div className={styles.assignRole}>{order.craftsperson_role}</div>
                     )}
                   </>
                 ) : (
-                  <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)', fontStyle: 'italic' }}>
-                    Available after measurements
-                  </div>
+                  <div className={styles.assignHint}>Available after measurements</div>
                 )}
               </div>
               <div>
-                <div className={styles.assignLabel}><ShieldCheck size={11} style={{ display: 'inline', marginRight: 4 }} />QC Staff</div>
-                {STAGE_IDX[order.stage] >= STAGE_IDX['quality_check'] ? (
+                <div className={styles.assignLabel}>
+                  <UilShieldCheck size={11} className={styles.assignLabelIcon} />
+                  QC Staff
+                </div>
+                {currentIdx >= STAGE_IDX["quality_check"] ? (
                   <>
                     <StaffAssignmentDropdown
                       value={order.qc_staff_id ?? null}
                       onChange={handleAssignQC}
                       hubId={order.hub_id ?? undefined}
                       showWorkload
-                      filterRoles={['quality_checker']}
+                      filterRoles={["quality_checker"]}
                       disabled={assigningQC}
                     />
                   </>
                 ) : (
-                  <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)', fontStyle: 'italic' }}>
-                    Available at QC stage
-                  </div>
+                  <div className={styles.assignHint}>Available at QC stage</div>
                 )}
               </div>
             </div>
@@ -842,34 +1626,59 @@ export const OrderDetailPage: React.FC = () => {
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Activity Log</h3>
             <div className={styles.timeline}>
-              {(order.timeline ?? []).length > 0
-                ? (order.timeline ?? []).map((entry, i) => (
-                  <div key={entry.id ?? i} className={`${styles.timelineEntry} ${timelineClass(entry.event_type)}`}>
-                    <div className={styles.timelineDot}>{timelineIcon(entry.event_type)}</div>
+              {(order.timeline ?? []).length > 0 ? (
+                (order.timeline ?? []).map((entry, i) => (
+                  <div
+                    key={entry.id ?? i}
+                    className={`${styles.timelineEntry} ${timelineClass(entry.event_type)}`}
+                  >
+                    <div className={styles.timelineDot}>
+                      {timelineIcon(entry.event_type)}
+                    </div>
                     <div className={styles.timelineContent}>
-                      <div className={styles.timelineText}>{timelineText(entry)}</div>
+                      <div className={styles.timelineText}>
+                        {timelineText(entry)}
+                      </div>
                       <div className={styles.timelineMeta}>
-                        {new Date(entry.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(entry.created_at).toLocaleString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                         {entry.changed_by_email && (
-                          <span className={styles.timelineBy}> · {entry.changed_by_email}</span>
+                          <span className={styles.timelineBy}>
+                            {" "}
+                            · {entry.changed_by_email}
+                          </span>
                         )}
                       </div>
                     </div>
                   </div>
                 ))
-                : <div style={{ color: 'var(--color-text-tertiary)', fontSize: 13 }}>No activity yet.</div>
-              }
+              ) : (
+                <div className={styles.assignHint}>No activity yet.</div>
+              )}
             </div>
             <div className={styles.noteForm}>
               <input
                 className={styles.noteInput}
                 placeholder="Add a note…"
                 value={noteText}
-                onChange={e => setNoteText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddNote(); } }}
+                onChange={(e) => setNoteText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleAddNote();
+                  }
+                }}
               />
-              <button className={styles.noteSubmit} disabled={!noteText.trim() || addingNote} onClick={handleAddNote}>
-                {addingNote ? '…' : 'Add Note'}
+              <button
+                className={styles.noteSubmit}
+                disabled={!noteText.trim() || addingNote}
+                onClick={handleAddNote}
+              >
+                {addingNote ? "…" : "Add Note"}
               </button>
             </div>
           </div>
@@ -879,123 +1688,86 @@ export const OrderDetailPage: React.FC = () => {
             <h3 className={styles.sectionTitle}>Payment</h3>
             {(order.payments ?? []).length === 0 ? (
               <div className={styles.paymentGrid}>
-                <div><div className={styles.metaLabel}>Amount</div><div className={styles.metaValue}>₹{order.total.toLocaleString('en-IN')}</div></div>
-                <div><div className={styles.metaLabel}>Status</div><div className={styles.metaValue}><span className={styles.captured}>pending</span></div></div>
-              </div>
-            ) : (order.payments ?? []).map((p, i) => (
-              <div key={p.id ?? i} className={styles.paymentGrid}>
-                <div><div className={styles.metaLabel}>Method</div><div className={styles.metaValue}>{p.payment_method ?? '—'}</div></div>
-                <div><div className={styles.metaLabel}>Amount</div><div className={styles.metaValue}>₹{parseFloat(String(p.amount)).toLocaleString('en-IN')}</div></div>
-                {p.payment_gateway_id && <div><div className={styles.metaLabel}>Payment ID</div><div className={styles.metaValue}>{p.payment_gateway_id}</div></div>}
-                <div><div className={styles.metaLabel}>Status</div><div className={styles.metaValue}><span className={styles.captured}>{p.status}</span></div></div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Sidebar ────────────────────────────────────────────────────────── */}
-        <div className={styles.sidebar}>
-
-          {/* NEXT STEP — the primary action card (ops/support only; read-only
-              roles like finance/catalog see the order but not stage actions) */}
-          <Can cap="orders:write">
-          <NextStepCard
-            order={order}
-            customerBookings={customerBookings}
-            bookingsLoading={bookingsLoading}
-            customerFitProfiles={customerFitProfiles}
-            profilesLoading={profilesLoading}
-            advancingStage={advancingStage}
-            assigningCraft={assigningCraft}
-            assigningQC={assigningQC}
-            onLinkMeasurement={handleLinkMeasurement}
-            onAdvance={handleAdvance}
-            onAssignCraft={handleAssignCraft}
-            onAssignQC={handleAssignQC}
-            onCreateMeasurementBooking={() => navigate(`/admin/measurement-bookings/new?user_id=${order.user_id}&order_id=${order.uuid ?? order.id}`)}
-            onUseFitProfile={handleUseFitProfile}
-          />
-          </Can>
-
-          {/* Delivery date + hold reason */}
-          <div className={styles.card}>
-            <h3 className={styles.sectionTitle}>Delivery</h3>
-            <div style={{ marginBottom: 10 }}>
-              <div className={styles.metaLabel}>Est. Delivery Date</div>
-              {editingDelivery ? (
-                <div className={styles.inlineEdit}>
-                  <input type="date" className={styles.inlineInput} value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} />
-                  <button className={styles.inlineSave} disabled={savingDelivery} onClick={handleSaveDelivery}>{savingDelivery ? '…' : 'Save'}</button>
-                  <button className={styles.actionBtnSecondary} style={{ height: 34, padding: '0 10px', fontSize: 12 }} onClick={() => { setEditingDelivery(false); setDeliveryDate(order.estimated_delivery_date ?? ''); }}>Cancel</button>
-                </div>
-              ) : (
-                <div className={styles.inlineEdit}>
-                  <span className={styles.metaValue}>{order.estimated_delivery_date ?? '—'}</span>
-                  <button className={styles.linkBtn} onClick={() => setEditingDelivery(true)}>Edit</button>
-                </div>
-              )}
-            </div>
-            <div>
-              <div className={styles.metaLabel}>On Hold Reason</div>
-              {editingHold ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <textarea className={styles.fieldTextarea} rows={2} placeholder="Leave empty to clear hold…" value={holdReason} onChange={e => setHoldReason(e.target.value)} />
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button className={styles.inlineSave} disabled={savingHold} onClick={handleSaveHold}>{savingHold ? '…' : 'Save'}</button>
-                    <button className={styles.actionBtnSecondary} style={{ height: 34, padding: '0 10px', fontSize: 12 }} onClick={() => { setEditingHold(false); setHoldReason(order.on_hold_reason ?? ''); }}>Cancel</button>
+                <div>
+                  <div className={styles.metaLabel}>Amount</div>
+                  <div className={styles.metaValue}>
+                    ₹{order.total.toLocaleString("en-IN")}
                   </div>
                 </div>
-              ) : (
-                <div className={styles.inlineEdit}>
-                  <span className={styles.metaValue} style={{ color: order.on_hold_reason ? '#9A6B3A' : 'var(--color-text-tertiary)', fontSize: 13 }}>{order.on_hold_reason ?? 'Not on hold'}</span>
-                  <button className={styles.linkBtn} onClick={() => setEditingHold(true)}>Edit</button>
+                <div>
+                  <div className={styles.metaLabel}>Status</div>
+                  <div className={styles.metaValue}>
+                    <span className={styles.captured}>pending</span>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              (order.payments ?? []).map((p, i) => (
+                <div key={p.id ?? i} className={styles.paymentGrid}>
+                  <div>
+                    <div className={styles.metaLabel}>Method</div>
+                    <div className={styles.metaValue}>
+                      {p.payment_method ?? "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={styles.metaLabel}>Amount</div>
+                    <div className={styles.metaValue}>
+                      ₹{parseFloat(String(p.amount)).toLocaleString("en-IN")}
+                    </div>
+                  </div>
+                  {p.payment_gateway_id && (
+                    <div>
+                      <div className={styles.metaLabel}>Payment ID</div>
+                      <div className={styles.metaValue}>
+                        {p.payment_gateway_id}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <div className={styles.metaLabel}>Status</div>
+                    <div className={styles.metaValue}>
+                      <span className={styles.captured}>{p.status}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-
-          {/* Admin actions */}
-          <div className={styles.card}>
-            <h3 className={styles.sectionTitle}>Admin Actions</h3>
-            <div className={styles.actionList}>
-              <button className={styles.overrideBtn} onClick={() => setShowOverrideModal(true)}>Override Stage</button>
-              <button className={styles.actionBtnSecondary} disabled={invoiceGenerating} onClick={handleGenerateInvoice}>
-                {invoiceGenerating ? 'Queuing…' : 'Generate Invoice'}
-              </button>
-              <button className={styles.actionBtnSecondary} disabled={invoiceLoading} onClick={handleDownloadInvoice}>
-                {invoiceLoading ? 'Loading…' : 'Download Invoice'}
-              </button>
-              <button className={styles.cancelBtn}>Cancel Order</button>
-            </div>
-          </div>
-
-          {order.cancellation_reason && (
-            <div className={styles.card}>
-              <h3 className={styles.sectionTitle} style={{ color: 'var(--color-error)' }}>Cancellation</h3>
-              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{order.cancellation_reason}</div>
-            </div>
-          )}
-        </div>
-      </div>
+      </DetailShell>
 
       {/* ── Override modal ────────────────────────────────────────────────────── */}
       {showOverrideModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowOverrideModal(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setShowOverrideModal(false)}
+        >
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Override Order Stage</h3>
             <div className={styles.warningBanner}>
-              ⚠ Manual overrides bypass normal validation. They are logged in the audit trail.
+              ⚠ Manual overrides bypass normal validation. They are logged in
+              the audit trail.
             </div>
             <div className={styles.currentStatus}>
-              <span>Current Stage: <strong>{order.stage.replace(/_/g, ' ')}</strong></span>
-              <span>Lifecycle: <strong>{order.status}</strong></span>
+              <span>
+                Current Stage: <strong>{statusLabel(order.stage)}</strong>
+              </span>
+              <span>
+                Lifecycle: <strong>{order.status}</strong>
+              </span>
             </div>
             <div className={styles.field}>
               <label className={styles.fieldLabel}>Override to</label>
-              <select className={styles.fieldSelect} value={overrideStage} onChange={e => setOverrideStage(e.target.value)}>
+              <select
+                className={styles.fieldSelect}
+                value={overrideStage}
+                onChange={(e) => setOverrideStage(e.target.value)}
+              >
                 <option value="">Select stage…</option>
-                {STAGES.map(s => (
-                  <option key={s.key} value={s.key}>{s.label.replace('\n', ' ')}</option>
+                {OVERRIDE_STAGES.map((key) => (
+                  <option key={key} value={key}>
+                    {statusLabel(key)}
+                  </option>
                 ))}
               </select>
             </div>
@@ -1005,28 +1777,167 @@ export const OrderDetailPage: React.FC = () => {
                 className={styles.fieldTextarea}
                 placeholder="e.g., Courier confirmed delivery but webhook failed to update status."
                 value={overrideReason}
-                onChange={e => setOverrideReason(e.target.value)}
+                onChange={(e) => setOverrideReason(e.target.value)}
                 rows={3}
               />
             </div>
             <div className={styles.checkList}>
-              {['I understand this action will be logged', `I have verified this is the correct order (${order.id})`].map((label, i) => (
+              {[
+                "I understand this action will be logged",
+                `I have verified this is the correct order (${order.id})`,
+              ].map((label, i) => (
                 <label key={i} className={styles.checkItem}>
-                  <input type="checkbox" checked={overrideChecks[i]} onChange={e => {
-                    const next = [...overrideChecks]; next[i] = e.target.checked; setOverrideChecks(next);
-                  }} />
+                  <input
+                    type="checkbox"
+                    checked={overrideChecks[i]}
+                    onChange={(e) => {
+                      const next = [...overrideChecks];
+                      next[i] = e.target.checked;
+                      setOverrideChecks(next);
+                    }}
+                  />
                   {label}
                 </label>
               ))}
             </div>
             <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => setShowOverrideModal(false)}>Cancel</button>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowOverrideModal(false)}
+              >
+                Cancel
+              </button>
               <button
                 className={styles.applyBtn}
-                disabled={!overrideStage || overrideReason.length < 20 || !overrideChecks.every(Boolean) || overriding}
+                disabled={
+                  !overrideStage ||
+                  overrideReason.length < 20 ||
+                  !overrideChecks.every(Boolean) ||
+                  overriding
+                }
                 onClick={handleOverride}
               >
                 Apply Override
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Re-measure request modal (G-37) */}
+      {showRemeasure && (
+        <div className={styles.modalOverlay} onClick={() => setShowRemeasure(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Request re-measure</h3>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>
+                Reason (free agent visit; ops schedules it)
+              </label>
+              <textarea
+                className={styles.fieldTextarea}
+                placeholder="e.g., Customer reports the fit was tight at the waist on this order"
+                value={remeasureReason}
+                onChange={(e) => setRemeasureReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowRemeasure(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.applyBtn}
+                disabled={!remeasureReason.trim() || requestingRemeasure}
+                onClick={submitRemeasure}
+              >
+                {requestingRemeasure ? "Requesting…" : "Request re-measure"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Request alteration on this (delivered) order */}
+      {showAlteration && (
+        <div className={styles.modalOverlay} onClick={() => setShowAlteration(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Request alteration</h3>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>
+                What needs altering (first alteration on the order is free)
+              </label>
+              <textarea
+                className={styles.fieldTextarea}
+                placeholder="e.g., Take in 1cm at the chest; shorten sleeves by 2cm"
+                value={alterationDesc}
+                onChange={(e) => setAlterationDesc(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowAlteration(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.applyBtn}
+                disabled={!alterationDesc.trim() || requestingAlteration}
+                onClick={submitAlteration}
+              >
+                {requestingAlteration ? "Requesting…" : "Request alteration"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Start a return on this (delivered) order */}
+      {showReturn && (
+        <div className={styles.modalOverlay} onClick={() => setShowReturn(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Start a return</h3>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>Reason (routes the outcome)</label>
+              <select
+                className={styles.fieldSelect}
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+              >
+                {RETURN_REASONS.map((r) => (
+                  <option key={r.v} value={r.v}>
+                    {r.l}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>Details (optional)</label>
+              <textarea
+                className={styles.fieldTextarea}
+                placeholder="What did the customer report?"
+                value={returnDesc}
+                onChange={(e) => setReturnDesc(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelModalBtn}
+                onClick={() => setShowReturn(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.applyBtn}
+                disabled={requestingReturn}
+                onClick={submitReturn}
+              >
+                {requestingReturn ? "Starting…" : "Start return"}
               </button>
             </div>
           </div>

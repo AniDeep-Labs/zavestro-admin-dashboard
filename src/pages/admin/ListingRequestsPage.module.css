@@ -1,0 +1,99 @@
+.form {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+.formTitle { font-size: var(--font-size-base); font-weight: 600; color: var(--color-text); margin: 0; }
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--spacing-md);
+}
+.field { display: flex; flex-direction: column; gap: 6px; font-size: var(--font-size-sm); font-weight: 500; color: var(--color-text); }
+.field select {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  font-weight: 400;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+.formActions { display: flex; justify-content: flex-end; }
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 440px));
+  gap: var(--spacing-md);
+}
+.clickCard { cursor: pointer; }
+.card {
+  display: flex;
+  gap: var(--spacing-md);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+}
+.cardSkeleton { height: 150px; background: var(--color-bg-section); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.5 } }
+.cardSwatch {
+  width: 84px; height: 84px; flex-shrink: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-section);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-muted);
+}
+.cardSwatch img { width: 100%; height: 100%; object-fit: cover; }
+.cardBody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cardTop { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
+.cardCode { font-size: var(--font-size-xs); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.cardFabric { font-weight: 600; color: var(--color-text); }
+.cardComp { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.cardMeta { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.cardMeta strong { color: var(--color-text); font-weight: 500; }
+.cardNote { font-size: var(--font-size-sm); color: var(--color-text-muted); font-style: italic; }
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+/* G-10 sample-precondition chip */
+.sampleChip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--font-size-xs); font-weight: var(--font-weight-medium);
+  padding: 1px 8px; border-radius: var(--radius-full); width: fit-content; margin-top: 2px;
+}
+.sampleOk { background: var(--status-received-bg, #e7f4ec); color: var(--status-received-fg, #1c7a45); }
+.samplePending { background: var(--status-qc-bg, #fdf1dc); color: var(--status-qc-fg, #9a6a00); }
+.sampleNone { background: var(--color-bg-section); color: var(--color-text-muted); }
+
+/* CM hub is fixed to their own hub (read-only). */
+.lockedHub {
+  display: flex; align-items: center; height: 38px; padding: 0 10px;
+  border: 1.5px dashed var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-section); color: var(--color-text-secondary); font-size: var(--font-size-sm);
+}
+/* procurement's decline reason shown back to the CM. */
+.decisionNote { font-size: var(--font-size-sm); color: var(--color-error); }
+.cardAge { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.empty {
+  padding: var(--spacing-2xl);
+  text-align: center;
+  color: var(--color-text-muted);
+  background: var(--color-bg-card);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}

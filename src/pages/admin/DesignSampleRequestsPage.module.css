@@ -1,0 +1,56 @@
+.fabricCell { display: flex; align-items: center; gap: 8px; }
+/* Request-sample modal form (spec §4 — design+fabric+hub picker) */
+.reqForm { display: flex; flex-direction: column; gap: 14px; }
+.reqField { display: flex; flex-direction: column; gap: 5px; }
+.reqLabel { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-tertiary); }
+.reqSelect { padding: 9px 11px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); background: var(--color-bg-primary); color: var(--color-text-primary); }
+.reqActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.thumb {
+  width: 34px; height: 34px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+.fabricText { display: flex; flex-direction: column; line-height: 1.25; }
+.code { font-size: var(--font-size-xs); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+
+/* Compact filter toolbar (matches Fabrics / Design Library) — explicit widths so the
+   status select can't stretch full-width via the global `select { width: 100% }`. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+.statusSel {
+  flex: 0 0 auto;
+  width: 180px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  outline: none;
+  cursor: pointer;
+}
+.statusSel:focus { border-color: var(--color-primary); }
+.count { font-size: var(--font-size-sm); color: var(--color-text-muted); white-space: nowrap; }
+/* Push the request action to the far right of the toolbar. */
+.toolbar > :last-child { margin-left: auto; }
+
+/* T1-18: sample-request out-of-stock warning */
+.stockWarn {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--color-warning, #b7791f);
+  line-height: 1.4;
+}

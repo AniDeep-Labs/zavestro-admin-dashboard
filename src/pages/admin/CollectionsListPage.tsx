@@ -1,49 +1,75 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, X, Plus, GripVertical, Image } from 'lucide-react';
 import { collectionsApi } from '../../api/adminApi';
 import type { Collection } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './CollectionsListPage.module.css';
+import { UilImage, UilPlus, UilSearch, UilTimes } from "@iconscout/react-unicons";
+import { StatusBadge } from '../../components';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { Modal } from '../../components/Modal/Modal';
+import { CollectionEditPage } from './CollectionEditPage';
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [v, setV] = React.useState(value);
+  React.useEffect(() => { const t = setTimeout(() => setV(value), delay); return () => clearTimeout(t); }, [value, delay]);
+  return v;
+}
+
+// Human labels for the collection-type chip (DB values are snake_case).
+const TYPE_LABEL: Record<string, string> = {
+  standard: 'Standard', new_arrivals: 'New Arrivals', occasion: 'Occasion', featured: 'Featured',
+};
+const TYPE_CLASS: Record<string, string> = {
+  new_arrivals: styles.typeNewArrivals, occasion: styles.typeOccasion, featured: styles.typeFeatured,
+};
 
 export const CollectionsListPage: React.FC = () => {
-  const navigate = useNavigate();
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('All');
+  const debouncedSearch = useDebounce(search, 300);
 
   const [collections, setCollections] = React.useState<Collection[]>([]);
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+  const [archiveTarget, setArchiveTarget] = React.useState<Collection | null>(null);
+  const [archiving, setArchiving] = React.useState(false);
+  // Create/Edit open in a popup modal (like banners): 'new' | collectionId | null.
+  const [editorId, setEditorId] = React.useState<string | null>(null);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, message?: string) =>
     setToasts(t => [...t, createToast(type, title, message)]);
 
-  React.useEffect(() => {
+  const load = React.useCallback(() => {
     setLoading(true);
     setError('');
     collectionsApi.list({
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       status: statusFilter !== 'All' ? statusFilter : undefined,
     })
       .then(res => { setCollections(res.collections ?? []); setTotal(res.total ?? 0); })
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load collections'))
       .finally(() => setLoading(false));
-  }, [search, statusFilter]);
+  }, [debouncedSearch, statusFilter]);
 
-  const handleArchive = async (e: React.MouseEvent, col: Collection) => {
-    e.stopPropagation();
-    if (!confirm(`Archive "${col.name}"?`)) return;
+  React.useEffect(() => { load(); }, [load]);
+
+  const confirmArchive = async () => {
+    if (!archiveTarget) return;
+    setArchiving(true);
     try {
-      await collectionsApi.archive(col.id);
-      setCollections(prev => prev.filter(c => c.id !== col.id));
+      await collectionsApi.archive(archiveTarget.id);
+      setCollections(prev => prev.filter(c => c.id !== archiveTarget.id));
       setTotal(t => t - 1);
-      showToast('success', 'Collection archived', col.name);
+      showToast('success', 'Collection archived', archiveTarget.name);
+      setArchiveTarget(null);
     } catch (err) {
       showToast('error', 'Archive failed', err instanceof Error ? err.message : undefined);
+    } finally {
+      setArchiving(false);
     }
   };
 
@@ -53,14 +79,14 @@ export const CollectionsListPage: React.FC = () => {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Collections</h1>
-        <button className={styles.addBtn} onClick={() => navigate('/admin/catalog/collections/new')}>
-          <Plus size={15}/> Create Collection
+        <button className={styles.addBtn} onClick={() => setEditorId('new')}>
+          <UilPlus size={15}/> Create Collection
         </button>
       </div>
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
+          <UilSearch size={15} className={styles.searchIcon} />
           <input
             className={styles.searchInput}
             placeholder="Search collections…"
@@ -75,7 +101,7 @@ export const CollectionsListPage: React.FC = () => {
           <option>Archived</option>
         </select>
         <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatusFilter('All'); }}>
-          <X size={14}/> Clear
+          <UilTimes size={14}/> Clear
         </button>
       </div>
 
@@ -83,7 +109,6 @@ export const CollectionsListPage: React.FC = () => {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th></th>
               <th>Collection Name</th>
               <th>Type</th>
               <th>Products</th>
@@ -98,56 +123,49 @@ export const CollectionsListPage: React.FC = () => {
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 9 }).map((__, j) => (
+                  {Array.from({ length: 8 }).map((__, j) => (
                     <td key={j}><div className={styles.skeleton} /></td>
                   ))}
                 </tr>
               ))
             ) : error ? (
               <tr>
-                <td colSpan={9} className={styles.empty}>
+                <td colSpan={8} className={styles.empty}>
                   <div>{error}</div>
-                  <button className={styles.retryBtn} onClick={() => { setError(''); }}>Retry</button>
+                  <button className={styles.retryBtn} onClick={() => load()}>Retry</button>
                 </td>
               </tr>
             ) : collections.length === 0 ? (
-              <tr><td colSpan={9} className={styles.empty}>No collections found.</td></tr>
+              <tr><td colSpan={8} className={styles.empty}>No collections found.</td></tr>
             ) : (
               collections.map(col => (
-                <tr key={col.id} className={styles.row} onClick={() => navigate(`/admin/catalog/collections/${col.id}`)} style={{ cursor: 'pointer' }}>
-                  <td className={styles.dragHandle} onClick={e => e.stopPropagation()}><GripVertical size={14}/></td>
+                <tr key={col.id} className={`${styles.row} ${styles.clickRow}`} onClick={() => setEditorId(col.id)}>
                   <td>
-                    <button className={styles.nameLink} onClick={e => { e.stopPropagation(); navigate(`/admin/catalog/collections/${col.id}`); }}>
+                    <button className={styles.nameLink} onClick={e => { e.stopPropagation(); setEditorId(col.id); }}>
                       {col.name}
                     </button>
                     <div className={styles.slug}>/{col.slug}</div>
                   </td>
                   <td>
-                    <span style={{
-                      display: 'inline-block', padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                      background: col.type === 'new_arrivals' ? '#e6f3ee' : col.type === 'occasion' ? '#f3e6f0' : col.type === 'featured' ? '#fef3e6' : 'var(--color-bg-secondary)',
-                      color: col.type === 'new_arrivals' ? '#1C5C42' : col.type === 'occasion' ? '#7a1c5c' : col.type === 'featured' ? '#9a5c00' : 'var(--color-text-secondary)',
-                    }}>
-                      {col.type ?? 'standard'}
+                    <span className={`${styles.typeChip} ${TYPE_CLASS[col.type ?? 'standard'] ?? ''}`}>
+                      {TYPE_LABEL[col.type ?? 'standard'] ?? col.type}
                     </span>
                   </td>
                   <td className={styles.count}>{col.products}</td>
                   <td>
-                    <span className={`${styles.statusPill} ${styles[`status${col.status}`]}`}>
-                      {col.status}
-                    </span>
+                    <StatusBadge status={col.status.toLowerCase()} label={col.status} />
                   </td>
                   <td className={styles.sortOrder}>#{col.sortOrder}</td>
                   <td>
                     {col.hasBanner
-                      ? <div className={styles.bannerThumb}><Image size={14}/></div>
+                      ? <div className={styles.bannerThumb}><UilImage size={14}/></div>
                       : <span className={styles.noBanner}>—</span>}
                   </td>
                   <td className={styles.date}>{col.updated}</td>
                   <td onClick={e => e.stopPropagation()}>
                     <div className={styles.actions}>
-                      <button className={styles.actionBtn} onClick={() => navigate(`/admin/catalog/collections/${col.id}`)}>Edit</button>
-                      <button className={styles.archiveBtn} onClick={e => handleArchive(e, col)}>Archive</button>
+                      <button className={styles.actionBtn} onClick={() => setEditorId(col.id)}>Edit</button>
+                      <button className={styles.archiveBtn} onClick={e => { e.stopPropagation(); setArchiveTarget(col); }}>Archive</button>
                     </div>
                   </td>
                 </tr>
@@ -160,6 +178,34 @@ export const CollectionsListPage: React.FC = () => {
       <div className={styles.pagination}>
         {loading ? 'Loading…' : `Showing ${collections.length} of ${total} collections`}
       </div>
+
+      <ConfirmDialog
+        open={!!archiveTarget}
+        title="Archive this collection?"
+        message={archiveTarget ? `Archive “${archiveTarget.name}”? It will be hidden from the storefront. You can restore it later.` : ''}
+        confirmLabel="Archive"
+        variant="danger"
+        loading={archiving}
+        onConfirm={confirmArchive}
+        onCancel={() => setArchiveTarget(null)}
+      />
+
+      {/* Create / Edit collection — popup modal (like banners) */}
+      <Modal
+        open={editorId !== null}
+        onClose={() => setEditorId(null)}
+        title={editorId === 'new' ? 'Create Collection' : 'Edit Collection'}
+        size="lg"
+        className={styles.editorModal}
+      >
+        {editorId !== null && (
+          <CollectionEditPage
+            idProp={editorId}
+            onClose={() => setEditorId(null)}
+            onSaved={load}
+          />
+        )}
+      </Modal>
     </div>
   );
 };
