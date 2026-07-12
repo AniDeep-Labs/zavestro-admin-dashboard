@@ -64,6 +64,10 @@
 }
 .list { max-height: 380px; overflow-y: auto; }
 .empty { padding: var(--spacing-xl); text-align: center; color: var(--color-text-muted); font-size: var(--font-size-sm); }
+/* T3-1 (S-5): day-group header + view-all overflow. */
+.dayLabel { position: sticky; top: 0; z-index: 1; padding: 6px 14px 4px; font-size: 11px; font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.4px; color: var(--color-text-tertiary); background: var(--color-bg-primary); }
+.viewAll { display: block; width: 100%; padding: 10px 14px; border: none; border-top: 1px solid var(--color-border-light); background: none; color: var(--color-primary); font-family: var(--font-family); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); cursor: pointer; }
+.viewAll:hover { background: var(--color-bg-section); }
 .item {
   display: flex;
   gap: 8px;

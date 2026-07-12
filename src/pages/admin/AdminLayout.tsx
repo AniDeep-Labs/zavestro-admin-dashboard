@@ -9,8 +9,10 @@ import {
   setAdminCapabilities,
   adminAuthExtApi,
   navCountsApi,
+  hubsApi,
 } from "../../api/adminApi";
-import type { NavCounts } from "../../api/adminApi";
+import type { NavCounts, Hub } from "../../api/adminApi";
+import { getAdminHubContext, setAdminHubContext } from "../../utils/hubContext";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary";
 import { Spinner } from "../../components/Spinner";
 import {
@@ -20,7 +22,9 @@ import {
 import styles from "./AdminLayout.module.css";
 import { NotificationBell } from "./NotificationBell";
 import { CommandPalette } from "../../components/CommandPalette";
-import type { NavTarget } from "../../components/CommandPalette";
+import type { NavTarget, PaletteAction } from "../../components/CommandPalette";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { hasUnsavedChanges } from "../../hooks/useDirtyGuard";
 import {
   UilAngleDoubleLeft,
   UilAngleDoubleRight,
@@ -40,6 +44,7 @@ import {
   UilMapMarker,
   UilMegaphone,
   UilMoon,
+  UilPlus,
   UilProcess,
   UilReceipt,
   UilRuler,
@@ -492,6 +497,16 @@ const NAV_CAP: Record<string, string | undefined> = Object.fromEntries([
   ...SECTIONS.flatMap((s) => s.items.map((it) => [it.label, it.cap])),
 ]);
 const ALL_ITEMS: NavItem[] = [HOME, ...SECTIONS.flatMap((s) => s.items)];
+
+// T3-1 (S-1 + S-3): cap-gated create verbs — the single source for both the palette actions
+// and the quick-create (+) menu, so they never offer a create the role can't do.
+const CREATE_ACTIONS: { label: string; cap: string; to: string }[] = [
+  { label: "New design", cap: "designs:write", to: "/admin/design/library/new" },
+  { label: "New fabric", cap: "distribution:write", to: "/admin/procurement/fabrics" },
+  { label: "New listing", cap: "catalog:write", to: "/admin/catalog/listings" },
+  { label: "New ticket", cap: "customers:write", to: "/admin/support" },
+  { label: "New staff", cap: "staff:manage", to: "/admin/system/staff" },
+];
 // Paths inside role-owned operating consoles (Design, Catalog) — deep-link-blocked for super_admin.
 const ROLE_OWNED_PATHS: string[] = SECTIONS.filter((s) => s.roleOwned).flatMap(
   (s) => s.items.map((it) => it.path),
@@ -596,16 +611,40 @@ const AdminLayoutInner: React.FC = () => {
 
   // ⌘K command palette (FABLE-ADMIN-UIUX §1.2) — wires the top-bar search.
   const [paletteOpen, setPaletteOpen] = React.useState(false);
+  const [helpOpen, setHelpOpen] = React.useState(false); // T3-1 (S-4): shortcuts help sheet
   React.useEffect(() => {
+    // T3-1 (S-4): keyboard shortcuts. `g o`/`g d` jump, `/` opens the palette, `?` shows help.
+    // Sequence keys (g→o/d) are tracked with a short-lived pending flag; letter shortcuts are
+    // ignored while typing in a field so they never steal keystrokes.
+    let gPending = false;
+    let gTimer: ReturnType<typeof setTimeout> | undefined;
+    const typing = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      const tag = el?.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!el?.isContentEditable;
+    };
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen((o) => !o);
+        return;
       }
+      if (e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
+      if (gPending) {
+        gPending = false;
+        clearTimeout(gTimer);
+        const k = e.key.toLowerCase();
+        if (k === "o") { e.preventDefault(); navigate("/admin/orders"); }
+        else if (k === "d") { e.preventDefault(); navigate("/admin/dashboard"); }
+        return;
+      }
+      if (e.key === "g") { gPending = true; gTimer = setTimeout(() => { gPending = false; }, 1000); }
+      else if (e.key === "/") { e.preventDefault(); setPaletteOpen(true); }
+      else if (e.key === "?") { e.preventDefault(); setHelpOpen((h) => !h); }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    return () => { window.removeEventListener("keydown", onKey); clearTimeout(gTimer); };
+  }, [navigate]);
   const navTargets: NavTarget[] = React.useMemo(
     () =>
       visibleSections.flatMap((s) =>
@@ -613,6 +652,45 @@ const AdminLayoutInner: React.FC = () => {
       ),
     [visibleSections],
   );
+
+  // T3-1 (S-1/S-3): cap-gated create verbs → palette actions + quick-create menu (legacy 'admin'
+  // holds everything). Fabric jumps target the console the role can actually open.
+  const hasCap = React.useCallback(
+    (cap: string) => adminRole === "admin" || caps.includes(cap),
+    [adminRole, caps],
+  );
+  const createTargets = React.useMemo(
+    () => CREATE_ACTIONS.filter((a) => hasCap(a.cap)),
+    [hasCap],
+  );
+  const createActions: PaletteAction[] = React.useMemo(
+    () => createTargets.map((a) => ({ label: a.label, run: () => navigate(a.to) })),
+    [createTargets, navigate],
+  );
+  const fabricBase = hasCap("distribution:write")
+    ? "/admin/procurement/fabrics"
+    : "/admin/design/fabrics";
+
+  // T3-1 (S-3): quick-create (+) header menu open/close.
+  const [createMenuOpen, setCreateMenuOpen] = React.useState(false);
+  const createMenuRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) setCreateMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  // T3-1 (S-2): global hub-context switcher for hub-agnostic roles. Only meaningful with >1
+  // hub (single-hub is livable), so the control hides itself until then. Pages read the
+  // selection via getAdminHubContext() as their default hub filter.
+  const hubAgnostic = ["super_admin", "finance", "procurement", "admin"].includes(adminRole);
+  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  const [hubCtx, setHubCtx] = React.useState<string>(getAdminHubContext());
+  React.useEffect(() => {
+    if (hubAgnostic) hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
+  }, [hubAgnostic]);
 
   // Route guard: block the content area if the current path needs a capability the
   // role lacks (deep-link protection). Only enforce once caps are known (non-empty)
@@ -633,9 +711,18 @@ const AdminLayoutInner: React.FC = () => {
     superBlocked ||
     (!!requiredCap && caps.length > 0 && !caps.includes(requiredCap));
 
-  const handleLogout = async () => {
+  // T3-1 (S-6): don't let a logout silently eat unsaved form edits — confirm first.
+  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
+  const doLogout = async () => {
     await adminAuth.logout();
     navigate("/admin/login", { replace: true });
+  };
+  const handleLogout = () => {
+    if (hasUnsavedChanges()) {
+      setShowLogoutConfirm(true);
+      return;
+    }
+    void doLogout();
   };
 
   const isActive = (path: string) =>
@@ -823,6 +910,49 @@ const AdminLayoutInner: React.FC = () => {
           </button>
 
           <div className={styles.topActions}>
+            {/* T3-1 (S-2): global hub-context switcher (hub-agnostic roles, only with >1 hub). */}
+            {hubAgnostic && hubs.length > 1 && (
+              <select
+                className={styles.hubSwitcher}
+                value={hubCtx}
+                onChange={(e) => { setHubCtx(e.target.value); setAdminHubContext(e.target.value); }}
+                aria-label="Hub context"
+                title="Hub context"
+              >
+                <option value="">All hubs</option>
+                {hubs.map((h) => (
+                  <option key={h.id} value={h.id}>{h.name}</option>
+                ))}
+              </select>
+            )}
+
+            {/* T3-1 (S-3): quick-create (+) menu — cap-gated create verbs. */}
+            {createTargets.length > 0 && (
+              <div className={styles.createMenu} ref={createMenuRef}>
+                <button
+                  className={styles.iconBtn}
+                  onClick={() => setCreateMenuOpen((o) => !o)}
+                  aria-label="Quick create"
+                  title="Create…"
+                >
+                  <UilPlus size={18} />
+                </button>
+                {createMenuOpen && (
+                  <div className={styles.createDropdown}>
+                    {createTargets.map((a) => (
+                      <button
+                        key={a.label}
+                        className={styles.createItem}
+                        onClick={() => { setCreateMenuOpen(false); navigate(a.to); }}
+                      >
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               className={styles.iconBtn}
               onClick={() => {
@@ -929,8 +1059,41 @@ const AdminLayoutInner: React.FC = () => {
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         navTargets={navTargets}
-        canSearchOrders={caps.includes("orders:read") || adminRole === "admin"}
-        canSearchCustomers={caps.includes("customers:read") || adminRole === "admin"}
+        actions={createActions}
+        canSearchOrders={hasCap("orders:read")}
+        canSearchCustomers={hasCap("customers:read")}
+        canSearchFabrics={hasCap("distribution:write") || hasCap("designs:write")}
+        canSearchDesigns={hasCap("designs:write")}
+        fabricBase={fabricBase}
+      />
+
+      {/* T3-1 (S-4): keyboard-shortcuts help sheet (opened with `?`). */}
+      {helpOpen && (
+        <div className={styles.helpOverlay} onClick={() => setHelpOpen(false)}>
+          <div className={styles.helpSheet} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.helpTitle}>Keyboard shortcuts</h3>
+            <ul className={styles.helpList}>
+              <li><kbd>⌘</kbd> <kbd>K</kbd> — command palette</li>
+              <li><kbd>/</kbd> — search</li>
+              <li><kbd>g</kbd> then <kbd>o</kbd> — go to Orders</li>
+              <li><kbd>g</kbd> then <kbd>d</kbd> — go to Dashboard</li>
+              <li><kbd>?</kbd> — this help</li>
+              <li><kbd>esc</kbd> — close</li>
+            </ul>
+            <button className={styles.helpClose} onClick={() => setHelpOpen(false)}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* T3-1 (S-6): confirm before a logout drops unsaved edits. */}
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="Unsaved changes"
+        message="You have unsaved edits open. Log out anyway? Your changes will be lost."
+        confirmLabel="Log out"
+        variant="danger"
+        onConfirm={() => { setShowLogoutConfirm(false); void doLogout(); }}
+        onCancel={() => setShowLogoutConfirm(false)}
       />
     </div>
   );
