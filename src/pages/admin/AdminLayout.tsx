@@ -499,6 +499,13 @@ const NAV_CAP: Record<string, string | undefined> = Object.fromEntries([
 ]);
 const ALL_ITEMS: NavItem[] = [HOME, ...SECTIONS.flatMap((s) => s.items)];
 
+// T3-9 (P-4): capability guard for routes that have NO nav ancestor (so `currentNav` misses
+// them). Prefix-matched. FabricAtHub (procurement/track) needs the same cap as the rest of the
+// procurement console. /admin/profile is intentionally omitted — any admin may view it.
+const NAV_LESS_CAP: { prefix: string; cap: string }[] = [
+  { prefix: "/admin/procurement/track", cap: "distribution:write" },
+];
+
 // T3-1 (S-1 + S-3): cap-gated create verbs — the single source for both the palette actions
 // and the quick-create (+) menu, so they never offer a create the role can't do.
 const CREATE_ACTIONS: { label: string; cap: string; to: string }[] = [
@@ -701,7 +708,12 @@ const AdminLayoutInner: React.FC = () => {
       location.pathname === n.path ||
       location.pathname.startsWith(n.path + "/"),
   );
-  const requiredCap = currentNav ? NAV_CAP[currentNav.label] : undefined;
+  // T3-9 (P-4): pages with no nav ancestor still need a cap guard, else a role without it
+  // deep-links in and sees a broken 403-toast page instead of the access-denied screen.
+  // (/admin/profile is intentionally cap-free — any admin may view their own profile.)
+  const requiredCap =
+    (currentNav ? NAV_CAP[currentNav.label] : undefined) ??
+    NAV_LESS_CAP.find((m) => location.pathname.startsWith(m.prefix))?.cap;
   // super_admin is oversight-only — deep-link into a role-owned console is blocked too.
   const superBlocked =
     adminRole === "super_admin" &&

@@ -29,13 +29,17 @@ export const HubsListPage: React.FC = () => {
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
 
+  // T3-9 (§2.3): a bump key so Retry actually re-runs the load (the old Retry did
+  // setSearch(s => s), a no-op that never changed state → never refetched).
+  const [reloadKey, setReloadKey] = React.useState(0);
+
   React.useEffect(() => {
     setLoading(true); setError('');
     hubsApi.list({ search: debouncedSearch || undefined, status: statusFilter || undefined })
       .then(r => { setHubs(r.hubs); setTotal(r.total); })
       .catch(e => { const msg = e instanceof Error ? e.message : 'Failed to load'; setError(msg); showToast('error', 'Load failed', msg); })
       .finally(() => setLoading(false));
-  }, [debouncedSearch, statusFilter]);
+  }, [debouncedSearch, statusFilter, reloadKey]);
 
   return (
     <div className={styles.page}>
@@ -56,7 +60,7 @@ export const HubsListPage: React.FC = () => {
       </div>
 
       {error && !loading && (
-        <div className={styles.errorBanner}>{error} <button className={styles.retryBtn} onClick={() => setSearch(s => s)}>Retry</button></div>
+        <div className={styles.errorBanner}>{error} <button className={styles.retryBtn} onClick={() => setReloadKey(k => k + 1)}>Retry</button></div>
       )}
 
       {loading ? (

@@ -1023,8 +1023,10 @@ export const BannersPage: React.FC = () => {
       }
       setModal(null);
       load();
-    } catch {
-      showToast('error', 'Failed to save banner');
+    } catch (e) {
+      // T3-9 (§5.4): surface the server's actual reason (e.g. which field failed validation)
+      // instead of a generic message the CM can't act on.
+      showToast('error', 'Failed to save banner', e instanceof Error ? e.message : undefined);
     } finally {
       setSaving(false);
     }
@@ -1038,8 +1040,8 @@ export const BannersPage: React.FC = () => {
       showToast('success', 'Banner deleted');
       setDeleteTarget(null);
       load();
-    } catch {
-      showToast('error', 'Failed to delete banner');
+    } catch (e) {
+      showToast('error', 'Failed to delete banner', e instanceof Error ? e.message : undefined);
     } finally {
       setDeleting(null);
     }

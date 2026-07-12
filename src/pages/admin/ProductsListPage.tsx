@@ -4,6 +4,7 @@ import { catalogApi } from '../../api/catalogApi';
 import type { ApiProduct, ApiCategory } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import styles from './ProductsListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilPlus, UilSearch, UilTimes } from "@iconscout/react-unicons";
 import { StatusBadge, Alert } from '../../components';
@@ -93,9 +94,13 @@ export const ProductsListPage: React.FC = () => {
     setPage(1);
   };
 
-  const handleArchive = async (e: React.MouseEvent, product: ApiProduct) => {
-    e.stopPropagation();
-    if (!confirm(`Archive "${product.name}"? It will no longer appear in the catalog.`)) return;
+  // T3-9 (§5.5): design-system ConfirmDialog instead of the native confirm().
+  const [pendingArchive, setPendingArchive] = React.useState<ApiProduct | null>(null);
+  const [archiving, setArchiving] = React.useState(false);
+  const doArchive = async () => {
+    const product = pendingArchive;
+    if (!product) return;
+    setArchiving(true);
     try {
       await catalogApi.updateProduct(product.id, { status: 'archived' });
       setProducts(prev => prev.filter(p => p.id !== product.id));
@@ -103,6 +108,9 @@ export const ProductsListPage: React.FC = () => {
       showToast('success', 'Product archived', product.name);
     } catch (err) {
       showToast('error', 'Archive failed', err instanceof Error ? err.message : undefined);
+    } finally {
+      setArchiving(false);
+      setPendingArchive(null);
     }
   };
 
@@ -264,7 +272,7 @@ export const ProductsListPage: React.FC = () => {
                       {product.status !== 'archived' && (
                         <button
                           className={`${styles.actionBtn} ${styles.archiveBtn}`}
-                          onClick={e => handleArchive(e, product)}
+                          onClick={e => { e.stopPropagation(); setPendingArchive(product); }}
                         >
                           Archive
                         </button>
@@ -300,6 +308,16 @@ export const ProductsListPage: React.FC = () => {
           </button>
         </div>
       </div>
+      <ConfirmDialog
+        open={pendingArchive !== null}
+        title="Archive product?"
+        message={pendingArchive ? `Archive "${pendingArchive.name}"? It will no longer appear in the catalog.` : ''}
+        confirmLabel="Archive"
+        variant="danger"
+        loading={archiving}
+        onConfirm={doArchive}
+        onCancel={() => setPendingArchive(null)}
+      />
     </div>
   );
 };
