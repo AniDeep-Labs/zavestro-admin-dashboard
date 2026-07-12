@@ -179,7 +179,7 @@ export const HomeSectionsPage: React.FC = () => {
       <ConfirmDialog
         open={!!removeTarget}
         title="Remove this home section?"
-        message={removeTarget ? `Remove the “${TYPE_LABEL[removeTarget.type] ?? removeTarget.type}” section from the home screen? This is live immediately.` : ''}
+        message={removeTarget ? `Remove the “${TYPE_LABEL[removeTarget.type] ?? removeTarget.type}” section? It’s dropped from the layout here — no customer-facing effect until the home feed is wired to the storefront (P5).` : ''}
         confirmLabel="Remove"
         variant="danger"
         loading={removing}

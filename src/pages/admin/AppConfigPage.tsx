@@ -70,8 +70,12 @@ export const AppConfigPage: React.FC = () => {
   // T2-25: a dirty numeric value outside the registry bounds blocks the save.
   const outOfBounds = (item: ConfigItem): boolean => {
     if (item.type === 'boolean') return false;
-    const v = Number(values[item.key]);
-    if (Number.isNaN(v)) return false;
+    // T3-9 (§2.4): an empty/blank numeric field is invalid — block the save (it used to
+    // coerce to 0 and save silently).
+    const raw = values[item.key];
+    if (raw === '' || raw == null) return true;
+    const v = Number(raw);
+    if (Number.isNaN(v)) return true;
     if (item.min != null && v < item.min) return true;
     if (item.max != null && v > item.max) return true;
     return false;
@@ -179,10 +183,13 @@ export const AppConfigPage: React.FC = () => {
                         <input
                           type="number"
                           className={`${styles.numInput} ${oob ? styles.numInputError : ''}`}
-                          value={val as number}
+                          // T3-9 (§2.4): keep an empty field EMPTY rather than silently
+                          // coercing Number('') → 0 (which saved a real 0). Empty is treated
+                          // as invalid below and blocks the save.
+                          value={val === '' || val == null ? '' : (val as number)}
                           min={item.min ?? undefined}
                           max={item.max ?? undefined}
-                          onChange={e => handleChange(item.key, Number(e.target.value))}
+                          onChange={e => handleChange(item.key, e.target.value === '' ? '' : Number(e.target.value))}
                         />
                         {item.type !== 'currency' && <span className={styles.unit}>{formatUnit(item)}</span>}
                       </div>

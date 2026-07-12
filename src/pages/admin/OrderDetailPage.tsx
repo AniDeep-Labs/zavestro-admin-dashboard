@@ -392,7 +392,7 @@ const NextStepCard: React.FC<NextStepProps> = ({
             className={`${styles.nextStepDanger} ${styles.qcBtn}`}
             disabled={advancingStage}
             onClick={() =>
-              onAdvance("in_tailoring", "QC failed — returned to tailoring")
+              onAdvance("rework", "QC failed — sent for rework")
             }
           >
             {advancingStage ? "…" : "✗ QC Fail"}
