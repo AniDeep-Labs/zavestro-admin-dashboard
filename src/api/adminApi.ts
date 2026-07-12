@@ -3046,6 +3046,10 @@ export interface Fabric {
   supplier_city?: string | null;
   supplier_lead_time_days?: number | null;
   supplier_moq_note?: string | null;
+  // T3-4 (W-P1) supplier contacts.
+  supplier_phone?: string | null;
+  supplier_email?: string | null;
+  supplier_gstin?: string | null;
   care_instructions: string[];
   image_keys: string[];
   price_per_meter: string | null;
@@ -3099,6 +3103,9 @@ export interface FabricInput {
   supplier_city?: string | null;
   supplier_lead_time_days?: number | null;
   supplier_moq_note?: string | null;
+  supplier_phone?: string | null; // T3-4 (W-P1)
+  supplier_email?: string | null;
+  supplier_gstin?: string | null;
   care_instructions?: string[];
   image_keys: string[]; // ≥1 required (swatch)
   price_per_meter?: number | null;
@@ -3349,6 +3356,8 @@ export interface FabricStockRow {
   reorder_meters: string | number | null;
   /** G-29 P8: suggested reorder point = demand during lead time (null = no demand yet) */
   reorder_suggestion?: string | number | null;
+  /** T3-4 (W-P4): metres consumed (reserved + scrapped) in the last 30d — checks the suggestion */
+  consumed_30d?: number;
   /** ₹/m from the fabrics master — stock value = available × this */
   price_per_meter: string | number | null;
   updated_at: string;
@@ -3389,6 +3398,8 @@ export interface Distribution {
   fabric_name: string | null;
   fabric_code: string | null;
   fabric_image_keys: string[] | null;
+  lot_code?: string | null; // T1-9: dye-lot shipped
+  consignment_ref?: string | null; // T3-4 (W-P3): courier docket / LR number
 }
 export interface PushDistributionInput {
   /** design-scoped push: set. Plain fabric restock: omit (fabric_id then required). */
@@ -3398,6 +3409,7 @@ export interface PushDistributionInput {
   sample_qty?: number;
   sellable_qty?: number;
   lot_code?: string; // T1-9: dye-lot being shipped
+  consignment_ref?: string; // T3-4 (W-P3): courier docket / LR number
 }
 
 export const distributionApi = {

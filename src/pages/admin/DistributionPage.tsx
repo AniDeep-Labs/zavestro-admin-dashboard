@@ -336,7 +336,11 @@ export const DistributionPage: React.FC = () => {
           )}
         </div>
       </td>
-      <td style={{ color: 'var(--color-text-secondary)' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
+      <td style={{ color: 'var(--color-text-secondary)' }}>
+        {new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+        {/* T3-4 (W-P3): the physical-world handle — what to quote when a hub says "never arrived". */}
+        {r.consignment_ref && <div className={styles.fabricCellCode}>LR {r.consignment_ref}</div>}
+      </td>
     </tr>
   );
 

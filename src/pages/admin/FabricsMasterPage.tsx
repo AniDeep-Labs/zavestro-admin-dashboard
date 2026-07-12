@@ -15,7 +15,7 @@ import { UilPlus, UilTimes, UilImagePlus, UilImage, UilTrashAlt, UilAngleUp, Uil
 import { StatusBadge, Select, CopyId, MoneyCell } from '../../components';
 
 const swatchUrl = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
-const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', width_cm: '', origin: '', supplier: '', supplier_city: '', supplier_lead_time: '', supplier_moq: '', price_per_meter: '', care: '', fabric_type: 'woven', stretch_pct: '', shrinkage_pct: '' };
+const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', width_cm: '', origin: '', supplier: '', supplier_city: '', supplier_lead_time: '', supplier_moq: '', supplier_phone: '', supplier_email: '', supplier_gstin: '', price_per_meter: '', care: '', fabric_type: 'woven', stretch_pct: '', shrinkage_pct: '' };
 type Form = typeof EMPTY;
 
 export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ mode = 'procurement' }) => {
@@ -77,6 +77,9 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
       supplier_city: f.supplier_city ?? '',
       supplier_lead_time: f.supplier_lead_time_days != null ? String(f.supplier_lead_time_days) : '',
       supplier_moq: f.supplier_moq_note ?? '',
+      supplier_phone: f.supplier_phone ?? '',
+      supplier_email: f.supplier_email ?? '',
+      supplier_gstin: f.supplier_gstin ?? '',
       price_per_meter: f.price_per_meter ?? '',
       care: (f.care_instructions ?? []).join(', '),
       fabric_type: f.fabric_type ?? 'woven',
@@ -120,6 +123,9 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
       supplier_city: form.supplier_city.trim() || null,
       supplier_lead_time_days: form.supplier_lead_time ? Number(form.supplier_lead_time) : null,
       supplier_moq_note: form.supplier_moq.trim() || null,
+      supplier_phone: form.supplier_phone.trim() || null,
+      supplier_email: form.supplier_email.trim() || null,
+      supplier_gstin: form.supplier_gstin.trim() || null,
       price_per_meter: form.price_per_meter ? Number(form.price_per_meter) : null,
       fabric_type: form.fabric_type || 'woven',
       stretch_pct: form.stretch_pct ? Number(form.stretch_pct) : 0,
@@ -452,6 +458,10 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
             <Input label="Supplier city" value={form.supplier_city} onChange={set('supplier_city')} placeholder="Erode" />
             <Input label="Lead time (days)" type="number" value={form.supplier_lead_time} onChange={set('supplier_lead_time')} placeholder="14" />
             <Input label="MOQ note" value={form.supplier_moq} onChange={set('supplier_moq')} placeholder="e.g. 50 m minimum" />
+            {/* T3-4 (W-P1): the contacts a buyer reaches for at "below reorder". */}
+            <Input label="Supplier phone" value={form.supplier_phone} onChange={set('supplier_phone')} placeholder="+91 98765 43210" />
+            <Input label="Supplier email" type="email" value={form.supplier_email} onChange={set('supplier_email')} placeholder="sales@arvind.com" />
+            <Input label="Supplier GSTIN" value={form.supplier_gstin} onChange={set('supplier_gstin')} placeholder="24AAACA1234A1Z5" />
             <Input label="Price / metre (₹)" type="number" value={form.price_per_meter} onChange={set('price_per_meter')} placeholder="250" />
             <Input label="Care (comma-separated)" value={form.care} onChange={set('care')} placeholder="Cold wash, Hang dry" />
             <Select

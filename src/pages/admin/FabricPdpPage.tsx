@@ -37,7 +37,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
   const [designUses, setDesignUses] = React.useState<FabricDesignUse[] | null>(null);
   const [reorderEdits, setReorderEdits] = React.useState<Record<string, string>>({});
   const [savingReorder, setSavingReorder] = React.useState('');
-  const [push, setPush] = React.useState<{ hub_id: string; meters: string; lot: string } | null>(null);
+  const [push, setPush] = React.useState<{ hub_id: string; meters: string; lot: string; consignment: string } | null>(null);
   const [pushing, setPushing] = React.useState(false);
 
   // design-mode: compare + request-sample
@@ -111,7 +111,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
     if (!Number.isFinite(meters) || meters <= 0) { toast('error', 'Enter metres to send'); return; }
     setPushing(true);
     try {
-      await distributionApi.push({ fabric_id: id, hub_id: push.hub_id, sellable_qty: meters, ...(push.lot.trim() ? { lot_code: push.lot.trim() } : {}) });
+      await distributionApi.push({ fabric_id: id, hub_id: push.hub_id, sellable_qty: meters, ...(push.lot.trim() ? { lot_code: push.lot.trim() } : {}), ...(push.consignment.trim() ? { consignment_ref: push.consignment.trim() } : {}) });
       toast('success', 'Distribution created', `${meters}m in transit to the hub.`);
       setPush(null);
       loadFabric();
@@ -177,7 +177,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
             {fabric.price_per_meter && <div className={s.price}>₹{Number(fabric.price_per_meter).toLocaleString('en-IN')}<span> / metre</span></div>}
             {!isDesign && (
               <div className={s.headerActions}>
-                <Button variant="primary" size="sm" onClick={() => setPush({ hub_id: '', meters: '', lot: '' })}>Distribute →</Button>
+                <Button variant="primary" size="sm" onClick={() => setPush({ hub_id: '', meters: '', lot: '', consignment: '' })}>Distribute →</Button>
               </div>
             )}
           </div>
@@ -194,7 +194,19 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
             <Spec label="Stretch" value={Number(fabric.stretch_pct ?? 0) > 0 ? `${Number(fabric.stretch_pct)}%` : null} />
             <Spec label="Shrinkage" value={Number(fabric.shrinkage_pct ?? 0) > 0 ? `${Number(fabric.shrinkage_pct)}%` : null} />
             <Spec label="Origin" value={fabric.origin} />
-            <Spec label="Supplier / mill" value={fabric.supplier} />
+            <Spec label="Supplier / mill" value={fabric.supplier ? `${fabric.supplier}${fabric.supplier_city ? ` · ${fabric.supplier_city}` : ''}` : null} />
+            {/* T3-4 (W-P1): call/email the mill without leaving the tool. */}
+            <Spec
+              label="Supplier phone"
+              value={fabric.supplier_phone ? <a href={`tel:${fabric.supplier_phone.replace(/\s/g, '')}`}>{fabric.supplier_phone}</a> : null}
+            />
+            <Spec
+              label="Supplier email"
+              value={fabric.supplier_email ? <a href={`mailto:${fabric.supplier_email}`}>{fabric.supplier_email}</a> : null}
+            />
+            <Spec label="Supplier GSTIN" value={fabric.supplier_gstin} />
+            <Spec label="Lead time" value={fabric.supplier_lead_time_days != null ? `${fabric.supplier_lead_time_days} days` : null} />
+            <Spec label="MOQ" value={fabric.supplier_moq_note} />
             <Spec label="Care" value={fabric.care_instructions?.length ? fabric.care_instructions.join(' · ') : null} />
           </dl>
         </div>
@@ -238,7 +250,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
                               {editing && (
                                 <Button variant="outline" size="sm" state={savingReorder === st.hub_id ? 'loading' : 'default'} onClick={() => saveReorder(st.hub_id)}>Save</Button>
                               )}
-                              <Button variant="ghost" size="sm" onClick={() => setPush({ hub_id: st.hub_id, meters: '', lot: '' })}>Restock</Button>
+                              <Button variant="ghost" size="sm" onClick={() => setPush({ hub_id: st.hub_id, meters: '', lot: '', consignment: '' })}>Restock</Button>
                             </td>
                           </tr>
                         );
@@ -375,6 +387,8 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
             )}
             <Input label="Metres to send *" type="number" value={push.meters} onChange={(v) => setPush({ ...push, meters: v })} placeholder="e.g. 100" />
             <Input label="Dye-lot (optional)" value={push.lot} onChange={(v) => setPush({ ...push, lot: v })} placeholder="lot code" />
+            {/* T3-4 (W-P3): the physical-world handle to chase a "never arrived". */}
+            <Input label="Consignment / LR no. (optional)" value={push.consignment} onChange={(v) => setPush({ ...push, consignment: v })} placeholder="courier docket / LR number" />
           </div>
         )}
       </Modal>
