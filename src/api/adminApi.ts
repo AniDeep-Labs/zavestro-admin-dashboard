@@ -1979,6 +1979,7 @@ export interface DesignSummary {
   design_garment_type?: string | null; // the cut (e.g. "casual shirt")
   garment_slug: string;
   reference_image_keys: string[];
+  tags?: string[]; // T3-5 (W-D3)
   fabric_count: number;
   fabric_swatches?: string[];
   cover_key: string | null;
@@ -2043,6 +2044,7 @@ export interface DesignDetail {
   pain_point_menu: Record<string, unknown> | null;
   reference_image_keys: string[];
   spec_sheet_key?: string | null;
+  tags?: string[]; // T3-5 (W-D3)
   template_capture_set: unknown;
   template_pain_point_menu: Record<string, unknown> | null;
   template_fit_presets: string[] | null;
@@ -2082,6 +2084,7 @@ export interface DesignInput {
   pain_point_menu?: Record<string, unknown> | null;
   reference_image_keys?: string[];
   spec_sheet_key?: string | null;
+  tags?: string[]; // T3-5 (W-D3)
   fabrics?: { fabric_id: string; meters_per_garment?: number | null }[];
 }
 
@@ -2217,6 +2220,7 @@ export const designsApi = {
       garment_category_id?: string;
       gender?: string;
       q?: string;
+      tag?: string; // T3-5 (W-D3): filter by tag/drop
       dead?: boolean; // T1-28: published, never listed (server-side, correct across pages)
       sample_pending?: boolean; // T1-28: not archived + no reviewed sample
       limit?: number;
@@ -2230,6 +2234,7 @@ export const designsApi = {
       qs.set("garment_category_id", params.garment_category_id);
     if (params.gender) qs.set("gender", params.gender);
     if (params.q) qs.set("q", params.q);
+    if (params.tag) qs.set("tag", params.tag);
     if (params.dead) qs.set("dead", "true");
     if (params.sample_pending) qs.set("sample_pending", "true");
     if (params.limit != null) qs.set("limit", String(params.limit));
@@ -2241,6 +2246,10 @@ export const designsApi = {
 
   get: async (id: string): Promise<DesignDetail> =>
     req<DesignDetail>(`/api/admin/designs/${id}`),
+
+  // T3-5 (W-D3): distinct tags/drops with counts, for the library filter.
+  tags: async (): Promise<{ tag: string; count: number }[]> =>
+    req<{ tag: string; count: number }[]>(`/api/admin/designs/tags`),
 
   fabricOptions: async (): Promise<FabricOption[]> =>
     req<FabricOption[]>(`/api/admin/designs/fabric-options`),

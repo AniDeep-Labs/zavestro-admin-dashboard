@@ -11,7 +11,7 @@ import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import base from './OrdersListPage.module.css';
 import s from './GarmentTemplateEditorPage.module.css';
 import { Modal } from '../../components/Modal/Modal';
-import { UilArrowLeft, UilTimes, UilPlus, UilCalculatorAlt } from '@iconscout/react-unicons';
+import { UilArrowLeft, UilTimes, UilPlus, UilCalculatorAlt, UilImport } from '@iconscout/react-unicons';
 
 const BASE = '__base__';
 // Body anchors the engine preview asks for, per body region (G-81).
@@ -144,6 +144,9 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const [fieldDraft, setFieldDraft] = React.useState('');
   const [presetDraft, setPresetDraft] = React.useState('');
   const [typeDraft, setTypeDraft] = React.useState('');
+  // ── W-D2: paste / CSV import (migrate a known Excel chart in one shot) ──
+  const [showImport, setShowImport] = React.useState(false);
+  const [importText, setImportText] = React.useState('');
   // ── grade-rule generator (auto-build the size chart) ──
   const [showGrade, setShowGrade] = React.useState(false);
   const [gradeSizes, setGradeSizes] = React.useState('');
@@ -497,6 +500,52 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       : null;
   const chartFields = lengthField ? fields.filter((f) => f !== lengthField) : fields;
 
+  // W-D2: parse a pasted Excel/CSV block into chart rows for the ACTIVE fit preset. First row =
+  // header (first cell = the size column, rest = measurement-field names). Each following row =
+  // size label + numbers. Tab-delimited (Excel paste) or comma. Unmatched columns are ignored.
+  const importChart = () => {
+    const text = importText.trim();
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 2) {
+      toast('error', 'Nothing to import', 'Paste a header row plus at least one size row.');
+      return;
+    }
+    const delim = lines[0].includes('\t') ? '\t' : ',';
+    const norm = (x: string) => x.toLowerCase().replace(/\s+/g, ' ').trim();
+    const headerCols = lines[0].split(delim).slice(1).map((h) => h.trim());
+    const fieldForCol = headerCols.map((c) => chartFields.find((f) => norm(f) === norm(c)) ?? null);
+    const matchedCount = fieldForCol.filter(Boolean).length;
+    if (matchedCount === 0) {
+      toast('error', 'No columns matched', `Header names must match this template's fields: ${chartFields.join(', ')}.`);
+      return;
+    }
+    const newRows: ChartRow[] = [];
+    for (let li = 1; li < lines.length; li++) {
+      const cells = lines[li].split(delim).map((c) => c.trim());
+      const size = cells[0];
+      if (!size) continue;
+      const measurements: Record<string, number> = {};
+      fieldForCol.forEach((field, ci) => {
+        if (!field) return;
+        const raw = cells[ci + 1];
+        if (raw == null || raw === '') return;
+        const n = Number(raw);
+        if (Number.isFinite(n)) measurements[field] = n;
+      });
+      newRows.push({ fit_preset: presetKey, size_label: size, measurements });
+    }
+    if (newRows.length === 0) {
+      toast('error', 'No size rows found', 'Each row needs a size label in the first column.');
+      return;
+    }
+    // Replace only the active preset's rows (other presets untouched) — like Generate.
+    setChart([...chart.filter((r) => (r.fit_preset ?? BASE) !== activePreset), ...newRows]);
+    setShowImport(false);
+    setImportText('');
+    const unmatched = headerCols.length - matchedCount;
+    toast('success', `Imported ${newRows.length} sizes`, unmatched > 0 ? `${unmatched} unmatched column(s) ignored.` : 'Review the chart, then Save.');
+  };
+
   return (
     <div className={base.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
@@ -591,9 +640,15 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       <section className={s.section}>
         <div className={s.sectionHead}>
           <h3 className={s.sectionTitle}>Size chart <span className={s.req}>· the customer's BODY measurements per size (inches)</span></h3>
-          <Button variant="ghost" onClick={openGrade} disabled={fields.length === 0}>
-            <UilCalculatorAlt size={15} /> Generate from grade rules
-          </Button>
+          <div className={s.sectionHeadActions}>
+            {/* W-D2: migrate a known Excel chart in one paste instead of cell-by-cell. */}
+            <Button variant="ghost" onClick={() => { setImportText(''); setShowImport(true); }} disabled={fields.length === 0}>
+              <UilImport size={15} /> Paste / import
+            </Button>
+            <Button variant="ghost" onClick={openGrade} disabled={fields.length === 0}>
+              <UilCalculatorAlt size={15} /> Generate from grade rules
+            </Button>
+          </div>
         </div>
         <p className={s.hint}>
           One row per size, one column per measurement field — all in <strong>inches</strong>. These are the
@@ -900,6 +955,26 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         <Button variant="ghost" onClick={() => navigate('/admin/design/templates')}>Cancel</Button>
         <Button variant="primary" state={saving ? 'loading' : 'default'} onClick={save}>Save template</Button>
       </div>
+
+      {/* W-D2: paste an existing Excel/CSV size chart to migrate it in one shot. */}
+      <Modal open={showImport} onClose={() => setShowImport(false)} title={`Paste / import size chart — ${activePreset === BASE ? 'Base / any' : activePreset}`} size="lg">
+        <p className={s.hint}>
+          Paste from Excel or a CSV. First row = a header: the <strong>first column is the size label</strong>, the rest are
+          measurement fields. Column names must match this template's fields (<strong>{chartFields.join(', ') || '—'}</strong>) —
+          unmatched columns are ignored. This <strong>replaces</strong> the rows for the current fit tab.
+        </p>
+        <textarea
+          className={s.importArea}
+          rows={10}
+          value={importText}
+          placeholder={`Size\t${chartFields.slice(0, 3).join('\t') || 'chest\twaist\thip'}\nS\t36\t30\t38\nM\t38\t32\t40\nL\t40\t34\t42`}
+          onChange={(e) => setImportText(e.target.value)}
+        />
+        <div className={s.gradeActions}>
+          <Button variant="ghost" onClick={() => setShowImport(false)}>Cancel</Button>
+          <Button variant="primary" onClick={importChart} disabled={!importText.trim()}>Import</Button>
+        </div>
+      </Modal>
 
       <Modal open={showGrade} onClose={() => setShowGrade(false)} title="Generate size chart from grade rules" size="lg">
         <p className={s.hint}>

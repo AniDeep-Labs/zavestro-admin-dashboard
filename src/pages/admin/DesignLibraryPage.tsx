@@ -48,12 +48,14 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
   const [sort, setSort] = React.useState<'newest' | 'best_fit'>('newest');
   const [deadOnly, setDeadOnly] = React.useState(false); // G-34: published, never listed
   const [samplePending, setSamplePending] = React.useState(false); // §4C: not yet sample-reviewed
+  const [tag, setTag] = React.useState(''); // T3-5 (W-D3): active tag/drop filter
+  const [tagOptions, setTagOptions] = React.useState<{ tag: string; count: number }[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const q = useDebounce(search, 350);
 
-  const anyFilter = Boolean(status || gender || search || deadOnly || samplePending);
+  const anyFilter = Boolean(status || gender || search || deadOnly || samplePending || tag);
 
   const dismissToast = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -70,7 +72,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
       else setLoadingMore(true);
       designsApi
         // T1-28: the money chips are now server-side, so they're correct across pagination.
-        .list({ status: status || undefined, gender: gender || undefined, q: q || undefined, dead: deadOnly || undefined, sample_pending: samplePending || undefined, sort, limit: PAGE, offset })
+        .list({ status: status || undefined, gender: gender || undefined, q: q || undefined, tag: tag || undefined, dead: deadOnly || undefined, sample_pending: samplePending || undefined, sort, limit: PAGE, offset })
         .then((rows) => {
           setDesigns((prev) => (reset ? rows : [...prev, ...rows]));
           setHasMore(rows.length === PAGE);
@@ -78,10 +80,17 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
         .catch((e) => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
         .finally(() => (reset ? setLoading(false) : setLoadingMore(false)));
     },
-    [status, gender, q, sort, deadOnly, samplePending],
+    [status, gender, q, sort, deadOnly, samplePending, tag],
   );
 
   React.useEffect(() => { load(true, 0); }, [load]);
+
+  // T3-5 (W-D3): the tag/drop options for the filter — refreshed when the editor closes
+  // (a save may add a new tag).
+  React.useEffect(() => {
+    if (editing.open) return;
+    designsApi.tags().then(setTagOptions).catch(() => {});
+  }, [editing.open]);
 
   return (
     <div className={base.page}>
@@ -117,6 +126,15 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
           <option value="women">Women</option>
           <option value="unisex">Unisex</option>
         </select>
+        {/* T3-5 (W-D3): jump to a drop/tag without remembering exact spelling. */}
+        {tagOptions.length > 0 && (
+          <select className={styles.sel} value={tag} onChange={(e) => setTag(e.target.value)}>
+            <option value="">All tags</option>
+            {tagOptions.map((t) => (
+              <option key={t.tag} value={t.tag}>{t.tag} ({t.count})</option>
+            ))}
+          </select>
+        )}
         <select className={styles.sel} value={sort} onChange={(e) => setSort(e.target.value as 'newest' | 'best_fit')}>
           <option value="newest">Sort: Newest</option>
           <option value="best_fit">Sort: Best fit</option>
@@ -160,7 +178,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
               icon={<UilImage size={30} />}
               title="Nothing matches these filters"
               body="Clear the filters to see the full library."
-              action={{ label: 'Clear filters', onClick: () => { setStatus(''); setGender(''); setSearch(''); setDeadOnly(false); setSamplePending(false); } }}
+              action={{ label: 'Clear filters', onClick: () => { setStatus(''); setGender(''); setSearch(''); setDeadOnly(false); setSamplePending(false); setTag(''); } }}
             />
           ) : (
             <EmptyState
@@ -215,6 +233,23 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
                   {lc && (
                     <div className={styles.lifecycleRow}>
                       <StatusBadge status={lc.status} label={lc.label} size="sm" />
+                    </div>
+                  )}
+                  {/* T3-5 (W-D3): tags / drop labels — click to filter to that drop. */}
+                  {d.tags && d.tags.length > 0 && (
+                    <div className={styles.tagRow}>
+                      {d.tags.slice(0, 4).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          className={styles.tagPill}
+                          onClick={(e) => { e.preventDefault(); setTag(t); }}
+                          title={`Filter to “${t}”`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                      {d.tags.length > 4 && <span className={styles.tagMore}>+{d.tags.length - 4}</span>}
                     </div>
                   )}
                   {d.fabric_swatches && d.fabric_swatches.length > 0 && (
