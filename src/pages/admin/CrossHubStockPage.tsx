@@ -222,6 +222,8 @@ export const CrossHubStockPage: React.FC = () => {
         <thead><tr>
           <th>Hub</th><th>Fabric</th><th>Available</th>
           {kind === 'reorder' ? <th>Reorder at</th> : <th>No movement since</th>}
+          {/* T3-4 (W-P4): the raw draw behind the reorder point — makes it checkable, not trusted. */}
+          {kind === 'reorder' && <th>Consumed (30d)</th>}
           <th>Capital</th><th></th>
         </tr></thead>
         <tbody>
@@ -240,6 +242,14 @@ export const CrossHubStockPage: React.FC = () => {
                   ? `${Number(r.reorder_meters)}m`
                   : new Date(r.updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
               </td>
+              {kind === 'reorder' && (
+                <td className={styles.total}>
+                  {r.consumed_30d != null ? `${Number(r.consumed_30d).toLocaleString('en-IN')}m` : '—'}
+                  {r.reorder_suggestion != null && (
+                    <div className={cs.sugg}>suggests ≈{Number(r.reorder_suggestion)}m</div>
+                  )}
+                </td>
+              )}
               <td><MoneyCell amount={value(r)} /></td>
               <td>
                 {/* below-reorder → push more (create distribution); dead stock is
