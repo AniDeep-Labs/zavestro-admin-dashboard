@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> Verified-against-code: 2026-06-13. If this file is >30 days old, re-verify before trusting it.
+> Verified-against-code: 2026-07-12. If this file is >30 days old, re-verify before trusting it.
 
 ## Project Overview
 
@@ -32,15 +32,16 @@ npm run preview   # Preview production build
 - Capabilities come from `adminAuthExtApi.me()` (refreshed on mount, cached in localStorage). Backend enforces independently — frontend `<Can cap="…">` is UX, not security.
 - Floor actions on OrderDetail (advance/override/assign) are `system:manage` break-glass only (G-23); support is CX-only via `orders:write`.
 
-### Pages (`src/pages/admin/` — ~60 pages, one `.tsx` + usually one `.module.css`)
+### Pages (`src/pages/admin/` — ~77 pages, one `.tsx` + usually one `.module.css`)
 Role ownership and the per-page spec live in `FABLE-ADMIN-UIUX.md` §3–§8. Notable:
 - `OrderDetailPage.tsx` (~1,450 lines) — order story + CX verbs + break-glass; SSE live updates.
 - `GarmentTemplateEditorPage.tsx` — the fit engine's size-chart/capture-set/pain-point authoring. Handle with care.
 - `ProductsListPage/ProductEditPage` — **LEGACY** catalog editor for the live legacy customer flow. Do not delete until the P5 cutover completes; do not invest in it either.
 - Deleted (do not recreate): MeasurementBooking* pages (System-2 retired), GarmentTypesPage (was unrouted), craftspeople content section + `craftspeopleApi` (artisan model retired), Luxe* (model scrapped).
 
-### Components (`src/components/` — 33 dirs, barrel-exported from `index.ts`)
-Button/IconButton, Card/StatCard, Input/Select/Checkbox/Radio/Toggle/Textarea, SearchInput, FileUpload, Alert, Badge, Toast (`createToast`), Tooltip, Navbar/Sidebar, Breadcrumb, Tabs, Modal/ConfirmationModal, ConfirmDialog, Drawer, Popover, Table (generic, typed, sortable), Skeleton, Spinner, Avatar, Grid/Container/Spacer, Can, ErrorBoundary, CustomerQuickLookup, StaffAssignmentDropdown.
+### Components (`src/components/` — ~50 dirs, barrel-exported from `index.ts`)
+Primitives: Button/IconButton, Card/StatCard, Input/Select/Checkbox/Radio/Toggle/Textarea, SearchInput, FileUpload, Alert, Badge, Toast (`createToast`), Tooltip, Navbar/Sidebar, Breadcrumb, Tabs, Modal/ConfirmationModal, ConfirmDialog, Drawer, Popover, Table (generic, typed, sortable), Skeleton, Spinner, Avatar, Grid/Container/Spacer, Can, ErrorBoundary, CustomerQuickLookup, StaffAssignmentDropdown.
+Structural canon (FABLE-ADMIN-UIUX §2 — prefer these over one-offs): **StatusBadge** (canonical status vocabulary — don't add per-page stage maps), **EmptyState**, **PageHeader**, **FilterBar**, **DetailShell**, **PeekDrawer** (list-row quick-look), **ActivityLog**, **NotesPanel**, **DataCells** (CopyId/AgeCell/MoneyCell), **PolicyCard**, **NoHubAssigned**, **CommandPalette**.
 
 ## Conventions
 
