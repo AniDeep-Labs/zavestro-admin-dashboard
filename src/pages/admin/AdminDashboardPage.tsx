@@ -174,7 +174,9 @@ export const AdminDashboardPage: React.FC = () => {
   // big number with an inline coloured delta, and a quiet sparkline.
   const renderMetricCell = (kpi: (typeof kpis)[number]) => {
     const stat = data?.stats[kpi.key];
-    const sparks = data?.sparklines?.[kpi.key] ?? [40, 55, 48, 62, 70, 58, 75];
+    // P-5 (T3-8): only a REAL series — no fabricated fallback. Point-in-time KPIs
+    // (active orders, pending payments, open tickets) have no daily series → no sparkline.
+    const sparks = data?.sparklines?.[kpi.key];
     const isUp = stat ? stat.up : true;
     const KpiIcon = Icons[kpi.icon];
     const iconTint = (styles as Record<string, string>)[`iconTint${kpi.accent}`];
@@ -199,7 +201,9 @@ export const AdminDashboardPage: React.FC = () => {
           )}
         </div>
         <div className={styles.metricSpark}>
-          {!loading && <Sparkline data={sparks} up={isUp} height={30} color={isUp ? '#5BC08D' : '#EFA6A6'} />}
+          {!loading && sparks && sparks.length > 0 && (
+            <Sparkline data={sparks} up={isUp} height={30} color={isUp ? '#5BC08D' : '#EFA6A6'} />
+          )}
         </div>
       </div>
     );
@@ -299,9 +303,8 @@ export const AdminDashboardPage: React.FC = () => {
                 <span className={styles.miniSub}>across hubs</span>
               </div>
               <div className={styles.miniValue}>{avgQc ? `${avgQc}%` : '—'}</div>
-              <div className={styles.miniSpark}>
-                {!loading && <Sparkline data={data?.sparklines?.activeOrders ?? [40, 55, 48, 62, 70, 58, 75]} up height={42} />}
-              </div>
+              {/* P-5 (T3-8): no daily QC series exists → draw nothing (was borrowing the
+                  activeOrders series, which describes a different quantity). */}
             </div>
             <div
               className={styles.miniCard} role="button" tabIndex={0}
@@ -313,9 +316,12 @@ export const AdminDashboardPage: React.FC = () => {
                 <span className={styles.miniSub}>per order</span>
               </div>
               <div className={styles.miniValue}>{aov ? '₹' + aov.toLocaleString('en-IN') : '₹0'}</div>
-              <div className={styles.miniSpark}>
-                {!loading && <Sparkline data={data?.sparklines?.gmv ?? [40, 55, 48, 62, 70, 58, 75]} up height={42} />}
-              </div>
+              {/* P-5 (T3-8): AOV's own daily series (was mislabeled — it borrowed the GMV series). */}
+              {!loading && data?.sparklines?.aov && data.sparklines.aov.length > 0 && (
+                <div className={styles.miniSpark}>
+                  <Sparkline data={data.sparklines.aov} up height={42} />
+                </div>
+              )}
             </div>
           </div>
           )}
