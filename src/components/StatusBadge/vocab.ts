@@ -35,6 +35,7 @@ export const STATUS_VOCAB: Record<string, VocabEntry> = {
   delivery_failed: { label: 'Delivery failed', tone: 'blocked' },
   cancelled: { label: 'Cancelled', tone: 'blocked' },
   refunded: { label: 'Refunded', tone: 'neutral' },
+  partially_refunded: { label: 'Partially refunded', tone: 'neutral' }, // T1-6: partial refund (order stays live)
   // Legacy aliases still present in old rows/types
   payment_pending: { label: 'Pending payment', tone: 'pending' },
   ready_to_dispatch: { label: 'Ready for dispatch', tone: 'transit' },
