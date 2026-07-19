@@ -71,7 +71,10 @@ interface NavItem {
   path: string;
   cap?: string;
   caps?: string[]; // visible if the user holds ANY of these (overrides `cap`)
-  children?: { label: string; path: string }[];
+  // `superOnly` child: account-governance links (e.g. Admin Users) that the backend
+  // gates to super_admin ONLY. Hidden even from legacy god-mode `admin`, so what the
+  // Operations role SEES matches what it can actually DO (no click-then-403).
+  children?: { label: string; path: string; superOnly?: boolean }[];
   hidden?: boolean; // kept in code (routes/page intact) but never shown in nav — for dormant, unowned surfaces
 }
 interface NavSection {
@@ -483,7 +486,7 @@ const SECTIONS: NavSection[] = [
         children: [
           { label: "App Config", path: "/admin/system/app-config" },
           { label: "Audit Log", path: "/admin/system/audit-log" },
-          { label: "Admin Users", path: "/admin/system/admin-users" },
+          { label: "Admin Users", path: "/admin/system/admin-users", superOnly: true },
           { label: "Service Areas", path: "/admin/system/service-areas" },
           { label: "System Health", path: "/admin/system/health" },
         ],
@@ -774,7 +777,9 @@ const AdminLayoutInner: React.FC = () => {
           </button>
           {!collapsed && expanded && (
             <div className={styles.navChildren}>
-              {item.children.map((child) => (
+              {item.children
+                .filter((child) => !child.superOnly || adminRole === "super_admin")
+                .map((child) => (
                 <button
                   key={child.path}
                   className={`${styles.navChild} ${isActive(child.path) ? styles.navChildActive : ""}`}

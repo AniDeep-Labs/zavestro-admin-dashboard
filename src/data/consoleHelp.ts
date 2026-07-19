@@ -13,7 +13,7 @@ export interface ConsoleHelp {
 // bullets into readable lines (the "NOT:" clause is kept — knowing what you DON'T own matters).
 export const CONSOLE_HELP: Record<string, ConsoleHelp> = {
   super: {
-    console: 'Oversight (Super Admin)',
+    console: 'Oversight (Owner)',
     summary:
       'The founder/overseer. Daily loop: is anything stuck, leaking money, or off-model? — then staff/hub/system administration. Bar: Shopify admin’s Home + staff/audit surfaces.',
     see: [

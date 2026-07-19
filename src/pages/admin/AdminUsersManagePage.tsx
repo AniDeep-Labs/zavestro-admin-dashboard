@@ -9,7 +9,10 @@ import styles from './AdminUsersManagePage.module.css';
 import { UilKeySkeletonAlt, UilRefresh, UilUserPlus } from "@iconscout/react-unicons";
 
 const ROLE_LABELS: Record<string, string> = {
-  super_admin: 'Super Admin',
+  // The two top roles are named for what they DO, not "who ranks higher":
+  //   super_admin = oversight + account governance (reads everything, edits nothing operational)
+  //   admin (legacy god-mode) = full operational access, but NOT account management
+  super_admin: 'Owner · Oversight & Accounts',
   design: 'Design',
   procurement: 'Procurement',
   catalog_manager: 'Catalog Manager',
@@ -17,7 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
   finance: 'Finance',
   pricing_manager: 'Pricing & Promotions',
   // legacy role — kept for displaying existing god-mode accounts (not creatable)
-  admin: 'Admin',
+  admin: 'Operations · Full Access',
 };
 
 // W-18: human-readable capability summary per role (mirrors backend permissions.ts).
@@ -232,7 +235,7 @@ export const AdminUsersManagePage: React.FC = () => {
                       <option value="pricing_manager">Pricing &amp; Promotions (central)</option>
                       <option value="support">Support</option>
                       <option value="finance">Finance</option>
-                      <option value="super_admin">Super Admin</option>
+                      <option value="super_admin">{ROLE_LABELS.super_admin}</option>
                     </select>
                     {(() => {
                       const role = approveRole[user.id];
@@ -438,7 +441,7 @@ export const AdminUsersManagePage: React.FC = () => {
                   <option value="pricing_manager">Pricing &amp; Promotions (central)</option>
                   <option value="support">Support</option>
                   <option value="finance">Finance</option>
-                  <option value="super_admin">Super Admin</option>
+                  <option value="super_admin">{ROLE_LABELS.super_admin}</option>
                 </select>
                 {/* W-18: what this role can actually do (mirrors permissions.ts) */}
                 <p className={styles.roleCaps}>{ROLE_CAP_SUMMARY[newRole]}</p>

@@ -39,6 +39,12 @@ export const AdminLoginPage: React.FC = () => {
   const [sqError, setSqError] = React.useState('');
   const [sqDone, setSqDone] = React.useState(false);
 
+  // Forgot-password: email a reset link (self-service, no super admin needed)
+  const [fpEmail, setFpEmail] = React.useState('');
+  const [fpLoading, setFpLoading] = React.useState(false);
+  const [fpError, setFpError] = React.useState('');
+  const [fpDone, setFpDone] = React.useState(false);
+
   React.useEffect(() => {
     if (hasAdminToken()) navigate('/admin/dashboard', { replace: true });
   }, [navigate]);
@@ -111,10 +117,26 @@ export const AdminLoginPage: React.FC = () => {
     } finally { setSqLoading(false); }
   };
 
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFpError('');
+    if (!fpEmail) { setFpError('Enter your email.'); return; }
+    setFpLoading(true);
+    try {
+      // Backend always returns { requested: true } (never reveals if the email
+      // exists), so a success here just means "we processed it".
+      await catalogApi.forgotPassword(fpEmail);
+      setFpDone(true);
+    } catch (err) {
+      setFpError(err instanceof Error ? err.message : 'Could not send the reset link. Try again.');
+    } finally { setFpLoading(false); }
+  };
+
   const resetToLogin = () => {
     setView('login'); setError(''); setSubmitted(false);
     setSqStep('email'); setSqEmail(''); setSqQuestion(''); setSqAnswer(''); setSqNewPw('');
     setSqError(''); setSqDone(false);
+    setFpEmail(''); setFpError(''); setFpDone(false);
   };
 
   return (
@@ -167,7 +189,7 @@ export const AdminLoginPage: React.FC = () => {
                 Forgot password via security question
               </button>
               <button type="button" className={styles.forgotBtn} onClick={() => setView('forgot')}>
-                Request reset link from super admin
+                Email me a reset link
               </button>
             </div>
             <div className={regStyles.loginLink}>
@@ -199,13 +221,37 @@ export const AdminLoginPage: React.FC = () => {
           </form>
         )}
 
-        {/* ── Forgot: request super admin link ── */}
+        {/* ── Forgot: email a self-service reset link ── */}
         {view === 'forgot' && (
           <div className={styles.form}>
-            <p className={styles.forgotDesc}>
-              Contact a super admin to generate a reset link for your account.
-            </p>
-            <button className={styles.backBtn} onClick={resetToLogin}><UilArrowLeft size={16} /> Back to Login</button>
+            {fpDone ? (
+              <div className={regStyles.success}>
+                <div className={regStyles.successIcon}>✓</div>
+                <h3 className={regStyles.successTitle}>Check your email</h3>
+                <p className={regStyles.successMsg}>
+                  If an account exists for <strong>{fpEmail}</strong>, we've emailed a password
+                  reset link. It expires in 1 hour.
+                </p>
+                <button className={styles.submitBtn} onClick={resetToLogin}>Back to Login</button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit} noValidate>
+                <p className={styles.forgotDesc}>
+                  Enter your account email and we'll send you a reset link.
+                </p>
+                <div className={styles.field}>
+                  <label className={styles.label}>Email</label>
+                  <input className={styles.input} type="email" value={fpEmail} onChange={e => setFpEmail(e.target.value)} placeholder="your@email.com" autoFocus disabled={fpLoading} />
+                </div>
+                {fpError && <div className={styles.error}>{fpError}</div>}
+                <div className={styles.forgotActions}>
+                  <button type="button" className={styles.backBtn} onClick={resetToLogin}><UilArrowLeft size={16} /> Back</button>
+                  <button type="submit" className={styles.submitBtn} disabled={fpLoading}>
+                    {fpLoading ? 'Sending…' : 'Send reset link'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
 
