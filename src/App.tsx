@@ -275,6 +275,10 @@ const RefundsPage = lazyPage(
   () => import("./pages/admin/RefundsPage"),
   "RefundsPage",
 );
+const BrandLedgerPage = lazyPage(
+  () => import("./pages/admin/BrandLedgerPage"),
+  "BrandLedgerPage",
+);
 const CreditApprovalsPage = lazyPage(
   () => import("./pages/admin/CreditApprovalsPage"),
   "CreditApprovalsPage",
@@ -465,6 +469,7 @@ function App() {
             element={<FinanceReportPage mode="pnl" />}
           />
           <Route path="finance/refunds" element={<RefundsPage />} />
+          <Route path="finance/brand-ledger" element={<BrandLedgerPage />} />
           <Route path="finance/credit-approvals" element={<CreditApprovalsPage />} />
           <Route path="notifications" element={<NotificationBlastPage />} />
           <Route path="pincode-waitlist" element={<PincodeWaitlistPage />} />

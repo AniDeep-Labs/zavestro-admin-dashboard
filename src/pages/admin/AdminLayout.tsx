@@ -406,6 +406,12 @@ const SECTIONS: NavSection[] = [
         cap: "refunds:approve",
       },
       {
+        label: "Brand ledger",
+        icon: <UilReceipt size={18} />,
+        path: "/admin/finance/brand-ledger",
+        cap: "finance:read",
+      },
+      {
         label: "Online Settlement",
         icon: <UilReceipt size={18} />,
         path: "/admin/finance/settlement",
