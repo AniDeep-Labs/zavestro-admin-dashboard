@@ -1527,6 +1527,32 @@ export const qcTemplatesApi = {
     req<{ deleted: boolean }>(`/api/admin/qc-templates/${id}`, { method: "DELETE" }),
 };
 
+// ─── T3-4: brand QC-2 config (a brand's second-layer checks per garment category) ──────────────
+export interface BrandQcConfig {
+  id?: string;
+  brand_id?: string;
+  garment_category_id: string;
+  category_name?: string;
+  checks: QcCheck[];
+  is_active?: boolean;
+  updated_at?: string;
+}
+export const brandQcApi = {
+  list: (brandId: string): Promise<BrandQcConfig[]> =>
+    req<BrandQcConfig[]>(`/api/admin/brand-qc/${brandId}`),
+  forCategory: (brandId: string, categoryId: string): Promise<BrandQcConfig | null> =>
+    req<BrandQcConfig | null>(`/api/admin/brand-qc/${brandId}/category/${categoryId}`),
+  upsert: (
+    brandId: string,
+    categoryId: string,
+    body: { checks: QcCheck[] },
+  ): Promise<BrandQcConfig> =>
+    req<BrandQcConfig>(`/api/admin/brand-qc/${brandId}/category/${categoryId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+};
+
 // ─── T2-7: per-hub constraint view + festival/leave calendar ───────────────────
 export interface HubConstraintRow {
   hub_id: string | null;
