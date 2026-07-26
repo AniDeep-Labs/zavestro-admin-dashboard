@@ -5,6 +5,7 @@ import { brandLedgerApi } from '../../api/adminApi';
 import type { BrandSummary, BrandLedgerEntry } from '../../api/adminApi';
 import { PageHeader, Badge } from '../../components';
 import { Button } from '../../components/Button/Button';
+import { Can } from '../../components/Can/Can';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import s from './BrandLedgerPage.module.css';
@@ -107,30 +108,33 @@ export const BrandLedgerPage: React.FC = () => {
         )}
       </div>
 
-      <div className={s.payoutForm}>
-        <label className={s.field}>
-          <span>Mark payout (₹)</span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </label>
-        <label className={s.field}>
-          <span>Note</span>
-          <input
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="UTR / reference"
-          />
-        </label>
-        <Button onClick={submitPayout} disabled={saving}>
-          {saving ? 'Recording…' : 'Record payout'}
-        </Button>
-      </div>
+      {/* Recording a payout is a money WRITE — finance operates it; super_admin is read-only. */}
+      <Can cap="finance:write">
+        <div className={s.payoutForm}>
+          <label className={s.field}>
+            <span>Mark payout (₹)</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </label>
+          <label className={s.field}>
+            <span>Note</span>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="UTR / reference"
+            />
+          </label>
+          <Button onClick={submitPayout} disabled={saving}>
+            {saving ? 'Recording…' : 'Record payout'}
+          </Button>
+        </div>
+      </Can>
 
       {loading ? (
         <div className={s.muted}>Loading…</div>
