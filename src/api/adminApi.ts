@@ -1553,6 +1553,42 @@ export const brandQcApi = {
     }),
 };
 
+// ─── T3-4: per-order QC results (house QC-1 + brand QC-2) ──────────────────────────────────────
+export interface QcResultRow {
+  layer: "house" | "brand";
+  answers: Array<{ key: string; value?: number | null; pass?: boolean | null }>;
+  verdict: "pass" | "fail";
+  note: string | null;
+  created_at: string;
+}
+export interface QcResultContext {
+  is_house: boolean;
+  brand_id: string;
+  brand_name: string | null;
+  category_id: string | null;
+  category_name: string | null;
+  house_checks: QcCheck[];
+  brand_checks: QcCheck[];
+  results: QcResultRow[];
+}
+export interface QcResultAnswer {
+  key: string;
+  value?: number | null;
+  pass?: boolean | null;
+}
+export const qcResultsApi = {
+  get: (orderItemId: string): Promise<QcResultContext> =>
+    req<QcResultContext>(`/api/admin/qc-results/${orderItemId}`),
+  record: (
+    orderItemId: string,
+    body: { layer: "house" | "brand"; answers: QcResultAnswer[]; note?: string },
+  ): Promise<{ verdict: "pass" | "fail"; failed: string[] }> =>
+    req<{ verdict: "pass" | "fail"; failed: string[] }>(`/api/admin/qc-results/${orderItemId}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+};
+
 // ─── T2-7: per-hub constraint view + festival/leave calendar ───────────────────
 export interface HubConstraintRow {
   hub_id: string | null;

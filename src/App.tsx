@@ -255,6 +255,10 @@ const BrandQcPage = lazyPage(
   () => import("./pages/admin/BrandQcPage"),
   "BrandQcPage",
 );
+const QcResultPage = lazyPage(
+  () => import("./pages/admin/QcResultPage"),
+  "QcResultPage",
+);
 const QcTemplatesPage = lazyPage(
   () => import("./pages/admin/QcTemplatesPage"),
   "QcTemplatesPage",
@@ -360,6 +364,7 @@ function App() {
           <Route path="dashboard" element={<AdminDashboardPage />} />
           <Route path="orders" element={<OrdersListPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
+          <Route path="orders/qc/:orderItemId" element={<QcResultPage />} />
           <Route path="users" element={<UsersListPage />} />
           <Route path="users/:id" element={<UserDetailPage />} />
           <Route path="hubs" element={<HubsListPage />} />
