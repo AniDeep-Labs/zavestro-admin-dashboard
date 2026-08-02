@@ -4478,6 +4478,44 @@ export const categoriesAdminApi = {
   },
 };
 
+// T3-2 — brand ledger (finance).
+export type BrandSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  is_house_brand: boolean;
+  status: string;
+};
+export type BrandLedgerEntry = {
+  id: string;
+  brand_id: string;
+  entry_type: string;
+  amount: string | number; // signed; string from NUMERIC
+  order_id: string | null;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+export const brandLedgerApi = {
+  listBrands: async (): Promise<{ brands: BrandSummary[] }> => req(`/api/admin/brands`),
+  ledger: async (
+    brandId: string,
+    page = 1,
+    limit = 50,
+  ): Promise<{
+    entries: BrandLedgerEntry[];
+    balance: number;
+    page: number;
+    page_size: number;
+    total: number;
+  }> => req(`/api/admin/brands/${brandId}/ledger?page=${page}&limit=${limit}`),
+  recordPayout: async (brandId: string, amount: number, note?: string): Promise<BrandLedgerEntry> =>
+    req(`/api/admin/brands/${brandId}/ledger/payout`, {
+      method: "POST",
+      body: JSON.stringify(note ? { amount, note } : { amount }),
+    }),
+};
+
 export type {
   AdminOrder,
   AdminUser,
