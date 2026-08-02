@@ -1539,15 +1539,15 @@ export interface BrandQcConfig {
 }
 export const brandQcApi = {
   list: (brandId: string): Promise<BrandQcConfig[]> =>
-    req<BrandQcConfig[]>(`/api/admin/brand-qc/${brandId}`),
+    req<BrandQcConfig[]>(`/api/admin/qc2/brand-qc/${brandId}`),
   forCategory: (brandId: string, categoryId: string): Promise<BrandQcConfig | null> =>
-    req<BrandQcConfig | null>(`/api/admin/brand-qc/${brandId}/category/${categoryId}`),
+    req<BrandQcConfig | null>(`/api/admin/qc2/brand-qc/${brandId}/category/${categoryId}`),
   upsert: (
     brandId: string,
     categoryId: string,
     body: { checks: QcCheck[] },
   ): Promise<BrandQcConfig> =>
-    req<BrandQcConfig>(`/api/admin/brand-qc/${brandId}/category/${categoryId}`, {
+    req<BrandQcConfig>(`/api/admin/qc2/brand-qc/${brandId}/category/${categoryId}`, {
       method: "PUT",
       body: JSON.stringify(body),
     }),
@@ -1578,12 +1578,12 @@ export interface QcResultAnswer {
 }
 export const qcResultsApi = {
   get: (orderItemId: string): Promise<QcResultContext> =>
-    req<QcResultContext>(`/api/admin/qc-results/${orderItemId}`),
+    req<QcResultContext>(`/api/admin/qc2/qc-results/${orderItemId}`),
   record: (
     orderItemId: string,
     body: { layer: "house" | "brand"; answers: QcResultAnswer[]; note?: string },
   ): Promise<{ verdict: "pass" | "fail"; failed: string[] }> =>
-    req<{ verdict: "pass" | "fail"; failed: string[] }>(`/api/admin/qc-results/${orderItemId}`, {
+    req<{ verdict: "pass" | "fail"; failed: string[] }>(`/api/admin/qc2/qc-results/${orderItemId}`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
