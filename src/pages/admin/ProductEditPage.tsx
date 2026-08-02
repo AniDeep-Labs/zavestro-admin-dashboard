@@ -119,8 +119,8 @@ export const ProductEditPage: React.FC = () => {
         setBasePrice(String(p.base_price ?? ''));
         setCategoryId(typeof p.category === 'object' ? p.category?.id ?? '' : '');
         setTags((p.tags ?? []).join(', '));
-        setDeliveryMin(String(p.delivery_days_min ?? 7));
-        setDeliveryMax(String(p.delivery_days_max ?? 10));
+        setDeliveryMin(String(p.delivery_days_min ?? 5));
+        setDeliveryMax(String(p.delivery_days_max ?? 7));
         setIsMadeToOrder(p.is_made_to_order ?? true);
         setStatus(p.status ?? 'draft');
         setExistingImages(p.images ?? []);
