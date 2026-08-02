@@ -1497,6 +1497,16 @@ export const OrderDetailPage: React.FC = () => {
                             {(it.quantity * it.unit_price).toLocaleString("en-IN")}
                           </td>
                           <td>
+                            {!cancelled && (
+                              <Can cap="orders:write">
+                                <button
+                                  className={styles.linkBtn}
+                                  onClick={() => navigate(`/admin/orders/qc/${it.id}`)}
+                                >
+                                  Record QC
+                                </button>
+                              </Can>
+                            )}
                             {!cancelled && canCancelItems && (
                               <Can cap="refunds:approve">
                                 <button

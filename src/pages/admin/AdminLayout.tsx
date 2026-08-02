@@ -259,6 +259,13 @@ const SECTIONS: NavSection[] = [
         cap: "catalog:write",
       },
       {
+        // T3-4: a 3P brand's second QC layer (QC-2) per garment category.
+        label: "Brand QC-2",
+        icon: <UilCheckCircle size={18} />,
+        path: "/admin/catalog/brand-qc",
+        cap: "catalog:write",
+      },
+      {
         // T2-15: dead-stock aging + markdown flag (capital tied up).
         label: "Dead Stock",
         icon: <UilLayerGroup size={18} />,
@@ -404,6 +411,12 @@ const SECTIONS: NavSection[] = [
         icon: <UilWallet size={18} />,
         path: "/admin/finance/credit-approvals",
         cap: "refunds:approve",
+      },
+      {
+        label: "Brand ledger",
+        icon: <UilReceipt size={18} />,
+        path: "/admin/finance/brand-ledger",
+        cap: "finance:read",
       },
       {
         label: "Online Settlement",

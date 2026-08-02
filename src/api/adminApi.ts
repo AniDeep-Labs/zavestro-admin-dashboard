@@ -1527,6 +1527,68 @@ export const qcTemplatesApi = {
     req<{ deleted: boolean }>(`/api/admin/qc-templates/${id}`, { method: "DELETE" }),
 };
 
+// ─── T3-4: brand QC-2 config (a brand's second-layer checks per garment category) ──────────────
+export interface BrandQcConfig {
+  id?: string;
+  brand_id?: string;
+  garment_category_id: string;
+  category_name?: string;
+  checks: QcCheck[];
+  is_active?: boolean;
+  updated_at?: string;
+}
+export const brandQcApi = {
+  list: (brandId: string): Promise<BrandQcConfig[]> =>
+    req<BrandQcConfig[]>(`/api/admin/qc2/brand-qc/${brandId}`),
+  forCategory: (brandId: string, categoryId: string): Promise<BrandQcConfig | null> =>
+    req<BrandQcConfig | null>(`/api/admin/qc2/brand-qc/${brandId}/category/${categoryId}`),
+  upsert: (
+    brandId: string,
+    categoryId: string,
+    body: { checks: QcCheck[] },
+  ): Promise<BrandQcConfig> =>
+    req<BrandQcConfig>(`/api/admin/qc2/brand-qc/${brandId}/category/${categoryId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+};
+
+// ─── T3-4: per-order QC results (house QC-1 + brand QC-2) ──────────────────────────────────────
+export interface QcResultRow {
+  layer: "house" | "brand";
+  answers: Array<{ key: string; value?: number | null; pass?: boolean | null }>;
+  verdict: "pass" | "fail";
+  note: string | null;
+  created_at: string;
+}
+export interface QcResultContext {
+  is_house: boolean;
+  brand_id: string;
+  brand_name: string | null;
+  category_id: string | null;
+  category_name: string | null;
+  house_checks: QcCheck[];
+  brand_checks: QcCheck[];
+  results: QcResultRow[];
+}
+export interface QcResultAnswer {
+  key: string;
+  value?: number | null;
+  pass?: boolean | null;
+}
+export const qcResultsApi = {
+  get: (orderItemId: string): Promise<QcResultContext> =>
+    req<QcResultContext>(`/api/admin/qc2/qc-results/${orderItemId}`),
+  record: (
+    orderItemId: string,
+    body: { layer: "house" | "brand"; answers: QcResultAnswer[]; note?: string },
+  ): Promise<{ verdict: "pass" | "fail"; failed: string[] }> =>
+    req<{ verdict: "pass" | "fail"; failed: string[] }>(`/api/admin/qc2/qc-results/${orderItemId}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+};
+
 // ─── T2-7: per-hub constraint view + festival/leave calendar ───────────────────
 export interface HubConstraintRow {
   hub_id: string | null;
@@ -4476,6 +4538,44 @@ export const categoriesAdminApi = {
       })) ?? []
     );
   },
+};
+
+// T3-2 — brand ledger (finance).
+export type BrandSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  is_house_brand: boolean;
+  status: string;
+};
+export type BrandLedgerEntry = {
+  id: string;
+  brand_id: string;
+  entry_type: string;
+  amount: string | number; // signed; string from NUMERIC
+  order_id: string | null;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+export const brandLedgerApi = {
+  listBrands: async (): Promise<{ brands: BrandSummary[] }> => req(`/api/admin/brands`),
+  ledger: async (
+    brandId: string,
+    page = 1,
+    limit = 50,
+  ): Promise<{
+    entries: BrandLedgerEntry[];
+    balance: number;
+    page: number;
+    page_size: number;
+    total: number;
+  }> => req(`/api/admin/brands/${brandId}/ledger?page=${page}&limit=${limit}`),
+  recordPayout: async (brandId: string, amount: number, note?: string): Promise<BrandLedgerEntry> =>
+    req(`/api/admin/brands/${brandId}/ledger/payout`, {
+      method: "POST",
+      body: JSON.stringify(note ? { amount, note } : { amount }),
+    }),
 };
 
 export type {
