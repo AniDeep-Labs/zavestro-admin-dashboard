@@ -59,6 +59,10 @@
   letter-spacing: 0.5px;
 }
 .tagOrder { font-size: 8pt; color: #444; margin-top: 0.5mm; }
+/* A reprint is marked on the paper, not just in the UI: two tags in circulation
+ * for one order matters when both turn up on a rack, and the print dialog is
+ * long gone by then. */
+.tagReprint { font-size: 7pt; font-weight: 700; color: #b45309; margin-top: 0.5mm; }
 .tagGarment {
   font-size: 8pt; margin-top: 1.5mm; text-align: center;
   max-width: 42mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

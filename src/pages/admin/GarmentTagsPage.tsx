@@ -1,6 +1,6 @@
 import React from 'react';
-import { ordersApi, tagsApi } from '../../api/adminApi';
-import type { AdminOrder, GarmentTag } from '../../api/adminApi';
+import { tagsApi } from '../../api/adminApi';
+import type { GarmentTag, OrderNeedingTag } from '../../api/adminApi';
 import styles from './GarmentTagsPage.module.css';
 
 /**
@@ -10,12 +10,22 @@ import styles from './GarmentTagsPage.module.css';
  * a scannable code: a camera aimed at codes that do not exist is an endpoint
  * with no caller, in reverse. This is the printing half.
  *
- * ## Tagged at cutting
+ * ## Tagged on arrival, and the tag travels to delivery
  *
- * The garment first physically exists when it is cut, so this defaults to the
- * orders that are about to be cut. The tag then follows the garment through
- * tailoring, QC and dispatch, which is where scanning earns its keep — a tailor
- * picking the right bundle off a rack, QC pulling the right order.
+ * An earlier cut of this listed the orders about to be CUT. That was worse: it
+ * left the order untracked for everything before the cut — fabric being pulled,
+ * a measurement visit still outstanding — and gave the work a second identity
+ * part-way through its life. The tag is now generated when the order arrives at
+ * the hub, so the code the tailor reads off the bundle is the one QC pulls and
+ * dispatch matches to an address.
+ *
+ * ## Which orders appear, and why the server decides
+ *
+ * "Needs a tag" means no tag has been PRINTED yet, which only the server knows.
+ * Filtering by stage here — as the first version did — would reprint tags for
+ * work already tagged, and two tags in circulation for one order is how a tag
+ * reaches the wrong garment. So this asks for the pending list rather than
+ * deriving it.
  *
  * ## The QR comes from the server
  *
@@ -31,58 +41,36 @@ import styles from './GarmentTagsPage.module.css';
  * worse than none: it will eventually be attached to the wrong garment.
  */
 
-/** The stages at which a garment is about to be, or is being, cut. */
-const CUTTING_STAGES = ['fabric_sourced', 'cutting'] as const;
-
-/** An order that can actually be tagged: the sheet endpoint is keyed on uuid. */
-type TaggableOrder = AdminOrder & { uuid: string };
-
 export function GarmentTagsPage() {
-  const [orders, setOrders] = React.useState<TaggableOrder[]>([]);
+  const [orders, setOrders] = React.useState<OrderNeedingTag[]>([]);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [tags, setTags] = React.useState<GarmentTag[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        // Both cutting stages, merged. The orders endpoint filters one stage at
-        // a time, and a manager tagging a morning's work does not care which of
-        // the two an order happens to be in.
-        const pages = await Promise.all(
-          CUTTING_STAGES.map((stage) => ordersApi.list({ stage, limit: 100 })),
-        );
-        if (cancelled) return;
-        // An order with no uuid cannot be tagged — the sheet endpoint is keyed
-        // on it — so it is dropped here rather than rendered as a row that
-        // silently prints nothing.
-        const merged = pages.flatMap((p) => p.orders ?? []).filter((o): o is TaggableOrder =>
-          typeof o.uuid === 'string' && o.uuid.length > 0,
-        );
-        // De-duplicated by uuid: an order that moved between the two fetches
-        // would otherwise appear twice and print two tags for one garment.
-        const seen = new Set<string>();
-        setOrders(merged.filter((o) => !seen.has(o.uuid) && seen.add(o.uuid)));
-        setLoading(false);
-      } catch (e) {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Could not load orders.');
-        setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const rows = await tagsApi.pending();
+      setOrders(rows);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load orders.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  function toggle(uuid: string) {
+  React.useEffect(() => {
+    void load();
+  }, [load]);
+
+  function toggle(orderId: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(uuid)) next.delete(uuid);
-      else next.add(uuid);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
       return next;
     });
     // Any change invalidates a built sheet — printing tags for a selection the
@@ -97,6 +85,11 @@ export function GarmentTagsPage() {
     try {
       const built = await tagsApi.sheet([...selected]);
       setTags(built);
+      // The server has now recorded these as printed, so the pending list is
+      // stale. Refreshed rather than left showing rows that are done — a list
+      // that keeps offering tagged orders is how a second tag gets printed.
+      setSelected(new Set());
+      void load();
       // Waits a frame so the sheet is in the DOM before the print dialog
       // snapshots the page. Calling print() in the same tick prints an empty
       // sheet, which looks like the server returned nothing.
@@ -114,9 +107,9 @@ export function GarmentTagsPage() {
         <div>
           <h1 className={styles.title}>Garment tags</h1>
           <p className={styles.sub}>
-            Printed at cutting and attached to the garment. The tag follows it through
-            tailoring, QC and dispatch. 50 × 70mm, nine to an A4 sheet — cut along the
-            dashed guides.
+            Printed when an order reaches the hub, and attached to the work it belongs to.
+            The same tag stays with it through cutting, tailoring, QC and delivery.
+            50 × 70mm, nine to an A4 sheet — cut along the dashed guides.
           </p>
         </div>
       </div>
@@ -142,23 +135,27 @@ export function GarmentTagsPage() {
         <div className={styles.empty}>Loading orders…</div>
       ) : orders.length === 0 ? (
         <div className={styles.empty}>
-          No orders are waiting to be cut. Tags are printed at cutting, so there is
-          nothing to tag yet.
+          Every order at this hub already has a tag. Nothing to print.
         </div>
       ) : (
         <div className={styles.list}>
           {orders.map((o) => (
-            <label key={o.uuid} className={styles.row}>
+            <label key={o.order_id} className={styles.row}>
               <input
                 type="checkbox"
-                checked={selected.has(o.uuid)}
-                onChange={() => toggle(o.uuid)}
+                checked={selected.has(o.order_id)}
+                onChange={() => toggle(o.order_id)}
               />
               <span className={styles.rowMain}>
-                <span className={styles.rowName}>{o.id}</span>
+                <span className={styles.rowName}>{o.order_number}</span>
                 <span className={styles.rowMeta}>
                   {' '}
-                  {o.reference_id ? `· ${o.reference_id}` : ''} {o.customer ? `· ${o.customer}` : ''}
+                  {o.reference_id ? `· ${o.reference_id}` : ''}
+                  {o.customer_name ? ` · ${o.customer_name}` : ''}
+                  {/* The stage is shown because a tag is no longer tied to one:
+                      an order awaiting a measurement visit needs a tag just as
+                      much as one about to be cut. */}
+                  {o.stage ? ` · ${o.stage.replace(/_/g, ' ')}` : ''}
                 </span>
               </span>
             </label>
@@ -174,6 +171,12 @@ export function GarmentTagsPage() {
                 backend from a code we chose, not from user input. */}
             <div className={styles.tagQr} dangerouslySetInnerHTML={{ __html: t.qr_svg }} />
             <div className={styles.tagCode}>{t.reference_id || t.order_number}</div>
+            {/* A reprint is marked on the tag itself. Two tags in circulation for
+                one order is worth knowing about when both turn up on a rack, and
+                a mark on the paper survives long after the print dialog. */}
+            {t.previous_prints > 0 && (
+              <div className={styles.tagReprint}>REPRINT #{t.previous_prints + 1}</div>
+            )}
             <div className={styles.tagOrder}>{t.order_number}</div>
             {t.garment_name && <div className={styles.tagGarment}>{t.garment_name}</div>}
           </div>
