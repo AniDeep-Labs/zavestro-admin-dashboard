@@ -1,0 +1,90 @@
+/* AG-S3 (scan) — the A4 tag sheet.
+ *
+ * Two layouts in one file: the screen, where a person picks orders, and the
+ * PRINT layout, which is the only one that matters once the paper comes out.
+ * Everything chrome-ish is hidden at print time — a nav bar wastes a row of
+ * tags, and a URL footer on a garment tag is noise on a cutting table.
+ */
+
+.page { padding: 24px; }
+.header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.title { font-size: 20px; font-weight: 700; margin: 0; }
+.sub { font-size: 13px; color: #6b7280; margin: 4px 0 0; }
+.bar { display: flex; gap: 10px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
+.list { display: grid; gap: 6px; margin-top: 12px; }
+.row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff;
+}
+.rowMain { flex: 1; min-width: 0; }
+.rowName { font-size: 14px; font-weight: 600; }
+.rowMeta { font-size: 12px; color: #6b7280; }
+.empty { padding: 32px; text-align: center; color: #6b7280; font-size: 14px; }
+.error { padding: 12px; border-radius: 8px; background: #fef2f2; color: #991b1b; font-size: 13px; }
+
+/* ── The sheet ──────────────────────────────────────────────────────────────
+ * 50 x 70mm tags. A4 is 210 x 297mm; at 10mm margins that leaves 190 x 277mm,
+ * so three across and three down with room for cut guides — nine per sheet.
+ */
+.sheet { display: none; }
+
+.tag {
+  width: 50mm;
+  height: 70mm;
+  box-sizing: border-box;
+  padding: 4mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  /* A hairline the scissors follow. Printed grey rather than black so a slightly
+   * off cut does not leave a hard border on the finished tag. */
+  outline: 0.2mm dashed #bbb;
+  outline-offset: -0.1mm;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.tagQr { width: 34mm; height: 34mm; }
+.tagQr svg { width: 100%; height: 100%; display: block; }
+
+/* The human-readable fallback, and the whole reason the code is reference_id:
+ * a smudged or torn tag can still be typed into the ops app's lookup instead
+ * of stranding the garment. Monospace so 0 and O are distinguishable. */
+.tagCode {
+  margin-top: 2mm;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10pt;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.tagOrder { font-size: 8pt; color: #444; margin-top: 0.5mm; }
+.tagGarment {
+  font-size: 8pt; margin-top: 1.5mm; text-align: center;
+  max-width: 42mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+@media print {
+  @page { size: A4; margin: 10mm; }
+
+  /* Hide the app shell. Without this the sidebar and header eat most of the
+   * first sheet and the tags start halfway down the page. */
+  :global(nav),
+  :global(header),
+  :global(aside),
+  .page > .header,
+  .page > .bar,
+  .page > .list,
+  .noPrint { display: none !important; }
+
+  .page { padding: 0; }
+
+  .sheet {
+    display: grid;
+    grid-template-columns: repeat(3, 50mm);
+    gap: 8mm 15mm;
+    justify-content: center;
+  }
+
+  .tag { outline-color: #999; }
+}

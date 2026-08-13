@@ -234,6 +234,36 @@ export const orderExceptionsApi = {
     }),
 };
 
+/**
+ * AG-S3 (scan) — garment tags.
+ *
+ * The ops app had no scanner and nothing printed a scannable code, so building
+ * one would have been a camera pointed at codes that did not exist. This is the
+ * printing half: tags are attached at CUTTING and follow the garment through
+ * tailoring, QC and dispatch.
+ *
+ * The QR arrives as SVG from the server rather than being generated here, so
+ * the tag a hub prints from the ops app and the tag printed from this dashboard
+ * are byte-identical. Two generators would eventually disagree about what a
+ * code contains, and the only symptom would be a garment nobody can scan.
+ */
+export interface GarmentTag {
+  order_id: string;
+  order_number: string;
+  reference_id: string;
+  customer_name: string | null;
+  garment_name: string | null;
+  qr_svg: string;
+}
+
+export const tagsApi = {
+  sheet: async (orderIds: string[]): Promise<GarmentTag[]> =>
+    req<GarmentTag[]>('/api/admin/tags/sheet', {
+      method: 'POST',
+      body: JSON.stringify({ order_ids: orderIds }),
+    }),
+};
+
 export const ordersApi = {
   list: async (params: OrdersParams = {}): Promise<OrdersResponse> => {
     const qs = new URLSearchParams();

@@ -35,6 +35,11 @@ const OrderDetailPage = lazyPage(
   () => import("./pages/admin/OrderDetailPage"),
   "OrderDetailPage",
 );
+// AG-S3 (scan): print garment tags, attached at cutting.
+const GarmentTagsPage = lazyPage(
+  () => import("./pages/admin/GarmentTagsPage"),
+  "GarmentTagsPage",
+);
 const UsersListPage = lazyPage(
   () => import("./pages/admin/UsersListPage"),
   "UsersListPage",
@@ -363,6 +368,11 @@ function App() {
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboardPage />} />
           <Route path="orders" element={<OrdersListPage />} />
+          {/* AG-S3 (scan): tags are printed at cutting, so this sits under orders.
+              Declared BEFORE orders/:id. React Router ranks a static segment
+              above a dynamic one so this would win either way, but relying on
+              that makes the file read as if "tags" could be an order id. */}
+          <Route path="orders/tags" element={<GarmentTagsPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="orders/qc/:orderItemId" element={<QcResultPage />} />
           <Route path="users" element={<UsersListPage />} />
