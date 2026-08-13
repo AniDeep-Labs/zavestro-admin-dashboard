@@ -234,6 +234,59 @@ export const orderExceptionsApi = {
     }),
 };
 
+/**
+ * AG-S3 (scan) — garment tags.
+ *
+ * The ops app had no scanner and nothing printed a scannable code, so building
+ * one would have been a camera pointed at codes that did not exist. This is the
+ * printing half. A tag is generated when the order ARRIVES at the hub and
+ * travels with the work to delivery — one identity for its whole life.
+ *
+ * The QR arrives as SVG from the server rather than being generated here, so
+ * the tag a hub prints from the ops app and the tag printed from this dashboard
+ * are byte-identical. Two generators would eventually disagree about what a
+ * code contains, and the only symptom would be a garment nobody can scan.
+ */
+export interface GarmentTag {
+  order_id: string;
+  order_number: string;
+  reference_id: string;
+  customer_name: string | null;
+  garment_name: string | null;
+  qr_svg: string;
+  /** Times this order's tag was printed BEFORE this run. Non-zero = a reprint. */
+  previous_prints: number;
+}
+
+export interface OrderNeedingTag {
+  order_id: string;
+  order_number: string;
+  reference_id: string;
+  stage: string;
+  customer_name: string | null;
+  created_at: string;
+}
+
+export const tagsApi = {
+  /**
+   * Orders that still need a tag.
+   *
+   * Comes from the server rather than being filtered here: "which orders need a
+   * tag" is answered by whether one has been PRINTED, which only the server
+   * knows. Filtering by stage in the client — which an earlier cut of this did —
+   * would reprint tags for work already tagged, and two tags in circulation for
+   * one order is how a tag reaches the wrong garment.
+   */
+  pending: async (): Promise<OrderNeedingTag[]> =>
+    req<OrderNeedingTag[]>('/api/admin/tags/pending'),
+
+  sheet: async (orderIds: string[]): Promise<GarmentTag[]> =>
+    req<GarmentTag[]>('/api/admin/tags/sheet', {
+      method: 'POST',
+      body: JSON.stringify({ order_ids: orderIds }),
+    }),
+};
+
 export const ordersApi = {
   list: async (params: OrdersParams = {}): Promise<OrdersResponse> => {
     const qs = new URLSearchParams();

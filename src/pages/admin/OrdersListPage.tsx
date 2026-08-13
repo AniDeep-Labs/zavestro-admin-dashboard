@@ -185,6 +185,10 @@ export const OrdersListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Orders</h1>
         <div className={styles.headerActions}>
+          {/* AG-S3 (scan): the only way into the tag sheet. A route with no link
+              is unreachable — the same "no caller" problem the scan work exists
+              to avoid, in a different guise. */}
+          <button className={styles.exportBtn} onClick={() => navigate('/admin/orders/tags')}>Garment tags</button>
           <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><UilImport size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
         </div>
       </div>
