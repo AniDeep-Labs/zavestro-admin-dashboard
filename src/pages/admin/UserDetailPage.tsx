@@ -542,7 +542,11 @@ export const UserDetailPage: React.FC = () => {
           className={styles.linkBtn}
           onClick={() =>
             navigate(
-              `/admin/support${user.phone ? `?search=${encodeURIComponent(user.phone)}` : ""}`,
+              // [SUP-30-6] Deep-link by the ZC-ID, never the phone number. A phone
+              // in the URL lands in browser history, server logs and — this SPA has
+              // Sentry and Datadog wired — two third-party telemetry pipelines.
+              // Both target searches already match `u.reference_id`.
+              `/admin/support${user.reference_id ? `?search=${encodeURIComponent(user.reference_id)}` : ""}`,
             )
           }
         >
@@ -600,7 +604,8 @@ export const UserDetailPage: React.FC = () => {
                   className={styles.linkBtn}
                   onClick={() =>
                     navigate(
-                      `/admin/orders?search=${encodeURIComponent(user.phone)}`,
+                      // [SUP-30-6] ZC-ID, not the phone — see the tickets link above.
+                      `/admin/orders?search=${encodeURIComponent(user.reference_id ?? user.id)}`,
                     )
                   }
                 >
