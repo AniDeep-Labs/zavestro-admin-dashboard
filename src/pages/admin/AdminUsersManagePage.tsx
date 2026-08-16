@@ -23,6 +23,11 @@ const ROLE_LABELS: Record<string, string> = {
   admin: 'Operations · Full Access',
 };
 
+// [SHL-1-12] The roles defined PER HUB — mirrors HUB_SCOPED_ADMIN_ROLES in the
+// backend's admin-auth.middleware. For these, a missing hub is not "global", it is
+// a broken account: the server now fails closed on every scoped read and write.
+const HUB_SCOPED_ROLES = ['catalog_manager'];
+
 // W-18: human-readable capability summary per role (mirrors backend permissions.ts).
 // Shown when creating an admin so the grant is understood, not guessed.
 const ROLE_CAP_SUMMARY: Record<string, string> = {
@@ -140,6 +145,15 @@ export const AdminUsersManagePage: React.FC = () => {
       showToast('error', 'Password must be at least 8 characters');
       return;
     }
+    // [SHL-1-12] A per-hub role MUST arrive with its hub. This form defaults the
+    // role to catalog_manager and left the hub select optional, so filling in the
+    // three obvious fields and clicking Create used to mint a GLOBALLY-scoped
+    // catalog_manager — proven live reading every hub's listings and rewriting
+    // another hub's price. The server refuses it now; say so before the round trip.
+    if (HUB_SCOPED_ROLES.includes(newRole) && !newHubId) {
+      showToast('error', 'Choose a hub', `${ROLE_LABELS[newRole] ?? newRole} manages one hub — pick which.`);
+      return;
+    }
     setCreating(true);
     try {
       // super_admin + pricing_manager are global (oversight / brand-wide promos);
@@ -240,6 +254,11 @@ export const AdminUsersManagePage: React.FC = () => {
                     {(() => {
                       const role = approveRole[user.id];
                       const hubScoped = role && role !== 'super_admin' && role !== 'pricing_manager';
+                      // [SHL-1-12] For a PER-HUB role there is no "Global (no hub)"
+                      // — that option promised oversight and delivered a globally
+                      // scoped catalog_manager. Only roles that may genuinely be
+                      // unscoped still offer it.
+                      const mustHaveHub = HUB_SCOPED_ROLES.includes(role ?? '');
                       return hubScoped ? (
                         <select
                           className={styles.fieldInput}
@@ -247,7 +266,9 @@ export const AdminUsersManagePage: React.FC = () => {
                           onChange={e => setApproveHub(h => ({ ...h, [user.id]: e.target.value }))}
                           aria-label="Assign hub"
                         >
-                          <option value="">Global (no hub)</option>
+                          <option value="">
+                            {mustHaveHub ? 'Choose a hub…' : 'Global (no hub)'}
+                          </option>
                           {hubs.map(h => (
                             <option key={h.id} value={h.id}>{h.name}</option>
                           ))}
@@ -256,7 +277,11 @@ export const AdminUsersManagePage: React.FC = () => {
                     })()}
                     <button
                       className={styles.activateBtn}
-                      disabled={!approveRole[user.id] || approving === user.id}
+                      disabled={
+                        !approveRole[user.id] ||
+                        approving === user.id ||
+                        (HUB_SCOPED_ROLES.includes(approveRole[user.id] ?? '') && !approveHub[user.id])
+                      }
                       onClick={() => handleApprovePending(user)}
                     >
                       {approving === user.id ? 'Approving…' : 'Approve & activate'}
@@ -448,9 +473,16 @@ export const AdminUsersManagePage: React.FC = () => {
               </div>
               {newRole !== 'super_admin' && newRole !== 'pricing_manager' && (
                 <div className={styles.field}>
-                  <label className={styles.fieldLabel}>Hub Scope</label>
+                  <label className={styles.fieldLabel}>
+                    Hub Scope{HUB_SCOPED_ROLES.includes(newRole) ? ' *' : ''}
+                  </label>
+                  {/* [SHL-1-12] "All hubs (global)" is not on offer for a per-hub
+                      role: choosing it used to create exactly the account this
+                      role exists to prevent — a catalog_manager over every hub. */}
                   <select className={styles.fieldInput} value={newHubId} onChange={e => setNewHubId(e.target.value)}>
-                    <option value="">All hubs (global)</option>
+                    <option value="">
+                      {HUB_SCOPED_ROLES.includes(newRole) ? 'Choose a hub…' : 'All hubs (global)'}
+                    </option>
                     {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                   </select>
                   <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 4 }}>

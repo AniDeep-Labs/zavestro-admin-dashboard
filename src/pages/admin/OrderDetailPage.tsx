@@ -1497,8 +1497,14 @@ export const OrderDetailPage: React.FC = () => {
                             {(it.quantity * it.unit_price).toLocaleString("en-IN")}
                           </td>
                           <td>
+                            {/* [SUP-27-1] Recording a QC verdict is a FLOOR verb —
+                                for a third-party garment it is what releases the
+                                garment for dispatch. It was `orders:write`, i.e.
+                                support. Now `qc:write` (super_admin break-glass,
+                                same footing as advance/assign) until the ops app
+                                ships its QC-2 screen. */}
                             {!cancelled && (
-                              <Can cap="orders:write">
+                              <Can cap="qc:write">
                                 <button
                                   className={styles.linkBtn}
                                   onClick={() => navigate(`/admin/orders/qc/${it.id}`)}
@@ -1583,7 +1589,13 @@ export const OrderDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Craftsperson + QC */}
+            {/* Craftsperson + QC.
+                [SUP-29-1] These two rows sit OUTSIDE the <Can cap="system:manage">
+                that wraps NextStepCard, so support — which cannot call
+                assign-craftsperson / assign-qc-staff (both system:manage
+                break-glass, G-23) — was offered a live "Assign staff…" control
+                that 403s on submit. Everyone still SEES who is assigned; only
+                break-glass gets to change it. */}
             <div className={styles.assignRow}>
               <div>
                 <div className={styles.assignLabel}>
@@ -1593,14 +1605,23 @@ export const OrderDetailPage: React.FC = () => {
                 {normStage === "measurement_complete" ||
                 currentIdx > STAGE_IDX["measurement_complete"] ? (
                   <>
-                    <StaffAssignmentDropdown
-                      value={order.craftsperson_id ?? null}
-                      onChange={handleAssignCraft}
-                      hubId={order.hub_id ?? undefined}
-                      showWorkload
-                      filterRoles={["tailor", "cutter", "finisher"]}
-                      disabled={assigningCraft}
-                    />
+                    <Can
+                      cap="system:manage"
+                      fallback={
+                        <div className={styles.assignHint}>
+                          {order.craftsperson_name ?? "Not yet assigned"}
+                        </div>
+                      }
+                    >
+                      <StaffAssignmentDropdown
+                        value={order.craftsperson_id ?? null}
+                        onChange={handleAssignCraft}
+                        hubId={order.hub_id ?? undefined}
+                        showWorkload
+                        filterRoles={["tailor", "cutter", "finisher"]}
+                        disabled={assigningCraft}
+                      />
+                    </Can>
                     {order.craftsperson_name && (
                       <div className={styles.assignRole}>{order.craftsperson_role}</div>
                     )}
@@ -1615,7 +1636,14 @@ export const OrderDetailPage: React.FC = () => {
                   QC Staff
                 </div>
                 {currentIdx >= STAGE_IDX["quality_check"] ? (
-                  <>
+                  <Can
+                    cap="system:manage"
+                    fallback={
+                      <div className={styles.assignHint}>
+                        {order.qc_staff_name ?? "Not yet assigned"}
+                      </div>
+                    }
+                  >
                     <StaffAssignmentDropdown
                       value={order.qc_staff_id ?? null}
                       onChange={handleAssignQC}
@@ -1624,7 +1652,7 @@ export const OrderDetailPage: React.FC = () => {
                       filterRoles={["quality_checker"]}
                       disabled={assigningQC}
                     />
-                  </>
+                  </Can>
                 ) : (
                   <div className={styles.assignHint}>Available at QC stage</div>
                 )}
