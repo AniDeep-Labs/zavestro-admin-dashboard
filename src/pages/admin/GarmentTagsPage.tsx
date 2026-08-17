@@ -41,6 +41,15 @@ import styles from './GarmentTagsPage.module.css';
  * worse than none: it will eventually be attached to the wrong garment.
  */
 
+// [KA10-12] A printed sheet with no date cannot be told apart from an older one
+// on the same rack.
+const printedOn = new Date().toLocaleDateString('en-IN', {
+  timeZone: 'Asia/Kolkata',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
 export function GarmentTagsPage() {
   const [orders, setOrders] = React.useState<OrderNeedingTag[]>([]);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
@@ -192,6 +201,15 @@ export function GarmentTagsPage() {
             <div className={t.garment_name ? styles.tagGarment : styles.tagGarmentMissing}>
               {t.garment_name || 'GARMENT NOT NAMED'}
             </div>
+            {/* [KA10-12] The tag carried an id and nothing else, on an artifact
+                whose own copy says it "stays with it through cutting, tailoring,
+                QC and delivery". Everything else was behind the QR — and the ops
+                app has no scanner, so the machine-readable half is unreadable by
+                its intended reader while the human-readable half omitted the one
+                fact a floor worker needs to match a bundle to a person.
+                `customer_name` was already in the payload and simply not printed. */}
+            {t.customer_name && <div className={styles.tagCustomer}>{t.customer_name}</div>}
+            <div className={styles.tagPrinted}>{printedOn}</div>
           </div>
         ))}
       </div>
