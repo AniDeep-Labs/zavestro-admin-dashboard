@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { navCountsApi } from '../../api/adminApi';
+import { navCountsApi, getAdminCapabilities } from '../../api/adminApi';
 import type { NavCounts } from '../../api/adminApi';
 import styles from './ActionInbox.module.css';
 
@@ -74,10 +74,30 @@ export const ActionInbox: React.FC = () => {
 
   const active = ITEMS.filter(it => (counts[it.key] ?? 0) > 0);
 
+  // [PEN-38-3] An account with NO capabilities has an empty inbox for a reason
+  // that has nothing to do with the business being quiet. It was shown a green
+  // tick and "All clear — nothing needs you right now ✓", beside copy pointing at
+  // a nav with one item, with no statement that the account has no role, no
+  // "awaiting approval", no next step and nobody to contact. The brief asks that a
+  // zero-capability account be told the truth; a tick is the opposite of it.
+  //
+  // This is the same failure-as-emptiness family as the rest of RC-3 — except
+  // here the thing being misreported is the account's own status.
+  const hasNoRole = getAdminCapabilities().length === 0;
+
   return (
     <div className={styles.card}>
-      <div className={styles.header}>Needs you today</div>
-      {active.length === 0 ? (
+      <div className={styles.header}>{hasNoRole ? 'Your account' : 'Needs you today'}</div>
+      {hasNoRole ? (
+        <div className={styles.pending}>
+          <strong>Your account is awaiting a role.</strong>
+          <div>
+            A super admin needs to assign one before you can use the console. Until then the
+            navigation is empty because nothing has been granted to you — not because there is
+            nothing to do.
+          </div>
+        </div>
+      ) : active.length === 0 ? (
         <div className={styles.clear}>All clear — nothing needs you right now ✓</div>
       ) : (
         <div className={styles.list}>

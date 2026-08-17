@@ -672,6 +672,7 @@
 .miniTitle { font-size: 13px; font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
 .miniSub { font-size: 11px; color: var(--color-text-tertiary); text-transform: capitalize; white-space: nowrap; }
 .miniValue {
+.miniNote { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
   font-size: 26px;
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);

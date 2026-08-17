@@ -129,7 +129,8 @@ export interface Hub {
   status: 'Active' | 'Inactive' | 'At Capacity' | 'Critical';
   activeOrders: number;
   capacityUsed: number;
-  qcPassRate: number;
+  /** [SHL-4-2] null = not yet measured. Never default to a number. */
+  qcPassRate: number | null;
   staffCount: number;
   tailorCount: number;
   qcCount: number;

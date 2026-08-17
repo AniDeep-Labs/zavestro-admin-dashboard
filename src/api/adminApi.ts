@@ -149,7 +149,8 @@ export interface DashboardData {
     activeOrders: number;
     staffCount: number;
     capacity: number;
-    qcPassRate: number;
+    /** [SHL-4-2] null = nothing inspected yet. NEVER default this to a number. */
+    qcPassRate: number | null;
   }[];
   alerts: { level: string; text: string; link: string }[];
   recentActivity: { icon: string; text: string; time: string }[];
@@ -747,7 +748,9 @@ function mapHub(h: Record<string, unknown>): Hub {
     tailorCount,
     qcCount,
     capacityUsed,
-    qcPassRate: (h.qcPassRate as number) ?? 100,
+    // [SHL-4-2] A SECOND hardcoded 100 — the mapper defaulted an absent QC rate
+    // to a perfect score. null means "not yet measured"; the UI renders "—".
+    qcPassRate: (h.qcPassRate as number | null) ?? null,
     managerName: (h.managerName ?? h.manager_name ?? "") as string,
     managerPhone: (h.managerPhone ?? h.manager_phone ?? "") as string,
     managerStaffId: (h.managerStaffId ?? h.manager_staff_id ?? null) as string | null,
@@ -1861,6 +1864,15 @@ export interface ReturnRequest {
 export interface ReturnsResponse {
   returns: ReturnRequest[];
   total: number;
+  /**
+   * [SCA-44-3] Section counts aggregated ON THE SERVER over the whole set. The
+   * page loads the newest 100 and buckets them client-side, so a header count
+   * derived from the loaded rows says "what loaded", not "what exists" — and at
+   * 101 returns the operator cannot tell a quiet day from a truncated one.
+   */
+  section_counts?: Record<string, number>;
+  /** True when more rows exist than this page returned. */
+  truncated?: boolean;
   page: number;
   limit: number;
 }

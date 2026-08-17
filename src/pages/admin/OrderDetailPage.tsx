@@ -1724,6 +1724,13 @@ export const OrderDetailPage: React.FC = () => {
           {/* ── Payment ───────────────────────────────────────────────────── */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Payment</h3>
+            {/* [SUP-28-1] No payment row means NO PAYMENT RECORDED — it does not
+                mean "pending". The detail endpoint never returned a `payments` key
+                at all, so this branch fired on EVERY order and every one of them
+                told the agent the payment was pending — including a delivered
+                order paid online. On the one screen where a refund conversation
+                starts, the payment status was a constant. The endpoint now returns
+                the rows; when there genuinely are none, say exactly that. */}
             {(order.payments ?? []).length === 0 ? (
               <div className={styles.paymentGrid}>
                 <div>
@@ -1735,7 +1742,12 @@ export const OrderDetailPage: React.FC = () => {
                 <div>
                   <div className={styles.metaLabel}>Status</div>
                   <div className={styles.metaValue}>
-                    <span className={styles.captured}>pending</span>
+                    <span className={styles.pendingPay}>No payment recorded</span>
+                    <div className={styles.paymentNote}>
+                      {order.payment_method === "cod"
+                        ? "COD — cash is collected on delivery and recorded by the ops app."
+                        : "Nothing has been captured against this order yet."}
+                    </div>
                   </div>
                 </div>
               </div>
