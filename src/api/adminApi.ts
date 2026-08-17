@@ -4536,11 +4536,14 @@ export interface CustomerVerifyClaim {
 }
 
 export const customerLookupApi = {
-  // G-93: `masked` (the Call Console) asks the server to withhold contact PII in the
-  // search list — full PII is only released by verify() on a matching caller claim.
-  search: async (q: string, masked = false): Promise<CustomerLookupResult[]> => {
+  // G-93: full PII is released by verify() on a matching caller claim.
+  // [SUP-33-1] Masking is now the SERVER's default, not something a caller opts
+  // into: `masked` used to be `verify=1`, so dropping one query parameter returned
+  // ten full customer records to anyone with `customers:read`, unaudited. The
+  // parameter kept here is `full`, which names what it does and is logged.
+  search: async (q: string, masked = true): Promise<CustomerLookupResult[]> => {
     const result = await req<{ customers: CustomerLookupResult[] }>(
-      `/api/admin/customers/lookup?q=${encodeURIComponent(q)}${masked ? "&verify=1" : ""}`,
+      `/api/admin/customers/lookup?q=${encodeURIComponent(q)}${masked ? "" : "&full=1"}`,
     );
     return result?.customers ?? [];
   },

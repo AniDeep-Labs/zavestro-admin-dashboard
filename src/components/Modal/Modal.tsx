@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Modal.module.css';
+import { useDialog } from './useDialog';
 
 export interface ModalProps {
   open: boolean;
@@ -21,27 +22,20 @@ export const Modal: React.FC<ModalProps> = ({
   size = 'md',
   className = '',
 }) => {
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-      const handleEsc = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') onClose();
-      };
-      document.addEventListener('keydown', handleEsc);
-      return () => {
-        document.body.style.overflow = '';
-        document.removeEventListener('keydown', handleEsc);
-      };
-    }
-  }, [open, onClose]);
+  // [DSA-45-2] One implementation of the trap, shared with the hand-rolled
+  // overlays that cannot adopt this component's markup. See useDialog.
+  const { dialogProps } = useDialog(open, onClose, title);
 
   if (!open) return null;
 
   // Portal to <body> so the fixed overlay sits at the true viewport root and dims the whole
   // page (sidebar + topbar included) — rendering inline traps it inside the scroll container.
   return createPortal(
-    <div className={styles.overlay} onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
+    <div className={styles.overlay} onClick={onClose}>
       <div
+        // [DSA-45-2] role/aria-modal belong on the DIALOG, not the backdrop — on the
+        // overlay they described the dimmed page as the dialog.
+        {...dialogProps}
         className={`${styles.modal} ${styles[`size-${size}`]} ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
