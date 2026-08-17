@@ -14,9 +14,13 @@ import styles from "./OrdersListPage.module.css";
 import ds from "./DistributionPage.module.css";
 import kpi from "./CodReconciliationPage.module.css";
 import d from "./CreditApprovalsPage.module.css";
+import { money } from "../../utils/money";
 
 const STATUSES = ["pending", "approved", "rejected"];
-const fmtINR = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+// ACP-2 [KA8-15]: one money formatter for the whole admin (src/utils/money.ts).
+// This page declared its own; five pages did, every one different, producing four
+// shapes of the same amount product-wide — two of them in the same table row.
+const fmtINR = (n: number | null | undefined) => money(n);
 
 export const CreditApprovalsPage: React.FC = () => {
   const [status, setStatus] = React.useState("pending");
@@ -121,7 +125,7 @@ export const CreditApprovalsPage: React.FC = () => {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Customer</th><th>Amount</th><th>Reason</th><th>Requested by</th><th>Age</th><th>Status</th>
+                <th>Customer</th><th className="moneyCell">Amount</th><th>Reason</th><th>Requested by</th><th>Age</th><th>Status</th>
                 {status === "pending" && <th />}
               </tr>
             </thead>
@@ -132,7 +136,7 @@ export const CreditApprovalsPage: React.FC = () => {
                     <Link to={`/admin/users/${r.user_id}`} className={d.cust}>{r.customer_name}</Link>
                     <div className={d.sub}>{r.customer_ref ?? r.customer_phone}</div>
                   </td>
-                  <td className={d.amount}>{fmtINR(r.amount)}</td>
+                  <td className={`moneyCell ${d.amount}`}>{fmtINR(r.amount)}</td>
                   <td className={d.reason}>{r.reason}</td>
                   <td className={d.sub}>{r.requested_by_name ?? "—"}</td>
                   <td><AgeCell since={r.created_at} warnAfterH={24} alertAfterH={72} /></td>

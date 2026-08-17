@@ -12,8 +12,12 @@ import ds from './DistributionPage.module.css';
 import kpi from './CodReconciliationPage.module.css';
 import iv from './InvoicesListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilImport, UilPlus, UilRefresh, UilSearch, UilTimes, UilEye } from '@iconscout/react-unicons';
+import { money } from '../../utils/money';
 
-const fmtINR = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+// ACP-2 [KA8-15]: one money formatter for the whole admin (src/utils/money.ts).
+// This page declared its own; five pages did, every one different, producing four
+// shapes of the same amount product-wide — two of them in the same table row.
+const fmtINR = (n: number | null | undefined) => money(n);
 
 function useDebounce<T>(v: T, d: number) {
   const [dv, setDv] = React.useState(v);
@@ -208,7 +212,7 @@ export const InvoicesListPage: React.FC = () => {
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead><tr>
-              <th>Invoice #</th><th>Order</th><th>Customer</th><th>Hub</th><th>Amount</th><th>GST</th><th>Status</th><th>Date</th><th>Actions</th>
+              <th>Invoice #</th><th>Order</th><th>Customer</th><th>Hub</th><th className="moneyCell">Amount</th><th className="moneyCell">GST</th><th>Status</th><th>Date</th><th>Actions</th>
             </tr></thead>
             <tbody>
               {Array.from({ length: 6 }).map((_, i) => (
@@ -228,7 +232,7 @@ export const InvoicesListPage: React.FC = () => {
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead><tr>
-                <th>Invoice #</th><th>Order</th><th>Customer</th><th>Hub</th><th>Amount</th><th>GST</th><th>Status</th><th>Date</th><th>Actions</th>
+                <th>Invoice #</th><th>Order</th><th>Customer</th><th>Hub</th><th className="moneyCell">Amount</th><th className="moneyCell">GST</th><th>Status</th><th>Date</th><th>Actions</th>
               </tr></thead>
               <tbody>
                 {invoices.map(inv => (
