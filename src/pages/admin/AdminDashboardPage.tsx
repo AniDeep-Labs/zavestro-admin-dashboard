@@ -147,9 +147,19 @@ export const AdminDashboardPage: React.FC = () => {
     const orders = (data?.stats?.totalOrders?.value as number) ?? 0;
     return orders > 0 ? Math.round(revenueTotal / orders) : 0;
   }, [data, revenueTotal]);
-  const avgQc = React.useMemo(() => {
-    const hubs = data?.hubPerformance ?? [];
-    return hubs.length ? Math.round(hubs.reduce((s, h) => s + (h.qcPassRate || 0), 0) / hubs.length) : 0;
+  // [SHL-4-2] Average only the hubs that have actually inspected something.
+  //
+  // The backend used to send the literal 100 per hub and this faithfully averaged
+  // the constant, so the card read "QC Pass Rate · Across Hubs · 100%" on a
+  // brand-new database, during a quality crisis, and while the data held a QC-2
+  // FAIL. `|| 0` would be just as wrong in the other direction: an unmeasured hub
+  // is not a hub scoring zero. null → the card renders "—".
+  const avgQc = React.useMemo<number | null>(() => {
+    const measured = (data?.hubPerformance ?? []).filter(
+      (h) => typeof h.qcPassRate === 'number',
+    ) as { qcPassRate: number }[];
+    if (measured.length === 0) return null;
+    return Math.round(measured.reduce((s, h) => s + h.qcPassRate, 0) / measured.length);
   }, [data]);
   const funnelData = React.useMemo(
     () => (data?.ordersByStage ?? []).map(s => ({ name: s.label, count: s.count })),
@@ -302,7 +312,11 @@ export const AdminDashboardPage: React.FC = () => {
                 <span className={styles.miniTitle}>QC Pass Rate</span>
                 <span className={styles.miniSub}>across hubs</span>
               </div>
-              <div className={styles.miniValue}>{avgQc ? `${avgQc}%` : '—'}</div>
+              {/* [SHL-4-2] "—" and a reason, never a fabricated number. */}
+              <div className={styles.miniValue}>{avgQc === null ? '—' : `${avgQc}%`}</div>
+              {avgQc === null && (
+                <div className={styles.miniNote}>not yet measured — no QC results recorded</div>
+              )}
               {/* P-5 (T3-8): no daily QC series exists → draw nothing (was borrowing the
                   activeOrders series, which describes a different quantity). */}
             </div>

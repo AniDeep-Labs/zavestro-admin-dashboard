@@ -16,6 +16,7 @@ import type { ToastData } from "../../components/Toast/Toast";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
 import { Can } from "../../components/Can/Can";
 import { PageHeader, DetailShell, NotesPanel } from "../../components";
+import { isDenied, errorMessage } from "../../components/EmptyState/asyncState";
 import type { NoteEntry } from "../../components";
 import styles from "./UserDetailPage.module.css";
 import {
@@ -58,6 +59,12 @@ export const UserDetailPage: React.FC = () => {
   const [eraseText, setEraseText] = React.useState("");
   const [erasing, setErasing] = React.useState(false);
   const [notes, setNotes] = React.useState<CustomerNote[]>([]);
+  // [SUP-30-4] The four errors this page used to discard. A panel that cannot say
+  // WHY it is empty will say the wrong thing about a customer.
+  const [notesErr, setNotesErr] = React.useState<unknown>(null);
+  const [fitProfilesErr, setFitProfilesErr] = React.useState<unknown>(null);
+  const [remeasuresErr, setRemeasuresErr] = React.useState<unknown>(null);
+  const [ledgerErr, setLedgerErr] = React.useState<unknown>(null);
   const [saving, setSaving] = React.useState(false);
   const [fitProfiles, setFitProfiles] = React.useState<AdminFitProfile[]>([]);
   const [fitProfilesLoading, setFitProfilesLoading] = React.useState(false);
@@ -105,18 +112,35 @@ export const UserDetailPage: React.FC = () => {
         ),
       )
       .finally(() => setLoading(false));
+    // [SUP-30-4] KEEP the error. Four `catch(() => {})` here turned a refusal into
+    // a statement about the customer: a 403 on fit-profiles rendered "No fit
+    // profiles found for this customer."; a failed notes fetch rendered "No notes
+    // yet." (so an agent misses a fraud note); a failed re-measure fetch showed no
+    // open request (so an agent raises a duplicate); and the credit ledger set
+    // itself to [] while the BALANCE fell back to `user.credits` — a figure from a
+    // different source sitting above an empty history.
+    //
+    // The policy behind that 403 is correct and deliberate. The page was hiding
+    // its own best decision behind a sentence that is false about the customer.
     setFitProfilesLoading(true);
     fitProfilesAdminApi
       .list(id)
       .then((data) => {
         setFitProfiles(data);
+        setFitProfilesErr(null);
         if (data.length > 0) setSelectedProfileId(data[0].id);
       })
-      .catch(() => {})
+      .catch(setFitProfilesErr)
       .finally(() => setFitProfilesLoading(false));
     loadLedger(id);
-    usersApi.remeasureRequests(id).then(setRemeasures).catch(() => {});
-    usersApi.notes(id).then(setNotes).catch(() => {});
+    usersApi
+      .remeasureRequests(id)
+      .then((r) => { setRemeasures(r); setRemeasuresErr(null); })
+      .catch(setRemeasuresErr);
+    usersApi
+      .notes(id)
+      .then((n) => { setNotes(n); setNotesErr(null); })
+      .catch(setNotesErr);
   }, [id]);
 
   const loadLedger = (uid: string) =>
@@ -125,8 +149,11 @@ export const UserDetailPage: React.FC = () => {
       .then((d) => {
         setLedger(d.entries);
         setLedgerBalance(d.balance);
+        setLedgerErr(null);
       })
-      .catch(() => setLedger([]));
+      // [SUP-30-4] NOT `setLedger([])` — an empty ledger under a balance read from
+      // somewhere else is the money version of this whole finding.
+      .catch(setLedgerErr);
 
   // T1-21b Phase 3 (E): record the re-measure outcome (our fault vs customer error).
   const setOutcome = async (
@@ -526,7 +553,14 @@ export const UserDetailPage: React.FC = () => {
             notes={noteEntries}
             onAdd={handleAddNote}
             placeholder="Internal note (not visible to customer)…"
-            emptyText="No notes yet."
+            /* [SUP-30-4] "No notes yet." on a failed fetch hides a fraud note. */
+            emptyText={
+              notesErr
+                ? isDenied(notesErr)
+                  ? "You don't have access to this customer's notes."
+                  : "Couldn't load notes — this is not the same as there being none."
+                : "No notes yet."
+            }
           />
         </div>
       </Can>
@@ -660,6 +694,18 @@ export const UserDetailPage: React.FC = () => {
                 </button>
               </Can>
             </div>
+            {/* [SUP-30-4] If this fetch failed, the absence of an "open request"
+                banner is not evidence there isn't one — and acting on it means
+                raising a duplicate the API will 409. */}
+            {!!remeasuresErr && (
+              <div className={styles.remeasureOpen}>
+                <span>
+                  {isDenied(remeasuresErr)
+                    ? "You don't have access to re-measure requests — check before raising one."
+                    : "Couldn't load re-measure requests — there may already be one open."}
+                </span>
+              </div>
+            )}
             {remeasures.filter((r) => r.status === "open").length > 0 && (
               <div className={styles.remeasureOpen}>
                 {remeasures
@@ -696,8 +742,17 @@ export const UserDetailPage: React.FC = () => {
                   ))}
               </div>
             )}
+            {/* [SUP-30-4] A 403 here used to render "No fit profiles found for this
+                customer." — a false statement about a person, standing in for a
+                correct and deliberate policy decision. */}
             {fitProfilesLoading ? (
               <div className={styles.profileNote}>Loading…</div>
+            ) : fitProfilesErr ? (
+              <div className={styles.profileNote}>
+                {isDenied(fitProfilesErr)
+                  ? "You don't have access to this customer's body data — it is not being shown to you, not absent."
+                  : `Couldn't load fit profiles${errorMessage(fitProfilesErr) ? ` — ${errorMessage(fitProfilesErr)}` : "."}`}
+              </div>
             ) : fitProfiles.length === 0 ? (
               <div className={styles.profileNote}>
                 No fit profiles found for this customer.
@@ -882,7 +937,18 @@ export const UserDetailPage: React.FC = () => {
               </span>
             </div>
             <div className={styles.creditsLedger}>
-              {ledger === null ? (
+              {/* [SUP-30-4] An empty ledger under a balance sourced from somewhere
+                  else is the money version of this finding: the history said
+                  "nothing happened" while the number above it said otherwise. */}
+              {ledgerErr ? (
+                <div className={styles.ledgerRow}>
+                  <span>
+                    {isDenied(ledgerErr)
+                      ? "You don't have access to the credit history."
+                      : "Couldn't load the credit history — the balance above may not match it."}
+                  </span>
+                </div>
+              ) : ledger === null ? (
                 <div className={styles.ledgerRow}>
                   <span>Loading…</span>
                 </div>

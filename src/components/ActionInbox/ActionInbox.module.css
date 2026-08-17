@@ -14,6 +14,10 @@
   margin-bottom: 10px;
 }
 .clear { font-size: var(--font-size-base); color: var(--color-text-secondary); padding: 4px 0; }
+.pending { padding: 14px 16px; font-size: 13px; line-height: 1.5; color: var(--color-text-primary);
+  background: var(--color-warning-bg, var(--color-bg-secondary));
+  border: 1px solid var(--color-warning-border, var(--color-border-light)); border-radius: 8px; }
+.pending div { margin-top: 6px; color: var(--color-text-secondary); }
 .list { display: flex; flex-direction: column; }
 .row {
   display: flex;
