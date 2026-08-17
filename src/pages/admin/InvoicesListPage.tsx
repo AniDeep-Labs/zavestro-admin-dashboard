@@ -30,6 +30,8 @@ export const InvoicesListPage: React.FC = () => {
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [total, setTotal] = React.useState(0);
   const [totalInvoiced, setTotalInvoiced] = React.useState(0);
+  const [totalTaxable, setTotalTaxable] = React.useState(0);        // [FIN-35-4]
+  const [totalOrderValue, setTotalOrderValue] = React.useState(0);  // [FIN-35-4]
   const [totalGst, setTotalGst] = React.useState(0); // T2-19: GST itemized across the filtered set
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -65,7 +67,11 @@ export const InvoicesListPage: React.FC = () => {
       page,
       limit: 25,
     })
-      .then(r => { setInvoices(r.invoices); setTotal(r.total); setTotalInvoiced(r.total_invoiced ?? 0); setTotalGst(r.total_gst ?? 0); })
+      .then(r => {
+        setInvoices(r.invoices); setTotal(r.total);
+        setTotalInvoiced(r.total_invoiced ?? 0); setTotalGst(r.total_gst ?? 0);
+        setTotalTaxable(r.total_taxable ?? 0); setTotalOrderValue(r.total_order_value ?? 0);
+      })
       .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [debouncedSearch, statusFilter, hubFilter, month, page, refreshTick]);
@@ -145,16 +151,36 @@ export const InvoicesListPage: React.FC = () => {
           <div className={kpi.summaryLabel}>{month ? 'Invoices this month' : filtered ? 'Invoices (filtered)' : 'Invoices (total)'}</div>
           <div className={kpi.summaryValue}>{loading ? '—' : total}</div>
         </div>
+        {/* [FIN-35-4] These two figures now come from THE SAME OBJECT and add up.
+            "Total invoiced" was SUM(orders.payable_amount) while GST came from the
+            invoices, so the CA's monthly pack showed ₹2,750 invoiced against ₹381
+            GST when the only invoice said 2,117.80 + 381.20 = 2,499.00 — two
+            numbers that could not be added (2,750 − 381 = 2,369 matches nothing). */}
         <div className={kpi.summaryCard}>
           <div className={kpi.summaryLabel}>Total invoiced</div>
           <div className={kpi.summaryValue}>{loading ? '—' : fmtINR(totalInvoiced)}</div>
-          <div className={kpi.summarySub}>sum of order value</div>
+          <div className={kpi.summarySub}>
+            grand total on the invoices ({fmtINR(totalTaxable)} taxable + {fmtINR(totalGst)} GST)
+          </div>
         </div>
         <div className={kpi.summaryCard}>
           <div className={kpi.summaryLabel}>GST collected</div>
           <div className={kpi.summaryValue}>{loading ? '—' : fmtINR(totalGst)}</div>
           <div className={kpi.summarySub}>CGST+SGST / IGST, itemized on generated invoices</div>
         </div>
+        {/* The order-side total, shown ONLY when it disagrees — an order whose
+            payable moved after invoicing (a partial cancel, a fee change) used to
+            widen the gap silently. */}
+        {!loading && Math.abs(totalOrderValue - totalInvoiced) > 0.5 && (
+          <div className={kpi.summaryCard}>
+            <div className={kpi.summaryLabel}>⚠ Order value differs</div>
+            <div className={kpi.summaryValue}>{fmtINR(totalOrderValue)}</div>
+            <div className={kpi.summarySub}>
+              sum of order payable — {fmtINR(Math.abs(totalOrderValue - totalInvoiced))} apart from
+              what was invoiced. Reconcile on Finance › Order money.
+            </div>
+          </div>
+        )}
       </div>
 
       <div className={ds.toolbar}>
