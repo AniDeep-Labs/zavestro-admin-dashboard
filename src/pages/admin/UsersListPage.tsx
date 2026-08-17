@@ -4,7 +4,6 @@ import { usersApi } from "../../api/adminApi";
 import type { AdminUser } from "../../api/adminApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
-import { downloadCsv, datedFilename } from "../../utils/csv";
 import { StatusBadge } from "../../components";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./UsersListPage.module.css";
@@ -82,38 +81,20 @@ export const UsersListPage: React.FC = () => {
     setConfirmExport(false);
     setExporting(true);
     try {
-      const all: AdminUser[] = [];
-      for (let p = 1; p <= 500; p++) {
-        const r = await usersApi.list({
-          search: debouncedSearch || undefined,
-          status: statusFilter || undefined,
-          page: p,
-          limit: 100,
-          full: true,
-        });
-        all.push(...r.users);
-        if (p >= r.totalPages || r.users.length === 0) break;
-      }
-      downloadCsv<AdminUser>(
-        datedFilename("customers"),
-        [
-          { header: "ID", value: (u) => u.reference_id || u.id },
-          { header: "Name", value: (u) => u.name },
-          { header: "Phone", value: (u) => u.phone },
-          { header: "Email", value: (u) => u.email },
-          { header: "City", value: (u) => u.city },
-          { header: "Orders", value: (u) => u.orders },
-          { header: "LTV", value: (u) => u.ltv },
-          { header: "Credits", value: (u) => u.credits },
-          { header: "Joined", value: (u) => u.joined },
-          { header: "Status", value: (u) => u.status },
-        ],
-        all,
-      );
+      // [SCA-44-2] One request. This was `for (let p = 1; p <= 500; p++)` fetching 100
+      // rows at a time — 500 sequential round trips at 50k customers, each re-running
+      // the list query with a growing OFFSET that Postgres serves by scanning and
+      // discarding, with the whole result set held in this tab before the file was
+      // written. The server builds the file in one pass and writes ONE audit row
+      // saying what left, instead of 500.
+      await usersApi.exportCsv({
+        search: debouncedSearch || undefined,
+        status: statusFilter || undefined,
+      });
       showToast(
         "success",
         "Export ready",
-        `${all.length} customer${all.length === 1 ? "" : "s"} exported.`,
+        "The customer export has been downloaded.",
       );
     } catch {
       showToast(

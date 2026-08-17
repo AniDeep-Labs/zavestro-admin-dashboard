@@ -583,6 +583,33 @@ export const usersApi = {
     };
   },
 
+  // [SCA-44-2] The export, done once on the server.
+  //
+  // This used to be `for (let p = 1; p <= 500; p++)` in the page: 500 sequential
+  // round trips at 50k customers, each re-running the list query with a growing
+  // OFFSET, the whole result set held in the tab before the file was written, and no
+  // way to resume. One request now, and the server writes ONE audit row saying
+  // exactly what left instead of 500.
+  exportCsv: async (params: { search?: string; status?: string } = {}): Promise<void> => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set("search", params.search);
+    if (params.status) qs.set("status", params.status);
+    const token = getAdminToken();
+    const res = await fetch(`${BASE}/api/admin/users/export?${qs}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`Export failed (${res.status})`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `customers-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+
   get: async (id: string): Promise<AdminUser> => {
     const u = await req<Record<string, unknown>>(`/api/admin/users/${id}`);
     return mapUser(u);
