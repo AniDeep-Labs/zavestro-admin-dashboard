@@ -100,7 +100,13 @@ type Accent = 'Emerald' | 'Amber' | 'Red' | 'Gold';
 const kpis: { label: string; key: string; format: (v: number) => string; icon: IconKey; accent: Accent; navPath: string; cap?: string }[] = [
   { label: 'Total Orders',     key: 'totalOrders',     format: v => v.toLocaleString(),                   icon: 'Package',       accent: 'Emerald', navPath: '/admin/orders', cap: 'orders:read' },
   { label: 'Active Orders',    key: 'activeOrders',    format: v => v.toLocaleString(),                   icon: 'Activity',      accent: 'Emerald', navPath: '/admin/orders?view=stuck', cap: 'orders:read' },
-  { label: 'GMV',              key: 'gmv',             format: v => '₹' + (v / 100000).toFixed(1) + 'L', icon: 'IndianRupee',   accent: 'Emerald', navPath: '/admin/analytics/revenue', cap: 'reports:read' },
+  // [FIN-37-2] Two finance screens reported revenue 12.8× apart — the P&L's
+  // BOOKED ₹31,876 against this card's COLLECTED ₹2,499 — and neither said which
+  // it was. Both are defensible definitions; showing one without its name is what
+  // made them irreconcilable. The card now states its basis (from the server, so
+  // the label cannot drift from the SQL) and the booked figure sits beside it.
+  { label: 'GMV',              key: 'gmv',             format: v => '₹' + v.toLocaleString('en-IN'), icon: 'IndianRupee',   accent: 'Emerald', navPath: '/admin/analytics/revenue', cap: 'reports:read' },
+  { label: 'Revenue booked',   key: 'bookedRevenue',   format: v => '₹' + v.toLocaleString('en-IN'), icon: 'IndianRupee',   accent: 'Gold',    navPath: '/admin/finance/pnl', cap: 'reports:read' },
   { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders?stage=pending_payment', cap: 'orders:read' },
   { label: 'Open Tickets',     key: 'openTickets',     format: v => v.toLocaleString(),                   icon: 'Headphones',    accent: 'Red',     navPath: '/admin/support', cap: 'customers:write' },
   { label: 'New Customers',    key: 'newCustomers',    format: v => v.toLocaleString(),                   icon: 'UserPlus',      accent: 'Emerald', navPath: '/admin/users', cap: 'customers:read' },
@@ -147,9 +153,19 @@ export const AdminDashboardPage: React.FC = () => {
     const orders = (data?.stats?.totalOrders?.value as number) ?? 0;
     return orders > 0 ? Math.round(revenueTotal / orders) : 0;
   }, [data, revenueTotal]);
-  const avgQc = React.useMemo(() => {
-    const hubs = data?.hubPerformance ?? [];
-    return hubs.length ? Math.round(hubs.reduce((s, h) => s + (h.qcPassRate || 0), 0) / hubs.length) : 0;
+  // [SHL-4-2] Average only the hubs that have actually inspected something.
+  //
+  // The backend used to send the literal 100 per hub and this faithfully averaged
+  // the constant, so the card read "QC Pass Rate · Across Hubs · 100%" on a
+  // brand-new database, during a quality crisis, and while the data held a QC-2
+  // FAIL. `|| 0` would be just as wrong in the other direction: an unmeasured hub
+  // is not a hub scoring zero. null → the card renders "—".
+  const avgQc = React.useMemo<number | null>(() => {
+    const measured = (data?.hubPerformance ?? []).filter(
+      (h) => typeof h.qcPassRate === 'number',
+    ) as { qcPassRate: number }[];
+    if (measured.length === 0) return null;
+    return Math.round(measured.reduce((s, h) => s + h.qcPassRate, 0) / measured.length);
   }, [data]);
   const funnelData = React.useMemo(
     () => (data?.ordersByStage ?? []).map(s => ({ name: s.label, count: s.count })),
@@ -200,6 +216,18 @@ export const AdminDashboardPage: React.FC = () => {
             </span>
           )}
         </div>
+        {/* [FIN-37-2] A money figure says which definition it uses, and an average
+            says what it divided by. "AVG. ORDER VALUE ₹2,499" beside an order count
+            of 14 invited the obvious (wrong) division — the denominator is PAID
+            orders, which was documented only in a backend comment. */}
+        {stat?.basisLabel && (
+          <div className={styles.metricBasis}>
+            {stat.basisLabel}
+            {stat.denominator !== undefined && stat.ordersInPeriod !== undefined && (
+              <> · {stat.denominator} of {stat.ordersInPeriod} orders paid</>
+            )}
+          </div>
+        )}
         <div className={styles.metricSpark}>
           {!loading && sparks && sparks.length > 0 && (
             <Sparkline data={sparks} up={isUp} height={30} color={isUp ? '#5BC08D' : '#EFA6A6'} />
@@ -302,7 +330,11 @@ export const AdminDashboardPage: React.FC = () => {
                 <span className={styles.miniTitle}>QC Pass Rate</span>
                 <span className={styles.miniSub}>across hubs</span>
               </div>
-              <div className={styles.miniValue}>{avgQc ? `${avgQc}%` : '—'}</div>
+              {/* [SHL-4-2] "—" and a reason, never a fabricated number. */}
+              <div className={styles.miniValue}>{avgQc === null ? '—' : `${avgQc}%`}</div>
+              {avgQc === null && (
+                <div className={styles.miniNote}>not yet measured — no QC results recorded</div>
+              )}
               {/* P-5 (T3-8): no daily QC series exists → draw nothing (was borrowing the
                   activeOrders series, which describes a different quantity). */}
             </div>

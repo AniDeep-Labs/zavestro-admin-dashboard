@@ -336,3 +336,16 @@ html, body, #root {
     padding: 0 var(--spacing-lg);
   }
 }
+
+/* ACP-2 [KA8-15] — money is right-aligned, everywhere.
+   Measured across the admin: 9 tables aligned money LEFT and 1 right, including
+   every ₹ cell in all six finance tables. A column of magnitudes cannot be
+   compared by eye unless the digits share a decimal position — this is the half
+   of the money-formatter fix that lives in CSS. Pair with `money()` in
+   src/utils/money.ts. Promote support's Orders list, which already did it. */
+.moneyCell,
+td.moneyCell,
+th.moneyCell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

@@ -48,12 +48,33 @@
 .note a { color: var(--color-primary); }
 
 /* Print: show only the sheet. */
+/* [KA10-7] The incomplete stamp. Hidden on screen (the page has a real "above"
+   to point at); unmissable on paper. */
+.incompleteStamp {
+  display: none;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 2px solid #000;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
 @media print {
   :global(body *) { visibility: hidden !important; }
   .sheet, .sheet * { visibility: visible !important; }
-  .sheet { position: absolute; left: 0; top: 0; width: 100%; max-width: none; border: none; padding: 0; }
+  /* [KA10-8] `left:0; top:0` put the content flush to the physical page edge —
+     inside the 5–10mm most printers cannot reach, so the header and the left edge
+     of every line were clipped. The rule that correctly removes the screen chrome
+     was the rule that clipped the document. A margin belongs on the @page, and a
+     printable inset on the sheet. */
+  .sheet { position: absolute; left: 0; top: 0; width: 100%; max-width: none; border: none; padding: 10mm 12mm; }
   .noPrint { display: none !important; }
+  .incompleteStamp { display: block !important; visibility: visible !important; }
 }
+
+@page { margin: 8mm; }
 
 /* Cut sheet as a modal */
 .cutSheetModal { max-width: 960px; }

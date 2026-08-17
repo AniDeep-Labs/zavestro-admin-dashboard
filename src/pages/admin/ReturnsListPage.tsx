@@ -39,6 +39,9 @@ export const ReturnsListPage: React.FC = () => {
   const navigate = useNavigate();
   const [search, setSearch] = React.useState('');
   const [returns, setReturns] = React.useState<ReturnRequest[]>([]);
+  // [SCA-44-3] server-aggregated truth, so a header count is not "what loaded"
+  const [sectionCounts, setSectionCounts] = React.useState<Record<string, number> | null>(null);
+  const [truncated, setTruncated] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const debouncedSearch = useDebounce(search, 350);
@@ -63,7 +66,12 @@ export const ReturnsListPage: React.FC = () => {
   React.useEffect(() => {
     setLoading(true);
     returnsApi.list({ limit: 100 })
-      .then(r => setReturns(r.returns))
+      .then(r => {
+        setReturns(r.returns);
+        // [SCA-44-3] The TRUE counts, from the server, over the whole set.
+        setSectionCounts(r.section_counts ?? null);
+        setTruncated(!!r.truncated);
+      })
       .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [refreshTick]);
@@ -116,12 +124,25 @@ export const ReturnsListPage: React.FC = () => {
     : returns;
 
   const bySection = (key: ReturnSection) => filtered.filter(r => (r.section ?? 'closed') === key);
+  // [SCA-44-3] Show what EXISTS, not what happened to load. The header used to
+  // count the rows in the browser, so at 101 returns an operator could not tell a
+  // quiet day from a truncated list — and nothing on screen changed shape to say so.
+  // While a search filter is active the loaded rows ARE the honest denominator.
+  const sectionCount = (key: ReturnSection, loaded: number) =>
+    !debouncedSearch && sectionCounts ? (sectionCounts[key] ?? loaded) : loaded;
 
   const renderSection = ({ key, title }: { key: ReturnSection; title: string }) => {
     const list = bySection(key);
     return (
       <section className={ds.section} key={key}>
-        <h2 className={ds.sectionTitle}>{title} <span className={ds.count}>{list.length}</span></h2>
+        <h2 className={ds.sectionTitle}>
+          {title} <span className={ds.count}>{sectionCount(key, list.length)}</span>
+          {!debouncedSearch && sectionCount(key, list.length) > list.length && (
+            <span className={ds.count} title="More exist than are loaded on this page">
+              · showing {list.length}
+            </span>
+          )}
+        </h2>
         {list.length === 0 ? (
           <p className={styles.pagination}>Nothing here.</p>
         ) : (
@@ -154,7 +175,17 @@ export const ReturnsListPage: React.FC = () => {
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Returns</h1>
+        <h1 className={styles.title}>
+          Returns
+          {/* [SCA-44-3] Say that this is a window, rather than letting the page
+              imply the window is the whole world. The counts in the section
+              headers are the server's, over everything. */}
+          {truncated && (
+            <span className={ds.count} title="This page shows the newest 100; the section counts are over all returns">
+              showing the newest {returns.length}
+            </span>
+          )}
+        </h1>
         <Button size="sm" onClick={() => setShowCreate(true)}>
           <UilPlus size={15} /> New return
         </Button>

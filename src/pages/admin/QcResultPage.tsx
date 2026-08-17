@@ -6,6 +6,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Button } from '../../components/Button/Button';
 import { Can } from '../../components/Can/Can';
+import { Alert } from '../../components/Alert/Alert';
 // Reuses the QC Templates layout (cards, table, fields) for visual consistency.
 import s from './QcTemplatesPage.module.css';
 
@@ -58,6 +59,12 @@ export const QcResultPage: React.FC = () => {
     setAnswers((a) => ({ ...a, [layer]: { ...a[layer], [key]: { ...a[layer][key], ...patch } } }));
 
   const record = async (layer: Layer, checks: QcCheck[]) => {
+    // [SUP-27-1] Break-glass demands a reason: a back-office QC verdict must say
+    // why the floor didn't record it, so the exception leaves a trace.
+    if (!notes[layer].trim()) {
+      toast('error', 'A note is required', 'Say why this verdict is being recorded here and not on the floor.');
+      return;
+    }
     const payload: QcResultAnswer[] = checks.map((c) => {
       const a = answers[layer][c.key] ?? {};
       return c.type === 'numeric'
@@ -161,7 +168,7 @@ export const QcResultPage: React.FC = () => {
               </tbody>
             </table>
             <div className={s.field}>
-              <label className={s.fieldLabel}>Note (optional)</label>
+              <label className={s.fieldLabel}>Note — why is this being recorded here?</label>
               <input
                 className={s.fieldInput}
                 value={notes[layer]}
@@ -169,7 +176,15 @@ export const QcResultPage: React.FC = () => {
               />
             </div>
             <div className={s.actions}>
-              <Can cap="orders:write">
+              {/* [SUP-27-1] `qc:write`, not `orders:write` — see the banner above. */}
+              <Can
+                cap="qc:write"
+                fallback={
+                  <span className={s.muted}>
+                    Read-only — recording a QC verdict is a floor action.
+                  </span>
+                }
+              >
                 <Button onClick={() => record(layer, checks)} state={saving === layer ? 'loading' : 'default'}>
                   Record QC-{layer === 'house' ? '1' : '2'}
                 </Button>
@@ -195,6 +210,20 @@ export const QcResultPage: React.FC = () => {
             : 'Enter house QC-1 and, for third-party garments, brand QC-2.'}
         </p>
       </div>
+
+      {/* [SUP-27-1] Say what this page is. Recording a QC verdict is the hub
+          floor's job — for a third-party garment the verdict is what releases it
+          for dispatch — and the ops app has no QC-2 screen yet. Until it does,
+          this console is a deliberate stopgap held by break-glass, not a
+          back-office routine. Distribution states its equivalent situation
+          plainly; this page used to say nothing at all. */}
+      <Can cap="qc:write">
+        <Alert
+          type="warning"
+          title="Break-glass — QC belongs on the floor"
+          message="QC is normally recorded by the hub's QC staff in the ops app, which has no QC-2 screen yet. Record here only when the floor cannot, and say why in the note — for a third-party garment this verdict is what releases the garment for dispatch."
+        />
+      </Can>
 
       {loading && <p className={s.empty}>Loading…</p>}
       {error && !loading && (

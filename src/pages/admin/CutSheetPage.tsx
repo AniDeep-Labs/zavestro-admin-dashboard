@@ -171,7 +171,20 @@ export const CutSheetModal: React.FC<{ open: boolean; designId?: string; onClose
         </div>
 
         {!result ? (
-          <p className={s.empty}>Generate the spec above — the finished measurements + QC band will appear here, ready to print.</p>
+          /* [KA10-7] A cut sheet with no measurements must SAY it is not a cut
+             sheet. This printed "Generate the spec above — …" onto A4: a click
+             instruction, on paper, where the POM table should be, with nothing on
+             the page marking it incomplete. The cutter received a document whose
+             only purpose is to carry numbers to a cutting table, at full
+             confidence, carrying a placeholder. The screen keeps the instruction
+             (there IS an "above" on screen); the PAPER gets the warning. */
+          <>
+            <div className={s.incompleteStamp}>INCOMPLETE — DO NOT CUT</div>
+            <p className={s.empty}>
+              Generate the spec above — the finished measurements + QC band will appear here,
+              ready to print.
+            </p>
+          </>
         ) : (
           <>
             <table className={s.specTable}>

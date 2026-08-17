@@ -15,6 +15,7 @@ import type { NavCounts, Hub } from "../../api/adminApi";
 import { getAdminHubContext, setAdminHubContext } from "../../utils/hubContext";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary";
 import { Spinner } from "../../components/Spinner";
+import { AccessDenied } from "../../components/AccessDenied/AccessDenied";
 import {
   BreadcrumbProvider,
   useBreadcrumb,
@@ -170,6 +171,15 @@ const SECTIONS: NavSection[] = [
         label: "Design Analytics",
         icon: <UilChartBar size={18} />,
         path: "/admin/design/analytics",
+        cap: "fit:read",
+      },
+      {
+        // [SUP-34-4] The other half of the fit loop, surfaced in the console that
+        // owns the fix. Same page as CX's entry; the API masks the customer for a
+        // role that holds fit:read without customers:read.
+        label: "Fit Complaints",
+        icon: <UilRuler size={18} />,
+        path: "/admin/fit-feedback",
         cap: "fit:read",
       },
     ],
@@ -344,7 +354,15 @@ const SECTIONS: NavSection[] = [
         label: "Returns",
         icon: <UilHistory size={18} />,
         path: "/admin/returns",
-        cap: "orders:write",
+        // [SUP-31-1] Support raises and works the return; FINANCE approves the
+        // refund — `ReturnDetailPage` is the only caller of `returnsApi.approve`
+        // in the whole admin, and the finance Refunds worklist lists only refunds
+        // already in flight, so there is no second door. With this page held at
+        // `orders:write` alone, the role that could open it could not approve and
+        // the role that could approve could not open it: a `defect_confirmed`
+        // return was finishable only by the legacy god-mode account. The API
+        // already 200s finance on both GETs — the backend expected it here.
+        caps: ["orders:write", "refunds:approve"],
       },
       {
         label: "Alterations",
@@ -356,7 +374,12 @@ const SECTIONS: NavSection[] = [
         label: "Support",
         icon: <UilHeadphones size={18} />,
         path: "/admin/support",
-        cap: "customers:write",
+        // [SUP-32-3] Escalation always targets FINANCE (`escalateTicket` →
+        // notifyAdminRole('finance')), and finance held no ticket capability — so
+        // the notification it received pointed at a page the nav guard refused and
+        // an API that 403'd. Finance can now open the ticket it was handed; the
+        // reply/assign verbs stay behind `customers:write` inside the page.
+        caps: ["customers:write", "refunds:approve"],
       },
       {
         label: "Call console",
@@ -374,7 +397,10 @@ const SECTIONS: NavSection[] = [
         label: "Fit Feedback",
         icon: <UilRuler size={18} />,
         path: "/admin/fit-feedback",
-        cap: "reviews:moderate",
+        // [SUP-34-4] Design owns fit calibration and could not read one verbatim
+        // fit complaint; support reads them all day and cannot see the aggregate.
+        // The raw feed is fit data — design gets it with the customer masked.
+        caps: ["reviews:moderate", "fit:read"],
       },
       {
         label: "Coverage / Waitlist",
@@ -508,18 +534,29 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-// Flat label→cap map (for the deep-link route guard), derived from SECTIONS + HOME.
-const NAV_CAP: Record<string, string | undefined> = Object.fromEntries([
+// Flat label→caps map (for the deep-link route guard), derived from SECTIONS + HOME.
+// [SUP-31-1] It carries a LIST, not a single capability: a page whose API admits two
+// roles must admit both here too, or the page and the verb end up held by different
+// people — which is exactly how a return refund became un-approvable by any designed
+// role (the page was `orders:write`/support, the approve button `refunds:approve`/
+// finance, and only the legacy god-mode account held both).
+const navCapsOf = (it: NavItem): string[] | undefined =>
+  it.caps ?? (it.cap ? [it.cap] : undefined);
+const NAV_CAP: Record<string, string[] | undefined> = Object.fromEntries([
   [HOME.label, undefined],
-  ...SECTIONS.flatMap((s) => s.items.map((it) => [it.label, it.cap])),
+  ...SECTIONS.flatMap((s) => s.items.map((it) => [it.label, navCapsOf(it)])),
 ]);
 const ALL_ITEMS: NavItem[] = [HOME, ...SECTIONS.flatMap((s) => s.items)];
 
 // T3-9 (P-4): capability guard for routes that have NO nav ancestor (so `currentNav` misses
 // them). Prefix-matched. FabricAtHub (procurement/track) needs the same cap as the rest of the
 // procurement console. /admin/profile is intentionally omitted — any admin may view it.
-const NAV_LESS_CAP: { prefix: string; cap: string }[] = [
-  { prefix: "/admin/procurement/track", cap: "distribution:write" },
+const NAV_LESS_CAP: { prefix: string; caps: string[] }[] = [
+  { prefix: "/admin/procurement/track", caps: ["distribution:write"] },
+  // [SUP-27-1] The QC-result page hangs off an order row, not off the nav. It is a
+  // floor verb held as break-glass; without an entry here a role without `qc:write`
+  // deep-links into a page whose only button is hidden.
+  { prefix: "/admin/orders/qc", caps: ["qc:write"] },
 ];
 
 // T3-1 (S-1 + S-3): cap-gated create verbs — the single source for both the palette actions
@@ -560,12 +597,30 @@ const AdminLayoutInner: React.FC = () => {
 
   const adminUser = getAdminUser();
   const adminEmail = adminUser?.email ?? "admin@zavestro.in";
-  const adminRole = adminUser?.role ?? "admin";
+  // [SHL-3-6] Was `?? "admin"` — the legacy god-mode role. The cached user blob is
+  // client-owned and written once at login, so deleting that one localStorage key
+  // while keeping the token promoted any session to god-mode in the UI (measured:
+  // a 3-capability `design` account went from 1 create verb to all 5, including
+  // "New staff"). The backend refused everything, so this was a UI escalation, not
+  // a privilege one — but it failed toward the exact role the RBAC model exists to
+  // retire. A missing cache now means the LEAST privilege, not the most.
+  const cachedRole = adminUser?.role ?? "pending";
   const adminInitial = adminEmail[0].toUpperCase();
 
   // Capabilities drive which nav sections show. Refresh from the server on mount
   // (covers page reloads + admins who logged in before this feature existed).
+  //
+  // [SHL-3-5]/[PEN-38-2] `capsLoaded` is the whole point of this state. The route
+  // guard used to escape on `caps.length > 0` — added so a still-loading session
+  // isn't bounced to a lock screen — but `pending` holds zero capabilities
+  // PERMANENTLY, so the guard was structurally unreachable for exactly the role it
+  // most needed to stop: a zero-cap account reached 24 of 24 consoles by URL.
+  // "Still loading" and "genuinely zero" are now different states.
   const [caps, setCaps] = React.useState<string[]>(getAdminCapabilities());
+  const [capsLoaded, setCapsLoaded] = React.useState(false);
+  // [SHL-3-6]/[SHL-2-11] The authoritative role comes from the server, not from a
+  // client-owned localStorage blob written once at login.
+  const [serverRole, setServerRole] = React.useState<string | null>(null);
   React.useEffect(() => {
     let alive = true;
     adminAuthExtApi
@@ -574,15 +629,20 @@ const AdminLayoutInner: React.FC = () => {
         if (alive) {
           setAdminCapabilities(me.capabilities ?? []);
           setCaps(me.capabilities ?? []);
+          setServerRole(me.role);
+          setCapsLoaded(true);
         }
       })
       .catch(() => {
-        /* keep cached caps */
+        /* keep cached caps; the guard stays in its "not yet known" state */
       });
     return () => {
       alive = false;
     };
   }, []);
+  // The server's answer wins the moment it arrives; the cache only covers the first
+  // paint, and it can no longer name a role more powerful than the one you have.
+  const adminRole = serverRole ?? cachedRole;
 
   // Nav badge counts (FABLE-ADMIN-UIUX §1.2) — "what needs me" per nav item.
   // Keyed by item path; the endpoint already returns only cap-allowed keys.
@@ -717,28 +777,37 @@ const AdminLayoutInner: React.FC = () => {
   }, [hubAgnostic]);
 
   // Route guard: block the content area if the current path needs a capability the
-  // role lacks (deep-link protection). Only enforce once caps are known (non-empty)
-  // so a still-loading session isn't bounced. Backend also 403s the APIs.
-  const currentNav = ALL_ITEMS.find(
+  // role lacks (deep-link protection). Backend also 403s the APIs.
+  // LONGEST matching path wins, not the first declared. `/admin/support/call` is its
+  // own nav item AND a child of `/admin/support`; with first-match the two entries'
+  // capabilities were decided by declaration order, so widening one silently widened
+  // the other. Most specific route wins is the only stable rule here.
+  const currentNav = ALL_ITEMS.filter(
     (n) =>
       location.pathname === n.path ||
       location.pathname.startsWith(n.path + "/"),
-  );
+  ).sort((a, b) => b.path.length - a.path.length)[0];
   // T3-9 (P-4): pages with no nav ancestor still need a cap guard, else a role without it
   // deep-links in and sees a broken 403-toast page instead of the access-denied screen.
   // (/admin/profile is intentionally cap-free — any admin may view their own profile.)
-  const requiredCap =
-    (currentNav ? NAV_CAP[currentNav.label] : undefined) ??
-    NAV_LESS_CAP.find((m) => location.pathname.startsWith(m.prefix))?.cap;
+  // PATH_CAP wins over the nav ancestor: it is the more specific statement, and a
+  // sub-page can need a capability its parent list does not (e.g. /admin/orders/qc).
+  const requiredCaps =
+    NAV_LESS_CAP.find((m) => location.pathname.startsWith(m.prefix))?.caps ??
+    (currentNav ? NAV_CAP[currentNav.label] : undefined);
   // super_admin is oversight-only — deep-link into a role-owned console is blocked too.
   const superBlocked =
     adminRole === "super_admin" &&
     ROLE_OWNED_PATHS.some(
       (p) => location.pathname === p || location.pathname.startsWith(p + "/"),
     );
+  // [SHL-3-5]/[PEN-38-2] Enforce once capabilities are KNOWN, not once they are
+  // non-empty. `capsLoaded` is false only while `me()` is in flight (or has failed),
+  // which is the case the old `caps.length > 0` clause was trying to cover — and
+  // which it covered by also exempting every zero-capability account forever.
   const accessDenied =
     superBlocked ||
-    (!!requiredCap && caps.length > 0 && !caps.includes(requiredCap));
+    (!!requiredCaps && capsLoaded && !requiredCaps.some((c) => caps.includes(c)));
 
   // T3-1 (S-6): don't let a logout silently eat unsaved form edits — confirm first.
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
@@ -1039,40 +1108,25 @@ const AdminLayoutInner: React.FC = () => {
         <main className={styles.content}>
           <ErrorBoundary>
             {accessDenied ? (
-              <div
-                style={{
-                  padding: "4rem 2rem",
-                  textAlign: "center",
-                  maxWidth: 480,
-                  margin: "0 auto",
-                }}
-              >
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
-                <h2 style={{ margin: "0 0 8px", fontSize: 20 }}>
-                  No access to this section
-                </h2>
-                <p
-                  style={{
-                    color: "var(--text-muted, #888)",
-                    fontSize: 14,
-                    marginBottom: 20,
-                  }}
-                >
-                  Your role doesn’t have permission for this page. Contact a
-                  Super Admin if you need access.
-                </p>
-                <button
-                  className={styles.navItem}
-                  style={{
-                    display: "inline-flex",
-                    width: "auto",
-                    padding: "8px 18px",
-                  }}
-                  onClick={() => navigate("/admin/dashboard")}
-                >
-                  Go to Dashboard
-                </button>
-              </div>
+              /* ACP-1 [KA9-1..KA9-7]: ONE refusal screen, and it NAMES the
+                 capability. This was a hand-rolled block with the generic
+                 "Your role doesn't have permission for this page" — the second of
+                 the admin's two denial dialects. The orders list's
+                 "Viewing this requires one of: orders:read" is the good version
+                 and already existed; this promotes it everywhere. */
+              <AccessDenied
+                /* Wave 1's LIST: a page whose API admits two roles names both —
+                   e.g. /admin/returns is orders:write OR refunds:approve. */
+                requires={requiredCaps}
+                what={currentNav ? `“${currentNav.label}”` : 'this section'}
+                reason={
+                  superBlocked
+                    ? 'oversight-only'
+                    : caps.length === 0
+                      ? 'no-role'
+                      : 'no-capability'
+                }
+              />
             ) : (
               // Suspense catches lazy route-chunk loads (G23); sidebar stays put.
               <Suspense

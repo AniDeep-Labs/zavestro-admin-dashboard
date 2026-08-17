@@ -16,7 +16,34 @@ import styles from './OrdersListPage.module.css';
 import d from './AlterationsListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilSearch, UilTimes, UilPlus } from "@iconscout/react-unicons";
 
-const STATUSES = ['pending', 'in_progress', 'completed', 'cancelled'];
+// [SUP-31-3] The statuses an alteration can ACTUALLY hold, in lifecycle order.
+//
+// This list used to be ['pending','in_progress','completed','cancelled'] and every
+// one of the four was dead: measured against the live API, each returned 0 rows,
+// and `pending` and `cancelled` are not even legal values — the DB's CHECK
+// constraint (migrations 177 + 202) allows the eleven below. Meanwhile the two
+// statuses the rows were actually in, `in_alteration` and `redelivered`, were not
+// offered at all. A filter where every option is a dead end is worse than no
+// filter: it reads as "there is nothing here".
+const STATUSES = [
+  'requested',
+  'agent_visit_scheduled',
+  'agent_visit_completed',
+  'agent_visit_failed',
+  'in_alteration',
+  'alteration_qc',
+  'ready_for_redelivery',
+  'redelivered',
+  // Kept for backwards compat with pre-migration rows (constraint 177).
+  'in_progress',
+  'completed',
+  'rejected',
+];
+
+// The states in which an alteration is still SOMEBODY'S PROBLEM. Everything else
+// is terminal, and an alteration sitting in a terminal state is not aging.
+const TERMINAL_STATUSES = new Set(['redelivered', 'completed', 'rejected']);
+
 const AGING_DAYS = 5; // P1 alteration TAT target — surfaced where support lives
 
 function useDebounce<T>(v: T, delay: number) {
@@ -25,8 +52,15 @@ function useDebounce<T>(v: T, delay: number) {
   return dv;
 }
 
+// [SUP-31-3] Aging = still open and older than the TAT, whatever "open" is called.
+//
+// This tested `status === 'pending' || status === 'in_progress'` — two values the
+// alteration machine does not produce — so a garment sitting in `in_alteration`
+// for a month never entered the "Aging" panel, which is the page's entire reason
+// to exist as a worklist. Written as "not terminal" so a new intermediate status
+// is caught by default rather than silently exempted, which is how this broke.
 const isAging = (a: AlterationRequest) =>
-  (a.status === 'pending' || a.status === 'in_progress') &&
+  !TERMINAL_STATUSES.has(a.status) &&
   Date.now() - new Date(a.created_at).getTime() > AGING_DAYS * 24 * 3_600_000;
 
 export const AlterationsListPage: React.FC = () => {
@@ -35,6 +69,8 @@ export const AlterationsListPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = React.useState('');
   const [page, setPage] = React.useState(1);
   const [alterations, setAlterations] = React.useState<AlterationRequest[]>([]);
+  // [SUP-31-3] the aging panel's unpaginated source — see the effect below
+  const [agingPool, setAgingPool] = React.useState<AlterationRequest[]>([]);
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -62,6 +98,16 @@ export const AlterationsListPage: React.FC = () => {
       .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [statusFilter, page, refreshTick]);
+
+  // [SUP-31-3] The aging panel's own, unpaginated read. The exception a worklist
+  // exists to surface must not depend on which page you happen to be looking at.
+  // Deliberately unfiltered by the status dropdown too: filtering to one status
+  // and being told nothing is late would be the same lie in a smaller box.
+  React.useEffect(() => {
+    alterationsApi.list({ limit: 200 })
+      .then(r => setAgingPool(r.alterations))
+      .catch(() => setAgingPool([]));
+  }, [refreshTick]);
 
   // When a customer is chosen in the create modal, load their DELIVERED orders.
   React.useEffect(() => {
@@ -111,7 +157,12 @@ export const AlterationsListPage: React.FC = () => {
         a.order_number?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         a.customer_name?.toLowerCase().includes(debouncedSearch.toLowerCase()))
     : alterations;
-  const aging = filtered.filter(isAging);
+  // [SUP-31-3] The aging panel scans the WHOLE set, not the visible page.
+  //
+  // It used to filter `filtered`, i.e. the current 25 rows, so a correctly-keyed
+  // exception on page 2 was invisible — an exception panel that only sees the
+  // first page is a panel that reports "nothing is late" while something is.
+  const aging = agingPool.filter(isAging);
 
   const renderRows = (list: AlterationRequest[]) =>
     list.map(a => (

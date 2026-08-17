@@ -129,7 +129,8 @@ export interface Hub {
   status: 'Active' | 'Inactive' | 'At Capacity' | 'Critical';
   activeOrders: number;
   capacityUsed: number;
-  qcPassRate: number;
+  /** [SHL-4-2] null = not yet measured. Never default to a number. */
+  qcPassRate: number | null;
   staffCount: number;
   tailorCount: number;
   qcCount: number;
@@ -160,6 +161,13 @@ export interface TicketMessage {
   sender_type: 'customer' | 'staff' | 'system';
   sender_id: string | null;
   body: string;
+  /**
+   * [SUP-32-2] An admin-team-only note. Optional because rows written before
+   * migration 217 genuinely have no answer: the route dropped the flag, so an
+   * "internal note" and a customer reply were the same row and neither can be
+   * claimed to have been private.
+   */
+  is_internal?: boolean;
   created_at: string;
 }
 

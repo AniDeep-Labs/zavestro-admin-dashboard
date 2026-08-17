@@ -124,7 +124,22 @@ export const adminAuth = {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-type StatShape = { value: number; trend: string; up: boolean };
+type StatShape = {
+  value: number;
+  trend: string;
+  up: boolean;
+  /**
+   * [FIN-37-2] What this number MEANS, sent by the server so the label cannot
+   * drift from the SQL that produced it. Two finance screens reported revenue
+   * 12.8× apart — booked vs collected — and neither stated which it was.
+   */
+  basis?: 'collected' | 'booked';
+  basisLabel?: string;
+  /** For averages: what the figure was divided by, and out of how many. */
+  denominator?: number;
+  denominatorLabel?: string;
+  ordersInPeriod?: number;
+};
 
 export interface DashboardData {
   stats: Record<string, StatShape>;
@@ -134,7 +149,8 @@ export interface DashboardData {
     activeOrders: number;
     staffCount: number;
     capacity: number;
-    qcPassRate: number;
+    /** [SHL-4-2] null = nothing inspected yet. NEVER default this to a number. */
+    qcPassRate: number | null;
   }[];
   alerts: { level: string; text: string; link: string }[];
   recentActivity: { icon: string; text: string; time: string }[];
@@ -732,7 +748,9 @@ function mapHub(h: Record<string, unknown>): Hub {
     tailorCount,
     qcCount,
     capacityUsed,
-    qcPassRate: (h.qcPassRate as number) ?? 100,
+    // [SHL-4-2] A SECOND hardcoded 100 — the mapper defaulted an absent QC rate
+    // to a perfect score. null means "not yet measured"; the UI renders "—".
+    qcPassRate: (h.qcPassRate as number | null) ?? null,
     managerName: (h.managerName ?? h.manager_name ?? "") as string,
     managerPhone: (h.managerPhone ?? h.manager_phone ?? "") as string,
     managerStaffId: (h.managerStaffId ?? h.manager_staff_id ?? null) as string | null,
@@ -1846,6 +1864,15 @@ export interface ReturnRequest {
 export interface ReturnsResponse {
   returns: ReturnRequest[];
   total: number;
+  /**
+   * [SCA-44-3] Section counts aggregated ON THE SERVER over the whole set. The
+   * page loads the newest 100 and buckets them client-side, so a header count
+   * derived from the loaded rows says "what loaded", not "what exists" — and at
+   * 101 returns the operator cannot tell a quiet day from a truncated one.
+   */
+  section_counts?: Record<string, number>;
+  /** True when more rows exist than this page returned. */
+  truncated?: boolean;
   page: number;
   limit: number;
 }
@@ -2534,6 +2561,8 @@ export interface InvoicesResponse {
   invoices: Invoice[];
   total: number;
   total_invoiced?: number;
+  total_taxable?: number; // [FIN-35-4] the taxable half of total_invoiced
+  total_order_value?: number; // [FIN-35-4] the ORDER-side total, for showing a divergence
   total_gst?: number; // T2-19: GST itemized across the filtered set (CA's monthly figure)
   page: number;
   limit: number;
@@ -2827,7 +2856,15 @@ export interface RefundEntry {
   order_number: string;
   hub_id: string | null;
   hub_name: string | null;
-  refund_amount: string | number; // order payable_amount (full-amount refund)
+  /**
+   * [FIN-36-1] The APPROVED refund amount — `return_requests.refund_amount`, what
+   * the approval actually authorised. This used to be aliased from
+   * `orders.payable_amount`, so on a partial refund finance was instructed to pay
+   * the full order value (proved: ₹1,899 approved, ₹2,750 shown).
+   */
+  refund_amount: string | number;
+  /** The ORDER's total, so a partial refund is visibly partial. */
+  order_payable_amount?: string | number;
   payment_method: string; // 'online' | 'cod'
   customer_name: string | null;
   customer_phone: string | null;
@@ -4511,11 +4548,14 @@ export interface CustomerVerifyClaim {
 }
 
 export const customerLookupApi = {
-  // G-93: `masked` (the Call Console) asks the server to withhold contact PII in the
-  // search list — full PII is only released by verify() on a matching caller claim.
-  search: async (q: string, masked = false): Promise<CustomerLookupResult[]> => {
+  // G-93: full PII is released by verify() on a matching caller claim.
+  // [SUP-33-1] Masking is now the SERVER's default, not something a caller opts
+  // into: `masked` used to be `verify=1`, so dropping one query parameter returned
+  // ten full customer records to anyone with `customers:read`, unaudited. The
+  // parameter kept here is `full`, which names what it does and is logged.
+  search: async (q: string, masked = true): Promise<CustomerLookupResult[]> => {
     const result = await req<{ customers: CustomerLookupResult[] }>(
-      `/api/admin/customers/lookup?q=${encodeURIComponent(q)}${masked ? "&verify=1" : ""}`,
+      `/api/admin/customers/lookup?q=${encodeURIComponent(q)}${masked ? "" : "&full=1"}`,
     );
     return result?.customers ?? [];
   },

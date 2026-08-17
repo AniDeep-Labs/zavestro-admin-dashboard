@@ -24,6 +24,7 @@ import { DispositionPanel } from "../../components/DispositionPanel/DispositionP
 import { StatusBadge, statusLabel } from "../../components/StatusBadge";
 import { PageHeader, DetailShell } from "../../components";
 import styles from "./OrderDetailPage.module.css";
+import { money } from "../../utils/money"; // ACP-2 [KA7-8]: one shape, everywhere
 import {
   UilAngleLeft,
   UilBox,
@@ -617,7 +618,7 @@ export const OrderDetailPage: React.FC = () => {
         "success",
         "Item cancelled",
         res.refunded > 0
-          ? `₹${res.refunded.toLocaleString("en-IN")} refunded to source.`
+          ? `${money(res.refunded)} refunded to source.`
           : "Order total reduced.",
       );
       setCancelItem(null);
@@ -1491,14 +1492,19 @@ export const OrderDetailPage: React.FC = () => {
                             )}
                           </td>
                           <td>{it.quantity}</td>
-                          <td>₹{it.unit_price.toLocaleString("en-IN")}</td>
+                          <td>{money(it.unit_price)}</td>
                           <td>
-                            ₹
-                            {(it.quantity * it.unit_price).toLocaleString("en-IN")}
+                            {money(it.quantity * it.unit_price)}
                           </td>
                           <td>
+                            {/* [SUP-27-1] Recording a QC verdict is a FLOOR verb —
+                                for a third-party garment it is what releases the
+                                garment for dispatch. It was `orders:write`, i.e.
+                                support. Now `qc:write` (super_admin break-glass,
+                                same footing as advance/assign) until the ops app
+                                ships its QC-2 screen. */}
                             {!cancelled && (
-                              <Can cap="orders:write">
+                              <Can cap="qc:write">
                                 <button
                                   className={styles.linkBtn}
                                   onClick={() => navigate(`/admin/orders/qc/${it.id}`)}
@@ -1538,7 +1544,7 @@ export const OrderDetailPage: React.FC = () => {
               <div>
                 <span className={`${styles.metaLabel} ${styles.totalLabel}`}>Total</span>
                 <span className={styles.totalValue}>
-                  ₹{order.total.toLocaleString("en-IN")}
+                  {money(order.total)}
                 </span>
               </div>
             </div>
@@ -1583,7 +1589,13 @@ export const OrderDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Craftsperson + QC */}
+            {/* Craftsperson + QC.
+                [SUP-29-1] These two rows sit OUTSIDE the <Can cap="system:manage">
+                that wraps NextStepCard, so support — which cannot call
+                assign-craftsperson / assign-qc-staff (both system:manage
+                break-glass, G-23) — was offered a live "Assign staff…" control
+                that 403s on submit. Everyone still SEES who is assigned; only
+                break-glass gets to change it. */}
             <div className={styles.assignRow}>
               <div>
                 <div className={styles.assignLabel}>
@@ -1593,14 +1605,23 @@ export const OrderDetailPage: React.FC = () => {
                 {normStage === "measurement_complete" ||
                 currentIdx > STAGE_IDX["measurement_complete"] ? (
                   <>
-                    <StaffAssignmentDropdown
-                      value={order.craftsperson_id ?? null}
-                      onChange={handleAssignCraft}
-                      hubId={order.hub_id ?? undefined}
-                      showWorkload
-                      filterRoles={["tailor", "cutter", "finisher"]}
-                      disabled={assigningCraft}
-                    />
+                    <Can
+                      cap="system:manage"
+                      fallback={
+                        <div className={styles.assignHint}>
+                          {order.craftsperson_name ?? "Not yet assigned"}
+                        </div>
+                      }
+                    >
+                      <StaffAssignmentDropdown
+                        value={order.craftsperson_id ?? null}
+                        onChange={handleAssignCraft}
+                        hubId={order.hub_id ?? undefined}
+                        showWorkload
+                        filterRoles={["tailor", "cutter", "finisher"]}
+                        disabled={assigningCraft}
+                      />
+                    </Can>
                     {order.craftsperson_name && (
                       <div className={styles.assignRole}>{order.craftsperson_role}</div>
                     )}
@@ -1615,7 +1636,14 @@ export const OrderDetailPage: React.FC = () => {
                   QC Staff
                 </div>
                 {currentIdx >= STAGE_IDX["quality_check"] ? (
-                  <>
+                  <Can
+                    cap="system:manage"
+                    fallback={
+                      <div className={styles.assignHint}>
+                        {order.qc_staff_name ?? "Not yet assigned"}
+                      </div>
+                    }
+                  >
                     <StaffAssignmentDropdown
                       value={order.qc_staff_id ?? null}
                       onChange={handleAssignQC}
@@ -1624,7 +1652,7 @@ export const OrderDetailPage: React.FC = () => {
                       filterRoles={["quality_checker"]}
                       disabled={assigningQC}
                     />
-                  </>
+                  </Can>
                 ) : (
                   <div className={styles.assignHint}>Available at QC stage</div>
                 )}
@@ -1696,18 +1724,30 @@ export const OrderDetailPage: React.FC = () => {
           {/* ── Payment ───────────────────────────────────────────────────── */}
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Payment</h3>
+            {/* [SUP-28-1] No payment row means NO PAYMENT RECORDED — it does not
+                mean "pending". The detail endpoint never returned a `payments` key
+                at all, so this branch fired on EVERY order and every one of them
+                told the agent the payment was pending — including a delivered
+                order paid online. On the one screen where a refund conversation
+                starts, the payment status was a constant. The endpoint now returns
+                the rows; when there genuinely are none, say exactly that. */}
             {(order.payments ?? []).length === 0 ? (
               <div className={styles.paymentGrid}>
                 <div>
                   <div className={styles.metaLabel}>Amount</div>
                   <div className={styles.metaValue}>
-                    ₹{order.total.toLocaleString("en-IN")}
+                    {money(order.total)}
                   </div>
                 </div>
                 <div>
                   <div className={styles.metaLabel}>Status</div>
                   <div className={styles.metaValue}>
-                    <span className={styles.captured}>pending</span>
+                    <span className={styles.pendingPay}>No payment recorded</span>
+                    <div className={styles.paymentNote}>
+                      {order.payment_method === "cod"
+                        ? "COD — cash is collected on delivery and recorded by the ops app."
+                        : "Nothing has been captured against this order yet."}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1723,7 +1763,7 @@ export const OrderDetailPage: React.FC = () => {
                   <div>
                     <div className={styles.metaLabel}>Amount</div>
                     <div className={styles.metaValue}>
-                      ₹{parseFloat(String(p.amount)).toLocaleString("en-IN")}
+                      {money(p.amount)}
                     </div>
                   </div>
                   {p.payment_gateway_id && (

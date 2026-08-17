@@ -21,9 +21,12 @@ import s from "./CodReconciliationPage.module.css";
 import ds from "./DistributionPage.module.css";
 import { UilRefresh, UilTimes, UilImport } from "@iconscout/react-unicons";
 import { downloadCsv, datedFilename } from "../../utils/csv";
+import { money } from "../../utils/money";
 
-const fmtINR = (n: number) =>
-  `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+// ACP-2 [KA8-15]: one money formatter for the whole admin (src/utils/money.ts).
+// This page declared its own; five pages did, every one different, producing four
+// shapes of the same amount product-wide — two of them in the same table row.
+const fmtINR = (n: number | null | undefined) => money(n);
 const fmtDay = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
@@ -233,9 +236,9 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
         <Link className={styles.drillLink} to={drillHref({ day: d.day })}>{fmtDay(d.day)}</Link>
       </td>
       <td>{d.orders}</td>
-      <td className={styles.total}>{fmtINR(d.gross_online)}</td>
-      <td>{fmtINR(d.refunded)}</td>
-      <td className={styles.total}>{fmtINR(d.net_settled)}</td>
+      <td className={`moneyCell ${styles.total}`}>{fmtINR(d.gross_online)}</td>
+      <td className="moneyCell">{fmtINR(d.refunded)}</td>
+      <td className={`moneyCell ${styles.total}`}>{fmtINR(d.net_settled)}</td>
     </tr>
   );
 
@@ -352,17 +355,17 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                   </div>
                   <div className={styles.tableWrap}>
                     <table className={styles.table}>
-                      <thead><tr><th>Settlement</th><th>Date</th><th>Gross</th><th>Refunds</th><th>Fees</th><th>GST</th><th>Net deposited</th><th>UTR</th><th>Src</th><th></th></tr></thead>
+                      <thead><tr><th>Settlement</th><th>Date</th><th className="moneyCell">Gross</th><th>Refunds</th><th>Fees</th><th className="moneyCell">GST</th><th className="moneyCell">Net deposited</th><th>UTR</th><th>Src</th><th></th></tr></thead>
                       <tbody>
                         {settlement!.reconciliation.by_settlement.map((r: SettlementRow) => (
                           <tr key={r.settlement_id} className={styles.row}>
                             <td className={styles.orderId}>{r.settlement_id}</td>
                             <td className={styles.date}>{fmtDay(r.settled_on)}</td>
-                            <td>{fmtINR(r.gross_amount)}</td>
-                            <td>{fmtINR(r.refunds_amount)}</td>
-                            <td>{fmtINR(r.fees_amount)}</td>
-                            <td>{fmtINR(r.tax_amount)}</td>
-                            <td className={styles.total}>{fmtINR(r.net_deposited)}</td>
+                            <td className="moneyCell">{fmtINR(r.gross_amount)}</td>
+                            <td className="moneyCell">{fmtINR(r.refunds_amount)}</td>
+                            <td className="moneyCell">{fmtINR(r.fees_amount)}</td>
+                            <td className="moneyCell">{fmtINR(r.tax_amount)}</td>
+                            <td className={`moneyCell ${styles.total}`}>{fmtINR(r.net_deposited)}</td>
                             <td>{r.utr ?? "—"}</td>
                             <td>{r.source}</td>
                             <td>
@@ -384,7 +387,7 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                 <h2 className={ds.sectionTitle}>By day <span className={ds.count}>{settlement!.by_day!.length}</span></h2>
                 <div className={styles.tableWrap}>
                   <table className={styles.table}>
-                    <thead><tr><th>Date</th><th>Orders</th><th>Gross (online)</th><th>Refunded</th><th>Net settled</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Orders</th><th className="moneyCell">Gross (online)</th><th className="moneyCell">Refunded</th><th className="moneyCell">Net settled</th></tr></thead>
                     <tbody>{settlement!.by_day!.map(dayRow)}</tbody>
                   </table>
                 </div>
@@ -394,22 +397,22 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
               <h2 className={ds.sectionTitle}>By hub <span className={ds.count}>{settlement!.hubs.length}</span></h2>
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
-                  <thead><tr><th>Hub</th><th>Orders</th><th>Gross (online)</th><th>Refunded</th><th>Net settled</th></tr></thead>
+                  <thead><tr><th>Hub</th><th>Orders</th><th className="moneyCell">Gross (online)</th><th className="moneyCell">Refunded</th><th className="moneyCell">Net settled</th></tr></thead>
                   <tbody>
                     {settlement!.hubs.map((h, i) => (
                       <tr key={h.hub_id ?? i} className={styles.row}>
                         <td>{hubCell(h.hub_id, h.hub_name)}</td>
                         <td>{h.orders}</td>
-                        <td className={styles.total}>{fmtINR(h.gross_online)}</td>
-                        <td>{fmtINR(h.refunded)}</td>
-                        <td className={styles.total}>{fmtINR(h.net_settled)}</td>
+                        <td className={`moneyCell ${styles.total}`}>{fmtINR(h.gross_online)}</td>
+                        <td className="moneyCell">{fmtINR(h.refunded)}</td>
+                        <td className={`moneyCell ${styles.total}`}>{fmtINR(h.net_settled)}</td>
                       </tr>
                     ))}
                     <tr className={styles.row} style={{ fontWeight: 700 }}>
                       <td>Total</td><td />
-                      <td className={styles.total}>{fmtINR(settlement!.totals.gross_online)}</td>
-                      <td>{fmtINR(settlement!.totals.refunded)}</td>
-                      <td className={styles.total}>{fmtINR(settlement!.totals.net_settled)}</td>
+                      <td className={`moneyCell ${styles.total}`}>{fmtINR(settlement!.totals.gross_online)}</td>
+                      <td className="moneyCell">{fmtINR(settlement!.totals.refunded)}</td>
+                      <td className={`moneyCell ${styles.total}`}>{fmtINR(settlement!.totals.net_settled)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -436,24 +439,24 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                 <tr key={h.hub_id ?? i} className={styles.row}>
                   <td>{hubCell(h.hub_id, h.hub_name)}</td>
                   <td>{h.orders}</td>
-                  <td>{fmtINR(h.revenue)}</td>
-                  <td>{fmtINR(h.fabric_cost)}</td>
-                  <td>{fmtINR(h.guarantee_cost)}</td>
-                  <td>{fmtINR(h.delivery_cost)}</td>
-                  <td>{fmtINR(h.payment_fees)}</td>
-                  <td>{fmtINR(h.refunds)}</td>
-                  <td className={styles.total}>{fmtINR(h.profit)}</td>
+                  <td className="moneyCell">{fmtINR(h.revenue)}</td>
+                  <td className="moneyCell">{fmtINR(h.fabric_cost)}</td>
+                  <td className="moneyCell">{fmtINR(h.guarantee_cost)}</td>
+                  <td className="moneyCell">{fmtINR(h.delivery_cost)}</td>
+                  <td className="moneyCell">{fmtINR(h.payment_fees)}</td>
+                  <td className="moneyCell">{fmtINR(h.refunds)}</td>
+                  <td className={`moneyCell ${styles.total}`}>{fmtINR(h.profit)}</td>
                 </tr>
               ))}
               <tr className={styles.row} style={{ fontWeight: 700 }}>
                 <td>Total</td><td />
-                <td>{fmtINR(pnl!.totals.revenue)}</td>
-                <td>{fmtINR(pnl!.totals.fabric_cost)}</td>
-                <td>{fmtINR(pnl!.totals.guarantee_cost)}</td>
-                <td>{fmtINR(pnl!.totals.delivery_cost)}</td>
-                <td>{fmtINR(pnl!.totals.payment_fees)}</td>
-                <td>{fmtINR(pnl!.totals.refunds)}</td>
-                <td className={styles.total}>{fmtINR(pnl!.totals.profit)}</td>
+                <td className="moneyCell">{fmtINR(pnl!.totals.revenue)}</td>
+                <td className="moneyCell">{fmtINR(pnl!.totals.fabric_cost)}</td>
+                <td className="moneyCell">{fmtINR(pnl!.totals.guarantee_cost)}</td>
+                <td className="moneyCell">{fmtINR(pnl!.totals.delivery_cost)}</td>
+                <td className="moneyCell">{fmtINR(pnl!.totals.payment_fees)}</td>
+                <td className="moneyCell">{fmtINR(pnl!.totals.refunds)}</td>
+                <td className={`moneyCell ${styles.total}`}>{fmtINR(pnl!.totals.profit)}</td>
               </tr>
             </tbody>
           </table>
