@@ -15,6 +15,7 @@ import { CustomerQuickLookup } from '../../components/CustomerQuickLookup/Custom
 import styles from './OrdersListPage.module.css';
 import d from './AlterationsListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilSearch, UilTimes, UilPlus } from "@iconscout/react-unicons";
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 // [SUP-31-3] The statuses an alteration can ACTUALLY hold, in lifecycle order.
 //
@@ -166,7 +167,7 @@ export const AlterationsListPage: React.FC = () => {
 
   const renderRows = (list: AlterationRequest[]) =>
     list.map(a => (
-      <tr key={a.id} className={styles.row} onClick={() => setPeek(a)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setPeek(a))?.(); }}>
+      <tr key={a.id} className={styles.row} {...rowActivation(() => setPeek(a))}>
         <td className={styles.orderId}>{a.order_number}</td>
         <td><div className={styles.customerName}>{a.customer_name}</div></td>
         <td><div className={styles.customerPhone}><PhoneCell phone={a.customer_phone} /></div></td>

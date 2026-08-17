@@ -11,6 +11,7 @@ import { PeekDrawer } from '../../components/PeekDrawer';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './OrdersListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilImport, UilSearch, UilTimes } from "@iconscout/react-unicons";
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const LIMIT = 25;
 
@@ -298,7 +299,7 @@ export const OrdersListPage: React.FC = () => {
               </td></tr>
             ) : orders.map(o => (
               <tr key={o.id} className={`${styles.row} ${o.overdue ? styles.rowOverdue : ''}`}
-                onClick={() => setPeek(o)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setPeek(o))?.(); }}>
+                 {...rowActivation(() => setPeek(o))}>
                 <td>{o.reference_id ? <CopyId value={o.reference_id} /> : '—'}</td>
                 <td className={styles.orderId}>{o.id}</td>
                 <td>

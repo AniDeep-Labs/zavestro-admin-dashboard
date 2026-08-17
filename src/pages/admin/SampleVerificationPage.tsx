@@ -9,6 +9,7 @@ import { SampleProgress, isTerminalSample } from './SampleProgress';
 import base from './OrdersListPage.module.css';
 import s from './SampleVerificationPage.module.css';
 import { UilImage } from '@iconscout/react-unicons';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const thumbUrl = (j: SampleJob) => {
   const key = j.photo_keys?.[0] || j.fabric_image_keys?.[0];
@@ -48,7 +49,7 @@ export const SampleVerificationPage: React.FC<{ embedded?: boolean }> = ({ embed
   const reviewed = samples.filter((j) => REVIEWED.includes(j.status)).sort(byNewest);
 
   const row = (j: SampleJob) => (
-    <tr key={j.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${j.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/design/samples/${j.id}`))?.(); }}>
+    <tr key={j.id} className={base.row} {...rowActivation(() => navigate(`/admin/design/samples/${j.id}`))}>
       <td>
         <div className={s.sampleCell}>
           {thumbUrl(j) ? <img className={s.thumb} src={thumbUrl(j)} alt="" /> : <div className={s.thumb}><UilImage size={16} /></div>}

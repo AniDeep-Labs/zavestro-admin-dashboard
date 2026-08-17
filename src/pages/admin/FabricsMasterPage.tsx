@@ -13,6 +13,7 @@ import s from './FabricsMasterPage.module.css';
 import kpi from './CodReconciliationPage.module.css';
 import { UilPlus, UilTimes, UilImagePlus, UilImage, UilTrashAlt, UilAngleUp, UilAngleDown } from '@iconscout/react-unicons';
 import { StatusBadge, Select, CopyId, MoneyCell } from '../../components';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const swatchUrl = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', width_cm: '', origin: '', supplier: '', supplier_city: '', supplier_lead_time: '', supplier_moq: '', supplier_phone: '', supplier_email: '', supplier_gstin: '', price_per_meter: '', care: '', fabric_type: 'woven', stretch_pct: '', shrinkage_pct: '' };
@@ -355,7 +356,7 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
                 pageRows.map((f) => {
                   const url = swatchUrl(f.image_keys?.[0]);
                   return (
-                    <tr key={f.id} className={base.row} onClick={() => navigate(`${basePath}/${f.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`${basePath}/${f.id}`))?.(); }}>
+                    <tr key={f.id} className={base.row} {...rowActivation(() => navigate(`${basePath}/${f.id}`))}>
                       <td>
                         <div className={base.fabricCell}>
                           {url && !broken.has(f.id)

@@ -28,6 +28,7 @@ import {
   UilUserCheck,
   UilUserTimes,
 } from "@iconscout/react-unicons";
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 // W-5: support's inline credit ceiling — above this, the credit is submitted to
 // finance for approval (must match SUPPORT_CREDIT_CAP in the backend handler).
@@ -681,11 +682,8 @@ export const UserDetailPage: React.FC = () => {
                     <tr
                       key={o.id}
                       style={{ cursor: "pointer" }}
-                      onClick={() =>
-                        navigate(`/admin/orders/${o.uuid ?? o.id}`)
-                      }
-                     tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() =>
-                        navigate(`/admin/orders/${o.uuid ?? o.id}`))?.(); }}>
+                       {...rowActivation(() =>
+                        navigate(`/admin/orders/${o.uuid ?? o.id}`))}>
                       <td>{o.id}</td>
                       <td>{o.mode}</td>
                       <td>{o.stage.replace(/_/g, " ")}</td>

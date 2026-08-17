@@ -7,6 +7,7 @@ import { EmptyState, PageHeader } from '../../components';
 import styles from './OrdersListPage.module.css';
 import s from './CodReconciliationPage.module.css';
 import local from './FitOutcomesPage.module.css';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 // W-12 (SOLUTIONS P1): the made-to-fit master metric. FTR is the number the
 // company lives or dies on — surfaced here for design + finance + super.
@@ -129,9 +130,8 @@ export const FitOutcomesPage: React.FC = () => {
                       <tr
                         key={h.hub_id ?? 'none'}
                         className={canDrill ? styles.row : undefined}
-                        onClick={canDrill ? () => navigate('/admin/fit-feedback') : undefined}
-                        title={canDrill ? 'Open fit feedback' : undefined}
-                       tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (canDrill ? () => navigate('/admin/fit-feedback') : undefined)?.(); }}>
+
+                        title={canDrill ? 'Open fit feedback' : undefined} {...(canDrill ? rowActivation(() => navigate('/admin/fit-feedback')) : {})}>
                         <td className={styles.customerName}>{h.hub_name ?? '—'}</td>
                         <td className={styles.total}>{h.delivered}</td>
                         <td><StatusBadge status={ftrTone(h.ftr_pct, hubLow)} label={h.ftr_pct != null ? `${h.ftr_pct}%` : '—'} size="sm" /></td>

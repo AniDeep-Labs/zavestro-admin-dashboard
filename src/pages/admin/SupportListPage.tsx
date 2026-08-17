@@ -14,6 +14,7 @@ import {
   UilSearch,
   UilTimes,
 } from "@iconscout/react-unicons";
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const LIMIT = 25;
 
@@ -214,8 +215,7 @@ export const SupportListPage: React.FC = () => {
     <tr
       key={t.id}
       className={`${styles.row} ${!t.assignedTo ? styles.rowUnassigned : ""}`}
-      onClick={() => navigate(`/admin/support/${t.id}`)}
-     tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/support/${t.id}`))?.(); }}>
+       {...rowActivation(() => navigate(`/admin/support/${t.id}`))}>
       <td className={styles.ticketId}>
         <span style={{ fontFamily: "monospace", fontWeight: 600 }}>
           {t.reference_id ?? t.id.slice(0, 8)}
@@ -402,8 +402,7 @@ export const SupportListPage: React.FC = () => {
                     <tr
                       key={t.id}
                       className={`${styles.row} ${!t.assignedTo ? styles.rowUnassigned : ""}`}
-                      onClick={() => navigate(`/admin/support/${t.id}`)}
-                     tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/support/${t.id}`))?.(); }}>
+                       {...rowActivation(() => navigate(`/admin/support/${t.id}`))}>
                       <td className={styles.ticketId}>
                         <span
                           style={{ fontFamily: "monospace", fontWeight: 600 }}

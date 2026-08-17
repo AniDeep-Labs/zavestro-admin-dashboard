@@ -6,6 +6,7 @@ import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './OrdersListPage.module.css';
 import ov from './OverviewExceptions.module.css';
 import { UilImport, UilTimes } from '@iconscout/react-unicons';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 // T2-21 (SU-1): the shared exceptions-first overview shell. Each page passes tabs of exception rows;
 // the shell renders hub/date filters, tab chips with counts, a table per tab, CSV of the whole tab,
@@ -185,8 +186,7 @@ export function OverviewExceptions<T>(props: OverviewExceptionsProps<T>) {
                 <tr
                   key={active.rowKey(r)}
                   className={`${styles.row} ${ov.rowClickable}`}
-                  onClick={() => setPeekRow(r)}
-                 tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setPeekRow(r))?.(); }}>
+                   {...rowActivation(() => setPeekRow(r))}>
                   {active.columns.map((c) => (
                     <td key={c.header}>{c.cell(r)}</td>
                   ))}

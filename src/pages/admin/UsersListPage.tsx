@@ -15,6 +15,7 @@ import {
   UilSearch,
   UilTimes,
 } from "@iconscout/react-unicons";
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const LIMIT = 25;
 
@@ -215,8 +216,7 @@ export const UsersListPage: React.FC = () => {
                 <tr
                   key={u.id}
                   className={styles.row}
-                  onClick={() => navigate(`/admin/users/${u.id}`)}
-                 tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/users/${u.id}`))?.(); }}>
+                   {...rowActivation(() => navigate(`/admin/users/${u.id}`))}>
                   <td
                     style={{
                       fontFamily: "monospace",
