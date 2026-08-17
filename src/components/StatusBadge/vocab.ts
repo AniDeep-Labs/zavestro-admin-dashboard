@@ -33,6 +33,10 @@ export const STATUS_VOCAB: Record<string, VocabEntry> = {
   shipped: { label: 'Shipped', tone: 'transit' },
   delivered: { label: 'Delivered', tone: 'done' },
   delivery_failed: { label: 'Delivery failed', tone: 'blocked' },
+  // [SEA-42-3] `rto` was absent entirely, so a returned-to-origin garment rendered
+  // as "Rto" through the de-underscore fallback, with the default tone — a garment
+  // that came back looked like an unrecognised status.
+  rto: { label: 'Returned to origin', tone: 'blocked' },
   cancelled: { label: 'Cancelled', tone: 'blocked' },
   refunded: { label: 'Refunded', tone: 'neutral' },
   partially_refunded: { label: 'Partially refunded', tone: 'neutral' }, // T1-6: partial refund (order stays live)
@@ -65,6 +69,19 @@ export const STATUS_VOCAB: Record<string, VocabEntry> = {
   defect_under_review: { label: 'Defect under review', tone: 'qc' },
   defect_confirmed: { label: 'Defect confirmed — awaiting refund', tone: 'pending' },
   defect_rejected: { label: 'Defect rejected', tone: 'blocked' },
+
+  // ── Alterations ──
+  // [SUP-31-3] Six of the eleven legal alteration statuses were absent from this
+  // map, so the alteration machine rendered through the de-underscore fallback
+  // with no tone — T2-1's vocabulary work never reached it. `in_alteration` is the
+  // real "being worked on" state (NOT `in_progress`, which only survives on
+  // pre-migration rows), and it is the one the aging panel has to watch.
+  agent_visit_completed: { label: 'Agent visit done', tone: 'transit' },
+  agent_visit_failed: { label: 'Agent visit failed', tone: 'blocked' },
+  in_alteration: { label: 'In alteration', tone: 'making' },
+  alteration_qc: { label: 'Alteration QC', tone: 'qc' },
+  ready_for_redelivery: { label: 'Ready for redelivery', tone: 'transit' },
+  redelivered: { label: 'Redelivered', tone: 'done' },
 
   // ── Distribution / stock movement ──
   pushed: { label: 'In transit', tone: 'transit' },
