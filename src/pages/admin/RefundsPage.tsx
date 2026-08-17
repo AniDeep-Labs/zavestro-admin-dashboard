@@ -13,9 +13,12 @@ import s from "./CodReconciliationPage.module.css";
 import ds from "./DistributionPage.module.css";
 import { UilRefresh, UilImport } from "@iconscout/react-unicons";
 import { downloadCsv, datedFilename } from "../../utils/csv";
+import { money } from "../../utils/money";
 
-const fmtINR = (n: number) =>
-  `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+// ACP-2 [KA8-15]: one money formatter for the whole admin (src/utils/money.ts).
+// This page declared its own; five pages did, every one different, producing four
+// shapes of the same amount product-wide — two of them in the same table row.
+const fmtINR = (n: number | null | undefined) => money(n);
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
 const amount = (r: RefundEntry) => Number(r.refund_amount) || 0;
@@ -188,7 +191,7 @@ export const RefundsPage: React.FC = () => {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Order</th><th>Customer</th><th>Hub</th><th>Amount</th><th>To</th>
+                <th>Order</th><th>Customer</th><th>Hub</th><th className="moneyCell">Amount</th><th>To</th>
                 {kind === "failed" && <th>Why it failed</th>}
                 {/* T3-7 (W-F3): the gateway ref + expected-by for "where's my money?" */}
                 {(kind === "auto" || kind === "completed") && <th>Reference</th>}
@@ -202,7 +205,7 @@ export const RefundsPage: React.FC = () => {
                   {orderCell(r)}
                   {customerCell(r)}
                   <td>{r.hub_name ?? "—"}</td>
-                  <td className={styles.total}>{fmtINR(amount(r))}</td>
+                  <td className={`moneyCell ${styles.total}`}>{fmtINR(amount(r))}</td>
                   <td style={{ color: "var(--color-text-secondary)" }}>{destination(r)}</td>
                   {kind === "failed" && <td className={s.pendingAccent}>{r.refund_failure_reason ?? "unknown error"}</td>}
                   {(kind === "auto" || kind === "completed") && <td>{refCell(r)}</td>}

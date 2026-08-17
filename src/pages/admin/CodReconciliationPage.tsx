@@ -13,9 +13,12 @@ import styles from './OrdersListPage.module.css';
 import s from './CodReconciliationPage.module.css';
 import ds from './DistributionPage.module.css';
 import { UilImport, UilRefresh, UilTimes, UilAngleRight, UilAngleDown } from '@iconscout/react-unicons';
+import { money } from '../../utils/money';
 
-const fmtINR = (n: number) =>
-  `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+// ACP-2 [KA8-15]: one money formatter for the whole admin (src/utils/money.ts).
+// This page declared its own; five pages did, every one different, producing four
+// shapes of the same amount product-wide — two of them in the same table row.
+const fmtINR = (n: number | null | undefined) => money(n);
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 const lagHours = (d: CodDeposit) =>
@@ -187,7 +190,7 @@ export const CodReconciliationPage: React.FC = () => {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Deposit</th><th>Hub</th><th>Dispatch staff</th><th>Orders</th><th>Amount</th>
+                <th>Deposit</th><th>Hub</th><th>Dispatch staff</th><th>Orders</th><th className="moneyCell">Amount</th>
                 {kind === 'awaiting' ? <th>Age</th> : <th>{kind === 'variance' ? 'Variance' : 'Confirmed'}</th>}
                 <th>Hub confirm</th><th>Action</th>
               </tr>
@@ -203,7 +206,7 @@ export const CodReconciliationPage: React.FC = () => {
                       <td>{d.hub_name}</td>
                       <td><div className={styles.customerName}>{d.staff_name}</div></td>
                       <td>{ordersCell(d)}</td>
-                      <td className={styles.total}>{fmtINR(Number(d.total_amount))}</td>
+                      <td className={`moneyCell ${styles.total}`}>{fmtINR(Number(d.total_amount))}</td>
                       {kind === 'awaiting' ? (
                         <td><AgeCell since={d.created_at} warnAfterH={48} alertAfterH={96} /></td>
                       ) : kind === 'variance' ? (

@@ -24,6 +24,7 @@ import { DispositionPanel } from "../../components/DispositionPanel/DispositionP
 import { StatusBadge, statusLabel } from "../../components/StatusBadge";
 import { PageHeader, DetailShell } from "../../components";
 import styles from "./OrderDetailPage.module.css";
+import { money } from "../../utils/money"; // ACP-2 [KA7-8]: one shape, everywhere
 import {
   UilAngleLeft,
   UilBox,
@@ -617,7 +618,7 @@ export const OrderDetailPage: React.FC = () => {
         "success",
         "Item cancelled",
         res.refunded > 0
-          ? `₹${res.refunded.toLocaleString("en-IN")} refunded to source.`
+          ? `${money(res.refunded)} refunded to source.`
           : "Order total reduced.",
       );
       setCancelItem(null);
@@ -1491,10 +1492,9 @@ export const OrderDetailPage: React.FC = () => {
                             )}
                           </td>
                           <td>{it.quantity}</td>
-                          <td>₹{it.unit_price.toLocaleString("en-IN")}</td>
+                          <td>{money(it.unit_price)}</td>
                           <td>
-                            ₹
-                            {(it.quantity * it.unit_price).toLocaleString("en-IN")}
+                            {money(it.quantity * it.unit_price)}
                           </td>
                           <td>
                             {!cancelled && (
@@ -1538,7 +1538,7 @@ export const OrderDetailPage: React.FC = () => {
               <div>
                 <span className={`${styles.metaLabel} ${styles.totalLabel}`}>Total</span>
                 <span className={styles.totalValue}>
-                  ₹{order.total.toLocaleString("en-IN")}
+                  {money(order.total)}
                 </span>
               </div>
             </div>
@@ -1701,7 +1701,7 @@ export const OrderDetailPage: React.FC = () => {
                 <div>
                   <div className={styles.metaLabel}>Amount</div>
                   <div className={styles.metaValue}>
-                    ₹{order.total.toLocaleString("en-IN")}
+                    {money(order.total)}
                   </div>
                 </div>
                 <div>
@@ -1723,7 +1723,7 @@ export const OrderDetailPage: React.FC = () => {
                   <div>
                     <div className={styles.metaLabel}>Amount</div>
                     <div className={styles.metaValue}>
-                      ₹{parseFloat(String(p.amount)).toLocaleString("en-IN")}
+                      {money(p.amount)}
                     </div>
                   </div>
                   {p.payment_gateway_id && (

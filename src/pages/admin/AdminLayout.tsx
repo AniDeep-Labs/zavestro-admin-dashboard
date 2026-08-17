@@ -15,6 +15,7 @@ import type { NavCounts, Hub } from "../../api/adminApi";
 import { getAdminHubContext, setAdminHubContext } from "../../utils/hubContext";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary";
 import { Spinner } from "../../components/Spinner";
+import { AccessDenied } from "../../components/AccessDenied/AccessDenied";
 import {
   BreadcrumbProvider,
   useBreadcrumb,
@@ -1039,40 +1040,26 @@ const AdminLayoutInner: React.FC = () => {
         <main className={styles.content}>
           <ErrorBoundary>
             {accessDenied ? (
-              <div
-                style={{
-                  padding: "4rem 2rem",
-                  textAlign: "center",
-                  maxWidth: 480,
-                  margin: "0 auto",
-                }}
-              >
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
-                <h2 style={{ margin: "0 0 8px", fontSize: 20 }}>
-                  No access to this section
-                </h2>
-                <p
-                  style={{
-                    color: "var(--text-muted, #888)",
-                    fontSize: 14,
-                    marginBottom: 20,
-                  }}
-                >
-                  Your role doesn’t have permission for this page. Contact a
-                  Super Admin if you need access.
-                </p>
-                <button
-                  className={styles.navItem}
-                  style={{
-                    display: "inline-flex",
-                    width: "auto",
-                    padding: "8px 18px",
-                  }}
-                  onClick={() => navigate("/admin/dashboard")}
-                >
-                  Go to Dashboard
-                </button>
-              </div>
+              /* ACP-1 [KA9-1..KA9-7]: ONE refusal screen, and it NAMES the
+                 capability. This was a hand-rolled block with the generic
+                 "Your role doesn't have permission for this page" — the second of
+                 the admin's two denial dialects. The orders list's
+                 "Viewing this requires one of: orders:read" is the good version
+                 and already existed; this promotes it everywhere. */
+              <AccessDenied
+                /* Wave 1 (fix/rc1-capability-table) turns this into a LIST —
+                   `requiredCaps` — so a page whose API admits two roles names
+                   both. Collapse to `requires={requiredCaps}` on merge. */
+                requires={requiredCap ? [requiredCap] : undefined}
+                what={currentNav ? `“${currentNav.label}”` : 'this section'}
+                reason={
+                  superBlocked
+                    ? 'oversight-only'
+                    : caps.length === 0
+                      ? 'no-role'
+                      : 'no-capability'
+                }
+              />
             ) : (
               // Suspense catches lazy route-chunk loads (G23); sidebar stays put.
               <Suspense
