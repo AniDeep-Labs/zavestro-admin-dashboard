@@ -2808,6 +2808,10 @@ export interface PnlReport {
     refunds: number;
     profit: number;
   };
+  // [CHN-39-1] Ordered but not yet EARNED. Revenue used to be booked at order
+  // creation, so these orders were counted as revenue while the garment was still
+  // uncut and, on COD, before the money existed. They belong here.
+  backlog: { orders: number; unearned: number };
   // T1-19: outstanding wallet credits — a current liability, not part of period profit.
   wallet_liability: number;
   // T1-23: fit-promise reserve to hold for the period (memo/provision, not in profit).
@@ -2817,6 +2821,9 @@ export interface PnlReport {
     delivery_cost_per_order: number;
     alteration_cost: number;
   };
+  // [CHN-39-1] / [FIN-37-2] Every figure names its basis, on the payload and on screen.
+  basis: string;
+  basis_note: string;
   note: string;
 }
 

@@ -63,7 +63,7 @@
   "src/pages/admin/FabricAtHubPage.module.css": 2,
   "src/pages/admin/FabricStockPage.module.css": 4,
   "src/pages/admin/FabricsMasterPage.module.css": 5,
-  "src/pages/admin/FinanceReportPage.tsx": 4,
+  "src/pages/admin/FinanceReportPage.tsx": 2,
   "src/pages/admin/FitFeedbackPage.module.css": 3,
   "src/pages/admin/FitFeedbackPage.tsx": 3,
   "src/pages/admin/GarmentTagsPage.module.css": 15,
