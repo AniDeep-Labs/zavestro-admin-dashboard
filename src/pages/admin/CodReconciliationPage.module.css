@@ -111,3 +111,7 @@
 
 /* shared by Fit Outcomes (W-12) */
 .subHeading { font-size: 1.1rem; font-weight: var(--font-weight-bold); color: var(--color-text-primary); margin: 8px 0; }
+
+/* A note under the summary block. Replaces the `style={{ marginTop: N }}` that was
+   repeated inline on every one of them — the FinanceReport page borrows this sheet. */
+.summaryNote { margin-top: var(--spacing-sm); }

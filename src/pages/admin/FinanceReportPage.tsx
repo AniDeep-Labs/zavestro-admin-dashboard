@@ -557,13 +557,13 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
       {/* [FIN-37-2] The basis, stated where the numbers are — this page and the revenue
           dashboard reported figures 12.8× apart and neither named its definition. */}
       {mode === "pnl" && pnl?.basis_note && (
-        <p className={s.summarySub} style={{ marginTop: 10 }}>
+        <p className={`${s.summarySub} ${s.summaryNote}`}>
           <strong>Basis:</strong> {pnl.basis_note}
         </p>
       )}
-      {mode === "pnl" && pnl?.note && <p className={s.summarySub} style={{ marginTop: 10 }}>{pnl.note}</p>}
+      {mode === "pnl" && pnl?.note && <p className={`${s.summarySub} ${s.summaryNote}`}>{pnl.note}</p>}
 
-      <p className={s.summarySub} style={{ marginTop: 14 }}>
+      <p className={`${s.summarySub} ${s.summaryNote}`}>
         Related: <Link to="/admin/finance/refunds">Refunds</Link> · <Link to="/admin/finance/cod-reconciliation">COD Reconciliation</Link>
       </p>
     </div>
