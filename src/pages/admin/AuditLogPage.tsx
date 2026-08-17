@@ -221,7 +221,7 @@ export const AuditLogPage: React.FC = () => {
             ) : (
               entries.map(entry => (
                 <React.Fragment key={entry.id}>
-                  <tr className={styles.row} onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}>
+                  <tr className={styles.row} onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setExpandedId(expandedId === entry.id ? null : entry.id))?.(); }}>
                     <td className={styles.timestamp}>{entry.timestamp}</td>
                     <td className={styles.admin}>{entry.admin}</td>
                     <td className={styles.action}>{entry.action}</td>

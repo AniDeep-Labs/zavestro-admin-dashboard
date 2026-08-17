@@ -12,8 +12,8 @@ import s from './BrandLedgerPage.module.css';
 
 const inr = (v: string | number) =>
   `₹${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
+// ACP-6 [KA11-6]: one date formatter for the admin.
+import { fmtDate } from '../../utils/date';
 
 const TYPE_TONE: Record<string, 'success' | 'error' | 'secondary' | 'warning' | 'info'> = {
   sale: 'success',

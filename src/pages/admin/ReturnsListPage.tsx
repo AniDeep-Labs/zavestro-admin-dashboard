@@ -9,6 +9,7 @@ import { Button } from '../../components/Button/Button';
 import { Textarea } from '../../components/Textarea/Textarea';
 import { CustomerQuickLookup } from '../../components/CustomerQuickLookup/CustomerQuickLookup';
 import styles from './OrdersListPage.module.css';
+import { PhoneCell } from '../../components/DataCells'; // ACP-3 [KA7-2]: masked by default
 import ds from './DistributionPage.module.css';
 import d from './AlterationsListPage.module.css';
 import { UilSearch, UilTimes, UilPlus } from "@iconscout/react-unicons";
@@ -133,6 +134,17 @@ export const ReturnsListPage: React.FC = () => {
 
   const renderSection = ({ key, title }: { key: ReturnSection; title: string }) => {
     const list = bySection(key);
+    // [KA7-17] An empty bucket collapses to ONE LINE. Four expanded sections, two
+    // of them a full header + a zero + "Nothing here.", meant the operator scrolled
+    // past two announcements of nothing to reach one row of actual work. A worklist
+    // should spend its vertical space on work.
+    if (list.length === 0) {
+      return (
+        <div className={ds.emptyBucket} key={key}>
+          {title} <span className={ds.count}>{sectionCount(key, 0)}</span>
+        </div>
+      );
+    }
     return (
       <section className={ds.section} key={key}>
         <h2 className={ds.sectionTitle}>
@@ -143,9 +155,7 @@ export const ReturnsListPage: React.FC = () => {
             </span>
           )}
         </h2>
-        {list.length === 0 ? (
-          <p className={styles.pagination}>Nothing here.</p>
-        ) : (
+        {(
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead><tr>
@@ -153,10 +163,10 @@ export const ReturnsListPage: React.FC = () => {
               </tr></thead>
               <tbody>
                 {list.map(r => (
-                  <tr key={r.id} className={styles.row} onClick={() => navigate(`/admin/returns/${r.id}`)}>
+                  <tr key={r.id} className={styles.row} onClick={() => navigate(`/admin/returns/${r.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/returns/${r.id}`))?.(); }}>
                     <td className={styles.orderId}>{r.order_number}</td>
                     <td><div className={styles.customerName}>{r.customer_name}</div></td>
-                    <td><div className={styles.customerPhone}>{r.customer_phone}</div></td>
+                    <td><div className={styles.customerPhone}><PhoneCell phone={r.customer_phone} /></div></td>
                     <td className={styles.reasonCell}>{r.reason}</td>
                     <td>{r.policy_verdict?.label ?? '—'}</td>
                     <td><StatusBadge status={r.status} /></td>

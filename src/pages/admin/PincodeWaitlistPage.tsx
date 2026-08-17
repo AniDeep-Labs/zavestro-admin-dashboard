@@ -10,8 +10,8 @@ import { StatusBadge } from '../../components';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import type { PincodeCohortEntry } from '../../api/adminApi';
 
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+// ACP-6 [KA11-6]: one date formatter for the admin.
+import { fmtDate } from '../../utils/date';
 
 export const PincodeWaitlistPage: React.FC = () => {
   const [rows, setRows] = React.useState<PincodeDemand[]>([]);

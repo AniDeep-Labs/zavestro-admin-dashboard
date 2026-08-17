@@ -8,6 +8,7 @@ import { downloadCsv, datedFilename } from "../../utils/csv";
 import { StatusBadge } from "../../components";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./UsersListPage.module.css";
+import { CustomerNameCell } from "../../components/DataCells"; // [KA7-15] DPDP tombstone
 import {
   UilAngleLeft,
   UilAngleRight,
@@ -183,8 +184,12 @@ export const UsersListPage: React.FC = () => {
           <thead>
             <tr>
               <th>Ref</th>
-              <th>Name</th>
+              {/* [KA7-14] Phone before Name. 27 of 110 cells were em-dashes, with
+                  NAME/EMAIL/CITY blank on 11 of 13 rows — real OTP-only customers,
+                  so the data is honestly absent. The column that IDENTIFIES them
+                  should lead; the one that often cannot should follow. */}
               <th>Phone</th>
+              <th>Name</th>
               <th>Email</th>
               <th>City</th>
               <th>Orders</th>
@@ -230,7 +235,7 @@ export const UsersListPage: React.FC = () => {
                   key={u.id}
                   className={styles.row}
                   onClick={() => navigate(`/admin/users/${u.id}`)}
-                >
+                 tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/users/${u.id}`))?.(); }}>
                   <td
                     style={{
                       fontFamily: "monospace",
@@ -241,8 +246,10 @@ export const UsersListPage: React.FC = () => {
                   >
                     {u.reference_id ?? "—"}
                   </td>
-                  <td className={styles.userName}>{u.name || "—"}</td>
                   <td className={styles.phone}>{u.phone}</td>
+                  {/* [KA7-15] An erased customer is a TOMBSTONE, not a person named
+                      "Deleted customer" at the same weight as a real name. */}
+                  <td className={styles.userName}><CustomerNameCell name={u.name} /></td>
                   <td className={styles.email}>{u.email || "—"}</td>
                   <td>{u.city || "—"}</td>
                   <td className={styles.orders}>{u.orders}</td>

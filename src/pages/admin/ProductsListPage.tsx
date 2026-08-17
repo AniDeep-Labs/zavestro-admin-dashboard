@@ -221,7 +221,7 @@ export const ProductsListPage: React.FC = () => {
                   key={product.id}
                   className={styles.row}
                   onClick={() => navigate(`/admin/catalog/products/${product.id}`)}
-                >
+                 tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/catalog/products/${product.id}`))?.(); }}>
                   <td className={styles.productName}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                       {product.imageUrl ? (

@@ -63,3 +63,60 @@ export const MoneyCell: React.FC<{ amount: number | string | null | undefined }>
     </span>
   );
 };
+
+/**
+ * ACP-3 — ONE masked phone. [KA7-2] [KA8-10] [KA7-15]
+ *
+ * Measured: `/admin/users` renders `••••••0000`; orders, returns, alterations,
+ * support and finance/refunds all print `+919999900000` in full, for the same
+ * customers. **Two masking policies in one console, and the unmasked one is on
+ * the busier, more exportable pages** — including the finance console, which has
+ * the least reason of any of them to call anyone.
+ *
+ * Masking is the default and revealing is a deliberate act, matching the server
+ * (`/customers/lookup` now masks unless asked, and logs the full variant). This
+ * is display-side only: the value is already in the payload, so it is a
+ * shoulder-surfing and screenshot control, not an access control. Said plainly
+ * because the difference matters — the access control is the read policy.
+ */
+export const PhoneCell: React.FC<{ phone?: string | null; reveal?: boolean }> = ({
+  phone,
+  reveal = false,
+}) => {
+  const [shown, setShown] = React.useState(reveal);
+  if (!phone) return <span className={styles.muted}>—</span>;
+  const digits = phone.replace(/\D/g, '');
+  const masked = digits.length >= 4 ? `••••••${digits.slice(-4)}` : '••••';
+  return (
+    <span className={styles.phone}>
+      {shown ? phone : masked}
+      {!shown && (
+        <button
+          type="button"
+          className={styles.revealBtn}
+          title="Show the full number"
+          aria-label="Show the full phone number"
+          onClick={(e) => {
+            e.stopPropagation(); // rows are clickable — don't navigate
+            setShown(true);
+          }}
+        >
+          show
+        </button>
+      )}
+    </span>
+  );
+};
+
+/**
+ * [KA7-15] An erased customer is a TOMBSTONE, not a person called "Deleted
+ * customer". It rendered in the NAME column at the same weight and colour as a
+ * real name, beside a *Deactivated* chip — so a DPDP erasure looked like an
+ * ordinary account belonging to someone with an unusual name.
+ */
+const ERASED = /^(deleted customer|erased|redacted)$/i;
+export const CustomerNameCell: React.FC<{ name?: string | null }> = ({ name }) => {
+  if (!name || !name.trim()) return <span className={styles.muted}>—</span>;
+  if (ERASED.test(name.trim())) return <span className={styles.tombstone}>— erased —</span>;
+  return <>{name}</>;
+};

@@ -684,7 +684,8 @@ export const UserDetailPage: React.FC = () => {
                       onClick={() =>
                         navigate(`/admin/orders/${o.uuid ?? o.id}`)
                       }
-                    >
+                     tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() =>
+                        navigate(`/admin/orders/${o.uuid ?? o.id}`))?.(); }}>
                       <td>{o.id}</td>
                       <td>{o.mode}</td>
                       <td>{o.stage.replace(/_/g, " ")}</td>

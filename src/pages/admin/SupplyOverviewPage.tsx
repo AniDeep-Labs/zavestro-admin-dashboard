@@ -5,7 +5,8 @@ import { OverviewExceptions } from './OverviewExceptions';
 import type { OvTab } from './OverviewExceptions';
 import local from './DesignAnalyticsPage.module.css';
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+// ACP-6 [KA11-6]: one date formatter for the admin.
+import { fmtDate } from '../../utils/date';
 
 type Motion = {
   id: string;

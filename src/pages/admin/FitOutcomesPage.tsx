@@ -131,7 +131,7 @@ export const FitOutcomesPage: React.FC = () => {
                         className={canDrill ? styles.row : undefined}
                         onClick={canDrill ? () => navigate('/admin/fit-feedback') : undefined}
                         title={canDrill ? 'Open fit feedback' : undefined}
-                      >
+                       tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (canDrill ? () => navigate('/admin/fit-feedback') : undefined)?.(); }}>
                         <td className={styles.customerName}>{h.hub_name ?? '—'}</td>
                         <td className={styles.total}>{h.delivered}</td>
                         <td><StatusBadge status={ftrTone(h.ftr_pct, hubLow)} label={h.ftr_pct != null ? `${h.ftr_pct}%` : '—'} size="sm" /></td>
