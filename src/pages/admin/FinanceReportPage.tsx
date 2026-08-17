@@ -330,6 +330,20 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                   : undefined
               }
             />
+            {/* [CHN-39-1] Revenue is now recognised at capture (prepaid) / delivery (COD),
+                not at order creation. This card is where the difference GOES — without
+                it, moving the trigger just makes revenue fall off a cliff with nothing
+                on screen to explain it, which is the same failure as the old number
+                pointed the other way. */}
+            <SummaryCard
+              label="Backlog (ordered, not yet earned)"
+              value={pnl?.backlog.unearned}
+              loading={loading}
+              accent
+              note={
+                pnl ? `${pnl.backlog.orders} order${pnl.backlog.orders === 1 ? "" : "s"} placed, not yet recognised` : undefined
+              }
+            />
             {/* T1-19: outstanding wallet credits — a current liability, not part of period profit. */}
             <SummaryCard label="Wallet liability (owed, current)" value={pnl?.wallet_liability} loading={loading} accent />
             {/* T1-23: fit-promise reserve to hold for the period (memo/provision, not in profit). */}
@@ -540,6 +554,13 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
         </div>
       )}
 
+      {/* [FIN-37-2] The basis, stated where the numbers are — this page and the revenue
+          dashboard reported figures 12.8× apart and neither named its definition. */}
+      {mode === "pnl" && pnl?.basis_note && (
+        <p className={s.summarySub} style={{ marginTop: 10 }}>
+          <strong>Basis:</strong> {pnl.basis_note}
+        </p>
+      )}
       {mode === "pnl" && pnl?.note && <p className={s.summarySub} style={{ marginTop: 10 }}>{pnl.note}</p>}
 
       <p className={s.summarySub} style={{ marginTop: 14 }}>
