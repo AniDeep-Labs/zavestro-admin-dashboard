@@ -177,8 +177,21 @@ export function GarmentTagsPage() {
             {t.previous_prints > 0 && (
               <div className={styles.tagReprint}>REPRINT #{t.previous_prints + 1}</div>
             )}
-            <div className={styles.tagOrder}>{t.order_number}</div>
-            {t.garment_name && <div className={styles.tagGarment}>{t.garment_name}</div>}
+            {/* [KA10-11] Don't print the same string twice. The code line above is
+                `reference_id || order_number`, so when a garment has no
+                reference_id BOTH lines rendered the order number — a tag reading
+                "AUD-STUCK-01" over "AUD-STUCK-01". The order line is only worth
+                ink when it says something the code line did not. */}
+            {t.reference_id && t.order_number !== t.reference_id && (
+              <div className={styles.tagOrder}>{t.order_number}</div>
+            )}
+            {/* [KA10-11] A tag that names no garment must SAY so. This line was
+                simply absent when `garment_name` was null, so the tag looked
+                complete while identifying nothing — on an artifact whose whole job
+                is to stay with a garment through cutting, QC and delivery. */}
+            <div className={t.garment_name ? styles.tagGarment : styles.tagGarmentMissing}>
+              {t.garment_name || 'GARMENT NOT NAMED'}
+            </div>
           </div>
         ))}
       </div>
