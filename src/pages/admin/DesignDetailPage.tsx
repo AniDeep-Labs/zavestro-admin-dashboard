@@ -19,8 +19,8 @@ import { UilAngleLeft, UilImage, UilEdit, UilPlus, UilFileAlt, UilCopy } from '@
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 const inr = (v: string | number | null | undefined) =>
   v == null ? '—' : `₹${Number(v).toLocaleString('en-IN')}`;
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
+// ACP-6 [KA11-6]: one date formatter for the admin.
+import { fmtDate } from '../../utils/date';
 
 export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boolean }> = ({ autoEdit, autoCutSheet }) => {
   const { id } = useParams<{ id: string }>();
@@ -280,7 +280,7 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
       <thead><tr><th>Hub</th><th>Status</th><th>Requested</th><th>Verdict / note</th></tr></thead>
       <tbody>
         {design.samples.map((sm) => (
-          <tr key={sm.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${sm.id}`)}>
+          <tr key={sm.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${sm.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/design/samples/${sm.id}`))?.(); }}>
             <td>{sm.hub_name ?? '—'}</td>
             <td><StatusBadge status={sm.status} size="sm" /></td>
             <td>{fmtDate(sm.created_at)}</td>

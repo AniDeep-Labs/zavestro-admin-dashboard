@@ -57,3 +57,13 @@
 .qcCheckFail { border-color: var(--color-error, #c0392b); }
 .qcPassFail { display: inline-flex; gap: 6px; }
 .qcFailFlag { font-size: 0.72rem; font-weight: 600; color: var(--color-error, #c0392b); }
+
+/* [KA7-17] An empty worklist bucket, as one line rather than a full section.
+   Four expanded sections — two of them a header, a zero and "Nothing here." —
+   meant scrolling past two announcements of nothing to reach one row of work. */
+.emptyBucket {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; margin-bottom: 6px;
+  font-size: 13px; color: var(--color-text-tertiary);
+  background: var(--color-bg-secondary); border-radius: 6px;
+}

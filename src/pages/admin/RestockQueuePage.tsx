@@ -195,7 +195,7 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
         key={r.id}
         className={isCm ? undefined : `${styles.row} ${rs.clickRow}`}
         onClick={isCm ? undefined : () => goTrack(r)}
-      >
+       tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (isCm ? undefined : () => goTrack(r))?.(); }}>
         <td>{fabricCell(r)}</td>
         {!isCm && <td>{hubName(r.hub_id)}</td>}
         {!isCm && <td>{stockCell(r)}</td>}
@@ -231,7 +231,7 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
       key={r.id}
       className={isCm ? undefined : `${styles.row} ${rs.clickRow}`}
       onClick={isCm ? undefined : () => goTrack(r)}
-    >
+     tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (isCm ? undefined : () => goTrack(r))?.(); }}>
       <td>{fabricCell(r)}</td>
       {!isCm && <td>{hubName(r.hub_id)}</td>}
       <td className={styles.total}>{Number(r.qty)}</td>

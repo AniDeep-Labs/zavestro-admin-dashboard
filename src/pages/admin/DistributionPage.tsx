@@ -297,7 +297,7 @@ export const DistributionPage: React.FC = () => {
       className={r.fabric_id ? styles.row : undefined}
       style={r.fabric_id ? { cursor: 'pointer' } : undefined}
       onClick={r.fabric_id ? () => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`) : undefined}
-    >
+     tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (r.fabric_id ? () => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`) : undefined)?.(); }}>
       <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.design_name ?? <span style={{ opacity: 0.6 }}>Plain restock</span>}</td>
       <td>
         {r.fabric_name ? (

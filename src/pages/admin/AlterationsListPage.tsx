@@ -5,7 +5,7 @@ import type { AlterationRequest, AdminOrder, CustomerLookupResult } from '../../
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { StatusBadge, statusLabel } from '../../components/StatusBadge';
-import { AgeCell } from '../../components/DataCells';
+import { AgeCell , PhoneCell } from '../../components/DataCells';
 import { EmptyState } from '../../components/EmptyState';
 import { Drawer } from '../../components/Drawer/Drawer';
 import { Modal } from '../../components/Modal/Modal';
@@ -166,10 +166,10 @@ export const AlterationsListPage: React.FC = () => {
 
   const renderRows = (list: AlterationRequest[]) =>
     list.map(a => (
-      <tr key={a.id} className={styles.row} onClick={() => setPeek(a)}>
+      <tr key={a.id} className={styles.row} onClick={() => setPeek(a)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setPeek(a))?.(); }}>
         <td className={styles.orderId}>{a.order_number}</td>
         <td><div className={styles.customerName}>{a.customer_name}</div></td>
-        <td><div className={styles.customerPhone}>{a.customer_phone}</div></td>
+        <td><div className={styles.customerPhone}><PhoneCell phone={a.customer_phone} /></div></td>
         <td className={d.descCell}>{a.description}</td>
         <td><StatusBadge status={a.status} /></td>
         <td><AgeCell since={a.created_at} warnAfterH={AGING_DAYS * 24} alertAfterH={AGING_DAYS * 48} /></td>

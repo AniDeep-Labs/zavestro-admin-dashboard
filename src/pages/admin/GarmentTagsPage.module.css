@@ -8,7 +8,7 @@
 
 .page { padding: 24px; }
 .header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.title { font-size: 20px; font-weight: 700; margin: 0; }
+.title { font-size: var(--font-size-page-title); font-weight: 700; margin: 0; }
 .sub { font-size: 13px; color: #6b7280; margin: 4px 0 0; }
 .bar { display: flex; gap: 10px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
 .list { display: grid; gap: 6px; margin-top: 12px; }
@@ -99,3 +99,7 @@
 
   .tag { outline-color: #999; }
 }
+
+/* [KA10-12] The facts a floor worker needs when the QR cannot be scanned. */
+.tagCustomer { font-size: 8px; text-align: center; color: #000; margin-top: 1px; }
+.tagPrinted { font-size: 6.5px; text-align: center; color: #666; margin-top: 1px; }

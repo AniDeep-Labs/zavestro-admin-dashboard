@@ -146,8 +146,17 @@ export const CreditApprovalsPage: React.FC = () => {
                   </td>
                   {status === "pending" && (
                     <td className={d.actions}>
-                      <Button size="sm" onClick={() => { setReview({ req: r, action: "approve" }); setNote(""); }}>Approve</Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setReview({ req: r, action: "reject" }); setNote(""); }}>Reject</Button>
+                      {/* [KA8-8] The weighting was backwards. APPROVE moves money
+                          and is irreversible; REJECT needs no reason and costs
+                          nothing. Approve was the filled pill and Reject a text
+                          link, so the eye was pulled toward the consequential one.
+                          Both are now ordinary buttons, and Approve names its
+                          amount with an ellipsis — COD's "Confirm…" convention,
+                          two nav items away. */}
+                      <Button size="sm" variant="secondary" onClick={() => { setReview({ req: r, action: "approve" }); setNote(""); }}>
+                        Approve {fmtINR(r.amount)}…
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => { setReview({ req: r, action: "reject" }); setNote(""); }}>Reject…</Button>
                     </td>
                   )}
                 </tr>

@@ -131,6 +131,14 @@
   --font-size-2xl: 28px;
   --font-size-3xl: 36px;
   --font-size-4xl: 42px;
+
+  /* ACP-9 [KA11-9] — ONE size for a page title.
+     Measured: four different <h1> sizes across the admin (1.5rem, 22px, 20px and
+     the PageHeader's own), so the same rank of heading changed size between two
+     screens and the hierarchy stopped meaning anything. `--font-size-xl` is the
+     scale's existing 22px; this names it for the role so a page cannot invent a
+     fifth by typing a number. */
+  --font-size-page-title: var(--font-size-xl);
   --font-size-5xl: 48px;
 
   --font-weight-regular: 400;

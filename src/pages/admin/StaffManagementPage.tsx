@@ -252,7 +252,7 @@ export const StaffManagementPage: React.FC = () => {
                   className={base.row}
                   style={{ opacity: s.is_active ? 1 : 0.55, cursor: 'pointer' }}
                   onClick={() => setPeek(s)}
-                >
+                 tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setPeek(s))?.(); }}>
                   <td className={base.customerName} style={{ fontWeight: 500 }}>
                     {s.name}
                   </td>

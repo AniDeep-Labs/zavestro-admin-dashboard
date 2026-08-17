@@ -4,7 +4,7 @@ import { UilSync, UilTruck, UilRuler, UilCheckCircle, UilReceipt, UilBox, UilExc
 import { dashboardApi, hasCapability } from '../../api/adminApi';
 import type { DashboardData } from '../../api/adminApi';
 import { clearAdminToken } from '../../api/catalogApi';
-import { Sparkline, AreaTrendChart, BarMini, STAGE_COLORS, fmtINRShort } from '../../components/charts/Charts';
+import { Sparkline, AreaTrendChart, BarMini, stageRamp, fmtINRShort } from '../../components/charts/Charts';
 import { ActionInbox } from '../../components/ActionInbox';
 import styles from './AdminDashboardPage.module.css';
 
@@ -167,12 +167,19 @@ export const AdminDashboardPage: React.FC = () => {
     if (measured.length === 0) return null;
     return Math.round(measured.reduce((s, h) => s + h.qcPassRate, 0) / measured.length);
   }, [data]);
+  // [KA6-12] How many days actually carry revenue — one spike is not a trend.
+  const revenueDays = React.useMemo(
+    () => (data?.revenue ?? []).filter((d) => Number(d.simplified ?? 0) > 0).length,
+    [data],
+  );
   const funnelData = React.useMemo(
     () => (data?.ordersByStage ?? []).map(s => ({ name: s.label, count: s.count })),
     [data],
   );
   const funnelColors = React.useMemo(
-    () => (data?.ordersByStage ?? []).map((_, i) => STAGE_COLORS[i % STAGE_COLORS.length]),
+    // [KA8-19] A sequential ramp encoding PIPELINE POSITION, not eight arbitrary
+    // hues encoding nothing. The X axis already names each stage.
+    () => stageRamp((data?.ordersByStage ?? []).length),
     [data],
   );
   const hubData = React.useMemo(
@@ -368,7 +375,7 @@ export const AdminDashboardPage: React.FC = () => {
             {loading
               ? <div className={`${styles.skeletonBlock} ${styles.skeletonPulse}`} style={{ height: 240 }} />
               : funnelData.some(f => f.count > 0)
-                ? <BarMini data={funnelData} xKey="name" dataKey="count" height={240} colors={funnelColors} />
+                ? <BarMini data={funnelData} xKey="name" dataKey="count" height={240} colors={funnelColors} seriesName="Orders" />
                 : <div className={styles.emptyState}>No orders in the pipeline yet</div>}
           </div>
           )}
@@ -393,12 +400,24 @@ export const AdminDashboardPage: React.FC = () => {
             {loading ? (
               <div className={`${styles.skeletonBlock} ${styles.skeletonPulse}`} style={{ height: 260 }} />
             ) : perfTab === 'Revenue' ? (
-              (data?.revenue ?? []).length > 0
-                ? <AreaTrendChart data={data!.revenue as unknown as Record<string, string | number>[]} xKey="label" dataKey="simplified" height={262} valueFormatter={fmtINRShort} />
-                : <div className={styles.emptyState}>No revenue yet</div>
+              /* [KA6-12] A trend needs more than one point. This drew a single
+                 spike across a 30-day flat line at full fidelity, as though the
+                 shape meant something — one day of ₹2,499 rendered as a trend.
+                 The design console already has the right answer for exactly this
+                 case ("performance appears once matching designs sell", [KA3-11]);
+                 this is that, applied here. */
+              revenueDays > 1
+                ? <AreaTrendChart data={data!.revenue as unknown as Record<string, string | number>[]} xKey="label" dataKey="simplified" height={262} valueFormatter={fmtINRShort} seriesName="Revenue collected" />
+                : (
+                  <div className={styles.emptyState}>
+                    {revenueDays === 1
+                      ? 'Not enough data for a trend — revenue on one day only. The shape appears once there are several.'
+                      : 'No revenue yet'}
+                  </div>
+                )
             ) : (
               hubData.length > 0
-                ? <BarMini data={hubData} xKey="name" dataKey="capacity" height={262} valueFormatter={v => `${v}%`} />
+                ? <BarMini data={hubData} xKey="name" dataKey="capacity" height={262} valueFormatter={v => `${v}%`} seriesName="Capacity used" />
                 : <div className={styles.emptyState}>No hub data</div>
             )}
           </div>

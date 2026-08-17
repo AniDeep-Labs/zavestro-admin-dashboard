@@ -68,8 +68,21 @@ export const NotificationBlastPage: React.FC = () => {
             <label className={styles.fieldLabel}>Audience</label>
             <select className={styles.fieldInput} value={form.segment} onChange={e => set('segment', e.target.value as BlastPayload['segment'])}>
               <option value="opted_in">Opted-in customers only (recommended)</option>
-              <option value="all">All active customers</option>
+              <option value="all">All active customers — includes people who did NOT opt in</option>
             </select>
+            {/* [KA6-6] "All active customers" is a CONSENT decision, and it was
+                presented as a preference: an ordinary dropdown option, with the
+                consequence stated nowhere. Choosing it means messaging people who
+                declined marketing — a DPDP question, not a reach setting. */}
+            {form.segment === 'all' && (
+              <div className={styles.consentWarning}>
+                <UilExclamationTriangle size={15} />
+                <span>
+                  This ignores marketing consent. It will message customers who explicitly
+                  opted out — only appropriate for a service or safety notice, never a promotion.
+                </span>
+              </div>
+            )}
           </div>
           <div className={styles.field}>
             <label className={styles.fieldLabel}>Email Subject *</label>
@@ -142,6 +155,17 @@ export const NotificationBlastPage: React.FC = () => {
               </strong>{' '}
               to receive “<strong>{form.headline}</strong>” via in-app inbox, email, and push. This cannot be recalled once sent.
             </p>
+            {/* [KA6-6] Say it again at the point of no return, not just at the
+                point of selection. */}
+            {form.segment === 'all' && (
+              <p className={styles.consentWarning}>
+                <UilExclamationTriangle size={15} />
+                <span>
+                  <strong>Consent is being overridden.</strong> This audience includes customers
+                  who opted out of marketing. Send only if this is a service or safety notice.
+                </span>
+              </p>
+            )}
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} disabled={sending} onClick={() => setConfirming(false)}>Cancel</button>
               <button className={styles.createBtn} disabled={sending} onClick={send}>{sending ? 'Sending…' : 'Confirm & Send'}</button>

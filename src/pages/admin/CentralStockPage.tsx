@@ -219,7 +219,7 @@ export const CentralStockPage: React.FC = () => {
                 </td></tr>
               ) : (
                 rows.map((r) => (
-                  <tr key={r.fabric_id} className={base.row} onClick={() => openHistory(r)}>
+                  <tr key={r.fabric_id} className={base.row} onClick={() => openHistory(r)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => openHistory(r))?.(); }}>
                     <td>
                       <div className={base.fabricCell}>
                         {imgOf(r.fabric_image_keys) && !broken.has(r.fabric_id)

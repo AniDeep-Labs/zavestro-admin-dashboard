@@ -247,11 +247,14 @@ export const CategoriesPage: React.FC = () => {
             <button className={catCss.iconBtn} aria-label="Move up" disabled={busy || idx === 0} onClick={() => move(cat, -1)}><UilArrowUp size={12} /></button>
             <button className={catCss.iconBtn} aria-label="Move down" disabled={busy || idx === count - 1} onClick={() => move(cat, 1)}><UilArrowDown size={12} /></button>
           </div>
+          {/* [KA11-4] "No image", not "No img" — one spelling. 18 distinct
+              empty-state phrasings were measured across 42 routes; this is the
+              first act of collapsing them onto one component. */}
           <div className={catCss.thumb}>
             {cat.image_url ? (
               <img src={cat.image_url} alt={cat.name} className={catCss.thumbImg} />
             ) : (
-              <span className={catCss.noImg}>No img</span>
+              <span className={catCss.noImg}>No image</span>
             )}
           </div>
           <div className={catCss.info}>

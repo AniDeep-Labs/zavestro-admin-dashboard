@@ -349,3 +349,17 @@ th.moneyCell {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* ACP-10 [KA11-8] — a filter control is not a form field.
+   global.css forces select/input to width:100%, which is right inside a form and
+   wrong in a filter row: 8 pages carried a select stretched past 800px, so a
+   two-word option sat in a control wide enough for a paragraph. A max-width caps
+   them without touching genuine form fields, which stay full-width by design.
+   (Note for anyone adding one: give filter controls an explicit width, never a
+   flex-basis — with width:100% in play the row stacks instead.) */
+.filterBar select,
+.filterBar input,
+[class*="filterBar"] select,
+[class*="filterBar"] input:not([type="checkbox"]):not([type="radio"]) {
+  max-width: 260px;
+}

@@ -362,15 +362,19 @@ export const TicketDetailPage: React.FC = () => {
     if (!ticket) return;
     setAssigning(true);
     try {
+      // [KA7-21] `__unassign__` is the explicit removal choice; the empty value is
+      // now only the unsubmittable placeholder.
       const updated = await supportApi.assign(
         ticket.id,
-        selectedAssignee || null,
+        selectedAssignee === '__unassign__' ? null : selectedAssignee || null,
       );
       setTicket(updated);
       setSelectedAssignee(updated.assignedTo ?? "");
       showToast(
         "success",
-        selectedAssignee ? "Ticket assigned" : "Assignment removed",
+        selectedAssignee && selectedAssignee !== '__unassign__'
+          ? "Ticket assigned"
+          : "Assignment removed",
       );
     } catch (e) {
       showToast(
@@ -545,7 +549,20 @@ export const TicketDetailPage: React.FC = () => {
                 value={selectedAssignee}
                 onChange={(e) => setSelectedAssignee(e.target.value)}
               >
-                <option value="">— Unassign —</option>
+                {/* [KA7-21] The default option was "— Unassign —" on a ticket that
+                    already read ASSIGNED TO *Unassigned*, under a filled button
+                    labelled Assign — three controls disagreeing about one fact,
+                    where accepting the default and pressing Assign would have
+                    unassigned an already-unassigned ticket.
+                    The placeholder now describes the state and cannot be submitted;
+                    removing an assignment stays available, but only as a DELIBERATE
+                    choice and only when there is one to remove. */}
+                <option value="" disabled>
+                  {ticket?.assignedTo ? "Reassign to…" : "Choose a person…"}
+                </option>
+                {ticket?.assignedTo && (
+                  <option value="__unassign__">— Remove assignment —</option>
+                )}
                 {adminUsers
                   // G-43: only support-capable roles are offered (a ticket
                   // shouldn't land with design/procurement/finance). A current
@@ -567,7 +584,8 @@ export const TicketDetailPage: React.FC = () => {
               </select>
               <button
                 className={styles.assignSelfBtn}
-                disabled={assigning}
+                // [KA7-21] Nothing chosen → nothing to do.
+                disabled={assigning || !selectedAssignee}
                 onClick={handleAssign}
                 style={{ marginTop: 2 }}
               >
@@ -575,7 +593,11 @@ export const TicketDetailPage: React.FC = () => {
                   size={14}
                   style={{ marginRight: 6, verticalAlign: "middle" }}
                 />
-                {assigning ? "Saving…" : "Assign"}
+                {assigning
+                  ? "Saving…"
+                  : selectedAssignee === '__unassign__'
+                    ? "Remove"
+                    : "Assign"}
               </button>
             </div>
           </div>
