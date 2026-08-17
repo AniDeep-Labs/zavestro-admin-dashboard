@@ -4,7 +4,8 @@ import type { DesignExceptions, DesignExceptionRow, Hub } from '../../api/adminA
 import { OverviewExceptions } from './OverviewExceptions';
 import type { OvTab } from './OverviewExceptions';
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+// ACP-6 [KA11-6]: one date formatter for the admin.
+import { fmtDate } from '../../utils/date';
 
 // T2-21 (SU-1): exceptions-first Design overview — the money leaks super needs to see without
 // entering the Design console: published designs no one listed, and published designs no one buys.

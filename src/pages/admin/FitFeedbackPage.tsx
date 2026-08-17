@@ -13,8 +13,8 @@ import fs from './FitFeedbackPage.module.css';
 // Fit-Promise radar (W-17): a ≤2 rating is a fit failure that needs rescue.
 const fitTone = (n: number) => (n >= 4 ? 'done' : n <= 2 ? 'blocked' : 'qc');
 
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+// ACP-6 [KA11-6]: one date formatter for the admin.
+import { fmtDate } from '../../utils/date';
 
 const areaLabel = (k: string, v: number) => `${k.replace(/_/g, ' ')} ${v < 0 ? 'tight' : 'loose'}`;
 

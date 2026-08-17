@@ -19,8 +19,8 @@ import { UilAngleLeft, UilImage, UilEdit, UilPlus, UilFileAlt, UilCopy } from '@
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 const inr = (v: string | number | null | undefined) =>
   v == null ? '—' : `₹${Number(v).toLocaleString('en-IN')}`;
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
+// ACP-6 [KA11-6]: one date formatter for the admin.
+import { fmtDate } from '../../utils/date';
 
 export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boolean }> = ({ autoEdit, autoCutSheet }) => {
   const { id } = useParams<{ id: string }>();

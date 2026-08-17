@@ -19,8 +19,8 @@ import { money } from "../../utils/money";
 // This page declared its own; five pages did, every one different, producing four
 // shapes of the same amount product-wide — two of them in the same table row.
 const fmtINR = (n: number | null | undefined) => money(n);
-const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+// ACP-6 [KA11-6]: one date formatter for the admin.
+import { fmtDate } from "../../utils/date";
 // [FIN-36-1] The APPROVED amount, not the order's total. This field used to be
 // `orders.payable_amount` aliased over the approved figure, and it drives the
 // AMOUNT column, the disburse confirm, the toast AND the CSV — so on a partial

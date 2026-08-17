@@ -265,7 +265,14 @@ export const OrdersListPage: React.FC = () => {
         <table className={styles.table}>
           <thead><tr>
             <th>Ref</th><th>Order ID</th><th>Customer</th><th>Products</th>
-            <th>Stage</th><th>Age</th><th>Hub</th><th>Total</th><th>Date</th>
+            <th>Stage</th>
+            {/* [KA7-1] "Age" measured NOW − updated_at while DATE showed created_at,
+                so the table read "4h" beside an order created 28/7 and "8d" beside
+                one created 30/7 — two different clocks under one unlabelled word.
+                Idle time is the right number for a worklist (how long since anything
+                happened); it just has to say that it is idle time. */}
+            <th title="Time since the last update — not the order's age">Idle</th>
+            <th>Hub</th><th>Total</th><th>Placed</th>
             {isStuck && <th>Owner</th>}
           </tr></thead>
           <tbody>

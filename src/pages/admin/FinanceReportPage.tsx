@@ -30,12 +30,39 @@ const fmtINR = (n: number | null | undefined) => money(n);
 const fmtDay = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
-const SummaryCard: React.FC<{ label: string; value?: number; loading: boolean; accent?: boolean; est?: boolean }> = ({ label, value, loading, accent, est }) => (
+/**
+ * [KA8-2] The disclaimer travels WITH the number.
+ *
+ * *Fabric cost* — the largest cost line in a made-to-order clothing business —
+ * rendered **₹0** in 28px bold because no receipts are ingested, while *Profit*
+ * rendered ₹29,038.02 to the paisa on top of that zero. The page did disclose it
+ * ("Cost lines fill in as the data lands") — in 13px grey, at the top, far from
+ * the bold ₹0. **The disclaimer and the overstatement were at opposite ends of
+ * the visual hierarchy**, which is the same failure as an empty state that does
+ * not know why it is empty: the caveat exists but never reaches the eye that
+ * needs it.
+ *
+ * Settlement's *"Book side only — …"* block ([KA8-12]) is the pattern this
+ * copies: say it in place, under the figure it qualifies.
+ */
+const SummaryCard: React.FC<{
+  label: string;
+  value?: number;
+  loading: boolean;
+  accent?: boolean;
+  est?: boolean;
+  /** Shown under the value when `value` is zero — why this is zero, not "it is zero". */
+  zeroNote?: string;
+  /** Shown always, e.g. on a figure derived from an unmeasured input. */
+  note?: string;
+}> = ({ label, value, loading, accent, est, zeroNote, note }) => (
   <div className={s.summaryCard}>
     <div className={s.summaryLabel}>{label}{est && <span className={s.estTag}>est.</span>}</div>
     <div className={`${s.summaryValue}${accent ? ` ${s.pendingAccent}` : ""}`}>
       {loading || value === undefined ? "—" : fmtINR(value)}
     </div>
+    {!loading && note && <div className={s.summarySub}>{note}</div>}
+    {!loading && zeroNote && value === 0 && <div className={s.summarySub}>{zeroNote}</div>}
   </div>
 );
 
@@ -269,12 +296,28 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
         ) : (
           <>
             <SummaryCard label="Revenue" value={pnl?.totals.revenue} loading={loading} />
-            <SummaryCard label="Fabric cost" value={pnl?.totals.fabric_cost} loading={loading} />
+            {/* [KA8-2] A ₹0 that means "not measured", said where the ₹0 is. */}
+            <SummaryCard
+              label="Fabric cost"
+              value={pnl?.totals.fabric_cost}
+              loading={loading}
+              zeroNote="₹0 because no fabric receipts are ingested yet — not because fabric was free. The largest cost line in this business is missing from Profit below."
+            />
             <SummaryCard label="Guarantee" value={pnl?.totals.guarantee_cost} loading={loading} est />
             <SummaryCard label="Delivery" value={pnl?.totals.delivery_cost} loading={loading} est />
             <SummaryCard label="Payment fees" value={pnl?.totals.payment_fees} loading={loading} />
             <SummaryCard label="Refunds" value={pnl?.totals.refunds} loading={loading} accent />
-            <SummaryCard label="Profit" value={pnl?.totals.profit} loading={loading} />
+            {/* [KA8-2] Profit is only as good as the costs under it. */}
+            <SummaryCard
+              label="Profit"
+              value={pnl?.totals.profit}
+              loading={loading}
+              note={
+                pnl && pnl.totals.fabric_cost === 0
+                  ? "Overstated — computed with fabric cost at ₹0."
+                  : undefined
+              }
+            />
             {/* T1-19: outstanding wallet credits — a current liability, not part of period profit. */}
             <SummaryCard label="Wallet liability (owed, current)" value={pnl?.wallet_liability} loading={loading} accent />
             {/* T1-23: fit-promise reserve to hold for the period (memo/provision, not in profit). */}
@@ -310,7 +353,29 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                     <Button variant="secondary" size="sm" onClick={() => setShowForm((v) => !v)}>
                       {showForm ? "Cancel" : "Record settlement"}
                     </Button>
-                    <Button variant="secondary" size="sm" onClick={syncFromRazorpay}>Sync from Razorpay</Button>
+                    {/* [KA8-13] This sat ENABLED directly above copy saying the
+                        Razorpay keys are not live — an action that cannot
+                        succeed, offered as though it can. Disable it and say why,
+                        rather than let someone click and receive an error that
+                        looks like a fault. (It was also one of only two tan
+                        buttons in the entire admin; now it uses the same
+                        secondary as its neighbour.) */}
+                    <span
+                      title={
+                        settlement?.variance_tracked === false
+                          ? "Unavailable until live Razorpay keys are configured — there is nothing to sync yet."
+                          : undefined
+                      }
+                    >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={syncFromRazorpay}
+                        disabled={settlement?.variance_tracked === false}
+                      >
+                        Sync from Razorpay
+                      </Button>
+                    </span>
                   </div>
                 </Can>
               </div>
