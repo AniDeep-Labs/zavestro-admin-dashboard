@@ -6,7 +6,7 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { StatusBadge, PageHeader, EmptyState } from "../../components";
-import { AgeCell } from "../../components/DataCells";
+import { AgeCell , PhoneCell } from "../../components/DataCells";
 import { Button } from "../../components/Button/Button";
 import styles from "./OrdersListPage.module.css";
 import s from "./CodReconciliationPage.module.css";
@@ -154,7 +154,7 @@ export const RefundsPage: React.FC = () => {
       ) : (
         <div className={styles.customerName}>{r.customer_name ?? "—"}</div>
       )}
-      <div className={styles.customerPhone}>{r.customer_phone ?? ""}</div>
+      <div className={styles.customerPhone}><PhoneCell phone={r.customer_phone} /></div>
     </td>
   );
 

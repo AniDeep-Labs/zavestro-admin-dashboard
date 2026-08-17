@@ -186,7 +186,7 @@ export function OverviewExceptions<T>(props: OverviewExceptionsProps<T>) {
                   key={active.rowKey(r)}
                   className={`${styles.row} ${ov.rowClickable}`}
                   onClick={() => setPeekRow(r)}
-                >
+                 tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setPeekRow(r))?.(); }}>
                   {active.columns.map((c) => (
                     <td key={c.header}>{c.cell(r)}</td>
                   ))}

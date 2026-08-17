@@ -139,7 +139,7 @@ export const CollectionsListPage: React.FC = () => {
               <tr><td colSpan={8} className={styles.empty}>No collections found.</td></tr>
             ) : (
               collections.map(col => (
-                <tr key={col.id} className={`${styles.row} ${styles.clickRow}`} onClick={() => setEditorId(col.id)}>
+                <tr key={col.id} className={`${styles.row} ${styles.clickRow}`} onClick={() => setEditorId(col.id)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setEditorId(col.id))?.(); }}>
                   <td>
                     <button className={styles.nameLink} onClick={e => { e.stopPropagation(); setEditorId(col.id); }}>
                       {col.name}

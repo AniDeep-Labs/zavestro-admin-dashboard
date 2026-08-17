@@ -48,7 +48,7 @@ export const SampleVerificationPage: React.FC<{ embedded?: boolean }> = ({ embed
   const reviewed = samples.filter((j) => REVIEWED.includes(j.status)).sort(byNewest);
 
   const row = (j: SampleJob) => (
-    <tr key={j.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${j.id}`)}>
+    <tr key={j.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${j.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/design/samples/${j.id}`))?.(); }}>
       <td>
         <div className={s.sampleCell}>
           {thumbUrl(j) ? <img className={s.thumb} src={thumbUrl(j)} alt="" /> : <div className={s.thumb}><UilImage size={16} /></div>}

@@ -6,6 +6,7 @@ import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { StatusBadge } from "../../components";
 import styles from "./SupportListPage.module.css";
+import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA7-2]: masked by default
 import {
   UilAngleLeft,
   UilAngleRight,
@@ -214,7 +215,7 @@ export const SupportListPage: React.FC = () => {
       key={t.id}
       className={`${styles.row} ${!t.assignedTo ? styles.rowUnassigned : ""}`}
       onClick={() => navigate(`/admin/support/${t.id}`)}
-    >
+     tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/support/${t.id}`))?.(); }}>
       <td className={styles.ticketId}>
         <span style={{ fontFamily: "monospace", fontWeight: 600 }}>
           {t.reference_id ?? t.id.slice(0, 8)}
@@ -222,7 +223,7 @@ export const SupportListPage: React.FC = () => {
       </td>
       <td>
         <div className={styles.customerName}>{t.customer}</div>
-        <div className={styles.customerPhone}>{t.phone}</div>
+        <div className={styles.customerPhone}><PhoneCell phone={t.phone} /></div>
       </td>
       <td className={styles.subject}>
         {t.subject}
@@ -402,7 +403,7 @@ export const SupportListPage: React.FC = () => {
                       key={t.id}
                       className={`${styles.row} ${!t.assignedTo ? styles.rowUnassigned : ""}`}
                       onClick={() => navigate(`/admin/support/${t.id}`)}
-                    >
+                     tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/support/${t.id}`))?.(); }}>
                       <td className={styles.ticketId}>
                         <span
                           style={{ fontFamily: "monospace", fontWeight: 600 }}
@@ -412,7 +413,7 @@ export const SupportListPage: React.FC = () => {
                       </td>
                       <td>
                         <div className={styles.customerName}>{t.customer}</div>
-                        <div className={styles.customerPhone}>{t.phone}</div>
+                        <div className={styles.customerPhone}><PhoneCell phone={t.phone} /></div>
                       </td>
                       <td className={styles.subject}>{t.subject}</td>
                       <td>{t.category}</td>

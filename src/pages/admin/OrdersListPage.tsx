@@ -6,7 +6,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { StatusBadge, statusLabel } from '../../components/StatusBadge';
 import { EmptyState } from '../../components/EmptyState';
-import { CopyId, AgeCell, MoneyCell } from '../../components/DataCells';
+import { CopyId, AgeCell, MoneyCell , PhoneCell } from '../../components/DataCells';
 import { PeekDrawer } from '../../components/PeekDrawer';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './OrdersListPage.module.css';
@@ -291,12 +291,12 @@ export const OrdersListPage: React.FC = () => {
               </td></tr>
             ) : orders.map(o => (
               <tr key={o.id} className={`${styles.row} ${o.overdue ? styles.rowOverdue : ''}`}
-                onClick={() => setPeek(o)}>
+                onClick={() => setPeek(o)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setPeek(o))?.(); }}>
                 <td>{o.reference_id ? <CopyId value={o.reference_id} /> : '—'}</td>
                 <td className={styles.orderId}>{o.id}</td>
                 <td>
                   <div className={styles.customerName}>{o.customer}</div>
-                  <div className={styles.customerPhone}>{o.phone}</div>
+                  <div className={styles.customerPhone}><PhoneCell phone={o.phone} /></div>
                 </td>
                 <td className={styles.products}>
                   {o.products?.slice(0,2).join(', ')}

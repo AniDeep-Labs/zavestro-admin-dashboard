@@ -9,6 +9,7 @@ import { Button } from '../../components/Button/Button';
 import { Textarea } from '../../components/Textarea/Textarea';
 import { CustomerQuickLookup } from '../../components/CustomerQuickLookup/CustomerQuickLookup';
 import styles from './OrdersListPage.module.css';
+import { PhoneCell } from '../../components/DataCells'; // ACP-3 [KA7-2]: masked by default
 import ds from './DistributionPage.module.css';
 import d from './AlterationsListPage.module.css';
 import { UilSearch, UilTimes, UilPlus } from "@iconscout/react-unicons";
@@ -153,10 +154,10 @@ export const ReturnsListPage: React.FC = () => {
               </tr></thead>
               <tbody>
                 {list.map(r => (
-                  <tr key={r.id} className={styles.row} onClick={() => navigate(`/admin/returns/${r.id}`)}>
+                  <tr key={r.id} className={styles.row} onClick={() => navigate(`/admin/returns/${r.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/returns/${r.id}`))?.(); }}>
                     <td className={styles.orderId}>{r.order_number}</td>
                     <td><div className={styles.customerName}>{r.customer_name}</div></td>
-                    <td><div className={styles.customerPhone}>{r.customer_phone}</div></td>
+                    <td><div className={styles.customerPhone}><PhoneCell phone={r.customer_phone} /></div></td>
                     <td className={styles.reasonCell}>{r.reason}</td>
                     <td>{r.policy_verdict?.label ?? '—'}</td>
                     <td><StatusBadge status={r.status} /></td>

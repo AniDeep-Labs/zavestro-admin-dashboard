@@ -169,7 +169,7 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
               rows.map((r) => {
                 const done = isTerminalSample(r.status);
                 return (
-                  <tr key={r.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${r.id}`)}>
+                  <tr key={r.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${r.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/design/samples/${r.id}`))?.(); }}>
                     <td>
                       <div className={s.fabricCell}>
                         {swatch(r.fabric_image_keys)

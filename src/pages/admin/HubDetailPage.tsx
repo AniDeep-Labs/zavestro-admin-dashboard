@@ -294,7 +294,7 @@ export const HubDetailPage: React.FC = () => {
           <thead><tr><th>Order</th><th>Customer</th><th>Stage</th><th>Total</th><th>Placed</th></tr></thead>
           <tbody>
             {recentOrders.map(o => (
-              <tr key={o.uuid} className={styles.clickRow} onClick={() => navigate(`/admin/orders/${o.uuid}`)}>
+              <tr key={o.uuid} className={styles.clickRow} onClick={() => navigate(`/admin/orders/${o.uuid}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/orders/${o.uuid}`))?.(); }}>
                 <td className={styles.rosterName}>{o.reference_id || o.id}</td>
                 <td>{o.customer ?? '—'}</td>
                 <td><StatusBadge status={o.stage} size="sm" /></td>

@@ -26,3 +26,15 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
 }
+
+/* ACP-3 [KA7-2] — one masked phone, with a deliberate reveal. */
+.phone { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.revealBtn {
+  padding: 0 4px; font-size: 10px; line-height: 1.6; cursor: pointer;
+  color: var(--color-text-tertiary); background: none;
+  border: 1px solid var(--color-border-light); border-radius: 3px;
+}
+.revealBtn:hover { color: var(--color-text-primary); background: var(--color-bg-secondary); }
+/* [KA7-15] A DPDP erasure must LOOK like a tombstone, not like a name. */
+.tombstone { font-style: italic; color: var(--color-text-tertiary); }
+.muted { color: var(--color-text-tertiary); }

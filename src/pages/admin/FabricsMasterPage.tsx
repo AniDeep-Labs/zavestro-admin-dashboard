@@ -355,7 +355,7 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
                 pageRows.map((f) => {
                   const url = swatchUrl(f.image_keys?.[0]);
                   return (
-                    <tr key={f.id} className={base.row} onClick={() => navigate(`${basePath}/${f.id}`)}>
+                    <tr key={f.id} className={base.row} onClick={() => navigate(`${basePath}/${f.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`${basePath}/${f.id}`))?.(); }}>
                       <td>
                         <div className={base.fabricCell}>
                           {url && !broken.has(f.id)

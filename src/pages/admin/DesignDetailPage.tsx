@@ -280,7 +280,7 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
       <thead><tr><th>Hub</th><th>Status</th><th>Requested</th><th>Verdict / note</th></tr></thead>
       <tbody>
         {design.samples.map((sm) => (
-          <tr key={sm.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${sm.id}`)}>
+          <tr key={sm.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${sm.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/design/samples/${sm.id}`))?.(); }}>
             <td>{sm.hub_name ?? '—'}</td>
             <td><StatusBadge status={sm.status} size="sm" /></td>
             <td>{fmtDate(sm.created_at)}</td>

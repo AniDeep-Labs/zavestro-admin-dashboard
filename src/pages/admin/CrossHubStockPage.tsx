@@ -228,7 +228,7 @@ export const CrossHubStockPage: React.FC = () => {
         </tr></thead>
         <tbody>
           {list.map((r) => (
-            <tr key={rowKey(r)} className={styles.row} onClick={() => openLedger(r)}>
+            <tr key={rowKey(r)} className={styles.row} onClick={() => openLedger(r)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => openLedger(r))?.(); }}>
               <td className={styles.customerName}>{r.hub_name}</td>
               <td>
                 <div className={styles.fabricCell}>
@@ -406,7 +406,7 @@ export const CrossHubStockPage: React.FC = () => {
                     key={d.id}
                     className={styles.row}
                     onClick={() => navigate(`/admin/procurement/distribution?hub_id=${d.hub_id}`)}
-                  >
+                   tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/procurement/distribution?hub_id=${d.hub_id}`))?.(); }}>
                     <td className={styles.customerName}>{d.design_name}</td>
                     <td>
                       <div className={styles.fabricCell}>
