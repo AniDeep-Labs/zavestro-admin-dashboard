@@ -134,6 +134,17 @@ export const ReturnsListPage: React.FC = () => {
 
   const renderSection = ({ key, title }: { key: ReturnSection; title: string }) => {
     const list = bySection(key);
+    // [KA7-17] An empty bucket collapses to ONE LINE. Four expanded sections, two
+    // of them a full header + a zero + "Nothing here.", meant the operator scrolled
+    // past two announcements of nothing to reach one row of actual work. A worklist
+    // should spend its vertical space on work.
+    if (list.length === 0) {
+      return (
+        <div className={ds.emptyBucket} key={key}>
+          {title} <span className={ds.count}>{sectionCount(key, 0)}</span>
+        </div>
+      );
+    }
     return (
       <section className={ds.section} key={key}>
         <h2 className={ds.sectionTitle}>
@@ -144,9 +155,7 @@ export const ReturnsListPage: React.FC = () => {
             </span>
           )}
         </h2>
-        {list.length === 0 ? (
-          <p className={styles.pagination}>Nothing here.</p>
-        ) : (
+        {(
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead><tr>

@@ -1695,7 +1695,14 @@ export const OrderDetailPage: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <div className={styles.assignHint}>No activity yet.</div>
+                <div className={styles.assignHint}>
+                  {/* [KA7-10] Absence of LOGGING is not absence of HISTORY. This
+                      read "No activity yet." on a garment at stage 6 of 10 — one
+                      that has, by definition, moved five times. The admin path
+                      writes no timeline entries, so the page was reporting our
+                      gap as the order's. */}
+                  No entries — stage changes made in this console are not yet recorded here.
+                </div>
               )}
             </div>
             <div className={styles.noteForm}>

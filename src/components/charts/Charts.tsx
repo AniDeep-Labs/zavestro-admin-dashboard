@@ -41,7 +41,12 @@ export function useChartColors() {
 }
 
 // Donut palette — distinct, on-brand hues for pipeline stages.
-export const STAGE_COLORS = ['#1F6B4F', '#4B8DC8', '#D4A574', '#E4952A', '#9B7FB8', '#5BAE8E', '#C98B6B', '#7C8B57'];
+// [KA8-19] STAGE_COLORS + stageRamp moved to ./palette.ts — a plain module, so
+// react-refresh is not broken by non-component exports (same pattern as
+// StatusBadge/vocab.ts and EmptyState/asyncState.ts).
+export { STAGE_COLORS, stageRamp } from './palette';
+import { STAGE_COLORS } from './palette';
+
 
 // Compact ₹ formatter for chart axes/labels (₹1.2Cr, ₹3.4L, ₹5.6K).
 export function fmtINRShort(v: number): string {
@@ -79,10 +84,12 @@ export function Sparkline({ data, up = true, height = 38, color }: { data: numbe
 // ─── Area trend chart — gradient + axes + grid + tooltip ───────────────────────
 type AreaPoint = Record<string, string | number>;
 export function AreaTrendChart({
-  data, xKey, dataKey, height = 260, valueFormatter, color,
+  data, xKey, dataKey, height = 260, valueFormatter, color, seriesName = 'Value',
 }: {
   data: AreaPoint[]; xKey: string; dataKey: string; height?: number;
   valueFormatter?: (v: number) => string; color?: string;
+  /** [KA8-18] What the number IS. Passing '' left the tooltip with a blank line. */
+  seriesName?: string;
 }) {
   const c = useChartColors();
   const id = useId().replace(/:/g, '');
@@ -110,7 +117,11 @@ export function AreaTrendChart({
           cursor={{ stroke: c.axis, strokeDasharray: '3 3' }}
           contentStyle={{ background: c.card, border: `1px solid ${c.grid}`, borderRadius: 10, fontSize: 12, boxShadow: '0 6px 20px rgba(0,0,0,0.10)' }}
           labelStyle={{ color: c.text, fontWeight: 600, marginBottom: 2 }}
-          formatter={(v: number | string) => [fmt(Number(v)), '']}
+          /* [KA8-18] The second element is the SERIES NAME, and passing '' made
+             the tooltip render "07 Aug / (blank) / : ₹0" — on a 30-day axis the
+             tooltip is the only way to read a single day, so a blank label made
+             it unusable for its one job. `seriesName` names the measure. */
+          formatter={(v: number | string) => [fmt(Number(v)), seriesName]}
         />
         <Area
           type="monotone" dataKey={dataKey} stroke={stroke} strokeWidth={2.4}
@@ -160,10 +171,12 @@ export function DonutChart({
 
 // ─── Bar chart — rounded bars with animation ──────────────────────────────────
 export function BarMini({
-  data, xKey, dataKey, height = 220, color, valueFormatter, colors,
+  data, xKey, dataKey, height = 220, color, valueFormatter, colors, seriesName = 'Count',
 }: {
   data: AreaPoint[]; xKey: string; dataKey: string; height?: number;
   color?: string; valueFormatter?: (v: number) => string; colors?: string[];
+  /** [KA8-18] What the number IS. Passing '' left the tooltip with a blank line. */
+  seriesName?: string;
 }) {
   const c = useChartColors();
   const fill = color ?? c.primary;
@@ -177,7 +190,11 @@ export function BarMini({
         <Tooltip
           cursor={{ fill: 'rgba(0,0,0,0.035)' }}
           contentStyle={{ background: c.card, border: `1px solid ${c.grid}`, borderRadius: 10, fontSize: 12 }}
-          formatter={(v: number | string) => [fmt(Number(v)), '']}
+          /* [KA8-18] The second element is the SERIES NAME, and passing '' made
+             the tooltip render "07 Aug / (blank) / : ₹0" — on a 30-day axis the
+             tooltip is the only way to read a single day, so a blank label made
+             it unusable for its one job. `seriesName` names the measure. */
+          formatter={(v: number | string) => [fmt(Number(v)), seriesName]}
         />
         <Bar dataKey={dataKey} fill={fill} radius={[5, 5, 0, 0]} isAnimationActive animationDuration={900} maxBarSize={46}>
           {colors && data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
