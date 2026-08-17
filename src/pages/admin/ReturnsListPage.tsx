@@ -14,6 +14,7 @@ import ds from './DistributionPage.module.css';
 import d from './AlterationsListPage.module.css';
 import { UilSearch, UilTimes, UilPlus } from "@iconscout/react-unicons";
 import { StatusBadge } from '../../components';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 // T2-31 (SP-4): the sectioned worklist. Order matters — the actionable bucket leads.
 const SECTIONS: { key: ReturnSection; title: string }[] = [
@@ -163,7 +164,7 @@ export const ReturnsListPage: React.FC = () => {
               </tr></thead>
               <tbody>
                 {list.map(r => (
-                  <tr key={r.id} className={styles.row} onClick={() => navigate(`/admin/returns/${r.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/returns/${r.id}`))?.(); }}>
+                  <tr key={r.id} className={styles.row} {...rowActivation(() => navigate(`/admin/returns/${r.id}`))}>
                     <td className={styles.orderId}>{r.order_number}</td>
                     <td><div className={styles.customerName}>{r.customer_name}</div></td>
                     <td><div className={styles.customerPhone}><PhoneCell phone={r.customer_phone} /></div></td>

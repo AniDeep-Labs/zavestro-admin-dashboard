@@ -13,6 +13,7 @@ import base from "./OrdersListPage.module.css";
 import ov from "./OverviewExceptions.module.css";
 import { UilPlus } from "@iconscout/react-unicons";
 import { StatusBadge } from "../../components";
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const ROLE_LABELS: Record<StaffRole, string> = {
   hub_manager: "Hub Manager",
@@ -251,8 +252,7 @@ export const StaffManagementPage: React.FC = () => {
                   key={s.id}
                   className={base.row}
                   style={{ opacity: s.is_active ? 1 : 0.55, cursor: 'pointer' }}
-                  onClick={() => setPeek(s)}
-                 tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setPeek(s))?.(); }}>
+                   {...rowActivation(() => setPeek(s))}>
                   <td className={base.customerName} style={{ fontWeight: 500 }}>
                     {s.name}
                   </td>

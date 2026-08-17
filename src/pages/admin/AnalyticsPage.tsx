@@ -8,6 +8,7 @@ import { downloadCsv, datedFilename } from '../../utils/csv';
 import { AreaTrendChart, fmtINRShort } from '../../components/charts/Charts';
 import styles from './AnalyticsPage.module.css';
 import { UilChartBar, UilChartDown, UilChartGrowth, UilImport } from "@iconscout/react-unicons";
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 type Section = 'revenue' | 'orders' | 'fit-scores' | 'hub-performance' | 'retention';
 
@@ -281,7 +282,7 @@ export const AnalyticsPage: React.FC = () => {
               </thead>
               <tbody>
                 {hubs.map(h => (
-                  <tr key={h.id} className={styles.row} onClick={() => navigate(`/admin/hubs/${h.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/hubs/${h.id}`))?.(); }}>
+                  <tr key={h.id} className={styles.row} {...rowActivation(() => navigate(`/admin/hubs/${h.id}`))}>
                     <td className={styles.productName}>{h.name}</td>
                     <td>{h.city}</td>
                     <td>{h.activeOrders}</td>

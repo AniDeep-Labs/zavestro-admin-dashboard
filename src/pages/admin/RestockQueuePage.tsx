@@ -13,6 +13,7 @@ import styles from './OrdersListPage.module.css';
 import ds from './DistributionPage.module.css';
 import rs from './RestockQueuePage.module.css';
 import { UilPlus } from '@iconscout/react-unicons';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 const numv = (v: string | number | null | undefined) => (v == null ? 0 : Number(v));
@@ -194,8 +195,7 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
       <tr
         key={r.id}
         className={isCm ? undefined : `${styles.row} ${rs.clickRow}`}
-        onClick={isCm ? undefined : () => goTrack(r)}
-       tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (isCm ? undefined : () => goTrack(r))?.(); }}>
+         {...(isCm ? {} : rowActivation(() => goTrack(r)))}>
         <td>{fabricCell(r)}</td>
         {!isCm && <td>{hubName(r.hub_id)}</td>}
         {!isCm && <td>{stockCell(r)}</td>}
@@ -230,8 +230,7 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
     <tr
       key={r.id}
       className={isCm ? undefined : `${styles.row} ${rs.clickRow}`}
-      onClick={isCm ? undefined : () => goTrack(r)}
-     tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (isCm ? undefined : () => goTrack(r))?.(); }}>
+       {...(isCm ? {} : rowActivation(() => goTrack(r)))}>
       <td>{fabricCell(r)}</td>
       {!isCm && <td>{hubName(r.hub_id)}</td>}
       <td className={styles.total}>{Number(r.qty)}</td>

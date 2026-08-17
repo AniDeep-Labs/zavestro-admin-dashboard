@@ -9,6 +9,7 @@ import { StatusBadge } from '../../components';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Modal } from '../../components/Modal/Modal';
 import { CollectionEditPage } from './CollectionEditPage';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 function useDebounce<T>(value: T, delay: number): T {
   const [v, setV] = React.useState(value);
@@ -139,7 +140,7 @@ export const CollectionsListPage: React.FC = () => {
               <tr><td colSpan={8} className={styles.empty}>No collections found.</td></tr>
             ) : (
               collections.map(col => (
-                <tr key={col.id} className={`${styles.row} ${styles.clickRow}`} onClick={() => setEditorId(col.id)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => setEditorId(col.id))?.(); }}>
+                <tr key={col.id} className={`${styles.row} ${styles.clickRow}`} {...rowActivation(() => setEditorId(col.id))}>
                   <td>
                     <button className={styles.nameLink} onClick={e => { e.stopPropagation(); setEditorId(col.id); }}>
                       {col.name}

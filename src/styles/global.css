@@ -230,6 +230,34 @@ input[type="radio"] {
   outline-offset: 2px;
 }
 
+/* [DSA-45-1] A focused table row has to be VISIBLY focused.
+   `outline` on a `<tr>` is unreliable — with the default `border-collapse` the row box
+   has no border of its own to draw on, so browsers render the ring partially or not at
+   all. An inset box-shadow on the cells draws inside the row and always shows. Rows are
+   the primary navigation of this console; a keyboard user who cannot see where they are
+   has a tab-order and nothing else. */
+tr:focus-visible {
+  outline: none;
+}
+tr:focus-visible > td,
+tr:focus-visible > th {
+  box-shadow: inset 0 2px 0 var(--color-primary), inset 0 -2px 0 var(--color-primary);
+}
+tr:focus-visible > td:first-child,
+tr:focus-visible > th:first-child {
+  box-shadow:
+    inset 2px 0 0 var(--color-primary),
+    inset 0 2px 0 var(--color-primary),
+    inset 0 -2px 0 var(--color-primary);
+}
+tr:focus-visible > td:last-child,
+tr:focus-visible > th:last-child {
+  box-shadow:
+    inset -2px 0 0 var(--color-primary),
+    inset 0 2px 0 var(--color-primary),
+    inset 0 -2px 0 var(--color-primary);
+}
+
 /* ===== LISTS ===== */
 ul, ol {
   margin-left: var(--spacing-lg);

@@ -11,6 +11,7 @@ import base from "./OrdersListPage.module.css";
 import kpi from "./CodReconciliationPage.module.css";
 import s from "./CentralStockPage.module.css";
 import { UilPlus, UilSlidersV, UilHistory, UilImport, UilImage } from "@iconscout/react-unicons";
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const num = (v: string | number | null | undefined) => (v == null ? 0 : Number(v));
 const fmtM = (v: string | number | null | undefined) => `${num(v).toLocaleString("en-IN")} m`;
@@ -219,7 +220,7 @@ export const CentralStockPage: React.FC = () => {
                 </td></tr>
               ) : (
                 rows.map((r) => (
-                  <tr key={r.fabric_id} className={base.row} onClick={() => openHistory(r)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => openHistory(r))?.(); }}>
+                  <tr key={r.fabric_id} className={base.row} {...rowActivation(() => openHistory(r))}>
                     <td>
                       <div className={base.fabricCell}>
                         {imgOf(r.fabric_image_keys) && !broken.has(r.fabric_id)

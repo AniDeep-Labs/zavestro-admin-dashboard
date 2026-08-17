@@ -14,6 +14,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { PageHeader } from '../../components';
 import styles from './OrdersListPage.module.css';
 import local from './DesignAnalyticsPage.module.css';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 // FTR-style tone: ≥90 healthy, ≥75 watch, below = problem.
 const fitTone = (pct: number) => (pct >= 90 ? 'done' : pct >= 75 ? 'qc' : 'blocked');
@@ -139,7 +140,7 @@ export const DesignAnalyticsPage: React.FC = () => {
               <tr><td colSpan={5} className={styles.empty}>No delivered orders match these filters — performance appears once matching designs sell.</td></tr>
             ) : (
               worstFirst.map((d) => (
-                <tr key={d.design_id} className={styles.row} onClick={() => navigate(`/admin/design/library/${d.design_id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/design/library/${d.design_id}`))?.(); }}>
+                <tr key={d.design_id} className={styles.row} {...rowActivation(() => navigate(`/admin/design/library/${d.design_id}`))}>
                   <td className={`${styles.customerName} ${local.cellName}`}>{d.design_name}</td>
                   <td className={`${styles.total} ${local.cellUnits}`}>{d.units}</td>
                   <td>{d.orders}</td>
