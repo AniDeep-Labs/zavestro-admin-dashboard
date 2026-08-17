@@ -355,6 +355,7 @@
 .metricDelta svg { width: 11px; height: 11px; }
 .metricsPanel .deltaUp   { background: rgba(91, 192, 141, 0.20); color: #87D7AB; }
 .metricsPanel .deltaDown { background: rgba(239, 166, 166, 0.20); color: #F3ABAB; }
+.metricBasis { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; line-height: 1.3; }
 .metricSpark { height: 30px; margin-top: 14px; }
 
 /* (legacy card classes kept below for any other references) */
@@ -671,6 +672,7 @@
 .miniTitle { font-size: 13px; font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
 .miniSub { font-size: 11px; color: var(--color-text-tertiary); text-transform: capitalize; white-space: nowrap; }
 .miniValue {
+.miniNote { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
   font-size: 26px;
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);

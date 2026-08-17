@@ -10,7 +10,15 @@ interface Props {
   onClear?: () => void;
   autoFocus?: boolean;
   label?: string;
-  /** G-93: ask the server to mask contact PII in the result list (Call Console). */
+  /**
+   * G-93: mask contact PII in the result list.
+   *
+   * [SUP-33-1] Defaults to TRUE now. The same component shipped masked on the Call
+   * Console and UNMASKED on the returns and alterations lists, whose
+   * create-on-behalf dropdowns therefore rendered full phone numbers and emails
+   * while an agent typed. One component, one default, and the safe one is the
+   * default — a call site that needs full contact details has to say so.
+   */
   masked?: boolean;
 }
 
@@ -21,7 +29,7 @@ export const CustomerQuickLookup: React.FC<Props> = ({
   onClear,
   autoFocus,
   label,
-  masked = false,
+  masked = true,
 }) => {
   const [query, setQuery] = React.useState('');
   const [results, setResults] = React.useState<CustomerLookupResult[]>([]);
@@ -42,7 +50,7 @@ export const CustomerQuickLookup: React.FC<Props> = ({
       } catch { /* ignore */ }
       finally { setLoading(false); }
     }, 300);
-  }, [query]);
+  }, [query, masked]);
 
   React.useEffect(() => {
     const handle = (e: MouseEvent) => {

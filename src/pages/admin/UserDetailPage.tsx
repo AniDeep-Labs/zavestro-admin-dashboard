@@ -16,6 +16,8 @@ import type { ToastData } from "../../components/Toast/Toast";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
 import { Can } from "../../components/Can/Can";
 import { PageHeader, DetailShell, NotesPanel } from "../../components";
+import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
+import { isDenied, errorMessage } from "../../components/EmptyState/asyncState"; // [SUP-30-4]
 import type { NoteEntry } from "../../components";
 import styles from "./UserDetailPage.module.css";
 import {
@@ -58,6 +60,12 @@ export const UserDetailPage: React.FC = () => {
   const [eraseText, setEraseText] = React.useState("");
   const [erasing, setErasing] = React.useState(false);
   const [notes, setNotes] = React.useState<CustomerNote[]>([]);
+  // [SUP-30-4] The four errors this page used to discard. A panel that cannot say
+  // WHY it is empty will say the wrong thing about a customer.
+  const [notesErr, setNotesErr] = React.useState<unknown>(null);
+  const [fitProfilesErr, setFitProfilesErr] = React.useState<unknown>(null);
+  const [remeasuresErr, setRemeasuresErr] = React.useState<unknown>(null);
+  const [ledgerErr, setLedgerErr] = React.useState<unknown>(null);
   const [saving, setSaving] = React.useState(false);
   const [fitProfiles, setFitProfiles] = React.useState<AdminFitProfile[]>([]);
   const [fitProfilesLoading, setFitProfilesLoading] = React.useState(false);
@@ -105,18 +113,35 @@ export const UserDetailPage: React.FC = () => {
         ),
       )
       .finally(() => setLoading(false));
+    // [SUP-30-4] KEEP the error. Four `catch(() => {})` here turned a refusal into
+    // a statement about the customer: a 403 on fit-profiles rendered "No fit
+    // profiles found for this customer."; a failed notes fetch rendered "No notes
+    // yet." (so an agent misses a fraud note); a failed re-measure fetch showed no
+    // open request (so an agent raises a duplicate); and the credit ledger set
+    // itself to [] while the BALANCE fell back to `user.credits` — a figure from a
+    // different source sitting above an empty history.
+    //
+    // The policy behind that 403 is correct and deliberate. The page was hiding
+    // its own best decision behind a sentence that is false about the customer.
     setFitProfilesLoading(true);
     fitProfilesAdminApi
       .list(id)
       .then((data) => {
         setFitProfiles(data);
+        setFitProfilesErr(null);
         if (data.length > 0) setSelectedProfileId(data[0].id);
       })
-      .catch(() => {})
+      .catch(setFitProfilesErr)
       .finally(() => setFitProfilesLoading(false));
     loadLedger(id);
-    usersApi.remeasureRequests(id).then(setRemeasures).catch(() => {});
-    usersApi.notes(id).then(setNotes).catch(() => {});
+    usersApi
+      .remeasureRequests(id)
+      .then((r) => { setRemeasures(r); setRemeasuresErr(null); })
+      .catch(setRemeasuresErr);
+    usersApi
+      .notes(id)
+      .then((n) => { setNotes(n); setNotesErr(null); })
+      .catch(setNotesErr);
   }, [id]);
 
   const loadLedger = (uid: string) =>
@@ -125,8 +150,11 @@ export const UserDetailPage: React.FC = () => {
       .then((d) => {
         setLedger(d.entries);
         setLedgerBalance(d.balance);
+        setLedgerErr(null);
       })
-      .catch(() => setLedger([]));
+      // [SUP-30-4] NOT `setLedger([])` — an empty ledger under a balance read from
+      // somewhere else is the money version of this whole finding.
+      .catch(setLedgerErr);
 
   // T1-21b Phase 3 (E): record the re-measure outcome (our fault vs customer error).
   const setOutcome = async (
@@ -380,6 +408,18 @@ export const UserDetailPage: React.FC = () => {
     body: n.body,
   }));
 
+  // [DSA-45-2] These seven dialogs are hand-rolled overlays: no Escape handler,
+  // no role="dialog", and focus never entered them — measured live on Issue
+  // Credits, where focus stayed on the trigger button. They keep their markup
+  // and CSS; useDialog supplies the behaviour `<Modal>` already has, from the
+  // same implementation. Erase customer data and Deactivate Account are here.
+  const deactivateDialog = useDialog(showDeactivateModal, () => setShowDeactivateModal(false), 'Deactivate account');
+  const eraseDialog = useDialog(showErase, () => setShowErase(false), 'Erase customer data');
+  const creditsDialog = useDialog(showCreditsModal, () => setShowCreditsModal(false), 'Issue credits');
+  const remeasureDialog = useDialog(showRemeasure, () => setShowRemeasure(false), 'Request re-measure');
+  const flagDialog = useDialog(showFlag, () => setShowFlag(false), 'Flag fit profile');
+  const alterationDialog = useDialog(showAlteration, () => setShowAlteration(false), 'Request alteration');
+  const returnDialog = useDialog(showReturn, () => setShowReturn(false), 'Start a return');
   if (loading)
     return (
       <div className={styles.page}>
@@ -526,7 +566,14 @@ export const UserDetailPage: React.FC = () => {
             notes={noteEntries}
             onAdd={handleAddNote}
             placeholder="Internal note (not visible to customer)…"
-            emptyText="No notes yet."
+            /* [SUP-30-4] "No notes yet." on a failed fetch hides a fraud note. */
+            emptyText={
+              notesErr
+                ? isDenied(notesErr)
+                  ? "You don't have access to this customer's notes."
+                  : "Couldn't load notes — this is not the same as there being none."
+                : "No notes yet."
+            }
           />
         </div>
       </Can>
@@ -542,7 +589,11 @@ export const UserDetailPage: React.FC = () => {
           className={styles.linkBtn}
           onClick={() =>
             navigate(
-              `/admin/support${user.phone ? `?search=${encodeURIComponent(user.phone)}` : ""}`,
+              // [SUP-30-6] Deep-link by the ZC-ID, never the phone number. A phone
+              // in the URL lands in browser history, server logs and — this SPA has
+              // Sentry and Datadog wired — two third-party telemetry pipelines.
+              // Both target searches already match `u.reference_id`.
+              `/admin/support${user.reference_id ? `?search=${encodeURIComponent(user.reference_id)}` : ""}`,
             )
           }
         >
@@ -600,7 +651,8 @@ export const UserDetailPage: React.FC = () => {
                   className={styles.linkBtn}
                   onClick={() =>
                     navigate(
-                      `/admin/orders?search=${encodeURIComponent(user.phone)}`,
+                      // [SUP-30-6] ZC-ID, not the phone — see the tickets link above.
+                      `/admin/orders?search=${encodeURIComponent(user.reference_id ?? user.id)}`,
                     )
                   }
                 >
@@ -660,6 +712,18 @@ export const UserDetailPage: React.FC = () => {
                 </button>
               </Can>
             </div>
+            {/* [SUP-30-4] If this fetch failed, the absence of an "open request"
+                banner is not evidence there isn't one — and acting on it means
+                raising a duplicate the API will 409. */}
+            {!!remeasuresErr && (
+              <div className={styles.remeasureOpen}>
+                <span>
+                  {isDenied(remeasuresErr)
+                    ? "You don't have access to re-measure requests — check before raising one."
+                    : "Couldn't load re-measure requests — there may already be one open."}
+                </span>
+              </div>
+            )}
             {remeasures.filter((r) => r.status === "open").length > 0 && (
               <div className={styles.remeasureOpen}>
                 {remeasures
@@ -696,8 +760,17 @@ export const UserDetailPage: React.FC = () => {
                   ))}
               </div>
             )}
+            {/* [SUP-30-4] A 403 here used to render "No fit profiles found for this
+                customer." — a false statement about a person, standing in for a
+                correct and deliberate policy decision. */}
             {fitProfilesLoading ? (
               <div className={styles.profileNote}>Loading…</div>
+            ) : fitProfilesErr ? (
+              <div className={styles.profileNote}>
+                {isDenied(fitProfilesErr)
+                  ? "You don't have access to this customer's body data — it is not being shown to you, not absent."
+                  : `Couldn't load fit profiles${errorMessage(fitProfilesErr) ? ` — ${errorMessage(fitProfilesErr)}` : "."}`}
+              </div>
             ) : fitProfiles.length === 0 ? (
               <div className={styles.profileNote}>
                 No fit profiles found for this customer.
@@ -882,7 +955,18 @@ export const UserDetailPage: React.FC = () => {
               </span>
             </div>
             <div className={styles.creditsLedger}>
-              {ledger === null ? (
+              {/* [SUP-30-4] An empty ledger under a balance sourced from somewhere
+                  else is the money version of this finding: the history said
+                  "nothing happened" while the number above it said otherwise. */}
+              {ledgerErr ? (
+                <div className={styles.ledgerRow}>
+                  <span>
+                    {isDenied(ledgerErr)
+                      ? "You don't have access to the credit history."
+                      : "Couldn't load the credit history — the balance above may not match it."}
+                  </span>
+                </div>
+              ) : ledger === null ? (
                 <div className={styles.ledgerRow}>
                   <span>Loading…</span>
                 </div>
@@ -922,7 +1006,7 @@ export const UserDetailPage: React.FC = () => {
           className={styles.modalOverlay}
           onClick={() => setShowDeactivateModal(false)}
         >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()} {...deactivateDialog.dialogProps}>
             <div className={styles.modalIcon}>
               <UilLock size={22} />
             </div>
@@ -972,7 +1056,7 @@ export const UserDetailPage: React.FC = () => {
       {/* T2-35 (SP-6): DPDP erase — typed-confirm on an irreversible destructive action. */}
       {showErase && (
         <div className={styles.modalOverlay} onClick={() => setShowErase(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()} {...eraseDialog.dialogProps}>
             <div className={styles.modalIcon}>
               <UilTrashAlt size={22} />
             </div>
@@ -1021,7 +1105,7 @@ export const UserDetailPage: React.FC = () => {
           className={styles.modalOverlay}
           onClick={() => setShowCreditsModal(false)}
         >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()} {...creditsDialog.dialogProps}>
             <h3 className={styles.modalTitle}>Issue Credits to {user.name}</h3>
             <div className={styles.field}>
               <label className={styles.fieldLabel}>Amount (₹)</label>
@@ -1076,7 +1160,7 @@ export const UserDetailPage: React.FC = () => {
       {/* Re-measure request modal (G-37) */}
       {showRemeasure && (
         <div className={styles.modalOverlay} onClick={() => setShowRemeasure(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()} {...remeasureDialog.dialogProps}>
             <h3 className={styles.modalTitle}>Request re-measure for {user.name}</h3>
             <p className={styles.capHint}>
               Records a free re-measure request. The ops team schedules an agent
@@ -1114,7 +1198,7 @@ export const UserDetailPage: React.FC = () => {
       {/* Flag a fit profile as incorrect (+ optional re-measure) */}
       {showFlag && activeProfile && (
         <div className={styles.modalOverlay} onClick={() => setShowFlag(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()} {...flagDialog.dialogProps}>
             <h3 className={styles.modalTitle}>
               Flag "{activeProfile.label}" as incorrect
             </h3>
@@ -1162,7 +1246,7 @@ export const UserDetailPage: React.FC = () => {
       {/* Request alteration — pick one of the customer's delivered orders */}
       {showAlteration && (
         <div className={styles.modalOverlay} onClick={() => setShowAlteration(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()} {...alterationDialog.dialogProps}>
             <h3 className={styles.modalTitle}>Request alteration for {user.name}</h3>
             <p className={styles.capHint}>
               The first alteration on an order is free. Only delivered orders can be altered.
@@ -1219,7 +1303,7 @@ export const UserDetailPage: React.FC = () => {
       {/* Start a return — pick one of the customer's delivered orders */}
       {showReturn && (
         <div className={styles.modalOverlay} onClick={() => setShowReturn(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()} {...returnDialog.dialogProps}>
             <h3 className={styles.modalTitle}>Start a return for {user.name}</h3>
             <p className={styles.capHint}>
               The reason routes the outcome. Ops inspects; finance approves any refund.

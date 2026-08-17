@@ -905,6 +905,14 @@ export const TicketDetailPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className={styles.bubble}>
+                      {/* [SUP-32-2] Say which messages the customer cannot see.
+                          The composer promises "only visible to admin team"; until
+                          migration 217 that promise was kept only by the absence of
+                          a customer-facing reader, and nothing on this screen
+                          distinguished a private note from a sent reply. */}
+                      {msg.is_internal && (
+                        <div className={styles.internalTag}>Internal note — not visible to the customer</div>
+                      )}
                       <div className={styles.bubbleText}>{msg.body}</div>
                       <div className={styles.bubbleTime}>
                         {new Date(msg.created_at).toLocaleString("en-IN", {
