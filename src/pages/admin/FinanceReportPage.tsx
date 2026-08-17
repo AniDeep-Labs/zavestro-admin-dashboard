@@ -295,7 +295,19 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
           </>
         ) : (
           <>
-            <SummaryCard label="Revenue" value={pnl?.totals.revenue} loading={loading} />
+            {/* [KA8-1] The headline said "Revenue ₹31,876" where ₹2,499 had been
+                COLLECTED. The footnote explained the exclusions but never the
+                RECOGNITION EVENT, so a reader could not tell which question the
+                number answered. Wave 0 decided it: revenue is recognised at
+                DELIVERY, for both COD and prepaid, and cash is tracked separately
+                — so "collected" and "earned" are never the same number again.
+                Both are shown, each named. */}
+            <SummaryCard
+              label="Revenue"
+              value={pnl?.totals.revenue}
+              loading={loading}
+              note="booked — order payable, excl. cancelled/refunded"
+            />
             {/* [KA8-2] A ₹0 that means "not measured", said where the ₹0 is. */}
             <SummaryCard
               label="Fabric cost"

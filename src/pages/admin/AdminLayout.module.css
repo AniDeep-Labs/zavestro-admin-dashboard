@@ -236,6 +236,12 @@
   gap: 0;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
+  /* [KA7-19] The row must not grow the 60px header no matter what an entity is
+     called — truncation on the last crumb only works if the row itself refuses
+     to wrap. */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .breadcrumbLink {
@@ -251,6 +257,15 @@
 .breadcrumbCurrent {
   color: var(--color-text-primary);
   font-weight: var(--font-weight-semibold);
+  /* [KA7-19] A long ticket subject grew the breadcrumb from 22px to 45px inside a
+     60px header and pushed the command palette out of it — measured at both 1280
+     and 1440, so it is not a narrow-viewport edge case. The last crumb is an
+     entity title of arbitrary length; it truncates rather than reflowing the
+     header around it. */
+  max-width: 42ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .breadcrumbSep {
