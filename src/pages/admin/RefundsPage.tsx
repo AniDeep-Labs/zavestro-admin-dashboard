@@ -18,7 +18,18 @@ const fmtINR = (n: number) =>
   `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+// [FIN-36-1] The APPROVED amount, not the order's total. This field used to be
+// `orders.payable_amount` aliased over the approved figure, and it drives the
+// AMOUNT column, the disburse confirm, the toast AND the CSV — so on a partial
+// refund every one of them instructed finance to overpay.
 const amount = (r: RefundEntry) => Number(r.refund_amount) || 0;
+const orderTotal = (r: RefundEntry) =>
+  r.order_payable_amount === undefined ? null : Number(r.order_payable_amount) || 0;
+/** True when this is a PARTIAL refund — worth saying out loud on a payment screen. */
+const isPartial = (r: RefundEntry) => {
+  const t = orderTotal(r);
+  return t !== null && t > amount(r) + 0.5;
+};
 
 // Manual COD refunds finance must physically pay out; a FAILED Razorpay refund is also
 // finance's to handle (pay out-of-band → mark disbursed). Both fire mark-complete.
@@ -161,7 +172,9 @@ export const RefundsPage: React.FC = () => {
           label: "Yes, paid to source",
           message: (
             <>
-              Confirm <strong>{fmtINR(amount(r))}</strong> was paid to <strong>{r.customer_name ?? "the customer"}</strong> via{" "}
+              Confirm <strong>{fmtINR(amount(r))}</strong>
+              {isPartial(r) && <> (a PARTIAL refund of a {fmtINR(orderTotal(r) ?? 0)} order)</>} was paid to{" "}
+              <strong>{r.customer_name ?? "the customer"}</strong> via{" "}
               <strong>{destination(r)}</strong> (their original source / bank — never wallet).{" "}
               {isFailed(r) && "The automatic Razorpay refund failed, so this records your manual payout. "}
               This marks the refund complete and can't be undone.
@@ -202,7 +215,14 @@ export const RefundsPage: React.FC = () => {
                   {orderCell(r)}
                   {customerCell(r)}
                   <td>{r.hub_name ?? "—"}</td>
-                  <td className={styles.total}>{fmtINR(amount(r))}</td>
+                  <td className={styles.total}>
+                    {fmtINR(amount(r))}
+                    {isPartial(r) && (
+                      <div style={{ fontSize: 11, fontWeight: 400, color: "var(--color-text-tertiary)" }}>
+                        partial · order {fmtINR(orderTotal(r) ?? 0)}
+                      </div>
+                    )}
+                  </td>
                   <td style={{ color: "var(--color-text-secondary)" }}>{destination(r)}</td>
                   {kind === "failed" && <td className={s.pendingAccent}>{r.refund_failure_reason ?? "unknown error"}</td>}
                   {(kind === "auto" || kind === "completed") && <td>{refCell(r)}</td>}
