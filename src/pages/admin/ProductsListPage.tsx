@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import styles from './ProductsListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilPlus, UilSearch, UilTimes } from "@iconscout/react-unicons";
 import { StatusBadge, Alert } from '../../components';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const LIMIT = 20;
 
@@ -220,8 +221,7 @@ export const ProductsListPage: React.FC = () => {
                 <tr
                   key={product.id}
                   className={styles.row}
-                  onClick={() => navigate(`/admin/catalog/products/${product.id}`)}
-                 tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/catalog/products/${product.id}`))?.(); }}>
+                   {...rowActivation(() => navigate(`/admin/catalog/products/${product.id}`))}>
                   <td className={styles.productName}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                       {product.imageUrl ? (

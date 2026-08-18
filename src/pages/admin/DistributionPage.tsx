@@ -12,6 +12,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
 import s from './DistributionPage.module.css';
 import { UilPlus } from '@iconscout/react-unicons';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 const numv = (v: string | number | null | undefined) => (v == null ? 0 : Number(v));
@@ -296,8 +297,7 @@ export const DistributionPage: React.FC = () => {
       key={r.id}
       className={r.fabric_id ? styles.row : undefined}
       style={r.fabric_id ? { cursor: 'pointer' } : undefined}
-      onClick={r.fabric_id ? () => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`) : undefined}
-     tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (r.fabric_id ? () => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`) : undefined)?.(); }}>
+       {...(r.fabric_id ? rowActivation(() => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`)) : {})}>
       <td className={styles.customerName} style={{ fontWeight: 500 }}>{r.design_name ?? <span style={{ opacity: 0.6 }}>Plain restock</span>}</td>
       <td>
         {r.fabric_name ? (

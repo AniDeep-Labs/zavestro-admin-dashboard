@@ -583,6 +583,33 @@ export const usersApi = {
     };
   },
 
+  // [SCA-44-2] The export, done once on the server.
+  //
+  // This used to be `for (let p = 1; p <= 500; p++)` in the page: 500 sequential
+  // round trips at 50k customers, each re-running the list query with a growing
+  // OFFSET, the whole result set held in the tab before the file was written, and no
+  // way to resume. One request now, and the server writes ONE audit row saying
+  // exactly what left instead of 500.
+  exportCsv: async (params: { search?: string; status?: string } = {}): Promise<void> => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set("search", params.search);
+    if (params.status) qs.set("status", params.status);
+    const token = getAdminToken();
+    const res = await fetch(`${BASE}/api/admin/users/export?${qs}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`Export failed (${res.status})`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `customers-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+
   get: async (id: string): Promise<AdminUser> => {
     const u = await req<Record<string, unknown>>(`/api/admin/users/${id}`);
     return mapUser(u);
@@ -2781,6 +2808,10 @@ export interface PnlReport {
     refunds: number;
     profit: number;
   };
+  // [CHN-39-1] Ordered but not yet EARNED. Revenue used to be booked at order
+  // creation, so these orders were counted as revenue while the garment was still
+  // uncut and, on COD, before the money existed. They belong here.
+  backlog: { orders: number; unearned: number };
   // T1-19: outstanding wallet credits — a current liability, not part of period profit.
   wallet_liability: number;
   // T1-23: fit-promise reserve to hold for the period (memo/provision, not in profit).
@@ -2790,6 +2821,9 @@ export interface PnlReport {
     delivery_cost_per_order: number;
     alteration_cost: number;
   };
+  // [CHN-39-1] / [FIN-37-2] Every figure names its basis, on the payload and on screen.
+  basis: string;
+  basis_note: string;
   note: string;
 }
 

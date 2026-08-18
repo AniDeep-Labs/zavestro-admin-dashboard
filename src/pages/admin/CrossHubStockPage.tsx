@@ -18,6 +18,7 @@ import ds from './DistributionPage.module.css';
 import s from './CodReconciliationPage.module.css';
 import cs from './CrossHubStockPage.module.css';
 import { UilImport } from '@iconscout/react-unicons';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 
@@ -228,7 +229,7 @@ export const CrossHubStockPage: React.FC = () => {
         </tr></thead>
         <tbody>
           {list.map((r) => (
-            <tr key={rowKey(r)} className={styles.row} onClick={() => openLedger(r)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => openLedger(r))?.(); }}>
+            <tr key={rowKey(r)} className={styles.row} {...rowActivation(() => openLedger(r))}>
               <td className={styles.customerName}>{r.hub_name}</td>
               <td>
                 <div className={styles.fabricCell}>
@@ -405,8 +406,7 @@ export const CrossHubStockPage: React.FC = () => {
                   <tr
                     key={d.id}
                     className={styles.row}
-                    onClick={() => navigate(`/admin/procurement/distribution?hub_id=${d.hub_id}`)}
-                   tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/procurement/distribution?hub_id=${d.hub_id}`))?.(); }}>
+                     {...rowActivation(() => navigate(`/admin/procurement/distribution?hub_id=${d.hub_id}`))}>
                     <td className={styles.customerName}>{d.design_name}</td>
                     <td>
                       <div className={styles.fabricCell}>

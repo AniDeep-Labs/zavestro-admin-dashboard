@@ -1,5 +1,6 @@
 import React from 'react';
 import styles from './Table.module.css';
+import { rowActivation } from '../../utils/rowActivation'; // [DSA-45-1]
 
 export interface TableColumn<T> {
   key: string;
@@ -61,7 +62,7 @@ export function Table<T extends Record<string, unknown>>({
                   ${onRowClick ? styles.clickable : ''}
                   ${striped && i % 2 === 1 ? styles.striped : ''}
                 `}
-                onClick={() => onRowClick?.(item)}
+                {...(onRowClick ? rowActivation(() => onRowClick(item)) : {})}
               >
                 {columns.map((col) => (
                   <td key={col.key}>

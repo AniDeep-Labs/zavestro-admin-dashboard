@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import styles from './HubDetailPage.module.css';
 import { UilAngleLeft, UilPlus, UilPower, UilSave } from "@iconscout/react-unicons";
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const ROLE_LABELS: Record<string, string> = {
   hub_manager: 'Hub Manager', tailor: 'Tailor', cutting_master: 'Cutting Master',
@@ -294,7 +295,7 @@ export const HubDetailPage: React.FC = () => {
           <thead><tr><th>Order</th><th>Customer</th><th>Stage</th><th>Total</th><th>Placed</th></tr></thead>
           <tbody>
             {recentOrders.map(o => (
-              <tr key={o.uuid} className={styles.clickRow} onClick={() => navigate(`/admin/orders/${o.uuid}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/orders/${o.uuid}`))?.(); }}>
+              <tr key={o.uuid} className={styles.clickRow} {...rowActivation(() => navigate(`/admin/orders/${o.uuid}`))}>
                 <td className={styles.rosterName}>{o.reference_id || o.id}</td>
                 <td>{o.customer ?? '—'}</td>
                 <td><StatusBadge status={o.stage} size="sm" /></td>

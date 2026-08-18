@@ -46,6 +46,16 @@ jobs:
       - name: Lint (advisory)
         run: npm run lint
         continue-on-error: true
+      # [DSA-45-1] The guards run as their OWN required step.
+      #
+      # They used to be chained onto `npm run lint` as `eslint . && node guard1 && ...`,
+      # behind a step marked `continue-on-error`. eslint exits 1 on the pre-existing lint
+      # debt above, so the `&&` chain stopped there and NONE of the guards ever executed —
+      # not style-debt, not capability-parity, not this one. Three CI guards that had
+      # never once run, on a step that could not fail anyway. Separated and made blocking,
+      # because a guard nobody can see fail is not a guard.
+      - name: Guards (style debt · capability parity · row activation)
+        run: npm run guards
       # `npm run build` = `tsc -b && vite build` → this IS the typecheck + build gate.
       - name: Typecheck + Build
         run: npm run build

@@ -10,6 +10,7 @@ import { SampleProgress, isTerminalSample } from './SampleProgress';
 import base from './OrdersListPage.module.css';
 import s from './DesignSampleRequestsPage.module.css';
 import { UilPlus, UilTimes, UilImage } from '@iconscout/react-unicons';
+import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 
@@ -169,7 +170,7 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
               rows.map((r) => {
                 const done = isTerminalSample(r.status);
                 return (
-                  <tr key={r.id} className={base.row} onClick={() => navigate(`/admin/design/samples/${r.id}`)} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === "Enter") (() => navigate(`/admin/design/samples/${r.id}`))?.(); }}>
+                  <tr key={r.id} className={base.row} {...rowActivation(() => navigate(`/admin/design/samples/${r.id}`))}>
                     <td>
                       <div className={s.fabricCell}>
                         {swatch(r.fabric_image_keys)
