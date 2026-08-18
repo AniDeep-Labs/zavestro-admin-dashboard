@@ -2508,7 +2508,92 @@ export const designsApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+
+  // ── Tech-pack import: a brand's own size chart into the engine ──────────────
+  //
+  // Until this existed, `garment_size_chart` held 7 rows and NOT ONE carried a
+  // design_id — every garment was cut to a generic category chart, and the only way
+  // to change that was hand-written SQL.
+
+  /** Which designs are still falling back to the generic chart. */
+  chartCoverage: async (): Promise<ChartCoverageRow[]> =>
+    req<ChartCoverageRow[]>(`/api/admin/designs/chart-coverage`),
+
+  /** What THIS design is sized by right now, and its chart if it has one. */
+  chartStatus: async (designId: string): Promise<DesignChartStatus> =>
+    req<DesignChartStatus>(`/api/admin/designs/${designId}/chart`),
+
+  /** Parse WITHOUT writing — the preview step, so nothing lands unseen. */
+  techPackPreview: async (
+    designId: string,
+    input: TechPackInput,
+  ): Promise<TechPackParseResult> =>
+    req<TechPackParseResult>(`/api/admin/designs/${designId}/tech-pack/preview`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  /** Parse AND write. Replaces this design's chart wholesale. */
+  techPackImport: async (
+    designId: string,
+    input: TechPackInput & { source_note?: string },
+  ): Promise<TechPackImportResult> =>
+    req<TechPackImportResult>(`/api/admin/designs/${designId}/tech-pack`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
 };
+
+/** The measurement keys the engine actually reads off a chart. */
+export type EngineChartField = "waist" | "hip" | "thigh" | "knee" | "rise";
+
+export interface TechPackInput {
+  text: string;
+  unit?: "in" | "cm";
+  /** Source column header → engine field, for a heading the parser did not recognise. */
+  overrides?: Record<string, EngineChartField>;
+}
+
+export interface TechPackParseResult {
+  rows: { size_label: string; measurements: Partial<Record<EngineChartField, number>> }[];
+  /** engine field → the source column it came from. */
+  mapped: Record<string, string>;
+  /** Columns present in the file that mean nothing to the engine. */
+  unmapped: string[];
+  /** Anything refused, with the reason. Never a bare "invalid". */
+  problems: string[];
+  unit: "in" | "cm";
+  engine_fields: EngineChartField[];
+}
+
+export interface TechPackImportResult {
+  design_id: string;
+  sizes_written: number;
+  fields: string[];
+  problems: string[];
+  replaced: number;
+}
+
+export interface DesignChartStatus {
+  design_id: string;
+  design_name: string;
+  category: string;
+  /** `own` = the brand's DNA is in the engine. `category` = a generic chart is in use. */
+  source: "own" | "category" | "none";
+  own_sizes: number;
+  category_sizes: number;
+  chart: { size_label: string; measurements: Record<string, number> }[];
+  note: string;
+}
+
+export interface ChartCoverageRow {
+  design_id: string;
+  name: string;
+  status: string;
+  category: string;
+  body_region: string | null;
+  own_sizes: number;
+}
 
 export interface SizePreviewInput {
   garment_category_slug: string;

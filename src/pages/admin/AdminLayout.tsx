@@ -160,6 +160,15 @@ const SECTIONS: NavSection[] = [
         cap: "fit:read",
       },
       {
+        // The brand's own sizing, into the engine. Sits beside Engine Tester
+        // because they are two halves of the same job: load the chart, then see
+        // what it cuts.
+        label: "Tech Packs",
+        icon: <UilRuler size={18} />,
+        path: "/admin/design/tech-packs",
+        cap: "designs:write",
+      },
+      {
         // One nav home for the sampling pipeline — the page has Requests + Review tabs
         // (Review shows only with designs:write). Replaces the two confusable entries.
         label: "Samples",
