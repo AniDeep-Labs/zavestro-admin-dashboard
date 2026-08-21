@@ -274,3 +274,20 @@
 .current {
   margin-top: var(--spacing-xl);
 }
+
+/* The body-vs-finished question, and a chart the live engine is ignoring. Both are
+   states that were completely invisible before, and both change the garment. */
+.basisPrompt {
+  font-size: var(--font-size-sm);
+  color: var(--color-warning, var(--color-text-secondary));
+  border-left: 3px solid var(--color-warning, var(--color-border));
+  padding-left: var(--spacing-sm);
+  margin: var(--spacing-md) 0;
+  max-width: 620px;
+}
+
+.statusWarn {
+  font-size: var(--font-size-sm);
+  color: var(--color-warning, var(--color-text-secondary));
+  margin: var(--spacing-sm) 0 var(--spacing-md);
+}

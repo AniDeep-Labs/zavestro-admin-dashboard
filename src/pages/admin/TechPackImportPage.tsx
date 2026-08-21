@@ -5,6 +5,7 @@ import type {
   ChartCoverageRow,
   DesignChartStatus,
   EngineChartField,
+  MeasurementBasis,
   TechPackParseResult,
 } from "../../api/adminApi";
 import { PageHeader, Button, EmptyState } from "../../components";
@@ -50,6 +51,9 @@ export const TechPackImportPage: React.FC = () => {
   const [unit, setUnit] = React.useState<"in" | "cm">("in");
   const [overrides, setOverrides] = React.useState<Record<string, EngineChartField>>({});
   const [sourceNote, setSourceNote] = React.useState("");
+  // No default that quietly decides for you: the operator has to say which kind of chart
+  // this is, because getting it wrong is a whole ease of error on every size.
+  const [basis, setBasis] = React.useState<MeasurementBasis | "">("");
 
   const [parsed, setParsed] = React.useState<TechPackParseResult | null>(null);
   const [parseErr, setParseErr] = React.useState("");
@@ -87,6 +91,7 @@ export const TechPackImportPage: React.FC = () => {
     setParsed(null);
     setParseErr("");
     setOverrides({});
+    setBasis("");
   };
 
   const preview = async () => {
@@ -113,13 +118,17 @@ export const TechPackImportPage: React.FC = () => {
         unit,
         overrides,
         source_note: sourceNote.trim() || undefined,
+        basis: (basis || "body") as MeasurementBasis,
       });
+      // A finished chart is stored but the live engine cannot use it yet — saying so is
+      // the difference between a feature that waits and one that silently does nothing.
       showToast(
-        "success",
+        res.warning ? "warning" : "success",
         `${res.sizes_written} size${res.sizes_written === 1 ? "" : "s"} saved`,
-        res.replaced > 0
-          ? `Replaced the previous chart (${res.replaced} rows). This design is now cut to its own numbers.`
-          : "This design is now cut to its own numbers instead of the generic chart.",
+        res.warning ??
+          (res.replaced > 0
+            ? `Replaced the previous chart (${res.replaced} rows). This design is now cut to its own numbers.`
+            : "This design is now cut to its own numbers instead of the generic chart."),
       );
       setParsed(null);
       setText("");
@@ -248,7 +257,17 @@ export const TechPackImportPage: React.FC = () => {
             </Button>
           </div>
 
-          {status && <p className={styles.statusNote}>{status.note}</p>}
+          {status && (
+            <p
+              className={
+                status.usable_by_live_engine === false
+                  ? styles.statusWarn
+                  : styles.statusNote
+              }
+            >
+              {status.note}
+            </p>
+          )}
 
           <div className={styles.controls}>
             <label className={styles.field}>
@@ -263,6 +282,18 @@ export const TechPackImportPage: React.FC = () => {
               >
                 <option value="in">inches</option>
                 <option value="cm">centimetres</option>
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>These numbers are the…</span>
+              <select
+                className={styles.select}
+                value={basis}
+                onChange={(e) => setBasis(e.target.value as MeasurementBasis | "")}
+              >
+                <option value="">— choose —</option>
+                <option value="body">body the size is meant to fit</option>
+                <option value="finished">finished garment</option>
               </select>
             </label>
             <label className={styles.field}>
@@ -400,8 +431,17 @@ export const TechPackImportPage: React.FC = () => {
                 blank cell is a measurement we don't have, not a zero.
               </p>
 
+              {!basis && (
+                <p className={styles.basisPrompt}>
+                  Say whether these are <strong>body</strong> or <strong>finished-garment</strong>{" "}
+                  measurements before saving. The engine adds the style's ease to a body
+                  measurement; a finished one already includes it. Guessing wrong makes every
+                  size out by exactly one ease — a garment that looks right on screen and is
+                  two allowances too big on the customer.
+                </p>
+              )}
               <div className={styles.actions}>
-                <Button onClick={save} disabled={busy}>
+                <Button onClick={save} disabled={busy || !basis}>
                   {busy ? "Saving…" : `Save ${parsed.rows.length} sizes to this design`}
                 </Button>
                 {status?.own_sizes ? (

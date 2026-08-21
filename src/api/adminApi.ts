@@ -2536,7 +2536,7 @@ export const designsApi = {
   /** Parse AND write. Replaces this design's chart wholesale. */
   techPackImport: async (
     designId: string,
-    input: TechPackInput & { source_note?: string },
+    input: TechPackInput & { source_note?: string; basis?: MeasurementBasis },
   ): Promise<TechPackImportResult> =>
     req<TechPackImportResult>(`/api/admin/designs/${designId}/tech-pack`, {
       method: "POST",
@@ -2546,6 +2546,16 @@ export const designsApi = {
 
 /** The measurement keys the engine actually reads off a chart. */
 export type EngineChartField = "waist" | "hip" | "thigh" | "knee" | "rise";
+
+/**
+ * Whether a chart's numbers are the BODY a size is meant to fit, or the FINISHED garment.
+ *
+ * There is no safe guess. The engine adds the style's ease to a body measurement to get a
+ * garment; a finished measurement already includes it. Get it wrong and every size is out
+ * by exactly one ease — a garment two allowances too big, plausible on screen and wrong
+ * on the customer.
+ */
+export type MeasurementBasis = "body" | "finished";
 
 export interface TechPackInput {
   text: string;
@@ -2572,6 +2582,9 @@ export interface TechPackImportResult {
   fields: string[];
   problems: string[];
   replaced: number;
+  basis: MeasurementBasis;
+  /** Set when the chart cannot be used by the cutting engine that is live today. */
+  warning?: string;
 }
 
 export interface DesignChartStatus {
@@ -2582,6 +2595,9 @@ export interface DesignChartStatus {
   source: "own" | "category" | "none";
   own_sizes: number;
   category_sizes: number;
+  basis: MeasurementBasis;
+  /** False when the design HAS a chart but the live engine still cannot use it. */
+  usable_by_live_engine: boolean;
   chart: { size_label: string; measurements: Record<string, number> }[];
   note: string;
 }
