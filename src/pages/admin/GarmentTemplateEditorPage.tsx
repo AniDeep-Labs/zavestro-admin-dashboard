@@ -40,15 +40,20 @@ const ANCHOR_LABELS: Record<string, string> = {
 // The preset CONSTANTS the designer defines per body region — these are exactly
 // the ease fields the engine reads (TopFitParams / BottomFitParams). The engine
 // computes finished = body measurement + ease.
-const PRESET_PARAM_FIELDS: Record<string, { key: string; label: string; hint: string }[]> = {
+// `floor` mirrors UPPER_EASE_FLOORS in the backend (src/ops/upper-ease-floors.ts). Some ease
+// is a fact about bodies rather than an opinion about fit: a collar at the exact neck girth
+// cannot be buttoned, a sleeve at the exact bicep girth cannot be bent into. The engine applies
+// these regardless of what is typed, so the editor says so rather than letting a designer
+// believe a number that will not be used.
+const PRESET_PARAM_FIELDS: Record<string, { key: string; label: string; hint: string; floor?: number }[]> = {
   upper: [
     { key: 'chest_ease', label: 'Chest ease', hint: 'roominess added across the chest' },
     { key: 'waist_supp', label: 'Waist suppression', hint: 'how much to take IN at the waist (more = more fitted)' },
     { key: 'hem_supp', label: 'Hem suppression', hint: 'how much to taper the bottom hem' },
     { key: 'shoulder_ease', label: 'Shoulder ease', hint: 'extra across the shoulders' },
     { key: 'sleeve_ease', label: 'Sleeve ease', hint: 'extra sleeve length' },
-    { key: 'neck_ease', label: 'Neck ease', hint: 'extra room at the neck' },
-    { key: 'bicep_ease', label: 'Bicep ease', hint: 'extra sleeve width at the bicep' },
+    { key: 'neck_ease', label: 'Neck ease', hint: 'extra room at the neck', floor: 0.5 },
+    { key: 'bicep_ease', label: 'Bicep ease', hint: 'extra sleeve width at the bicep', floor: 1 },
   ],
   lower: [
     { key: 'thigh_ease', label: 'Thigh ease', hint: 'roominess added at the thigh' },
@@ -422,6 +427,27 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       for (const [field, v] of Object.entries(tolerances)) {
         if (v !== '' && Number.isFinite(Number(v))) tolerancesOut[field] = Number(v);
       }
+      // [FIT-74] A cleared box must not persist as an ABSENT key.
+      //
+      // `setPresetParam` deletes the key while the box is empty — it has to, or a designer
+      // could not clear a field to retype it. The bug was that the deletion survived the save:
+      // the engine reads a missing key as zero, so a blank box and a deliberate 0 became the
+      // same stored row, and the sensible starter value the editor had supplied vanished with
+      // no trace that anything had been dropped.
+      //
+      // The live data still shows it. All three shirt presets hold exactly this editor's first
+      // three starter values and none of its four POM eases — three presets x three matching
+      // numbers is not coincidence. That is how every collar in the product came to be cut to
+      // the exact girth of the neck it goes around.
+      //
+      // So the save makes every field explicit. What is stored is now what the designer can
+      // see, and "I meant zero" and "I did not fill this in" can no longer produce the same row.
+      const presetFields = (PRESET_PARAM_FIELDS[tpl?.body_region ?? 'upper'] ?? []).map((f) => f.key);
+      const explicitPresetDefs = presetDefs.map((d) => {
+        const params = { ...d.params };
+        for (const key of presetFields) if (params[key] === undefined) params[key] = 0;
+        return { ...d, params };
+      });
       const saved = await designsApi.saveTemplate(id, {
         capture_set: captureSet,
         pain_point_menu,
@@ -430,14 +456,15 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         seam_allowance_cm: seamAllow.seam.trim() !== '' ? Number(seamAllow.seam) : undefined,
         hem_allowance_cm: seamAllow.hem.trim() !== '' ? Number(seamAllow.hem) : undefined,
         available_fit_presets: presets,
-        fit_presets: presetDefs,
+        fit_presets: explicitPresetDefs,
         garment_types: garmentTypes,
         length_bands: lengthBands,
         chart: cleanChart,
         note: note.trim() || undefined,
       });
       setTpl(saved);
-      setBaseline(snap(captureSet, presetDefs, cleanChart, pains, garmentTypes, lengthBands, shapes, tolerances, seamAllow)); // clears dirty
+      setPresetDefs(explicitPresetDefs);
+      setBaseline(snap(captureSet, explicitPresetDefs, cleanChart, pains, garmentTypes, lengthBands, shapes, tolerances, seamAllow)); // clears dirty
       setNote('');
       toast('success', 'Template saved');
     } catch (e) {
@@ -760,6 +787,12 @@ export const GarmentTemplateEditorPage: React.FC = () => {
                       />
                       <span className={s.easeUnit}>in</span>
                       </span>
+                      {f.floor !== undefined && Number(d.params[f.key] ?? 0) < f.floor && (
+                        <span className={s.easeFloorNote}>
+                          the engine applies a {f.floor}in minimum here — a garment cut to the
+                          exact body girth at this point cannot be put on
+                        </span>
+                      )}
                     </label>
                   ))}
                 </div>
