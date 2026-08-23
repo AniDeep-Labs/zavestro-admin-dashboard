@@ -216,6 +216,10 @@ const EngineTesterPage = lazyPage(
   () => import("./pages/admin/EngineTesterPage"),
   "EngineTesterPage",
 );
+const TechPackImportPage = lazyPage(
+  () => import("./pages/admin/TechPackImportPage"),
+  "TechPackImportPage",
+);
 const SamplesPage = lazyPage(
   () => import("./pages/admin/SamplesPage"),
   "SamplesPage",
@@ -430,6 +434,9 @@ function App() {
           />
           <Route path="design/analytics" element={<DesignAnalyticsPage />} />
           <Route path="design/engine-tester" element={<EngineTesterPage />} />
+          {/* A brand's own size chart into the engine. Until this existed, every
+              design fell back to a generic category chart and nothing said so. */}
+          <Route path="design/tech-packs" element={<TechPackImportPage />} />
           <Route
             path="design/fabrics"
             element={<FabricsMasterPage mode="design" />}

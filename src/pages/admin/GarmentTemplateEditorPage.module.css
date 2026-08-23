@@ -348,6 +348,14 @@
 
 /* Ease inputs: plain "what it does" hint + an "in" unit inside the field. */
 .easeHint { font-size: 11px; color: var(--color-text-muted); line-height: 1.3; max-width: 160px; }
+/* FIT-74: shown when a typed ease sits under the physical minimum the engine enforces. */
+.easeFloorNote {
+  font-size: 11px;
+  line-height: 1.3;
+  max-width: 160px;
+  margin-top: 4px;
+  color: var(--color-warning);
+}
 .easeInputWrap { position: relative; display: inline-flex; align-items: center; width: 96px; }
 .easeInputWrap .presetParamInput { width: 96px; padding-right: 26px; }
 .easeUnit { position: absolute; right: 10px; font-size: 12px; color: var(--color-text-muted); pointer-events: none; }
@@ -542,3 +550,18 @@
 /* W-D2: paste/import textarea — monospace so pasted columns line up. */
 .importArea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.5; outline: none; resize: vertical; margin-bottom: 12px; white-space: pre; }
 .importArea:focus { border-color: var(--color-primary); }
+
+
+/* FIT-76: the two facts a size chart has to state about itself. */
+.chartMeta { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 12px; }
+.chartMetaGroup {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 12px 10px;
+  min-width: 240px;
+  flex: 1 1 260px;
+}
+.chartMetaLegend { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); padding: 0 4px; }
+.chartMetaOpt { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.4; padding: 3px 0; cursor: pointer; }
+.chartMetaOpt input { margin-top: 2px; flex: none; }
+.chartMetaWarn { font-size: 11px; line-height: 1.4; margin: 6px 0 0; color: var(--color-warning); }
