@@ -40,15 +40,20 @@ const ANCHOR_LABELS: Record<string, string> = {
 // The preset CONSTANTS the designer defines per body region — these are exactly
 // the ease fields the engine reads (TopFitParams / BottomFitParams). The engine
 // computes finished = body measurement + ease.
-const PRESET_PARAM_FIELDS: Record<string, { key: string; label: string; hint: string }[]> = {
+// `floor` mirrors UPPER_EASE_FLOORS in the backend (src/ops/upper-ease-floors.ts). Some ease
+// is a fact about bodies rather than an opinion about fit: a collar at the exact neck girth
+// cannot be buttoned, a sleeve at the exact bicep girth cannot be bent into. The engine applies
+// these regardless of what is typed, so the editor says so rather than letting a designer
+// believe a number that will not be used.
+const PRESET_PARAM_FIELDS: Record<string, { key: string; label: string; hint: string; floor?: number }[]> = {
   upper: [
     { key: 'chest_ease', label: 'Chest ease', hint: 'roominess added across the chest' },
     { key: 'waist_supp', label: 'Waist suppression', hint: 'how much to take IN at the waist (more = more fitted)' },
     { key: 'hem_supp', label: 'Hem suppression', hint: 'how much to taper the bottom hem' },
     { key: 'shoulder_ease', label: 'Shoulder ease', hint: 'extra across the shoulders' },
     { key: 'sleeve_ease', label: 'Sleeve ease', hint: 'extra sleeve length' },
-    { key: 'neck_ease', label: 'Neck ease', hint: 'extra room at the neck' },
-    { key: 'bicep_ease', label: 'Bicep ease', hint: 'extra sleeve width at the bicep' },
+    { key: 'neck_ease', label: 'Neck ease', hint: 'extra room at the neck', floor: 0.5 },
+    { key: 'bicep_ease', label: 'Bicep ease', hint: 'extra sleeve width at the bicep', floor: 1 },
   ],
   lower: [
     { key: 'thigh_ease', label: 'Thigh ease', hint: 'roominess added at the thigh' },
@@ -106,12 +111,25 @@ const GRADE_DEFAULTS: Record<string, Record<string, { base: number; inc: number 
 };
 const DEFAULT_SIZES: Record<string, string> = { lower: '28,30,32,34,36,38,40', upper: '36,38,40,42,44,46' };
 // India-anchored inseam-by-height starter bands (cm → inches). Editable.
+// [FIT-77] The India bands — the ones actually in the database, and the ones INDIA_FINAL
+// specifies. Derived here from the backend's own seeds so the arithmetic is inspectable:
+//
+//   INDIA_FINAL.height_bands_m      154-162, 162-170, 170-178 cm
+//   INDIA_FINAL.inseam_band_seeds   [69, 72.5, 76.5] cm  ->  27.2", 28.5", 30.1"
+//
+// What was here before was a longer, taller Western set (160/168/176/184/191 -> 29.5 ... 35.5)
+// that matched neither. One click on "fill default bands" silently replaced the India-anchored
+// calibration with it — +1.00" of inseam at India's mean male stature of 165.5cm, and +2.30" at
+// 160cm. A designer opening a template and pressing the obvious button re-calibrated the
+// product away from its own anchor, and nothing said so.
+//
+// These numbers are duplicated from `INDIA_FINAL` in the backend
+// (`src/ops/india-defaults.ts`). `tests/unit/india-defaults.test.ts` there asserts the seeds
+// still convert to exactly these inches and names THIS file if they ever stop.
 const DEFAULT_LENGTH_BANDS: LengthBand[] = [
-  { length_field: 'inseam', height_min_cm: 160, length_value: 29.5 },
-  { length_field: 'inseam', height_min_cm: 168, length_value: 31 },
-  { length_field: 'inseam', height_min_cm: 176, length_value: 32.5 },
-  { length_field: 'inseam', height_min_cm: 184, length_value: 34 },
-  { length_field: 'inseam', height_min_cm: 191, length_value: 35.5 },
+  { length_field: 'inseam', height_min_cm: 154, length_value: 27.2 },
+  { length_field: 'inseam', height_min_cm: 162, length_value: 28.5 },
+  { length_field: 'inseam', height_min_cm: 170, length_value: 30.1 },
 ];
 
 // Snapshot of the editable state — drives the dirty indicator (compare to load).
@@ -137,6 +155,14 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const [tolerances, setTolerances] = React.useState<Record<string, string>>({}); // field → ±
   const [seamAllow, setSeamAllow] = React.useState<{ seam: string; hem: string }>({ seam: '', hem: '' });
   const [chart, setChart] = React.useState<ChartRow[]>([]);
+  // [FIT-76] What the chart's numbers ARE. Properties of the whole chart, not of a row.
+  //
+  // This screen used to ASSERT them in prose — "all in inches", "these are the body
+  // measurements" — which is not the same as asking. A designer importing a supplier's
+  // centimetre chart, or a finished-garment tech pack, had nowhere to say so, and the engine
+  // read every chart as inches-and-body. A sentence in a hint cannot stop that; a control can.
+  const [chartUnit, setChartUnit] = React.useState<'in' | 'cm'>('in');
+  const [chartBasis, setChartBasis] = React.useState<'body' | 'finished'>('body');
   const [garmentTypes, setGarmentTypes] = React.useState<string[]>([]);
   const [lengthBands, setLengthBands] = React.useState<LengthBand[]>([]);
   const [activePreset, setActivePreset] = React.useState<string>(BASE);
@@ -183,6 +209,8 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         setPresetDefs(defs);
         setCaptureSet(cs);
         setChart(t.chart);
+        setChartUnit(t.chart[0]?.unit === 'cm' ? 'cm' : 'in');
+        setChartBasis(t.chart[0]?.measurement_basis === 'finished' ? 'finished' : 'body');
         const types = t.garment_types ?? [];
         setGarmentTypes(types);
         const bands = t.length_bands ?? [];
@@ -417,11 +445,39 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       }
       const cleanChart = chart
         .filter((r) => r.size_label.trim() && Object.keys(r.measurements).length)
-        .map((r) => ({ ...r, size_label: r.size_label.trim() }));
+        .map((r) => ({
+          ...r,
+          size_label: r.size_label.trim(),
+          // Stamped on every row from the chart-level choice, so a chart cannot end up half
+          // in centimetres — which is the only state worse than being wholly in the wrong one.
+          unit: chartUnit,
+          measurement_basis: chartBasis,
+        }));
       const tolerancesOut: Record<string, number> = {};
       for (const [field, v] of Object.entries(tolerances)) {
         if (v !== '' && Number.isFinite(Number(v))) tolerancesOut[field] = Number(v);
       }
+      // [FIT-74] A cleared box must not persist as an ABSENT key.
+      //
+      // `setPresetParam` deletes the key while the box is empty — it has to, or a designer
+      // could not clear a field to retype it. The bug was that the deletion survived the save:
+      // the engine reads a missing key as zero, so a blank box and a deliberate 0 became the
+      // same stored row, and the sensible starter value the editor had supplied vanished with
+      // no trace that anything had been dropped.
+      //
+      // The live data still shows it. All three shirt presets hold exactly this editor's first
+      // three starter values and none of its four POM eases — three presets x three matching
+      // numbers is not coincidence. That is how every collar in the product came to be cut to
+      // the exact girth of the neck it goes around.
+      //
+      // So the save makes every field explicit. What is stored is now what the designer can
+      // see, and "I meant zero" and "I did not fill this in" can no longer produce the same row.
+      const presetFields = (PRESET_PARAM_FIELDS[tpl?.body_region ?? 'upper'] ?? []).map((f) => f.key);
+      const explicitPresetDefs = presetDefs.map((d) => {
+        const params = { ...d.params };
+        for (const key of presetFields) if (params[key] === undefined) params[key] = 0;
+        return { ...d, params };
+      });
       const saved = await designsApi.saveTemplate(id, {
         capture_set: captureSet,
         pain_point_menu,
@@ -430,14 +486,15 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         seam_allowance_cm: seamAllow.seam.trim() !== '' ? Number(seamAllow.seam) : undefined,
         hem_allowance_cm: seamAllow.hem.trim() !== '' ? Number(seamAllow.hem) : undefined,
         available_fit_presets: presets,
-        fit_presets: presetDefs,
+        fit_presets: explicitPresetDefs,
         garment_types: garmentTypes,
         length_bands: lengthBands,
         chart: cleanChart,
         note: note.trim() || undefined,
       });
       setTpl(saved);
-      setBaseline(snap(captureSet, presetDefs, cleanChart, pains, garmentTypes, lengthBands, shapes, tolerances, seamAllow)); // clears dirty
+      setPresetDefs(explicitPresetDefs);
+      setBaseline(snap(captureSet, explicitPresetDefs, cleanChart, pains, garmentTypes, lengthBands, shapes, tolerances, seamAllow)); // clears dirty
       setNote('');
       toast('success', 'Template saved');
     } catch (e) {
@@ -639,7 +696,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       {/* Size chart (per fit preset) */}
       <section className={s.section}>
         <div className={s.sectionHead}>
-          <h3 className={s.sectionTitle}>Size chart <span className={s.req}>· the customer's BODY measurements per size (inches)</span></h3>
+          <h3 className={s.sectionTitle}>Size chart <span className={s.req}>· {chartBasis === 'body' ? "the customer's BODY measurements" : 'FINISHED garment measurements'} per size ({chartUnit})</span></h3>
           <div className={s.sectionHeadActions}>
             {/* W-D2: migrate a known Excel chart in one paste instead of cell-by-cell. */}
             <Button variant="ghost" onClick={() => { setImportText(''); setShowImport(true); }} disabled={fields.length === 0}>
@@ -651,10 +708,44 @@ export const GarmentTemplateEditorPage: React.FC = () => {
           </div>
         </div>
         <p className={s.hint}>
-          One row per size, one column per measurement field — all in <strong>inches</strong>. These are the
-          <strong> body</strong> measurements, not the finished garment: the engine adds the fit's ease on top.
-          Type each by hand, or auto-build the whole chart from a base size + grade rules.
+          One row per size, one column per measurement field. Type each by hand, or auto-build the
+          whole chart from a base size + grade rules.
         </p>
+        <div className={s.chartMeta}>
+          <fieldset className={s.chartMetaGroup}>
+            <legend className={s.chartMetaLegend}>These numbers are</legend>
+            <label className={s.chartMetaOpt}>
+              <input type="radio" name="chart-basis" checked={chartBasis === 'body'}
+                onChange={() => setChartBasis('body')} />
+              <span><strong>Body</strong> measurements — the engine adds this fit's ease on top</span>
+            </label>
+            <label className={s.chartMetaOpt}>
+              <input type="radio" name="chart-basis" checked={chartBasis === 'finished'}
+                onChange={() => setChartBasis('finished')} />
+              <span><strong>Finished garment</strong> measurements — ease already included</span>
+            </label>
+            {chartBasis === 'finished' && (
+              <p className={s.chartMetaWarn}>
+                The engine drafts from body measurements and cannot use a finished chart yet. It
+                will be stored and refused at preview rather than eased a second time — saying so
+                is the difference between a feature that waits and one that silently does nothing.
+              </p>
+            )}
+          </fieldset>
+          <fieldset className={s.chartMetaGroup}>
+            <legend className={s.chartMetaLegend}>Measured in</legend>
+            <label className={s.chartMetaOpt}>
+              <input type="radio" name="chart-unit" checked={chartUnit === 'in'}
+                onChange={() => setChartUnit('in')} />
+              <span>Inches</span>
+            </label>
+            <label className={s.chartMetaOpt}>
+              <input type="radio" name="chart-unit" checked={chartUnit === 'cm'}
+                onChange={() => setChartUnit('cm')} />
+              <span>Centimetres — converted on read</span>
+            </label>
+          </fieldset>
+        </div>
         {lengthField && <p className={s.hint}>Note: <strong>{lengthField}</strong> isn’t a column here — it’s set in <strong>Length by height</strong> below.</p>}
         <div className={s.tabs}>
           {presetTabs.map((p) => (
@@ -760,6 +851,12 @@ export const GarmentTemplateEditorPage: React.FC = () => {
                       />
                       <span className={s.easeUnit}>in</span>
                       </span>
+                      {f.floor !== undefined && Number(d.params[f.key] ?? 0) < f.floor && (
+                        <span className={s.easeFloorNote}>
+                          the engine applies a {f.floor}in minimum here — a garment cut to the
+                          exact body girth at this point cannot be put on
+                        </span>
+                      )}
                     </label>
                   ))}
                 </div>
