@@ -111,12 +111,25 @@ const GRADE_DEFAULTS: Record<string, Record<string, { base: number; inc: number 
 };
 const DEFAULT_SIZES: Record<string, string> = { lower: '28,30,32,34,36,38,40', upper: '36,38,40,42,44,46' };
 // India-anchored inseam-by-height starter bands (cm → inches). Editable.
+// [FIT-77] The India bands — the ones actually in the database, and the ones INDIA_FINAL
+// specifies. Derived here from the backend's own seeds so the arithmetic is inspectable:
+//
+//   INDIA_FINAL.height_bands_m      154-162, 162-170, 170-178 cm
+//   INDIA_FINAL.inseam_band_seeds   [69, 72.5, 76.5] cm  ->  27.2", 28.5", 30.1"
+//
+// What was here before was a longer, taller Western set (160/168/176/184/191 -> 29.5 ... 35.5)
+// that matched neither. One click on "fill default bands" silently replaced the India-anchored
+// calibration with it — +1.00" of inseam at India's mean male stature of 165.5cm, and +2.30" at
+// 160cm. A designer opening a template and pressing the obvious button re-calibrated the
+// product away from its own anchor, and nothing said so.
+//
+// These numbers are duplicated from `INDIA_FINAL` in the backend
+// (`src/ops/india-defaults.ts`). `tests/unit/india-defaults.test.ts` there asserts the seeds
+// still convert to exactly these inches and names THIS file if they ever stop.
 const DEFAULT_LENGTH_BANDS: LengthBand[] = [
-  { length_field: 'inseam', height_min_cm: 160, length_value: 29.5 },
-  { length_field: 'inseam', height_min_cm: 168, length_value: 31 },
-  { length_field: 'inseam', height_min_cm: 176, length_value: 32.5 },
-  { length_field: 'inseam', height_min_cm: 184, length_value: 34 },
-  { length_field: 'inseam', height_min_cm: 191, length_value: 35.5 },
+  { length_field: 'inseam', height_min_cm: 154, length_value: 27.2 },
+  { length_field: 'inseam', height_min_cm: 162, length_value: 28.5 },
+  { length_field: 'inseam', height_min_cm: 170, length_value: 30.1 },
 ];
 
 // Snapshot of the editable state — drives the dirty indicator (compare to load).
