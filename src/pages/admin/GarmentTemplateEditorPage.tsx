@@ -142,6 +142,14 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const [tolerances, setTolerances] = React.useState<Record<string, string>>({}); // field → ±
   const [seamAllow, setSeamAllow] = React.useState<{ seam: string; hem: string }>({ seam: '', hem: '' });
   const [chart, setChart] = React.useState<ChartRow[]>([]);
+  // [FIT-76] What the chart's numbers ARE. Properties of the whole chart, not of a row.
+  //
+  // This screen used to ASSERT them in prose — "all in inches", "these are the body
+  // measurements" — which is not the same as asking. A designer importing a supplier's
+  // centimetre chart, or a finished-garment tech pack, had nowhere to say so, and the engine
+  // read every chart as inches-and-body. A sentence in a hint cannot stop that; a control can.
+  const [chartUnit, setChartUnit] = React.useState<'in' | 'cm'>('in');
+  const [chartBasis, setChartBasis] = React.useState<'body' | 'finished'>('body');
   const [garmentTypes, setGarmentTypes] = React.useState<string[]>([]);
   const [lengthBands, setLengthBands] = React.useState<LengthBand[]>([]);
   const [activePreset, setActivePreset] = React.useState<string>(BASE);
@@ -188,6 +196,8 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         setPresetDefs(defs);
         setCaptureSet(cs);
         setChart(t.chart);
+        setChartUnit(t.chart[0]?.unit === 'cm' ? 'cm' : 'in');
+        setChartBasis(t.chart[0]?.measurement_basis === 'finished' ? 'finished' : 'body');
         const types = t.garment_types ?? [];
         setGarmentTypes(types);
         const bands = t.length_bands ?? [];
@@ -422,7 +432,14 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       }
       const cleanChart = chart
         .filter((r) => r.size_label.trim() && Object.keys(r.measurements).length)
-        .map((r) => ({ ...r, size_label: r.size_label.trim() }));
+        .map((r) => ({
+          ...r,
+          size_label: r.size_label.trim(),
+          // Stamped on every row from the chart-level choice, so a chart cannot end up half
+          // in centimetres — which is the only state worse than being wholly in the wrong one.
+          unit: chartUnit,
+          measurement_basis: chartBasis,
+        }));
       const tolerancesOut: Record<string, number> = {};
       for (const [field, v] of Object.entries(tolerances)) {
         if (v !== '' && Number.isFinite(Number(v))) tolerancesOut[field] = Number(v);
@@ -666,7 +683,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       {/* Size chart (per fit preset) */}
       <section className={s.section}>
         <div className={s.sectionHead}>
-          <h3 className={s.sectionTitle}>Size chart <span className={s.req}>· the customer's BODY measurements per size (inches)</span></h3>
+          <h3 className={s.sectionTitle}>Size chart <span className={s.req}>· {chartBasis === 'body' ? "the customer's BODY measurements" : 'FINISHED garment measurements'} per size ({chartUnit})</span></h3>
           <div className={s.sectionHeadActions}>
             {/* W-D2: migrate a known Excel chart in one paste instead of cell-by-cell. */}
             <Button variant="ghost" onClick={() => { setImportText(''); setShowImport(true); }} disabled={fields.length === 0}>
@@ -678,10 +695,44 @@ export const GarmentTemplateEditorPage: React.FC = () => {
           </div>
         </div>
         <p className={s.hint}>
-          One row per size, one column per measurement field — all in <strong>inches</strong>. These are the
-          <strong> body</strong> measurements, not the finished garment: the engine adds the fit's ease on top.
-          Type each by hand, or auto-build the whole chart from a base size + grade rules.
+          One row per size, one column per measurement field. Type each by hand, or auto-build the
+          whole chart from a base size + grade rules.
         </p>
+        <div className={s.chartMeta}>
+          <fieldset className={s.chartMetaGroup}>
+            <legend className={s.chartMetaLegend}>These numbers are</legend>
+            <label className={s.chartMetaOpt}>
+              <input type="radio" name="chart-basis" checked={chartBasis === 'body'}
+                onChange={() => setChartBasis('body')} />
+              <span><strong>Body</strong> measurements — the engine adds this fit's ease on top</span>
+            </label>
+            <label className={s.chartMetaOpt}>
+              <input type="radio" name="chart-basis" checked={chartBasis === 'finished'}
+                onChange={() => setChartBasis('finished')} />
+              <span><strong>Finished garment</strong> measurements — ease already included</span>
+            </label>
+            {chartBasis === 'finished' && (
+              <p className={s.chartMetaWarn}>
+                The engine drafts from body measurements and cannot use a finished chart yet. It
+                will be stored and refused at preview rather than eased a second time — saying so
+                is the difference between a feature that waits and one that silently does nothing.
+              </p>
+            )}
+          </fieldset>
+          <fieldset className={s.chartMetaGroup}>
+            <legend className={s.chartMetaLegend}>Measured in</legend>
+            <label className={s.chartMetaOpt}>
+              <input type="radio" name="chart-unit" checked={chartUnit === 'in'}
+                onChange={() => setChartUnit('in')} />
+              <span>Inches</span>
+            </label>
+            <label className={s.chartMetaOpt}>
+              <input type="radio" name="chart-unit" checked={chartUnit === 'cm'}
+                onChange={() => setChartUnit('cm')} />
+              <span>Centimetres — converted on read</span>
+            </label>
+          </fieldset>
+        </div>
         {lengthField && <p className={s.hint}>Note: <strong>{lengthField}</strong> isn’t a column here — it’s set in <strong>Length by height</strong> below.</p>}
         <div className={s.tabs}>
           {presetTabs.map((p) => (

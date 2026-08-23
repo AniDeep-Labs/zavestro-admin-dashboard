@@ -2285,6 +2285,17 @@ export interface ChartRow {
   fit_preset: string | null;
   size_label: string;
   measurements: Record<string, number>;
+  /**
+   * [FIT-76] What the numbers ARE, and what unit they are in.
+   *
+   * The engine adds the style's ease to a BODY measurement to get a garment; a FINISHED
+   * measurement already includes it. Both columns existed in the database and neither was
+   * ever asked for, so a centimetre chart was read as inches and a finished chart was eased
+   * twice. Optional on the wire: the backend defaults to the inches-and-body every existing
+   * row already is.
+   */
+  unit?: 'in' | 'cm';
+  measurement_basis?: 'body' | 'finished';
 }
 export interface GarmentTemplate {
   id: string;
