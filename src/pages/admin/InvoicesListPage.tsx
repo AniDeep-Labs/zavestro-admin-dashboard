@@ -7,6 +7,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Button } from '../../components/Button/Button';
 import { StatusBadge, PageHeader, Drawer, EmptyState } from '../../components';
+import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import styles from './OrdersListPage.module.css';
 import ds from './DistributionPage.module.css';
 import kpi from './CodReconciliationPage.module.css';
@@ -56,6 +57,12 @@ export const InvoicesListPage: React.FC = () => {
   const [regenerating, setRegenerating] = React.useState(false);
   const [preview, setPreview] = React.useState<{ inv: Invoice; url: string } | null>(null);
   const [previewLoading, setPreviewLoading] = React.useState(false);
+
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const generateDialog = useDialog(showGenerate, () => setShowGenerate(false), 'Generate invoice');
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -296,7 +303,7 @@ export const InvoicesListPage: React.FC = () => {
 
       {showGenerate && (
         <div className={styles.modalOverlay} onClick={() => setShowGenerate(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+          <div className={styles.modal} {...generateDialog.dialogProps} onClick={e => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>Generate Invoice</h2>
             <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-secondary)' }}>
               Find the order to invoice — generation is queued and the PDF appears once ready. (Invoices auto-generate from orders; use this to create or re-trigger one manually.)
