@@ -1,4 +1,5 @@
 import React from 'react';
+import { useHubContextFilter } from '../../utils/useHubContextFilter'; // [SHL-3-8]
 import { useNavigate } from 'react-router-dom';
 import { fitOutcomesApi, hubsApi, hasCapability } from '../../api/adminApi';
 import type { FitOutcomes, FitOutcomeSummary, Hub, FitFailureAgentRow, ReworkTailorRow } from '../../api/adminApi';
@@ -27,7 +28,9 @@ export const FitOutcomesPage: React.FC = () => {
   const [agents, setAgents] = React.useState<FitFailureAgentRow[]>([]);
   const [tailors, setTailors] = React.useState<ReworkTailorRow[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
-  const [hubFilter, setHubFilter] = React.useState('');
+  // [SHL-3-8] Defaults to the header hub switcher and follows it. Was React.useState(''),
+  // so the global control changed nothing on this page while claiming to.
+  const [hubFilter, setHubFilter] = useHubContextFilter();
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
 

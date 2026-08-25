@@ -1,4 +1,5 @@
 import React from 'react';
+import { useHubContextFilter } from '../../utils/useHubContextFilter'; // [SHL-3-8]
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { listingRequestsApi, designsApi, fabricsApi, hubsApi, adminAuthExtApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { ListingRequest, DesignSummary, Fabric, Hub } from '../../api/adminApi';
@@ -45,7 +46,9 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
   const [fabrics, setFabrics] = React.useState<Fabric[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [hubFilter, setHubFilter] = React.useState('');
+  // [SHL-3-8] Defaults to the header hub switcher and follows it. Was React.useState(''),
+  // so the global control changed nothing on this page while claiming to.
+  const [hubFilter, setHubFilter] = useHubContextFilter();
   const [actingId, setActingId] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 

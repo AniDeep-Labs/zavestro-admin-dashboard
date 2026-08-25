@@ -1,4 +1,5 @@
 import React from "react";
+import { useHubContextFilter } from "../../utils/useHubContextFilter"; // [SHL-3-8]
 import { staffApi, hubsApi } from "../../api/adminApi";
 import type { StaffMember, StaffRole, Hub } from "../../api/adminApi";
 import { Button } from "../../components/Button/Button";
@@ -36,7 +37,9 @@ const EMPTY = {
 export const StaffManagementPage: React.FC = () => {
   const [staff, setStaff] = React.useState<StaffMember[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
-  const [hubFilter, setHubFilter] = React.useState("");
+  // [SHL-3-8] Defaults to the header hub switcher and follows it. Was React.useState(''),
+  // so the global control changed nothing on this page while claiming to.
+  const [hubFilter, setHubFilter] = useHubContextFilter();
   const [roleFilter, setRoleFilter] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const [open, setOpen] = React.useState(false);

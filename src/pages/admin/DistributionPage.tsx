@@ -1,4 +1,5 @@
 import React from 'react';
+import { useHubContextFilter } from '../../utils/useHubContextFilter'; // [SHL-3-8]
 import { isDenied, errorMessage } from '../../components/EmptyState/asyncState'; // [SHL-3-1]
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { distributionApi, designsApi, hubsApi, fabricsApi, qcTemplatesApi, R2_PUBLIC_URL } from '../../api/adminApi';
@@ -31,7 +32,9 @@ export const DistributionPage: React.FC = () => {
   const [designsErr, setDesignsErr] = React.useState<unknown>(null);
   const [hubsErr, setHubsErr] = React.useState<unknown>(null);
   const [loading, setLoading] = React.useState(true);
-  const [hubFilter, setHubFilter] = React.useState('');
+  // [SHL-3-8] Defaults to the header hub switcher and follows it. Was React.useState(''),
+  // so the global control changed nothing on this page while claiming to.
+  const [hubFilter, setHubFilter] = useHubContextFilter();
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   // central available (fabric_id → m) + per-hub stock (`${hub}-${fabric}` → row), for the push modal
