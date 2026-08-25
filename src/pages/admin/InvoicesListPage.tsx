@@ -1,4 +1,5 @@
 import React from 'react';
+import { useHubContextFilter } from '../../utils/useHubContextFilter'; // [SHL-3-8]
 import { Link } from 'react-router-dom';
 import { invoicesApi, ordersApi, hubsApi } from '../../api/adminApi';
 import type { Invoice, AdminOrder, Hub } from '../../api/adminApi';
@@ -29,7 +30,9 @@ function useDebounce<T>(v: T, d: number) {
 export const InvoicesListPage: React.FC = () => {
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('');
-  const [hubFilter, setHubFilter] = React.useState('');
+  // [SHL-3-8] Defaults to the header hub switcher and follows it. Was React.useState(''),
+  // so the global control changed nothing on this page while claiming to.
+  const [hubFilter, setHubFilter] = useHubContextFilter();
   const [month, setMonth] = React.useState('');
   const [page, setPage] = React.useState(1);
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);

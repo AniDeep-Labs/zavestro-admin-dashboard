@@ -1,4 +1,5 @@
 import React from "react";
+import { useHubContextFilter } from "../../utils/useHubContextFilter"; // [SHL-3-8]
 import { Link } from "react-router-dom";
 import { refundsApi, hubsApi } from "../../api/adminApi";
 import type { RefundEntry, Hub } from "../../api/adminApi";
@@ -43,7 +44,9 @@ const canDisburse = (r: RefundEntry) => isAwaiting(r) || isFailed(r);
 export const RefundsPage: React.FC = () => {
   const [refunds, setRefunds] = React.useState<RefundEntry[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
-  const [hubFilter, setHubFilter] = React.useState("");
+  // [SHL-3-8] Defaults to the header hub switcher and follows it. Was React.useState(''),
+  // so the global control changed nothing on this page while claiming to.
+  const [hubFilter, setHubFilter] = useHubContextFilter();
   const [loading, setLoading] = React.useState(true);
   const [actingId, setActingId] = React.useState("");
   const [confirm, setConfirm] = React.useState<null | { title: string; message: React.ReactNode; label: string; run: () => Promise<void> }>(null);

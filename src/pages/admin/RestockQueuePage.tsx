@@ -1,4 +1,5 @@
 import React from 'react';
+import { useHubContextFilter } from '../../utils/useHubContextFilter'; // [SHL-3-8]
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { restockApi, fabricsApi, hubsApi, adminAuthExtApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { RestockRequest, Fabric, Hub, FabricStockRow } from '../../api/adminApi';
@@ -41,7 +42,9 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
   const [rows, setRows] = React.useState<RestockRequest[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [hubFilter, setHubFilter] = React.useState('');
+  // [SHL-3-8] Defaults to the header hub switcher and follows it. Was React.useState(''),
+  // so the global control changed nothing on this page while claiming to.
+  const [hubFilter, setHubFilter] = useHubContextFilter();
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   // procurement: per-hub stock context (`${hub}-${fabric}` → row) so a pending row

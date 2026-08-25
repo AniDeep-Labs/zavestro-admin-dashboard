@@ -1,4 +1,5 @@
 import React from 'react';
+import { useHubContextFilter } from '../../utils/useHubContextFilter'; // [SHL-3-8]
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { fabricsApi, hubsApi, distributionApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type {
@@ -33,7 +34,9 @@ export const CrossHubStockPage: React.FC = () => {
   const [rows, setRows] = React.useState<FabricStockRow[]>([]);
   const [inTransit, setInTransit] = React.useState<Distribution[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
-  const [hubFilter, setHubFilter] = React.useState('');
+  // [SHL-3-8] Defaults to the header hub switcher and follows it. Was React.useState(''),
+  // so the global control changed nothing on this page while claiming to.
+  const [hubFilter, setHubFilter] = useHubContextFilter();
   // Filter to a single fabric (spec §295) — also the `?fabric=` deep-link target (spec §284).
   const [fabricFilter, setFabricFilter] = React.useState(sp.get('fabric') ?? '');
   const [loading, setLoading] = React.useState(true);
