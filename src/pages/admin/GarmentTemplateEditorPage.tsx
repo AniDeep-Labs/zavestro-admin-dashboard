@@ -744,6 +744,23 @@ export const GarmentTemplateEditorPage: React.FC = () => {
               <UilCalculatorAlt size={15} /> Generate from grade rules
             </Button>
           </div>
+        {/* [DSG-11-6] For UPPER garments the engine never reads this chart.
+            `runEngine` builds chart rows only when `region === 'lower'`
+            (size-preview.service.ts), so `buildTop` is passed body anchors and ease and nothing
+            else. Shirt has 0 chart rows and previews happily — 5 of the 7 garment types author
+            data here that no engine consumes, through a grade generator, a CSV import, per-fit
+            tabs and cell validation.
+            Saying so is the honest half. WIRING buildTop to a chart is a calibrated-engine
+            change and belongs to the upper-body programme, not to a UI fix — switching on an
+            uncalibrated path quietly would be a worse version of this same bug. */}
+        {tpl.body_region !== 'lower' && (
+          <p className={s.chartNotConsumed}>
+            <strong>The engine does not read this chart for {tpl.body_region ?? 'this'}-body
+            garments yet.</strong> It builds from the customer's measured body plus the fit
+            preset's ease. Authoring sizes here is still useful as a reference and for the
+            grade generator, but changing a number below will not change what gets cut.
+          </p>
+        )}
         </div>
         <p className={s.hint}>
           One row per size, one column per measurement field. Type each by hand, or auto-build the

@@ -586,3 +586,16 @@
 .pvResultStale {
   opacity: 0.6;
 }
+
+/* [DSG-11-6] The chart section is elaborate — grade generator, CSV import, per-fit tabs, cell
+   validation — and for upper-body garments the engine reads none of it. An author is entitled to
+   know that before spending an afternoon in it. */
+.chartNotConsumed {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--color-warning);
+  background: var(--color-bg-section);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
