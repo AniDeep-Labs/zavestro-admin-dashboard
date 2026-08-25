@@ -1,4 +1,5 @@
 import React from 'react';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState'; // [SHL-3-1]
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { distributionApi, designsApi, hubsApi, fabricsApi, qcTemplatesApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { Distribution, DesignSummary, DesignFabricRef, Hub, CentralStockRow, FabricStockRow, Fabric, QcCheck } from '../../api/adminApi';
@@ -23,6 +24,12 @@ export const DistributionPage: React.FC = () => {
   const [rows, setRows] = React.useState<Distribution[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
+  // [SHL-3-1] Kept, not discarded. Procurement's one job is pushing a design to a hub, and the
+  // design list was 403 for the role — so the dropdown rendered EMPTY and the page said nothing.
+  // "There are no published designs" and "you are not allowed to see them" are the same picture
+  // with a swallowed catch, and only one of them is the operator's problem to solve.
+  const [designsErr, setDesignsErr] = React.useState<unknown>(null);
+  const [hubsErr, setHubsErr] = React.useState<unknown>(null);
   const [loading, setLoading] = React.useState(true);
   const [hubFilter, setHubFilter] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -84,8 +91,8 @@ export const DistributionPage: React.FC = () => {
 
   React.useEffect(() => { load(); }, [load]);
   React.useEffect(() => {
-    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
-    designsApi.list({ status: 'published' }).then(setDesigns).catch(() => {});
+    hubsApi.list().then((r) => setHubs(r.hubs)).catch(setHubsErr);
+    designsApi.list({ status: 'published' }).then(setDesigns).catch(setDesignsErr);
     fabricsApi.centralStock().then((cs: CentralStockRow[]) => {
       const m: Record<string, number> = {};
       cs.forEach((c) => { m[c.fabric_id] = numv(c.available_meters); });
@@ -414,10 +421,23 @@ export const DistributionPage: React.FC = () => {
         <div className={styles.modalStack}>
           <label className={styles.fieldLabel}>Design
             <select className={styles.filterSelect} value={designId} onChange={(e) => setDesignId(e.target.value)}>
-              <option value="">Select a published design…</option>
+              <option value="">
+                {designsErr
+                  ? isDenied(designsErr)
+                    ? 'You do not have access to the design library'
+                    : `Designs could not be loaded${errorMessage(designsErr) ? ` — ${errorMessage(designsErr)}` : ''}`
+                  : 'Select a published design…'}
+              </option>
               <option value={NO_DESIGN}>— No design · plain fabric restock —</option>
               {designs.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.garment_type}</option>)}
             </select>
+            {designsErr ? (
+              <span className={styles.fieldHint}>
+                {isDenied(designsErr)
+                  ? 'Ask a super admin for design read access — a plain fabric restock still works without it.'
+                  : 'A plain fabric restock still works. Reload to try the design list again.'}
+              </span>
+            ) : null}
           </label>
           <label className={styles.fieldLabel}>Fabric
             {restockMode ? (
@@ -439,9 +459,20 @@ export const DistributionPage: React.FC = () => {
           )}
           <label className={styles.fieldLabel}>Hub
             <select className={styles.filterSelect} value={hubId} onChange={(e) => setHubId(e.target.value)}>
-              <option value="">Select a hub…</option>
+              <option value="">
+                {hubsErr
+                  ? isDenied(hubsErr)
+                    ? 'You do not have access to the hub list'
+                    : `Hubs could not be loaded${errorMessage(hubsErr) ? ` — ${errorMessage(hubsErr)}` : ''}`
+                  : 'Select a hub…'}
+              </option>
               {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
             </select>
+            {hubsErr ? (
+              <span className={styles.fieldHint}>
+                Without the hub list there is nothing to push to. Reload, or ask a super admin.
+              </span>
+            ) : null}
           </label>
           {reorderGap > 0 && (
             <div className={s.suggest}>
