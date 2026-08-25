@@ -565,3 +565,12 @@
 .chartMetaOpt { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.4; padding: 3px 0; cursor: pointer; }
 .chartMetaOpt input { margin-top: 2px; flex: none; }
 .chartMetaWarn { font-size: 11px; line-height: 1.4; margin: 6px 0 0; color: var(--color-warning); }
+
+/* [DSG-11-4] Two rows in one fit sharing a size label. The database refuses this with a unique
+   violation the API reports as a bare 500, so it is named here, before the save, against the
+   rows it is about. */
+.chartDupWarning {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-error);
+}
