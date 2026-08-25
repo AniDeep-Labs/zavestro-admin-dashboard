@@ -5,6 +5,7 @@ import { adminAuthExtApi, hubsApi } from '../../api/adminApi';
 import type { Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import styles from './AdminUsersManagePage.module.css';
 import { UilKeySkeletonAlt, UilRefresh, UilUserPlus } from "@iconscout/react-unicons";
 
@@ -71,6 +72,17 @@ export const AdminUsersManagePage: React.FC = () => {
   // Hubs for the hub-scoping selectors
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [hubSaving, setHubSaving] = React.useState<string | null>(null);
+
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const tempPwDialog = useDialog(!!showTempPw, () => setShowTempPw(null), 'Set temporary password');
+  const createAdminDialog = useDialog(
+    showCreate,
+    () => setShowCreate(false),
+    'Create admin account',
+  );
   React.useEffect(() => { hubsApi.list().then(r => setHubs(r.hubs)).catch(() => { /* optional */ }); }, []);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
@@ -414,7 +426,7 @@ export const AdminUsersManagePage: React.FC = () => {
       {/* Temp Password Modal */}
       {showTempPw && (
         <div className={styles.modalOverlay} onClick={() => setShowTempPw(null)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+          <div className={styles.modal} {...tempPwDialog.dialogProps} onClick={e => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Set Temporary Password</h3>
             <p style={{ margin: '0 0 12px', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
               Setting a temp password for <strong>{showTempPw.email}</strong>. They will be required to change it on next login.
@@ -439,7 +451,7 @@ export const AdminUsersManagePage: React.FC = () => {
       {/* Create Admin Modal */}
       {showCreate && (
         <div className={styles.modalOverlay} onClick={() => setShowCreate(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+          <div className={styles.modal} {...createAdminDialog.dialogProps} onClick={e => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Create Admin Account</h3>
             <div className={styles.fields}>
               <div className={styles.field}>

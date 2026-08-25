@@ -5,6 +5,7 @@ import type { ServicePincode, Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import styles from './PromoCodesPage.module.css';
 import { UilPlus, UilSearch, UilToggleOff, UilToggleOn, UilTrashAlt } from "@iconscout/react-unicons";
 
@@ -93,6 +94,12 @@ export const ServiceAreasPage: React.FC = () => {
 
   // T3-9 (§2.4): design-system ConfirmDialog instead of the native confirm().
   const [pendingDelete, setPendingDelete] = React.useState<ServicePincode | null>(null);
+
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const addPincodesDialog = useDialog(showModal, () => setShowModal(false), 'Add pincodes');
   const doDelete = async () => {
     const p = pendingDelete;
     if (!p) return;
@@ -207,7 +214,7 @@ export const ServiceAreasPage: React.FC = () => {
 
       {showModal && (
         <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+          <div className={styles.modal} {...addPincodesDialog.dialogProps} onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <h3 className={styles.modalTitle}>Add Pincodes</h3>
             <div className={styles.fields}>
               <div className={styles.field}>

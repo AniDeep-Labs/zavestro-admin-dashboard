@@ -374,30 +374,60 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   // ── chart grid for the active preset ──
   const presetKey = activePreset === BASE ? null : activePreset;
   const rows = chart.filter((r) => (r.fit_preset ?? BASE) === activePreset);
-  const setMeasurement = (sizeLabel: string, field: string, val: string) => {
-    setChart((prev) =>
-      prev.map((r) => {
-        if ((r.fit_preset ?? BASE) !== activePreset || r.size_label !== sizeLabel) return r;
-        const m = { ...r.measurements };
-        if (val === '') delete m[field];
-        else m[field] = Number(val);
-        return { ...r, measurements: m };
-      }),
-    );
+  // [DSG-11-4] Rows are addressed by POSITION, not by their label.
+  //
+  // Every mutator used to match `r.size_label === sizeLabel`, and `addSize` appends a row whose
+  // label is ''. So two blank rows were the same row: clicking "Add size" twice and typing 44
+  // into the first produced ["…","40","44","44"] — both took the value, and every measurement
+  // typed into one landed in the other. Saving that pair broke the unique index on
+  // (category, fit_preset, size_label) and returned a bare 500, with nothing to say which rows
+  // clashed. A label is what the author is still editing; it cannot also be the row's identity.
+  //
+  // `chartIndexOf` maps a visible row to its slot in the whole chart, so mutations stay scoped to
+  // the active preset without needing a key at all.
+  const chartIndexOf = (visibleIdx: number): number => {
+    let seen = -1;
+    for (let i = 0; i < chart.length; i++) {
+      if ((chart[i].fit_preset ?? BASE) !== activePreset) continue;
+      if (++seen === visibleIdx) return i;
+    }
+    return -1;
   };
-  const renameSize = (oldLabel: string, label: string) => {
-    setChart((prev) =>
-      prev.map((r) =>
-        (r.fit_preset ?? BASE) === activePreset && r.size_label === oldLabel
-          ? { ...r, size_label: label }
-          : r,
-      ),
-    );
+  const updateRow = (visibleIdx: number, patch: (r: ChartRow) => ChartRow) => {
+    const idx = chartIndexOf(visibleIdx);
+    if (idx < 0) return;
+    setChart((prev) => prev.map((r, i) => (i === idx ? patch(r) : r)));
   };
+  const setMeasurement = (visibleIdx: number, field: string, val: string) =>
+    updateRow(visibleIdx, (r) => {
+      const m = { ...r.measurements };
+      if (val === '') delete m[field];
+      else m[field] = Number(val);
+      return { ...r, measurements: m };
+    });
+  const renameSize = (visibleIdx: number, label: string) =>
+    updateRow(visibleIdx, (r) => ({ ...r, size_label: label }));
   const addSize = () =>
     setChart([...chart, { fit_preset: presetKey, size_label: '', measurements: {} }]);
-  const removeSize = (sizeLabel: string) =>
-    setChart(chart.filter((r) => !((r.fit_preset ?? BASE) === activePreset && r.size_label === sizeLabel)));
+  const removeSize = (visibleIdx: number) => {
+    const idx = chartIndexOf(visibleIdx);
+    if (idx < 0) return;
+    setChart(chart.filter((_, i) => i !== idx));
+  };
+
+  // [DSG-11-4] Duplicate labels within a fit are what the database refuses. Caught here, named,
+  // and shown against the rows — instead of a 500 the author has to guess at.
+  const duplicateLabels = (() => {
+    const seen = new Map<string, number>();
+    const dupes = new Set<string>();
+    for (const r of rows) {
+      const k = r.size_label.trim();
+      if (!k) continue;
+      if (seen.has(k)) dupes.add(k);
+      seen.set(k, (seen.get(k) ?? 0) + 1);
+    }
+    return dupes;
+  })();
 
   // ── cell-level validation (FABLE §4C: non-numeric/non-positive = error; a value
   // smaller than the size above it in the same column = a likely-typo descending run).
@@ -518,6 +548,14 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         const n = Number(v);
         if (v !== '' && !Number.isNaN(n)) anchors[k] = n;
       }
+      // [DSG-11-2] The preview posts a SLUG — the server re-reads the stored chart and stored
+      // ease. It has never seen the editor's unsaved state and cannot. Proved live: changing
+      // Straight's waist ease 1 → 9 and previewing returned waist 33 = 32 + 1, the SAVED ease,
+      // rendered as a clean result with nothing to say it belonged to different numbers.
+      //
+      // A validation instrument that silently reports on other data is worse than none: it turns
+      // an unsaved mistake into a green tick. Running it is gated on a clean editor below, and a
+      // result already on screen is marked stale the moment the recipe changes under it.
       const r = await designsApi.sizePreview({
         garment_category_slug: tpl.slug,
         fit_preset: pvPreset,
@@ -706,6 +744,23 @@ export const GarmentTemplateEditorPage: React.FC = () => {
               <UilCalculatorAlt size={15} /> Generate from grade rules
             </Button>
           </div>
+        {/* [DSG-11-6] For UPPER garments the engine never reads this chart.
+            `runEngine` builds chart rows only when `region === 'lower'`
+            (size-preview.service.ts), so `buildTop` is passed body anchors and ease and nothing
+            else. Shirt has 0 chart rows and previews happily — 5 of the 7 garment types author
+            data here that no engine consumes, through a grade generator, a CSV import, per-fit
+            tabs and cell validation.
+            Saying so is the honest half. WIRING buildTop to a chart is a calibrated-engine
+            change and belongs to the upper-body programme, not to a UI fix — switching on an
+            uncalibrated path quietly would be a worse version of this same bug. */}
+        {tpl.body_region !== 'lower' && (
+          <p className={s.chartNotConsumed}>
+            <strong>The engine does not read this chart for {tpl.body_region ?? 'this'}-body
+            garments yet.</strong> It builds from the customer's measured body plus the fit
+            preset's ease. Authoring sizes here is still useful as a reference and for the
+            grade generator, but changing a number below will not change what gets cut.
+          </p>
+        )}
         </div>
         <p className={s.hint}>
           One row per size, one column per measurement field. Type each by hand, or auto-build the
@@ -765,8 +820,13 @@ export const GarmentTemplateEditorPage: React.FC = () => {
                   <tr><td colSpan={chartFields.length + 2} className={base.empty}>No sizes for this fit yet.</td></tr>
                 ) : rows.map((r, i) => (
                   <tr key={i}>
-                    <td><input className={s.sizeInput} value={r.size_label} placeholder="e.g. M / 32"
-                      onChange={(e) => renameSize(r.size_label, e.target.value)} /></td>
+                    <td><input
+                      className={`${s.sizeInput} ${duplicateLabels.has(r.size_label.trim()) ? s.cellErr : ''}`}
+                      value={r.size_label} placeholder="e.g. M / 32"
+                      title={duplicateLabels.has(r.size_label.trim())
+                        ? `Another row in this fit is also "${r.size_label.trim()}" — sizes must be unique`
+                        : undefined}
+                      onChange={(e) => renameSize(i, e.target.value)} /></td>
                     {chartFields.map((f) => {
                       const st = cellState(i, f);
                       return (
@@ -775,16 +835,24 @@ export const GarmentTemplateEditorPage: React.FC = () => {
                             className={`${s.cell} ${st === 'err' ? s.cellErr : st === 'warn' ? s.cellWarn : ''}`}
                             type="number" step="0.25" value={r.measurements[f] ?? ''}
                             title={st === 'err' ? 'Must be a positive number' : st === 'warn' ? 'Smaller than the size above — check this value' : undefined}
-                            onChange={(e) => setMeasurement(r.size_label, f, e.target.value)} />
+                            onChange={(e) => setMeasurement(i, f, e.target.value)} />
                         </td>
                       );
                     })}
-                    <td><button type="button" className={s.iconBtn} onClick={() => removeSize(r.size_label)}><UilTimes size={14} /></button></td>
+                    <td><button type="button" className={s.iconBtn} onClick={() => removeSize(i)}><UilTimes size={14} /></button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+        {duplicateLabels.size > 0 && (
+          <p className={s.chartDupWarning}>
+            {duplicateLabels.size === 1
+              ? `Two rows in this fit are both "${[...duplicateLabels][0]}".`
+              : `Some rows in this fit share a size: ${[...duplicateLabels].join(', ')}.`}{' '}
+            Sizes must be unique within a fit — saving as-is will be rejected.
+          </p>
         )}
         <Button variant="ghost" onClick={addSize} disabled={fields.length === 0}><UilPlus size={15} /> Add size</Button>
       </section>
@@ -985,10 +1053,27 @@ export const GarmentTemplateEditorPage: React.FC = () => {
               />
             </label>
           ))}
-          <Button variant="outline" state={pvBusy ? 'loading' : 'default'} onClick={runPreview}>Preview finished spec</Button>
+          <Button
+            variant="outline"
+            state={pvBusy ? 'loading' : 'default'}
+            disabled={dirty}
+            onClick={runPreview}
+          >Preview finished spec</Button>
         </div>
+        {dirty && (
+          <p className={s.pvNotice}>
+            The engine reads the <strong>saved</strong> chart and ease — it cannot see the changes
+            on this screen. Save to test them.
+          </p>
+        )}
+        {pvResult && dirty && (
+          <p className={s.pvNotice}>
+            ⚠ These numbers are from the recipe as it was <strong>last saved</strong>. It has been
+            edited since.
+          </p>
+        )}
         {pvResult && (
-          <div className={s.pvResult}>
+          <div className={`${s.pvResult} ${dirty ? s.pvResultStale : ''}`}>
             <div className={s.pvResultHead}>{pvResult.garment} · {pvResult.fit_preset} · {pvResult.type}</div>
             <table className={s.chart}>
               <thead><tr><th>Field</th><th>Finished (in)</th></tr></thead>

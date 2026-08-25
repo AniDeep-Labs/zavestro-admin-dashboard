@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { configApi } from '../../api/adminApi';
 import type { ConfigGroup } from '../../api/adminApi';
+import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import styles from './AppConfigPage.module.css';
 
 type ConfigItem = ConfigGroup['items'][number];
@@ -19,6 +20,12 @@ export const AppConfigPage: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState('');
+
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const confirmDialog = useDialog(showConfirm, () => setShowConfirm(false), 'Confirm config update');
 
   React.useEffect(() => {
     setLoading(true);
@@ -227,7 +234,7 @@ export const AppConfigPage: React.FC = () => {
 
       {showConfirm && (
         <div className={styles.modalOverlay} onClick={() => setShowConfirm(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+          <div className={styles.modal} {...confirmDialog.dialogProps} onClick={e => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Confirm Config Update</h3>
             <p className={styles.modalText}>
               You are updating {dirty.size} config value{dirty.size > 1 ? 's' : ''}. These changes are immediate and logged with your admin account.
