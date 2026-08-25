@@ -2652,6 +2652,14 @@ export interface SizePreviewResult {
   fit_preset: string;
   type: string;
   spec: Record<string, number>;
+  /**
+   * [DSG-9-5] Whether the engine is allowed to drive a real cut (`ENGINE_DRIVES_CUTS`).
+   *
+   * Served, not assumed: the flag is app-config and can be turned on without a deploy, so a
+   * client-side constant would be wrong the day it changes. Optional only because an older API
+   * may not send it — and an ABSENT answer must be treated as "not live", never as "fine".
+   */
+  engine_drives_cuts?: boolean;
 }
 
 export interface BodyMeasurement {
