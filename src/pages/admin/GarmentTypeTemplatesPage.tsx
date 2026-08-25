@@ -132,7 +132,22 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
               <tr><td colSpan={8} className={styles.empty}>{cats.length === 0 ? 'No garment types yet — create your first.' : 'No garment types match your search.'}</td></tr>
             ) : (
               shown.map((c) => {
-                const presets = c.available_fit_presets ?? [];
+                // [DSG-11-5] Read what the ENGINE can run, not what somebody typed.
+                //
+                // This graded readiness from `available_fit_presets` and `capture_set` — both
+                // authored columns, both NULL on all seven garment types — so every row read
+                // "FITS none · Needs setup", including Trouser with a 7-size chart, 3 calibrated
+                // presets, 3 length bands and a live design. The same API response already
+                // carries `calibrated_fit_presets` (['loose','skinny','straight'] for Trouser),
+                // whose own declaration says *use THIS, not the authored column above*.
+                //
+                // Two screens disagreed about one template: this index said "Needs setup" while
+                // the editor of the same template said "✓ Ready to use". The editor was right.
+                const authored = c.available_fit_presets ?? [];
+                const calibrated = c.calibrated_fit_presets ?? [];
+                // Prefer calibrated; fall back to authored only when the derived field is absent
+                // (an older API response), never when it is present and empty.
+                const presets = c.calibrated_fit_presets != null ? calibrated : authored;
                 const configured = captureCount(c) > 0 || presets.length > 0;
                 const usedBy = c.used_by_designs ?? 0;
                 return (
@@ -149,6 +164,18 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
                     </td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>
                       {presets.length ? presets.join(', ') : <span style={{ opacity: 0.5 }}>none</span>}
+                      {/* An authored preset the engine cannot run is the state worth seeing: the
+                          template looks configured and a draft from it would fail. */}
+                      {authored.filter((p) => !calibrated.includes(p)).length > 0 && (
+                        <span
+                          className={styles.uncalibratedNote}
+                          title={`Authored but not calibrated — the engine cannot run: ${authored
+                            .filter((p) => !calibrated.includes(p))
+                            .join(', ')}`}
+                        >
+                          (+{authored.filter((p) => !calibrated.includes(p)).length} uncalibrated)
+                        </span>
+                      )}
                     </td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>
                       {usedBy > 0 ? `${usedBy} design${usedBy === 1 ? '' : 's'}` : <span style={{ opacity: 0.5 }}>—</span>}

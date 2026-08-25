@@ -20,6 +20,7 @@ import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { StatusBadge, PageHeader, DetailShell, PolicyCard } from "../../components";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
+import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
 import styles from "./TicketDetailPage.module.css";
 import {
   UilAngleDown,
@@ -439,6 +440,32 @@ export const TicketDetailPage: React.FC = () => {
   // T3-3 (W-S3): snooze the ticket to a follow-up time (or clear it). Snoozed
   // tickets leave "Needs reply" until the time passes.
   const [savingSnooze, setSavingSnooze] = React.useState(false);
+
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const remeasureDialog = useDialog(
+    !!(showRemeasure && ticket),
+    () => setShowRemeasure(false),
+    'Request re-measure',
+  );
+  const creditDialog = useDialog(showCredit, () => setShowCredit(false), 'Issue goodwill credit');
+  const escalateDialog = useDialog(
+    showEscalate,
+    () => setShowEscalate(false),
+    'Escalate to finance',
+  );
+  const alterationDialog = useDialog(
+    !!(showAlteration && ticket),
+    () => setShowAlteration(false),
+    'Request alteration',
+  );
+  const returnDialog = useDialog(
+    !!(showReturn && ticket),
+    () => setShowReturn(false),
+    'Start a return',
+  );
   const handleSnooze = async (value: string | null) => {
     if (!ticket) return;
     setSavingSnooze(true);
@@ -1071,7 +1098,7 @@ export const TicketDetailPage: React.FC = () => {
           className={styles.modalOverlay}
           onClick={() => setShowRemeasure(false)}
         >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} {...remeasureDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>
               Request re-measure for {ticket.customer}
             </h3>
@@ -1112,7 +1139,7 @@ export const TicketDetailPage: React.FC = () => {
           className={styles.modalOverlay}
           onClick={() => setShowCredit(false)}
         >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} {...creditDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>
               Issue credit for {ticket.customer}
             </h3>
@@ -1180,7 +1207,7 @@ export const TicketDetailPage: React.FC = () => {
           className={styles.modalOverlay}
           onClick={() => setShowEscalate(false)}
         >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} {...escalateDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Escalate to finance</h3>
             <p className={styles.fieldLabel}>
               For a money decision beyond support's ₹500 cap (a refund or larger
@@ -1219,7 +1246,7 @@ export const TicketDetailPage: React.FC = () => {
           className={styles.modalOverlay}
           onClick={() => setShowAlteration(false)}
         >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} {...alterationDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>
               Request alteration for {ticket.customer}
             </h3>
@@ -1260,7 +1287,7 @@ export const TicketDetailPage: React.FC = () => {
           className={styles.modalOverlay}
           onClick={() => setShowReturn(false)}
         >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} {...returnDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>
               Start a return for {ticket.customer}
             </h3>

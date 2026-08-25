@@ -6,6 +6,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Can } from '../../components/Can/Can';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import s from './HubConstraintsPage.module.css';
 
 // T2-7 (O-11): where is each hub backed up (WIP × stage + SLA breach), read alongside the
@@ -32,6 +33,12 @@ export const HubConstraintsPage: React.FC = () => {
   const [editing, setEditing] = React.useState<{ id?: string; data: HubCalendarInput } | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
+
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const eventDialog = useDialog(!!(editing), () => setEditing(null), 'Hub capacity event');
 
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
@@ -259,7 +266,7 @@ export const HubConstraintsPage: React.FC = () => {
 
       {editing && (
         <div className={s.modalOverlay} onClick={() => setEditing(null)}>
-          <div className={s.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={s.modal} {...eventDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={s.modalTitle}>{editing.id ? 'Edit event' : 'Add event'}</h3>
             <div className={s.row2}>
               <div className={s.field}>

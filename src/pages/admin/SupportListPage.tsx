@@ -5,6 +5,7 @@ import type { SupportTicket, AdminUser, SupportInbox } from "../../api/adminApi"
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { StatusBadge } from "../../components";
+import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
 import styles from "./SupportListPage.module.css";
 import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA7-2]: masked by default
 import {
@@ -78,6 +79,16 @@ export const SupportListPage: React.FC = () => {
   // Customer search in create modal
   const [customerSearch, setCustomerSearch] = React.useState("");
   const [customerResults, setCustomerResults] = React.useState<AdminUser[]>([]);
+
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const createTicketDialog = useDialog(
+    showCreate,
+    () => setShowCreate(false),
+    'Create support ticket',
+  );
   const [selectedCustomer, setSelectedCustomer] =
     React.useState<AdminUser | null>(null);
   const debouncedCustomerSearch = useDebounce(customerSearch, 350);
@@ -539,7 +550,7 @@ export const SupportListPage: React.FC = () => {
           className={styles.modalOverlay}
           onClick={() => setShowCreate(false)}
         >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} {...createTicketDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>Create Support Ticket</h2>
             <div className={styles.fields}>
               {/* Customer: search existing or enter manually */}

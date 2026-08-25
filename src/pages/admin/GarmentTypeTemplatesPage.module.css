@@ -1,0 +1,7 @@
+
+/* [DSG-11-5] A preset authored on the template that the engine cannot actually run. Worth seeing:
+   the template looks configured and a draft from it would fail. */
+.uncalibratedNote {
+  opacity: 0.6;
+  margin-left: 6px;
+}

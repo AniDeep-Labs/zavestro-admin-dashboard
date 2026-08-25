@@ -5,6 +5,7 @@ import { istDayEnd } from '../../utils/dateWindow';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import styles from './PromoCodesPage.module.css';
 import { UilChartBar, UilCheck, UilCopy, UilPen, UilPlus, UilToggleOff, UilToggleOn, UilTrashAlt } from "@iconscout/react-unicons";
 
@@ -152,6 +153,21 @@ export const PromoCodesPage: React.FC = () => {
 
   const [confirmDelete, setConfirmDelete] = React.useState<PromoCode | null>(null);
 
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const createPromoDialog = useDialog(
+    showCreateModal,
+    () => setShowCreateModal(false),
+    'Create promo code',
+  );
+  const editPromoDialog = useDialog(
+    !!(editingPromo),
+    () => setEditingPromo(null),
+    'Edit promo code',
+  );
+
   const handleDelete = async () => {
     const promo = confirmDelete;
     if (!promo) return;
@@ -255,7 +271,7 @@ export const PromoCodesPage: React.FC = () => {
 
       {showCreateModal && (
         <div className={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+          <div className={styles.modal} {...createPromoDialog.dialogProps} onClick={e => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Create Promo Code</h3>
             <PromoForm initial={{}} onSave={handleCreate} onCancel={() => setShowCreateModal(false)} saving={savingPromo} />
           </div>
@@ -264,7 +280,7 @@ export const PromoCodesPage: React.FC = () => {
 
       {editingPromo && (
         <div className={styles.modalOverlay} onClick={() => setEditingPromo(null)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+          <div className={styles.modal} {...editPromoDialog.dialogProps} onClick={e => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Edit: <span style={{ fontFamily: 'monospace' }}>{editingPromo.code}</span></h3>
             <PromoForm initial={editingPromo} onSave={handleEdit} onCancel={() => setEditingPromo(null)} saving={savingPromo} />
           </div>

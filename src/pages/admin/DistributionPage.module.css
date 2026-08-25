@@ -67,3 +67,14 @@
   font-size: 13px; color: var(--color-text-tertiary);
   background: var(--color-bg-secondary); border-radius: 6px;
 }
+
+/* [SHL-3-1] Why a dropdown is empty, said under the dropdown rather than not at all.
+   Matches ConsultationSlotsPage's .fieldHint — this is a state, not an error the operator
+   caused, so it uses muted text and not the error colour. */
+.fieldHint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+  font-weight: 400;
+}

@@ -3,6 +3,7 @@ import { notificationsAdminApi } from '../../api/adminApi';
 import type { BlastPayload, BlastHistoryRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import styles from './OrdersListPage.module.css';
 import { UilExclamationTriangle, UilMessage } from "@iconscout/react-unicons";
 
@@ -15,6 +16,16 @@ export const NotificationBlastPage: React.FC = () => {
   const [audienceCount, setAudienceCount] = React.useState<number | null>(null);
   const [history, setHistory] = React.useState<BlastHistoryRow[] | null>(null); // T2-26 SU-7
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const confirmBlastDialog = useDialog(
+    !!(confirming),
+    () => !sending && setConfirming(false),
+    'Confirm notification blast',
+  );
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
@@ -144,7 +155,7 @@ export const NotificationBlastPage: React.FC = () => {
 
       {confirming && (
         <div className={styles.modalOverlay} onClick={() => !sending && setConfirming(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+          <div className={styles.modal} {...confirmBlastDialog.dialogProps} onClick={e => e.stopPropagation()}>
             <div className={styles.modalTitle}><UilExclamationTriangle size={16} style={{ verticalAlign: -2, marginRight: 6, color: '#B45309' }} />Send this blast?</div>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, lineHeight: 1.5 }}>
               This will queue{' '}

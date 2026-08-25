@@ -776,8 +776,14 @@ const AdminLayoutInner: React.FC = () => {
   }, []);
 
   // T3-1 (S-2): global hub-context switcher for hub-agnostic roles. Only meaningful with >1
-  // hub (single-hub is livable), so the control hides itself until then. Pages read the
-  // selection via getAdminHubContext() as their default hub filter.
+  // hub (single-hub is livable), so the control hides itself until then.
+  //
+  // [SHL-3-8] This comment used to end "Pages read the selection via getAdminHubContext() as
+  // their default hub filter". They did not — this file was the ONLY importer, and used it to
+  // seed the switcher's own value, so picking a hub changed nothing anywhere and the comment
+  // said otherwise. An operator switching to one hub and reading another hub's rows has been
+  // told something false. The eight pages with a hub filter now take it from
+  // `useHubContextFilter()`, which reads this selection and follows it as it changes.
   const hubAgnostic = ["super_admin", "finance", "procurement", "admin"].includes(adminRole);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [hubCtx, setHubCtx] = React.useState<string>(getAdminHubContext());

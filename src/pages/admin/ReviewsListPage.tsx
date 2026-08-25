@@ -3,6 +3,7 @@ import { reviewsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { AdminReview } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import styles from './OrdersListPage.module.css';
 import rs from './ReviewsListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilSearch, UilStar, UilTimes } from "@iconscout/react-unicons";
@@ -37,6 +38,12 @@ export const ReviewsListPage: React.FC = () => {
   const [rejectIds, setRejectIds] = React.useState<string[] | null>(null);
   const [rejectReason, setRejectReason] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
+
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const rejectDialog = useDialog(!!(rejectIds), () => setRejectIds(null), 'Reject review');
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -247,7 +254,7 @@ export const ReviewsListPage: React.FC = () => {
       {/* T2-36 (SP-5): reject-with-reason — required for single AND bulk (one shared reason). */}
       {rejectIds && (
         <div className={rs.modalOverlay} onClick={() => setRejectIds(null)}>
-          <div className={rs.modal} onClick={e => e.stopPropagation()}>
+          <div className={rs.modal} {...rejectDialog.dialogProps} onClick={e => e.stopPropagation()}>
             <h3 className={rs.modalTitle}>
               Reject {rejectIds.length > 1 ? `${rejectIds.length} reviews` : 'review'}?
             </h3>

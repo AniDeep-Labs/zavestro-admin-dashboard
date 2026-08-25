@@ -23,6 +23,7 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DispositionPanel } from "../../components/DispositionPanel/DispositionPanel";
 import { StatusBadge, statusLabel } from "../../components/StatusBadge";
 import { PageHeader, DetailShell } from "../../components";
+import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
 import styles from "./OrderDetailPage.module.css";
 import { money } from "../../utils/money"; // ACP-2 [KA7-8]: one shape, everywhere
 import {
@@ -582,6 +583,27 @@ export const OrderDetailPage: React.FC = () => {
   const [editingHold, setEditingHold] = React.useState(false);
   const [holdReason, setHoldReason] = React.useState("");
   const [savingHold, setSavingHold] = React.useState(false);
+
+  // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
+  // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
+  // reader is told this is a dialog. Declared here, ABOVE the early returns — a hook placed
+  // after one stops being called the moment the page is loading.
+  const overrideDialog = useDialog(
+    showOverrideModal,
+    () => setShowOverrideModal(false),
+    'Override order stage',
+  );
+  const remeasureDialog = useDialog(
+    showRemeasure,
+    () => setShowRemeasure(false),
+    'Request re-measure',
+  );
+  const alterationDialog = useDialog(
+    showAlteration,
+    () => setShowAlteration(false),
+    'Request alteration',
+  );
+  const returnDialog = useDialog(showReturn, () => setShowReturn(false), 'Start a return');
 
   const dismissToast = (tid: string) =>
     setToasts((t) => t.filter((x) => x.id !== tid));
@@ -1799,7 +1821,7 @@ export const OrderDetailPage: React.FC = () => {
           className={styles.modalOverlay}
           onClick={() => setShowOverrideModal(false)}
         >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} {...overrideDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Override Order Stage</h3>
             <div className={styles.warningBanner}>
               ⚠ Manual overrides bypass normal validation. They are logged in
@@ -1884,7 +1906,7 @@ export const OrderDetailPage: React.FC = () => {
       {/* Re-measure request modal (G-37) */}
       {showRemeasure && (
         <div className={styles.modalOverlay} onClick={() => setShowRemeasure(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} {...remeasureDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Request re-measure</h3>
             <div className={styles.field}>
               <label className={styles.fieldLabel}>
@@ -1920,7 +1942,7 @@ export const OrderDetailPage: React.FC = () => {
       {/* Request alteration on this (delivered) order */}
       {showAlteration && (
         <div className={styles.modalOverlay} onClick={() => setShowAlteration(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} {...alterationDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Request alteration</h3>
             <div className={styles.field}>
               <label className={styles.fieldLabel}>
@@ -1956,7 +1978,7 @@ export const OrderDetailPage: React.FC = () => {
       {/* Start a return on this (delivered) order */}
       {showReturn && (
         <div className={styles.modalOverlay} onClick={() => setShowReturn(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} {...returnDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Start a return</h3>
             <div className={styles.field}>
               <label className={styles.fieldLabel}>Reason (routes the outcome)</label>
