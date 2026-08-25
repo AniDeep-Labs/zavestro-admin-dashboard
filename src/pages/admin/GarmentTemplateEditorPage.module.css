@@ -574,3 +574,15 @@
   font-size: 0.8125rem;
   color: var(--color-error);
 }
+
+/* [DSG-11-2] The preview tests the SAVED recipe. When the editor is dirty, that is a different
+   thing from what the author is looking at, and it has to say so — a validation instrument that
+   silently reports on other data turns an unsaved mistake into a green result. */
+.pvNotice {
+  margin: 8px 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+.pvResultStale {
+  opacity: 0.6;
+}

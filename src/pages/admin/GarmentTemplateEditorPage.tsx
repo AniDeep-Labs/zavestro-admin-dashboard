@@ -548,6 +548,14 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         const n = Number(v);
         if (v !== '' && !Number.isNaN(n)) anchors[k] = n;
       }
+      // [DSG-11-2] The preview posts a SLUG — the server re-reads the stored chart and stored
+      // ease. It has never seen the editor's unsaved state and cannot. Proved live: changing
+      // Straight's waist ease 1 → 9 and previewing returned waist 33 = 32 + 1, the SAVED ease,
+      // rendered as a clean result with nothing to say it belonged to different numbers.
+      //
+      // A validation instrument that silently reports on other data is worse than none: it turns
+      // an unsaved mistake into a green tick. Running it is gated on a clean editor below, and a
+      // result already on screen is marked stale the moment the recipe changes under it.
       const r = await designsApi.sizePreview({
         garment_category_slug: tpl.slug,
         fit_preset: pvPreset,
@@ -1028,10 +1036,27 @@ export const GarmentTemplateEditorPage: React.FC = () => {
               />
             </label>
           ))}
-          <Button variant="outline" state={pvBusy ? 'loading' : 'default'} onClick={runPreview}>Preview finished spec</Button>
+          <Button
+            variant="outline"
+            state={pvBusy ? 'loading' : 'default'}
+            disabled={dirty}
+            onClick={runPreview}
+          >Preview finished spec</Button>
         </div>
+        {dirty && (
+          <p className={s.pvNotice}>
+            The engine reads the <strong>saved</strong> chart and ease — it cannot see the changes
+            on this screen. Save to test them.
+          </p>
+        )}
+        {pvResult && dirty && (
+          <p className={s.pvNotice}>
+            ⚠ These numbers are from the recipe as it was <strong>last saved</strong>. It has been
+            edited since.
+          </p>
+        )}
         {pvResult && (
-          <div className={s.pvResult}>
+          <div className={`${s.pvResult} ${dirty ? s.pvResultStale : ''}`}>
             <div className={s.pvResultHead}>{pvResult.garment} · {pvResult.fit_preset} · {pvResult.type}</div>
             <table className={s.chart}>
               <thead><tr><th>Field</th><th>Finished (in)</th></tr></thead>
