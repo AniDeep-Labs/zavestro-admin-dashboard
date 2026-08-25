@@ -565,3 +565,37 @@
 .chartMetaOpt { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.4; padding: 3px 0; cursor: pointer; }
 .chartMetaOpt input { margin-top: 2px; flex: none; }
 .chartMetaWarn { font-size: 11px; line-height: 1.4; margin: 6px 0 0; color: var(--color-warning); }
+
+/* [DSG-11-4] Two rows in one fit sharing a size label. The database refuses this with a unique
+   violation the API reports as a bare 500, so it is named here, before the save, against the
+   rows it is about. */
+.chartDupWarning {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-error);
+}
+
+/* [DSG-11-2] The preview tests the SAVED recipe. When the editor is dirty, that is a different
+   thing from what the author is looking at, and it has to say so — a validation instrument that
+   silently reports on other data turns an unsaved mistake into a green result. */
+.pvNotice {
+  margin: 8px 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+.pvResultStale {
+  opacity: 0.6;
+}
+
+/* [DSG-11-6] The chart section is elaborate — grade generator, CSV import, per-fit tabs, cell
+   validation — and for upper-body garments the engine reads none of it. An author is entitled to
+   know that before spending an afternoon in it. */
+.chartNotConsumed {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--color-warning);
+  background: var(--color-bg-section);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}

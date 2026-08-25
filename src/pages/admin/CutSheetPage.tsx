@@ -170,6 +170,20 @@ export const CutSheetModal: React.FC<{ open: boolean; designId?: string; onClose
           </div>
         </div>
 
+        {/* [DSG-9-5] What authority these numbers carry.
+            The engine's cutting plans track a `calibration_status` that can be `placeholder`, and
+            `ENGINE_DRIVES_CUTS` is off precisely so the engine never drives a real cut before the
+            sew test passes. This page prints the engine's spec onto A4 — the document a hub cuts
+            cloth from — and said none of that. DSG-L1: a screen implying automated cutting is live
+            is 🔴, and a cut sheet is the strongest possible implication. Cloth cut to an
+            uncalibrated POM is scrap: physical, irreversible, and paid for.
+            Unknown is treated as NOT live — an absent field must never read as approval. */}
+        {result && result.engine_drives_cuts !== true && (
+          <div className={s.calibrationStamp}>
+            NOT AUTHORISED FOR CUTTING — engine-driven cutting is not live. These finished
+            measurements are for calibration review only; cut from the approved pattern.
+          </div>
+        )}
         {!result ? (
           /* [KA10-7] A cut sheet with no measurements must SAY it is not a cut
              sheet. This printed "Generate the spec above — …" onto A4: a click
