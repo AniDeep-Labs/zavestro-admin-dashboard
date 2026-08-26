@@ -256,7 +256,10 @@ export interface ConfigItem {
   key: string;
   label: string;
   value: number | boolean | string;
-  type: 'currency' | 'percentage' | 'days' | 'boolean' | 'hours' | 'number';
+  // [SHL-7-16] 'string' was missing, so every text value was typed as a number and rendered in
+  // an <input type="number"> — which a browser silently refuses to display. The company GSTIN,
+  // the GST state and the cancellation cutoff all showed as EMPTY BOXES.
+  type: 'currency' | 'percentage' | 'days' | 'boolean' | 'hours' | 'number' | 'string';
   // T2-25: registry metadata + last-changed
   description?: string | null;
   min?: number | null;

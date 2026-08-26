@@ -13,6 +13,7 @@ import {
 } from "../../api/adminApi";
 import type { NavCounts, Hub } from "../../api/adminApi";
 import { getAdminHubContext, setAdminHubContext } from "../../utils/hubContext";
+import { isProductionApi, apiHost } from "../../api/apiBase"; // [SHL-2-13]
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary";
 import { Spinner } from "../../components/Spinner";
 import { AccessDenied } from "../../components/AccessDenied/AccessDenied";
@@ -960,12 +961,26 @@ const AdminLayoutInner: React.FC = () => {
 
       {/* Main area */}
       <div className={styles.main}>
-        {/* Non-production banner — someone WILL edit staging believing it's prod */}
+        {/* [SHL-2-13 / SHL-2-2] The banner names the API THIS CONSOLE IS WRITING TO, not the
+            build mode. It read `import.meta.env.MODE`, so a dev build pointed at the production
+            API — which is exactly what a fresh clone used to produce — displayed "LOCAL DEV —
+            not production" while every write landed on the live business. The banner was most
+            reassuring precisely when it was most wrong.
+
+            Two states now: a normal non-production build names its backend, and a
+            non-production build attached to PRODUCTION says so, loudly, because that is the
+            combination nothing else on screen distinguishes. */}
         {import.meta.env.MODE !== "production" && (
-          <div className={styles.envBanner}>
-            {import.meta.env.MODE === "development" ? "LOCAL DEV" : "STAGING"} —
-            not production
-          </div>
+          isProductionApi() ? (
+            <div className={`${styles.envBanner} ${styles.envBannerDanger}`}>
+              ⚠ PRODUCTION API ({apiHost()}) — this is the live business. Writes are real.
+            </div>
+          ) : (
+            <div className={styles.envBanner}>
+              {import.meta.env.MODE === "development" ? "LOCAL DEV" : "STAGING"} — not production ·
+              API: {apiHost()}
+            </div>
+          )
         )}
         {/* Top bar */}
         <header className={styles.topBar}>

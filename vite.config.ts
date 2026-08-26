@@ -35,9 +35,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        // Defaults to prod; set VITE_API_PROXY=http://localhost:8080 to develop
-        // against the local Docker backend without touching this file.
-        target: process.env.VITE_API_PROXY || 'https://api.zavestro.in',
+        // [SHL-2-2] Defaults to LOCALHOST. This used to default to production, so `npm run dev`
+        // on a fresh clone proxied writes to the live business. A wrong default that fails is
+        // recoverable; a wrong default that works is not.
+        target: process.env.VITE_API_PROXY || 'http://localhost:8080',
         changeOrigin: true,
         secure: true,
         configure: (proxy) => {

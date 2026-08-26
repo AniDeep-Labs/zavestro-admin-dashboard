@@ -53,8 +53,18 @@ export const AppConfigPage: React.FC = () => {
       ...g,
       items: g.items.map(item => ({ ...item, value: values[item.key] ?? item.value })),
     }));
+    // [SHL-7-6] Send ONLY the keys this operator actually changed.
+    //
+    // This PUT the entire page-load snapshot — all 23 keys — so two supers with the page open at
+    // once each wrote 23 values, and the later save silently restored the earlier one's untouched
+    // keys. Proven live: A turns cod_enabled off, B saves an unrelated field, cod_enabled is back
+    // on and nobody is told. A save that writes what you did not touch is not a save, it is a
+    // revert with extra steps.
+    const changedOnly = updated
+      .map(g => ({ ...g, items: g.items.filter(item => dirty.has(item.key)) }))
+      .filter(g => g.items.length > 0);
     try {
-      await configApi.save(updated);
+      await configApi.save(changedOnly);
       setGroups(updated);
       setSaved(true);
       setDirty(new Set());
@@ -184,6 +194,17 @@ export const AppConfigPage: React.FC = () => {
                         <span className={styles.toggleSlider} />
                         <span className={styles.toggleLabel}>{val ? 'ON' : 'OFF'}</span>
                       </label>
+                    ) : item.type === 'string' ? (
+                      /* [SHL-7-16] A text value in a TEXT box. These rendered as empty number
+                         inputs — the company GSTIN, the GST state, the cancellation cutoff — so
+                         the page showed a blank where a legally-required value lives, and any
+                         edit coerced it through Number(). */
+                      <input
+                        type="text"
+                        className={styles.textInput}
+                        value={(val as string) ?? ''}
+                        onChange={e => handleChange(item.key, e.target.value)}
+                      />
                     ) : (
                       <div className={styles.numberInput}>
                         {item.type === 'currency' && <span className={styles.unit}>₹</span>}
