@@ -112,3 +112,17 @@
 .auditLink { padding-top: 4px; }
 .modalText { font-size: 14px; color: var(--color-text-secondary); line-height: 1.6; }
 .confirmBtn { height: 40px; padding: 0 20px; background: var(--color-primary); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; }
+
+/* [SHL-7-16] Text config values — GSTIN, GST state, cancellation cutoff. These rendered in a
+   number input, which a browser silently refuses to fill, so a legally-required value showed as
+   an empty box. */
+.textInput {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: var(--font-family);
+  color: var(--color-text);
+  background: var(--color-bg-card);
+}
