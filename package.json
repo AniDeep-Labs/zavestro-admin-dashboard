@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build && cp dist/index.html dist/404.html",
     "lint": "eslint .",
-    "guards": "node scripts/check-style-debt.mjs && node scripts/check-capability-parity.mjs && node scripts/check-row-activation.mjs && node scripts/check-dialog-a11y.mjs && node scripts/check-swallowed-catch.mjs && node scripts/check-hub-context.mjs",
+    "guards": "node scripts/check-style-debt.mjs && node scripts/check-capability-parity.mjs && node scripts/check-row-activation.mjs && node scripts/check-dialog-a11y.mjs && node scripts/check-swallowed-catch.mjs && node scripts/check-hub-context.mjs && node scripts/check-no-prod-default.mjs",
     "preview": "vite preview",
     "lint:debt": "node scripts/check-style-debt.mjs"
   },

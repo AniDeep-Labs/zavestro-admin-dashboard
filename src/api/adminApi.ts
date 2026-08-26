@@ -16,9 +16,9 @@ import type {
   OrderPayment,
 } from "../data/adminMockData";
 
-const BASE =
-  (import.meta.env.VITE_API_URL as string | undefined) ??
-  "https://api.zavestro.in";
+// [SHL-2-2] One definition, defaulting to localhost — see apiBase.ts.
+import { API_BASE } from './apiBase';
+const BASE = API_BASE;
 export const R2_PUBLIC_URL =
   (import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? "";
 const USER_KEY = "zavestro_admin_user";
@@ -1144,6 +1144,13 @@ export const analyticsApi = {
 
 function inferConfigType(key: string, value: unknown): ConfigItem["type"] {
   if (typeof value === "boolean") return "boolean";
+  // [SHL-7-16] A value that is not a number IS a string, whatever its key looks like. This fell
+  // through to "number" for everything non-boolean, and a number input cannot show "Karnataka".
+  // Checked before the key patterns deliberately: `company_gstin` contains no numeric hint, but
+  // `min_order_note` would have matched /min_/ and been mistyped as currency.
+  if (typeof value === "string" && value.trim() !== "" && !Number.isFinite(Number(value))) {
+    return "string";
+  }
   if (/price|fee|amount|threshold|min_|max_/.test(key)) return "currency";
   if (/percent|rate_target/.test(key)) return "percentage";
   if (/days/.test(key)) return "days";
