@@ -1,4 +1,6 @@
-const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://api.zavestro.in';
+// [SHL-2-2] One definition, defaulting to localhost — see apiBase.ts.
+import { API_BASE } from './apiBase';
+const BASE_URL = API_BASE;
 export const TOKEN_KEY = 'zavestro_admin_token';
 
 // ─── Types ───────────────────────────────────────────────────────────────────

@@ -16,9 +16,9 @@ import type {
   OrderPayment,
 } from "../data/adminMockData";
 
-const BASE =
-  (import.meta.env.VITE_API_URL as string | undefined) ??
-  "https://api.zavestro.in";
+// [SHL-2-2] One definition, defaulting to localhost — see apiBase.ts.
+import { API_BASE } from './apiBase';
+const BASE = API_BASE;
 export const R2_PUBLIC_URL =
   (import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? "";
 const USER_KEY = "zavestro_admin_user";
