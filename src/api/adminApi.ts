@@ -1281,8 +1281,11 @@ export const auditApi = {
   },
 
   // T2-22: distinct actors + entity types for the filter dropdowns.
-  facets: async (): Promise<{ actors: string[]; entity_types: string[] }> =>
-    req<{ actors: string[]; entity_types: string[] }>(`/api/admin/audit-log/facets`),
+  /** [SHL-7-10] `actions` comes from the log itself, so every filter option is real. */
+  facets: async (): Promise<{ actors: string[]; entity_types: string[]; actions: string[] }> =>
+    req<{ actors: string[]; entity_types: string[]; actions: string[] }>(
+      `/api/admin/audit-log/facets`,
+    ),
 };
 
 // ─── Collections ─────────────────────────────────────────────────────────────
