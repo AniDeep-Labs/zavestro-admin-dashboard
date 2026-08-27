@@ -1,10 +1,12 @@
 import React from 'react';
+import { money } from '../../utils/money'; // ACP-2 [KA11-2]
 import { listingsAdminApi, hubsApi } from '../../api/adminApi';
 import type { ListingExceptions, ListingOosRow, ListingBelowFloorRow, Hub } from '../../api/adminApi';
 import { OverviewExceptions } from './OverviewExceptions';
 import type { OvTab } from './OverviewExceptions';
 
-const inr = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
+// ACP-2 [KA11-2]: one money formatter (was a local copy).
+const inr = (n: number) => money(n);
 
 // T2-21 (SU-1): exceptions-first Listings overview — live listings that can't be fulfilled
 // (out of stock) or that lose money (priced below the cost floor).
