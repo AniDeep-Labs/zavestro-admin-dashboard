@@ -189,7 +189,22 @@ function mapProduct(p: Record<string, unknown>): ApiProduct {
 
 // ─── Core fetch wrapper ───────────────────────────────────────────────────────
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+/**
+ * [KA1-1] What a 401 means depends on which request got it.
+ *
+ * `redirect` (the default) is the session rule: a token that has expired mid-session
+ * should drop the user at the login screen. `throw` is for requests where a 401 is the
+ * ANSWER rather than an interruption — the login call itself, where 401 means "those
+ * credentials are wrong" and there is nowhere to redirect to, because you are already
+ * on the login page.
+ */
+type Unauthorized = 'redirect' | 'throw';
+
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  on401: Unauthorized = 'redirect',
+): Promise<T> {
   const token = getAdminToken();
   const isFormData = init.body instanceof FormData;
 
@@ -202,17 +217,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
 
   if (!res.ok) {
-    if (res.status === 401) {
+    // A rejected LOGIN used to land here and navigate the browser to /admin/login — the
+    // page the user was already looking at. That reload remounted the form, so the error
+    // this function threw was set on a component that no longer existed: no message, no
+    // toast, no [role=alert] at +400ms, +900ms, +1.6s, +3s or +6s, and both fields
+    // cleared. A wrong password produced a pristine, empty form with no evidence the
+    // button had ever been pressed.
+    if (res.status === 401 && on401 === 'redirect') {
       clearAdminToken();
       window.location.href = '/admin/login';
       throw new Error('Session expired. Redirecting to login\u2026');
     }
-    let msg = `Request failed (${res.status})`;
+    let msg =
+      res.status === 401 ? 'Email or password is incorrect' : `Request failed (${res.status})`;
     try {
       const body = await res.json();
       msg = body.message || body.error?.message || body.error || msg;
     } catch { /* ignore parse error */ }
-    throw new Error(msg);
+    const err = new Error(msg) as Error & { status: number };
+    err.status = res.status;
+    throw err;
   }
 
   if (res.status === 204) return undefined as T;
@@ -225,7 +249,9 @@ export const catalogApi = {
   login: (email: string, password: string, rememberMe?: boolean) =>
     request<{ success: boolean; data: { token: string; mustChangePassword?: boolean; admin: { id: string; email: string; role: string } } }>(
       '/api/admin/auth/login',
-      { method: 'POST', body: JSON.stringify({ email, password, rememberMe }) }
+      { method: 'POST', body: JSON.stringify({ email, password, rememberMe }) },
+      // A 401 here is the answer to the question asked, not an expired session.
+      'throw',
     ).then(res => ({
       token: res.data.token,
       mustChangePassword: res.data.mustChangePassword ?? false,
