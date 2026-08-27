@@ -26,6 +26,7 @@ import { PageHeader, DetailShell } from "../../components";
 import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
 import styles from "./OrderDetailPage.module.css";
 import { money } from "../../utils/money"; // ACP-2 [KA7-8]: one shape, everywhere
+import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA11-3]
 import { fmtDate, toDateInput } from "../../utils/date"; // ACP-6 [KA7-7]: one shape, named timezone
 import {
   UilAngleLeft,
@@ -1154,7 +1155,7 @@ export const OrderDetailPage: React.FC = () => {
           <div className={styles.customerRow}>
           <span className={styles.customerLabel}>Customer</span>
           <span className={styles.customerName}>{order.customer}</span>
-          <span className={styles.customerPhone}>{order.phone}</span>
+          <span className={styles.customerPhone}><PhoneCell phone={order.phone} /></span>
           {order.user_id && (
             <button
               className={styles.linkBtn}

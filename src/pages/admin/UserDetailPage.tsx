@@ -10,7 +10,7 @@ import type {
   CustomerNote,
 } from "../../api/adminApi";
 import { StatusBadge } from "../../components/StatusBadge";
-import { MoneyCell } from "../../components/DataCells";
+import { MoneyCell, PhoneCell, EmailCell } from "../../components/DataCells";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
@@ -488,11 +488,11 @@ export const UserDetailPage: React.FC = () => {
         <div className={styles.contactList}>
           <div>
             <div className={styles.metaLabel}>Phone</div>
-            <div className={styles.metaValue}>{user.phone}</div>
+            <div className={styles.metaValue}><PhoneCell phone={user.phone} /></div>
           </div>
           <div>
             <div className={styles.metaLabel}>Email</div>
-            <div className={styles.metaValue}>{user.email || "—"}</div>
+            <div className={styles.metaValue}><EmailCell email={user.email} /></div>
           </div>
           <div>
             <div className={styles.metaLabel}>City</div>
