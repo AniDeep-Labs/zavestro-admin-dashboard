@@ -142,18 +142,39 @@ export const FabricStockPage: React.FC = () => {
                       <div>
                         <div className={s.fabricName}>{r.fabric_name}</div>
                         <div className={s.fabricCode}>{r.fabric_code}</div>
-                        {r.listings && r.listings.length > 0 && (
-                          <div className={s.feeds}>
-                            Feeds {r.listings.length} listing{r.listings.length === 1 ? "" : "s"}:{" "}
-                            {r.listings.map((l, k) => (
-                              <span key={l.listing_id} className={s.feedItem}>
-                                {l.design_name}{" "}
-                                <strong>{l.garments_available ?? "—"}</strong>
-                                {k < r.listings!.length - 1 ? " · " : ""}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                        {r.listings && r.listings.length > 0 && (() => {
+                          // [CM-19-3] "Feeds" counted DRAFTS as live demand. Rendered on
+                          // DNM-9: "Feeds 1 listing: Slim Oxford Shirt 33" — where that
+                          // listing is is_active:false and cannot be bought. A CM reading
+                          // which listings depend on a fabric was told a draft consumes it.
+                          // The flag was already in the payload.
+                          const live = r.listings!.filter((l) => l.is_active);
+                          const drafts = r.listings!.filter((l) => !l.is_active);
+                          return (
+                            <div className={s.feeds}>
+                              {live.length > 0 ? (
+                                <>
+                                  Feeds {live.length} live listing{live.length === 1 ? "" : "s"}:{" "}
+                                  {live.map((l, k) => (
+                                    <span key={l.listing_id} className={s.feedItem}>
+                                      {l.design_name} <strong>{l.garments_available ?? "—"}</strong>
+                                      {k < live.length - 1 ? " · " : ""}
+                                    </span>
+                                  ))}
+                                </>
+                              ) : (
+                                <>No live listing draws on this fabric yet.</>
+                              )}
+                              {drafts.length > 0 && (
+                                <span className={s.feedDrafts}>
+                                  {" "}
+                                  · {drafts.length} draft{drafts.length === 1 ? "" : "s"} (
+                                  {drafts.map((l) => l.design_name).join(", ")}) — not yet buyable
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </td>
