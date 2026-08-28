@@ -99,22 +99,16 @@ type Editor = {
 };
 
 /**
- * [CM-18-4] How many garments the hub can still cut from this fabric.
+ * [CM-18-4 / CM-19-2] Garments left comes from the SERVER, not from this page.
  *
- * `in_stock` is `available_meters >= meters_per_garment`, so a listing with 1.7 m of
- * Chambray left showed the same green "In stock" as one with 89 m — and the card's second
- * line read "In stock · 89m", handing a bolt measurement to a merchant who sells units.
+ * The first version divided available_meters by meters_per_garment in the browser. That
+ * ignores the size run, the fabric width and cutting wastage, so it OVERSTATED the count —
+ * showing ~52 where the Fabric Stock page next door said 46 for the same fabric, which is
+ * exactly the "two definitions in one console" defect [CM-19-4] describes.
  *
- * Divides by `meters_per_garment` with no wastage factor, deliberately: that is exactly the
- * divisor the server's in_stock check uses, and a card that says "0 garments" beside a green
- * "In stock" would be a worse lie than the one being fixed.
+ * `garments_available` now arrives on the listing payload, computed by the one shared
+ * helper the fabric-stock page and the publish pre-flight also use.
  */
-function garmentsLeft(availableMeters: unknown, metersPerGarment: unknown): number | null {
-  const m = Number(availableMeters);
-  const mpg = Number(metersPerGarment);
-  if (!Number.isFinite(m) || !Number.isFinite(mpg) || mpg <= 0) return null;
-  return Math.floor(m / mpg);
-}
 
 /** Under this many garments left, the merchant should be reordering, not discovering. */
 const LOW_GARMENTS = 5;
@@ -599,7 +593,7 @@ export const ListingsManagePage: React.FC = () => {
                       // [CM-18-4] Garments first — that is the unit this person sells in.
                       // The metres stay, in brackets, because the restock conversation is
                       // held in metres.
-                      const left = garmentsLeft(l.available_meters, l.meters_per_garment);
+                      const left = l.garments_available ?? null;
                       const low = left != null && left < LOW_GARMENTS;
                       return (
                         <div className={low ? s.stockLow : s.stockOk}>

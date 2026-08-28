@@ -3984,6 +3984,13 @@ export const listingsAdminApi = {
 // ─── Catalog-manager listings management ──────────────────────────────────────
 
 export interface CmListing {
+  /**
+   * [CM-19-2] Garments the hub can still cut — computed server-side from worst-case metres
+   * × fabric width × cutting wastage, the same figure the Fabric Stock page and the publish
+   * pre-flight use. Do NOT recompute it from meters_per_garment: that overstates.
+   */
+  garments_available?: number | null;
+  per_garment_meters?: number | null;
   id: string;
   design_id: string;
   fabric_id: string;
