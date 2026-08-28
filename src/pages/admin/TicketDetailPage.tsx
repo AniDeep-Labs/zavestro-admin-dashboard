@@ -1,4 +1,5 @@
 import React from "react";
+import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA11-3]
 import { useNavigate, useParams } from "react-router-dom";
 import {
   supportApi,
@@ -693,7 +694,7 @@ export const TicketDetailPage: React.FC = () => {
           </div>
           <div>
             <div className={styles.metaLabel}>Phone</div>
-            <div className={styles.metaValue}>{ticket.phone}</div>
+            <div className={styles.metaValue}><PhoneCell phone={ticket.phone} /></div>
           </div>
         </div>
         <button

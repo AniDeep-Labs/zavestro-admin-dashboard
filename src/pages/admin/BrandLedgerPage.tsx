@@ -1,6 +1,7 @@
 // T3-2 — Brand ledger (finance). Pick a brand → see its append-only ledger + running balance,
 // and record a manual payout-marked entry. Corrections are new adjustment rows (never edits).
 import React from 'react';
+import { money } from '../../utils/money'; // ACP-2 [KA11-2]
 import { brandLedgerApi } from '../../api/adminApi';
 import type { BrandSummary, BrandLedgerEntry } from '../../api/adminApi';
 import { PageHeader, Badge } from '../../components';
@@ -10,8 +11,12 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import s from './BrandLedgerPage.module.css';
 
-const inr = (v: string | number) =>
-  `₹${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+// ACP-2 [KA11-2]: one money formatter. This page had its own, with
+// `maximumFractionDigits: 2` and no minimum — so ₹1,499.50 rendered as "₹1,499.5",
+// a ledger column where the paise column was one digit wide on some rows and two on
+// others. A ledger is a record that genuinely HAS paise, so it opts into them, and
+// gets a consistent two.
+const inr = (v: string | number) => money(v, { paise: true });
 // ACP-6 [KA11-6]: one date formatter for the admin.
 import { fmtDate } from '../../utils/date';
 

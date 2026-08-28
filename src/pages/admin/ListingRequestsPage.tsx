@@ -66,6 +66,11 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
   const [rejectReason, setRejectReason] = React.useState('');
   const [rejecting, setRejecting] = React.useState(false);
 
+  // [PRC-16-3] approve-anyway-with-reason (D13 unmet at the destination hub)
+  const [overrideTarget, setOverrideTarget] = React.useState<ListingRequest | null>(null);
+  const [overrideReason, setOverrideReason] = React.useState('');
+  const [overriding, setOverriding] = React.useState(false);
+
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
   const dismiss = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
@@ -103,10 +108,14 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
   const hubName = (id: string) => hubs.find((h) => h.id === id)?.name ?? '—';
   const myHubName = myHubId ? hubName(myHubId) : '';
 
-  const decide = async (r: ListingRequest, decision: 'approved' | 'rejected') => {
+  const decide = async (
+    r: ListingRequest,
+    decision: 'approved' | 'rejected',
+    override?: { reason: string },
+  ) => {
     setActingId(r.id);
     try {
-      await listingRequestsApi.decide(r.id, decision);
+      await listingRequestsApi.decide(r.id, decision, override?.reason, override ? true : undefined);
       toast('success', decision === 'approved' ? 'Approved & sent' : 'Rejected', decision === 'approved' ? 'Confirm receipt once it reaches the hub.' : undefined);
       load();
     } catch (e) {
@@ -128,6 +137,18 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
       toast('error', 'Action failed', e instanceof Error ? e.message : undefined);
     } finally {
       setRejecting(false);
+    }
+  };
+
+  // [PRC-16-3] Approve although the design cannot be listed at the destination hub.
+  const doOverride = async () => {
+    if (!overrideTarget || !overrideReason.trim()) return;
+    setOverriding(true);
+    try {
+      await decide(overrideTarget, 'approved', { reason: overrideReason.trim() });
+      setOverrideTarget(null); setOverrideReason('');
+    } finally {
+      setOverriding(false);
     }
   };
 
@@ -172,13 +193,31 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
     }
   };
 
-  // G-10: a sample for this design+fabric must be reviewed/approved before listing.
-  const sampleChip = (st?: string | null) => {
-    if (!st) return <span className={`${s.sampleChip} ${s.sampleNone}`}>No sample yet</span>;
-    const ok = st === 'reviewed' || st === 'approved';
+  // [PRC-16-3] D13: a design's FIRST listing at a hub needs a reviewed sample AT THAT HUB.
+  // This chip used to read the latest sample for the design+FABRIC and call it the
+  // precondition, so it could show "Sample reviewed ✓" for a hub that had never seen a
+  // sample — and nothing enforced it either way. `can_list` is the backend's own answer to
+  // the question the listing gate will ask, so the card and the gate now agree.
+  const sampleChip = (r: ListingRequest) => {
+    const st = r.sample_status;
+    const ok = r.can_list === true;
+    if (ok) {
+      const reviewed = st === 'reviewed' || st === 'approved';
+      // Satisfied without a reviewed sample means this design is already listed here —
+      // D13 gates the first listing only. Say which, rather than implying a sample exists.
+      return (
+        <span className={`${s.sampleChip} ${s.sampleOk}`}>
+          {reviewed ? 'Sample reviewed ✓' : 'Already listed at this hub ✓'}
+        </span>
+      );
+    }
+    if (!st) return <span className={`${s.sampleChip} ${s.sampleNone}`}>No sample at this hub</span>;
     const dead = st === 'rejected' || st === 'cancelled';
-    const cls = ok ? s.sampleOk : dead ? s.sampleNone : s.samplePending;
-    return <span className={`${s.sampleChip} ${cls}`}>{ok ? 'Sample reviewed ✓' : `Sample: ${st.replace(/_/g, ' ')}`}</span>;
+    return (
+      <span className={`${s.sampleChip} ${dead ? s.sampleNone : s.samplePending}`}>
+        {`Sample: ${st.replace(/_/g, ' ')}`}
+      </span>
+    );
   };
 
   const card = (r: ListingRequest) => {
@@ -200,17 +239,27 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
           {r.fabric_composition && <div className={s.cardComp}>{r.fabric_composition}</div>}
           <div className={s.cardMeta}>For <strong>{r.design_name}</strong> ({r.garment_type})</div>
           <div className={s.cardMeta}>To <strong>{r.hub_name}</strong> · {Number(r.qty)}m · <span className={s.cardAge}><AgeCell since={r.created_at} warnAfterH={72} alertAfterH={168} /></span></div>
-          {sampleChip(r.sample_status)}
+          {sampleChip(r)}
           {r.note && <div className={s.cardNote}>“{r.note}”</div>}
           {r.status === 'rejected' && r.decision_note && <div className={s.decisionNote}>Rejected: {r.decision_note}</div>}
           {isProc && r.status === 'requested' && (
             <div className={s.cardFoot} onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setRejectTarget(r); setRejectReason(''); }}>Reject</Button>
-              <Button variant="primary" size="sm" disabled={busy} onClick={() => setConfirm({
-                title: 'Approve & send?', label: 'Approve & send',
-                message: <>Approve and send <strong>{Number(r.qty)}m</strong> of <strong>{r.fabric_name}</strong> ({r.fabric_code}) to <strong>{r.hub_name}</strong>? Draws from central on receipt; shows <em>in transit</em> until you confirm.</>,
-                run: () => decide(r, 'approved'),
-              })}>Approve &amp; send</Button>
+              <Button variant="primary" size="sm" disabled={busy} onClick={() => {
+                // [PRC-16-3] Cloth sent to a hub that cannot list the design is cloth
+                // that cannot be sold from there. The backend refuses this without a
+                // reason; ask for one here rather than letting the refusal look like
+                // a failure.
+                if (r.can_list === false) {
+                  setOverrideTarget(r); setOverrideReason('');
+                  return;
+                }
+                setConfirm({
+                  title: 'Approve & send?', label: 'Approve & send',
+                  message: <>Approve and send <strong>{Number(r.qty)}m</strong> of <strong>{r.fabric_name}</strong> ({r.fabric_code}) to <strong>{r.hub_name}</strong>? Draws from central on receipt; shows <em>in transit</em> until you confirm.</>,
+                  run: () => decide(r, 'approved'),
+                });
+              }}>Approve &amp; send</Button>
             </div>
           )}
           {isProc && r.status === 'approved' && (
@@ -332,6 +381,48 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
               {rejectTarget.fabric_name} ({rejectTarget.fabric_code}) · for {rejectTarget.design_name} → {rejectTarget.hub_name}
             </p>
             <Input label="Reason (shared with the catalog manager)" value={rejectReason} onChange={setRejectReason} placeholder="e.g. sample not reviewed yet / use the lighter cotton instead" />
+          </div>
+        )}
+      </Modal>
+
+      {/* [PRC-16-3] D13 is unmet at the destination hub: the cloth can be sent, but
+          only as a decision someone signs. */}
+      <Modal
+        open={overrideTarget !== null}
+        onClose={() => !overriding && setOverrideTarget(null)}
+        title="Send anyway — no reviewed sample at this hub?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setOverrideTarget(null)} disabled={overriding}>Cancel</Button>
+            <Button
+              variant="danger"
+              state={overriding ? 'loading' : 'default'}
+              disabled={!overrideReason.trim()}
+              onClick={doOverride}
+            >
+              Approve &amp; send anyway
+            </Button>
+          </>
+        }
+      >
+        {overrideTarget && (
+          <div className={base.modalStack}>
+            <p className={base.fabricCellCode}>
+              {overrideTarget.fabric_name} ({overrideTarget.fabric_code}) · {Number(overrideTarget.qty)}m → {overrideTarget.hub_name}
+            </p>
+            <p>
+              <strong>{overrideTarget.design_name}</strong> has no reviewed sample at{' '}
+              <strong>{overrideTarget.hub_name}</strong>, so it <strong>cannot be listed there</strong>{' '}
+              when this cloth arrives. Get the sample reviewed first, or record why you are sending
+              it now.
+            </p>
+            <Input
+              label="Reason (kept on the request)"
+              value={overrideReason}
+              onChange={setOverrideReason}
+              placeholder="e.g. sample review scheduled Friday — pre-positioning the cloth"
+            />
           </div>
         )}
       </Modal>

@@ -109,6 +109,49 @@ export const PhoneCell: React.FC<{ phone?: string | null; reveal?: boolean }> = 
 };
 
 /**
+ * ACP-3 — ONE masked email, the twin of PhoneCell. [KA11-3]
+ *
+ * An email address identifies a customer as directly as a phone number and is the
+ * likelier target of the two: it is the reset-password channel. It was printed in full on
+ * every detail page that showed it, while the same console masked the phone beside it —
+ * so the masking policy protected the weaker identifier and published the stronger one.
+ *
+ * Display-side only, exactly like PhoneCell: the value is already in the payload, so this
+ * is a shoulder-surfing and screenshot control, not an access control. The access control
+ * is the read policy on the endpoint.
+ */
+export const EmailCell: React.FC<{ email?: string | null; reveal?: boolean }> = ({
+  email,
+  reveal = false,
+}) => {
+  const [shown, setShown] = React.useState(reveal);
+  if (!email || !email.trim()) return <span className={styles.muted}>—</span>;
+  const [user, domain] = email.split('@');
+  // Keep the first character and the domain: enough to recognise an address you already
+  // know, not enough to write it down.
+  const masked = domain ? `${user.slice(0, 1)}${'•'.repeat(Math.max(3, user.length - 1))}@${domain}` : '••••';
+  return (
+    <span className={styles.phone}>
+      {shown ? email : masked}
+      {!shown && (
+        <button
+          type="button"
+          className={styles.revealBtn}
+          title="Show the full email address"
+          aria-label="Show the full email address"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShown(true);
+          }}
+        >
+          show
+        </button>
+      )}
+    </span>
+  );
+};
+
+/**
  * [KA7-15] An erased customer is a TOMBSTONE, not a person called "Deleted
  * customer". It rendered in the NAME column at the same weight and colour as a
  * real name, beside a *Deactivated* chip — so a DPDP erasure looked like an

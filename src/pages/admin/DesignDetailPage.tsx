@@ -1,4 +1,5 @@
 import React from 'react';
+import { money } from '../../utils/money'; // ACP-2 [KA11-2]
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { designsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { DesignDetail, DesignStatus } from '../../api/adminApi';
@@ -17,8 +18,8 @@ import dd from './DesignDetailPage.module.css';
 import { UilAngleLeft, UilImage, UilEdit, UilPlus, UilFileAlt, UilCopy } from '@iconscout/react-unicons';
 
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
-const inr = (v: string | number | null | undefined) =>
-  v == null ? '—' : `₹${Number(v).toLocaleString('en-IN')}`;
+// ACP-2 [KA11-2]: one money formatter (was a local copy).
+const inr = (v: string | number | null | undefined) => money(v);
 // ACP-6 [KA11-6]: one date formatter for the admin.
 import { fmtDate } from '../../utils/date';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]

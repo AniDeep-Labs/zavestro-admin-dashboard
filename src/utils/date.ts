@@ -53,3 +53,22 @@ export function fmtDateShort(value?: string | number | Date | null, fallback = '
   if (Number.isNaN(d.getTime())) return fallback;
   return d.toLocaleDateString('en-IN', { timeZone: IST, day: 'numeric', month: 'short' });
 }
+
+/**
+ * `2026-08-03` — the value an `<input type="date">` needs, as the IST calendar date.
+ *
+ * [KA7-7] The order Delivery card stored `estimated_delivery_date` straight into the
+ * input and printed it straight to the screen, so a saved date rendered as the raw
+ * `2026-08-02T18:30:00.000Z` directly beneath a correctly formatted `Created 28/7/2026`.
+ * That string is also the timezone bug made visible: 18:30Z IS 00:00 IST the next day, so
+ * the operator reading it to a customer was a day behind the promise the customer was
+ * given. Slicing the ISO string would keep that error; this converts to the IST calendar
+ * date, so what the input shows and what fmtDate() prints are the same day.
+ */
+export function toDateInput(value?: string | number | Date | null): string {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  // en-CA gives ISO-ordered y-m-d, which is exactly the input's required format.
+  return d.toLocaleDateString('en-CA', { timeZone: IST });
+}

@@ -261,6 +261,10 @@ export const ListingsManagePage: React.FC = () => {
   };
 
   const [showStockWarn, setShowStockWarn] = React.useState(false);
+  // [CM-18-1] The create collided with a listing that already occupies this
+  // design × fabric × hub. The backend now refuses instead of overwriting, so
+  // the only thing left to get right is the way out: offer the existing row.
+  const [clash, setClash] = React.useState<{ id: string; message: string } | null>(null);
   const [showBelowCostWarn, setShowBelowCostWarn] = React.useState(false);
   const [belowCostMsg, setBelowCostMsg] = React.useState("");
   const [pendingPublish, setPendingPublish] = React.useState(false);
@@ -333,11 +337,20 @@ export const ListingsManagePage: React.FC = () => {
       load();
     } catch (e) {
       const msg = e instanceof Error ? e.message : undefined;
+      const { status, details } = (e ?? {}) as { status?: number; details?: unknown };
+      const existingId = (details as { existing_listing_id?: string } | undefined)
+        ?.existing_listing_id;
       if (msg?.includes("cost floor") && !belowCostOk) {
         // G-26: below the cost floor — let the CM confirm an intentional loss-leader.
         setPendingPublish(publish);
         setBelowCostMsg(msg);
         setShowBelowCostWarn(true);
+      } else if (status === 409 && existingId) {
+        // [CM-18-1] Not "Save failed". The CM asked for a listing on this
+        // triple and one already exists — which is nearly always the Duplicate
+        // button landing back on its own source. Name the collision and offer
+        // the row, rather than making them find it in the grid by hand.
+        setClash({ id: existingId, message: msg ?? "" });
       } else if (msg?.includes("reviewed sample")) {
         // D13: first listing of a design at a hub is gated on an approved sample.
         toast("error", "Sample review needed first", msg);
@@ -824,6 +837,28 @@ export const ListingsManagePage: React.FC = () => {
         loading={saving}
         onConfirm={() => { setShowStockWarn(false); save(true, true); }}
         onCancel={() => setShowStockWarn(false)}
+      />
+
+      {/* [CM-18-1] The triple is taken. Creating used to silently overwrite the
+          row that held it; now it refuses, and this is the way through. */}
+      <ConfirmDialog
+        open={clash !== null}
+        title="Already listed"
+        message={`${clash?.message || "This design is already listed on this fabric at this hub."} Nothing has been changed.`}
+        confirmLabel="Open the existing listing"
+        onConfirm={() => {
+          const id = clash?.id;
+          setClash(null);
+          const found = listings.find((l) => l.id === id);
+          if (found) {
+            openEdit(found);
+          } else {
+            // Not in the current page/filter — say so rather than doing nothing.
+            setEditor(null);
+            toast("info", "Listing is outside the current filters", "Clear the filters to find it.");
+          }
+        }}
+        onCancel={() => setClash(null)}
       />
 
       {/* G-26: price below the cost floor — confirm an intentional loss-leader */}

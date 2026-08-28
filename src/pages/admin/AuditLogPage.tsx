@@ -9,7 +9,18 @@ import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const LIMIT = 50;
 
-const ACTION_TYPES = ['All', 'update_order_stage', 'order_status_update', 'user_deactivate', 'config_update', 'catalog_create', 'catalog_update', 'content_publish', 'support_ticket_resolved', 'promo_create', 'bulk_status_update'];
+// [SHL-7-10] The action filter is built from the log, not from a list typed here.
+//
+// It used to be this hardcoded array, and nine of its ten options matched no action this
+// codebase writes. The tenth near-miss was the expensive one: the real action is
+// `update_config` and the option offered `config_update` — the same two words reversed —
+// so the config rows on screen could not be filtered to at all. Worse was the omission:
+// none of `manual_refund`, `dpdp_erase`, `confirm_cod_deposit`, `export_customer_pii`,
+// `staff_reset_password` — every action anyone opens this page to hunt for — was offered.
+//
+// A filter option that matches nothing is a lie the page tells about its own contents,
+// and a filter list maintained by hand drifts the moment anyone adds an action. Derived
+// from `SELECT DISTINCT action`, options can only be actions that actually happened.
 
 // Break-glass = manual stage overrides (the Wave-2 reason-required action).
 const BREAK_GLASS_ACTION = 'update_order_stage';
@@ -42,7 +53,7 @@ export const AuditLogPage: React.FC = () => {
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const [page, setPage] = React.useState(1);
 
-  const [facets, setFacets] = React.useState<{ actors: string[]; entity_types: string[] }>({ actors: [], entity_types: [] });
+  const [facets, setFacets] = React.useState<{ actors: string[]; entity_types: string[]; actions: string[] }>({ actors: [], entity_types: [], actions: [] });
   const [entries, setEntries] = React.useState<AuditEntry[]>([]);
   const [total, setTotal] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
@@ -163,8 +174,15 @@ export const AuditLogPage: React.FC = () => {
             onChange={e => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-        <select className={styles.filterSelect} value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(1); }}>
-          {ACTION_TYPES.map(a => <option key={a}>{a}</option>)}
+        <select className={styles.filterSelect} value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(1); }} aria-label="Action">
+          <option value="All">All actions</option>
+          {/* The break-glass chip can select an action the log has never recorded (and the
+              facets therefore do not list). Carry it as an option anyway, or the select
+              would sit blank while a filter is plainly active. */}
+          {(facets.actions.includes(actionFilter) || actionFilter === 'All'
+            ? facets.actions
+            : [actionFilter, ...facets.actions]
+          ).map(a => <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>)}
         </select>
         <select className={styles.filterSelect} value={actor} onChange={e => { setActor(e.target.value); setPage(1); }} aria-label="Actor">
           <option value="">All actors</option>

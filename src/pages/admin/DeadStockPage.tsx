@@ -1,4 +1,5 @@
 import React from 'react';
+import { money } from '../../utils/money'; // ACP-2 [KA11-2]
 import { fabricsApi, hubsApi } from '../../api/adminApi';
 import type { DeadStock, DeadStockRow, Hub } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -8,7 +9,8 @@ import s from './DeadStockPage.module.css';
 
 // T2-15 (O-9): fabric stock that hasn't moved (by last ledger movement) in 30/60/90 days, the
 // capital ₹ tied up, and a "flag for markdown" action that surfaces to the CM inbox.
-const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+// ACP-2 [KA11-2]: one money formatter (was a local copy).
+const inr = (n: number) => money(n);
 
 export const DeadStockPage: React.FC = () => {
   const [hubs, setHubs] = React.useState<Hub[]>([]);

@@ -9,6 +9,7 @@ import type {
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Button } from '../../components/Button/Button';
+import { AccessDenied } from '../../components/AccessDenied/AccessDenied';
 // Same layout as QC Templates (the house QC-1 editor) — this is its brand QC-2 sibling.
 import s from './QcTemplatesPage.module.css';
 import { UilPlus, UilTrashAlt } from '@iconscout/react-unicons';
@@ -41,6 +42,19 @@ export const BrandQcPage: React.FC = () => {
     setToasts((t) => [...t, createToast(type, title, msg)]);
   const dismiss = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
 
+  // [KA5-1 / CM-20-1] A refusal is not a load failure.
+  //
+  // Opening this page as catalog_manager — the role whose console it lives in — fired the
+  // brand list, was refused (it was gated finance:read alone; fixed backend-side), and drew
+  // two identical red toasts ANCHORED OVER THE HEADER, covering the theme toggle, the bell
+  // and part of the identity chip, truncating this page's own subtitle mid-sentence, above a
+  // "Select a brand…" dropdown with nothing in it. The page half-rendered its full furniture
+  // and explained the failure on top of the navigation.
+  //
+  // A 403 now renders the one refusal screen the product already has, and does NOT toast: a
+  // page that refuses cleanly does not need to shout as well.
+  const [denied, setDenied] = React.useState(false);
+
   React.useEffect(() => {
     Promise.all([designsApi.garmentCategories(), brandLedgerApi.listBrands()])
       .then(([cats, { brands: bs }]) => {
@@ -48,7 +62,13 @@ export const BrandQcPage: React.FC = () => {
         // QC-2 is the third-party layer — the house brand only ever runs QC-1.
         setBrands(bs.filter((b) => !b.is_house_brand));
       })
-      .catch((e) => toast('error', 'Failed to load', e instanceof Error ? e.message : undefined))
+      .catch((e) => {
+        if ((e as { status?: number })?.status === 403) {
+          setDenied(true);
+          return;
+        }
+        toast('error', 'Failed to load', e instanceof Error ? e.message : undefined);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -122,6 +142,15 @@ export const BrandQcPage: React.FC = () => {
 
   const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? id;
   const brandName = (id: string) => brands.find((b) => b.id === id)?.name ?? id;
+
+  if (denied) {
+    return (
+      <AccessDenied
+        what="Brand QC-2"
+        requires={['catalog:write', 'reports:read', 'finance:read']}
+      />
+    );
+  }
 
   return (
     <div className={s.page}>
