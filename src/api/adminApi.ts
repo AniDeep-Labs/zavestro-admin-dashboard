@@ -1434,6 +1434,12 @@ export interface Banner {
   bg_color_1: string;
   bg_color_2: string;
   sort_order: number;
+  /**
+   * [CM-22-3] Which hub's customers see this. NULL = everyone. The admin list has always
+   * SELECTed it; nothing rendered it, so "who sees this banner?" was unanswerable from the
+   * page that manages it — and [CM-22-2] made hub_id decide exactly that on the storefront.
+   */
+  hub_id?: string | null;
   is_active: boolean;
   starts_at: string | null;
   ends_at: string | null;

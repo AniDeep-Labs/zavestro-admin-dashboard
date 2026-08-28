@@ -1,7 +1,8 @@
 /* eslint-disable react-refresh/only-export-components -- this page also exports the
    reusable BannerHero renderer + layout helpers, shared by the collection studio. */
 import React from 'react';
-import { bannersApi, collectionsApi, categoriesAdminApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
+import { bannersApi, collectionsApi, categoriesAdminApi, hubsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
+import type { Hub } from '../../api/adminApi';
 import { istDayStart, istDayEnd } from '../../utils/dateWindow';
 import type { Banner, BannerPayload, BannerLayout, BannerTextPosition, BannerTextColor, BannerImageFit, BannerMode, BannerCtaStyle, BannerComposeStyle } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -565,14 +566,24 @@ function BannerForm({
 
   // CM-5: real collection/category slugs so a CTA can't typo its way to a 404. The 'url' type
   // keeps a free-text input for arbitrary paths.
-  const [collOpts, setCollOpts] = React.useState<{ slug: string; name: string }[]>([]);
-  const [catOpts, setCatOpts] = React.useState<{ slug: string; name: string }[]>([]);
+  // [CM-22-6] Options carry their product count. The audit found the picker offering
+  // "Kurta · kurta" AND "Kurtas · kurtas" (and the same for Shirt/Trouser), leaving a CM to
+  // guess which of two near-identical categories the storefront actually populates. The
+  // count answers that from the option itself, and keeps answering it whatever the
+  // taxonomy does next — deduplicating the taxonomy is Pass 23's job, not this picker's.
+  //
+  // [CM-22-5] The same number is what lets a destination be checked at all: a banner
+  // pointing at an empty collection sends customers to an empty page.
+  const [collOpts, setCollOpts] = React.useState<{ slug: string; name: string; count: number }[]>([]);
+  const [catOpts, setCatOpts] = React.useState<{ slug: string; name: string; count: number }[]>([]);
   React.useEffect(() => {
     collectionsApi.list({ status: 'active' })
-      .then((r) => setCollOpts(r.collections.filter((c) => c.slug).map((c) => ({ slug: c.slug, name: c.name }))))
+      .then((r) => setCollOpts(r.collections.filter((c) => c.slug)
+        .map((c) => ({ slug: c.slug, name: c.name, count: c.products ?? 0 }))))
       .catch(() => {});
     categoriesAdminApi.list()
-      .then((cs) => setCatOpts(cs.filter((c) => c.is_active && c.slug).map((c) => ({ slug: c.slug, name: c.name }))))
+      .then((cs) => setCatOpts(cs.filter((c) => c.is_active && c.slug)
+        .map((c) => ({ slug: c.slug, name: c.name, count: c.product_count ?? 0 }))))
       .catch(() => {});
   }, []);
   // The CTA-destination control: a real-slug picker for collection/category, free text for url.
@@ -588,9 +599,50 @@ function BannerForm({
       <select className={b.input} value={linkValue} onChange={(e) => setLinkValue(e.target.value)}>
         <option value="">{linkType === 'category' ? 'All categories' : 'Select a collection…'}</option>
         {!known && linkValue && <option value={linkValue}>{linkValue} (current)</option>}
-        {opts.map((o) => <option key={o.slug} value={o.slug}>{o.name} · {o.slug}</option>)}
+        {opts.map((o) => (
+          <option key={o.slug} value={o.slug}>
+            {o.name} · {o.slug} · {o.count === 0 ? 'empty' : `${o.count} item${o.count === 1 ? '' : 's'}`}
+          </option>
+        ))}
       </select>
     );
+  })();
+
+  /**
+   * [CM-22-5] Where this banner actually sends someone.
+   *
+   * The picker resolved a preview path and validated spelling — nothing more. Every
+   * collection currently has zero products, so a "Collection" banner sends customers to an
+   * empty page; a Custom path is free text with no existence check at all.
+   *
+   * A warning, not a block: pointing a hero at a category you are about to fill is a
+   * legitimate thing to do the day before a drop. What is not legitimate is doing it
+   * without being told.
+   */
+  const destinationWarning = (() => {
+    if (linkType === 'url') {
+      const v = linkValue.trim();
+      if (!v) return null;
+      if (!v.startsWith('/')) {
+        return `“${v}” is not a path — a CTA link should start with “/”, e.g. /categories/kurta.`;
+      }
+      // The routes the storefront actually serves. Anything else is a guess.
+      const KNOWN = ['/categories', '/occasions', '/products', '/listings', '/cart', '/orders', '/account'];
+      if (!KNOWN.some((k) => v === k || v.startsWith(`${k}/`))) {
+        return `Nothing is known to serve “${v}”. Check it resolves before publishing.`;
+      }
+      return null;
+    }
+    if (!linkValue.trim()) return null;
+    const opts = linkType === 'collection' ? collOpts : catOpts;
+    const target = opts.find((o) => o.slug === linkValue);
+    if (!target) {
+      return `“${linkValue}” is not in the current ${linkType} list — it may have been archived or renamed.`;
+    }
+    if (target.count === 0) {
+      return `“${target.name}” has nothing in it, so this banner would open an empty page.`;
+    }
+    return null;
   })();
 
   // Active-device accessors
@@ -825,7 +877,8 @@ function BannerForm({
                     <select className={b.input} value={linkType} onChange={e => setLinkType(e.target.value as typeof linkType)}>
                       <option value="category">Category</option><option value="collection">Collection</option><option value="url">Custom path</option></select></div>
                   <div className={b.fieldRowS}><label className={b.label}>{linkType === 'collection' ? 'Collection' : linkType === 'category' ? 'Category' : 'Path'}</label>
-                    {linkValueControl}</div>
+                    {linkValueControl}
+                    {destinationWarning && <span className={b.warnHint}>{destinationWarning}</span>}</div>
                 </div>
               </div>
             </>)}
@@ -929,7 +982,8 @@ function BannerForm({
               </div>
               <div className={b.fieldRowS}><label className={b.label}>{linkType === 'collection' ? 'Collection' : linkType === 'category' ? 'Category (blank = all)' : 'Path'}</label>
                 {linkValueControl}
-                <span className={b.hint}>Resolves to <code>{ctaLink || '/categories'}</code></span></div>
+                <span className={b.hint}>Resolves to <code>{ctaLink || '/categories'}</code></span>
+                {destinationWarning && <span className={b.warnHint}>{destinationWarning}</span>}</div>
               <div className={b.grid3}>
                 <div className={b.fieldRowS}><label className={b.label}>Start date</label><input type="date" value={startsAt} onChange={e => setStartsAt(e.target.value)} className={b.input} /></div>
                 <div className={b.fieldRowS}><label className={b.label}>End date</label><input type="date" value={endsAt} onChange={e => setEndsAt(e.target.value)} className={b.input} /></div>
@@ -992,6 +1046,22 @@ export const BannersPage: React.FC = () => {
   const [banners, setBanners]     = React.useState<Banner[]>([]);
   const [loading, setLoading]     = React.useState(true);
   const [modal, setModal]         = React.useState<Banner | 'new' | null>(null);
+
+  // [CM-22-3] Hub names for the Audience column. GET /hubs is an `operating` read, so every
+  // role that can reach this page can resolve them; if it ever fails the column still says
+  // "This hub" rather than rendering a raw UUID.
+  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  const [hubsUnavailable, setHubsUnavailable] = React.useState(false);
+  React.useEffect(() => {
+    hubsApi
+      .list()
+      .then((r) => setHubs(r.hubs))
+      // Not discarded: a banner whose audience cannot be named is still a banner with an
+      // audience, and the column should say which of the two it is showing.
+      .catch(() => setHubsUnavailable(true));
+  }, []);
+  const hubName = (id: string) =>
+    hubs.find((h) => h.id === id)?.name ?? (hubsUnavailable ? 'One hub (name unavailable)' : 'This hub');
   const [saving, setSaving]       = React.useState(false);
   const [deleting, setDeleting]   = React.useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<Banner | null>(null);
@@ -1068,7 +1138,13 @@ export const BannersPage: React.FC = () => {
       </div>
 
       <p className={b.intro}>
-        Banners appear as the auto-scrolling hero carousel on the app home screen. Ordered by sort order (lowest first).
+        {/* [CM-22-4] This said "on the app home screen" while the editor below authors a
+            WEB creative, ratio, layout and focal point, and the public payload serves
+            image_url_web + layout_web to the storefront. A CM who read it and skipped the
+            web half was publishing a half-designed web hero — or believed a live web
+            banner wasn't. */}
+        Banners are the auto-scrolling hero carousel on <strong>both</strong> the app home screen and the
+        web storefront — the editor authors a creative for each. Ordered by sort order (lowest first).
       </p>
 
       <div className={styles.card}>
@@ -1085,6 +1161,11 @@ export const BannersPage: React.FC = () => {
                 <th>Headline</th>
                 <th>CTA</th>
                 <th>Schedule</th>
+                {/* [CM-22-3] There was no hub column, even though every banner carries a
+                    hub_id and this list mixes global and hub-scoped rows. Now that
+                    [CM-22-2] makes hub_id decide who actually SEES a banner, "who sees
+                    this?" has to be answerable from the page that manages it. */}
+                <th>Audience</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -1119,6 +1200,15 @@ export const BannersPage: React.FC = () => {
                   <td className={b.schedCell}>
                     {bn.starts_at ? new Date(bn.starts_at).toLocaleDateString('en-IN') : '—'} →{' '}
                     {bn.ends_at   ? new Date(bn.ends_at).toLocaleDateString('en-IN')   : 'always'}
+                  </td>
+                  {/* [CM-22-3] Who sees this. Global rows reach every customer; a
+                      hub-scoped row reaches only customers that hub serves. */}
+                  <td>
+                    {bn.hub_id ? (
+                      <span className={b.audienceHub}>{hubName(bn.hub_id)}</span>
+                    ) : (
+                      <span className={b.audienceGlobal}>Everyone</span>
+                    )}
                   </td>
                   <td>
                     <button onClick={() => handleToggle(bn)} aria-label={bn.is_active ? 'Hide banner' : 'Show banner'} className={`${b.statusBtn} ${bn.is_active ? b.statusActive : b.statusHidden}`}>

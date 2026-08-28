@@ -35,7 +35,7 @@
   "src/pages/admin/AppConfigPage.module.css": 12,
   "src/pages/admin/AppConfigPage.tsx": 7,
   "src/pages/admin/AuditLogPage.module.css": 8,
-  "src/pages/admin/BannersPage.module.css": 73,
+  "src/pages/admin/BannersPage.module.css": 67,
   "src/pages/admin/BannersPage.tsx": 39,
   "src/pages/admin/BrandLedgerPage.module.css": 7,
   "src/pages/admin/CategoriesPage.module.css": 8,
