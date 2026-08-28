@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { collectionsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import { catalogApi } from '../../api/catalogApi';
+import { Alert } from '../../components/Alert/Alert';
 import type { ApiProduct } from '../../api/catalogApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -430,6 +431,22 @@ export const CollectionEditPage: React.FC<{
             <h3 className={styles.sectionTitle}>
               Products in this collection ({selectedProducts.length})
             </h3>
+            {/* [CM-21-1] This picker searches the LEGACY `products` table. The catalogue
+                the CM actually creates, prices and publishes is a LISTING (design × fabric
+                × hub), and listings cannot be added to a collection at all — which is why
+                every collection reads PRODUCTS 0 while the storefront sells listings.
+
+                Making collections listing-keyed is the P5 / M5 catalogue cutover, not a
+                fix that belongs here: a listing id handed to the customer app's
+                /catalog/products/:id would 404, so the whole product-detail path has to
+                move with it. Until then the least this screen can do is stop implying
+                the two catalogues are one — a CM had no way to tell from this page that
+                the thing they were searching is not the thing they sell. */}
+            <Alert
+              type="warning"
+              title="This searches the legacy product catalogue, not your listings"
+              message="Listings (design × fabric × hub) — the ones you create and publish on the Listings page — cannot be added to a collection yet. That arrives with the catalogue cutover. Anything added here comes from the older products table."
+            />
             <div className={styles.productSearch}>
               <input
                 className={styles.input}

@@ -1281,8 +1281,11 @@ export const auditApi = {
   },
 
   // T2-22: distinct actors + entity types for the filter dropdowns.
-  facets: async (): Promise<{ actors: string[]; entity_types: string[] }> =>
-    req<{ actors: string[]; entity_types: string[] }>(`/api/admin/audit-log/facets`),
+  /** [SHL-7-10] `actions` comes from the log itself, so every filter option is real. */
+  facets: async (): Promise<{ actors: string[]; entity_types: string[]; actions: string[] }> =>
+    req<{ actors: string[]; entity_types: string[]; actions: string[] }>(
+      `/api/admin/audit-log/facets`,
+    ),
 };
 
 // ─── Collections ─────────────────────────────────────────────────────────────
@@ -3872,8 +3875,18 @@ export interface ListingRequest {
   note: string | null;
   /** procurement's reason when rejected */
   decision_note?: string | null;
-  /** G-10: latest sample outcome for this design+fabric (null = no sample yet) */
+  /**
+   * [PRC-16-3] Latest sample outcome for this design AT THIS HUB (null = this hub has
+   * seen no sample). Was design+fabric, which could show a green chip for a hub that
+   * had never seen one — D13 is a per-hub rule.
+   */
   sample_status?: string | null;
+  /**
+   * [PRC-16-3] Whether D13 is actually satisfied for this design at this hub — a
+   * reviewed sample OR an already-live listing there. This, not sample_status, is
+   * whether the cloth can be sold once it lands.
+   */
+  can_list?: boolean;
   created_at: string;
   updated_at?: string;
   design_name: string;
@@ -3914,10 +3927,16 @@ export const listingRequestsApi = {
     id: string,
     decision: "approved" | "rejected",
     reason?: string,
+    /** [PRC-16-3] Approve although D13 is unmet at the destination hub. Needs a reason. */
+    overrideSample?: boolean,
   ): Promise<{ id: string; status: string; stocked_meters: number }> =>
     req(`/api/admin/listing-requests/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ decision, ...(reason ? { reason } : {}) }),
+      body: JSON.stringify({
+        decision,
+        ...(reason ? { reason } : {}),
+        ...(overrideSample ? { override_sample: true } : {}),
+      }),
     }),
   receive: async (
     id: string,

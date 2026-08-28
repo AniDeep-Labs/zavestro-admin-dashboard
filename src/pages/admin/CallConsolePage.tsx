@@ -1,4 +1,5 @@
 import React from "react";
+import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA11-3]
 import { useNavigate } from "react-router-dom";
 import {
   usersApi,
@@ -549,7 +550,7 @@ export const CallConsolePage: React.FC = () => {
         {/* Values are masked by the SERVER pre-verify; verify() swaps in the full record. */}
         <div>
           <dt>Phone</dt>
-          <dd>{customer.phone}</dd>
+          <dd><PhoneCell phone={customer.phone} /></dd>
         </div>
         <div>
           <dt>Email</dt>

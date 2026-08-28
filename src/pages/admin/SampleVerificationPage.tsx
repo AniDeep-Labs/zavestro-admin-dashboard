@@ -115,11 +115,16 @@ export const SampleVerificationPage: React.FC<{ embedded?: boolean }> = ({ embed
         <p className={s.subtitle}>Your verdict gates the first listing per hub (D13) — approve only what's right to wear.</p>
       )}
 
-      {/* G-3 honest reality: nothing in this queue moves automatically yet. */}
+      {/* [DSG-12-2] This banner named the wrong blocker, and kept naming it after the
+          blocker was gone. It read "this queue moves when the ops floor app ships" —
+          but the ops app HAD shipped; what was missing was the sample workflow inside
+          it, so the hub had no way to cut, stitch or submit and every request sat here
+          having already consumed the cloth. The Samples tab now exists in the
+          hub-manager console, so this queue does move. */}
       <Alert
         type="info"
-        title="Samples don't progress automatically yet"
-        message="They're cut, stitched and submitted by hub staff manually — this queue moves when the ops floor app ships."
+        title="Samples are cut and submitted by the hub"
+        message="Hub staff pick these up in the Samples tab of the ops app: cut, stitch, photograph and send for your review. A sample you approve here is what lets the design be listed at that hub."
       />
 
       {section('Awaiting your review', awaiting, 'No samples awaiting review ✓')}

@@ -26,6 +26,8 @@ import { PageHeader, DetailShell } from "../../components";
 import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
 import styles from "./OrderDetailPage.module.css";
 import { money } from "../../utils/money"; // ACP-2 [KA7-8]: one shape, everywhere
+import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA11-3]
+import { fmtDate, toDateInput } from "../../utils/date"; // ACP-6 [KA7-7]: one shape, named timezone
 import {
   UilAngleLeft,
   UilBox,
@@ -620,7 +622,7 @@ export const OrderDetailPage: React.FC = () => {
       .get(id)
       .then((o) => {
         setOrder(o);
-        setDeliveryDate(o.estimated_delivery_date ?? "");
+        setDeliveryDate(toDateInput(o.estimated_delivery_date));
         setHoldReason(o.on_hold_reason ?? "");
       })
       .catch(() => {});
@@ -663,7 +665,7 @@ export const OrderDetailPage: React.FC = () => {
       .get(id)
       .then((o) => {
         setOrder(o);
-        setDeliveryDate(o.estimated_delivery_date ?? "");
+        setDeliveryDate(toDateInput(o.estimated_delivery_date));
         setHoldReason(o.on_hold_reason ?? "");
       })
       .catch((e) =>
@@ -1153,7 +1155,7 @@ export const OrderDetailPage: React.FC = () => {
           <div className={styles.customerRow}>
           <span className={styles.customerLabel}>Customer</span>
           <span className={styles.customerName}>{order.customer}</span>
-          <span className={styles.customerPhone}>{order.phone}</span>
+          <span className={styles.customerPhone}><PhoneCell phone={order.phone} /></span>
           {order.user_id && (
             <button
               className={styles.linkBtn}
@@ -1251,7 +1253,7 @@ export const OrderDetailPage: React.FC = () => {
                   className={`${styles.actionBtnSecondary} ${styles.inlineCancel}`}
                   onClick={() => {
                     setEditingDelivery(false);
-                    setDeliveryDate(order.estimated_delivery_date ?? "");
+                    setDeliveryDate(toDateInput(order.estimated_delivery_date));
                   }}
                 >
                   Cancel
@@ -1261,11 +1263,19 @@ export const OrderDetailPage: React.FC = () => {
               <div className={styles.inlineEdit}>
                 <span className={styles.metaValue}>
                   {order.estimated_delivery_date ? (
-                    order.estimated_delivery_date
+                    /* [KA7-7] Was rendered RAW — `2026-08-02T18:30:00.000Z` on screen,
+                       directly beneath a correctly formatted `Created 28/7/2026`. And that
+                       string carries the timezone bug in plain sight: 18:30Z IS 00:00 IST
+                       the next day, so the date the operator read to the customer was a
+                       day behind the one the customer was promised. fmtDate names IST. */
+                    fmtDate(order.estimated_delivery_date)
                   ) : order.computed_delivery_date ? (
                     /* T1-20: computed fallback when no human set a date — an estimate, not a guess */
                     <>
-                      {new Date(order.computed_delivery_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      {/* Same formatter as the line above: two shapes in one card is how
+                          a reader stops trusting either. This one also gains the IST
+                          timezone it never named. */}
+                      {fmtDate(order.computed_delivery_date)}
                       <span className={styles.estHint}> · estimated (created + {order.delivery_sla_days ?? 7}d)</span>
                     </>
                   ) : (

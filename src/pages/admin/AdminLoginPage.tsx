@@ -69,7 +69,22 @@ export const AdminLoginPage: React.FC = () => {
         navigate('/admin/dashboard', { replace: true });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+      // [KA1-1] A rejected login is the one error every operator eventually hits, and it
+      // rendered nothing at all — the 401 handler navigated the browser to the page it was
+      // already on, remounting the form. It renders inline now, in the same slot the
+      // client-side validation uses. The server says "Invalid credentials"; say which two
+      // things to check, since that is the entire useful content of the message.
+      const status = (err as { status?: number })?.status;
+      setError(
+        status === 401
+          ? 'Email or password is incorrect'
+          : err instanceof Error
+            ? err.message
+            : 'Login failed. Please try again.',
+      );
+      // The email survives (no reload clears it now); clear only the password, which has
+      // to be retyped regardless.
+      setPassword('');
     } finally {
       setLoading(false);
     }
