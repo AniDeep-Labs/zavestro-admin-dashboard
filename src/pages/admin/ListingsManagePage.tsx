@@ -97,6 +97,27 @@ type Editor = {
   inStock?: boolean;
 };
 
+/**
+ * [CM-18-4] How many garments the hub can still cut from this fabric.
+ *
+ * `in_stock` is `available_meters >= meters_per_garment`, so a listing with 1.7 m of
+ * Chambray left showed the same green "In stock" as one with 89 m — and the card's second
+ * line read "In stock · 89m", handing a bolt measurement to a merchant who sells units.
+ *
+ * Divides by `meters_per_garment` with no wastage factor, deliberately: that is exactly the
+ * divisor the server's in_stock check uses, and a card that says "0 garments" beside a green
+ * "In stock" would be a worse lie than the one being fixed.
+ */
+function garmentsLeft(availableMeters: unknown, metersPerGarment: unknown): number | null {
+  const m = Number(availableMeters);
+  const mpg = Number(metersPerGarment);
+  if (!Number.isFinite(m) || !Number.isFinite(mpg) || mpg <= 0) return null;
+  return Math.floor(m / mpg);
+}
+
+/** Under this many garments left, the merchant should be reordering, not discovering. */
+const LOW_GARMENTS = 5;
+
 export const ListingsManagePage: React.FC = () => {
   const [listings, setListings] = React.useState<CmListing[]>([]);
   const [ready, setReady] = React.useState<ReadyToListSample[]>([]);
@@ -538,12 +559,24 @@ export const ListingsManagePage: React.FC = () => {
                   {l.in_stock === false ? (
                     <div className={s.stockOut}>● Out of stock — fabric short at hub</div>
                   ) : l.in_stock === true ? (
-                    <div className={s.stockOk}>
-                      ● In stock
-                      {l.available_meters != null
-                        ? ` · ${Number(l.available_meters)}m`
-                        : ""}
-                    </div>
+                    (() => {
+                      // [CM-18-4] Garments first — that is the unit this person sells in.
+                      // The metres stay, in brackets, because the restock conversation is
+                      // held in metres.
+                      const left = garmentsLeft(l.available_meters, l.meters_per_garment);
+                      const low = left != null && left < LOW_GARMENTS;
+                      return (
+                        <div className={low ? s.stockLow : s.stockOk}>
+                          ● {low ? "Running low" : "In stock"}
+                          {left != null
+                            ? ` · ~${left} garment${left === 1 ? "" : "s"}`
+                            : ""}
+                          {l.available_meters != null
+                            ? ` (${Number(l.available_meters)}m)`
+                            : ""}
+                        </div>
+                      );
+                    })()
                   ) : null}
                   {/* G-26: margin vs the cost floor (fabric + make + overhead) */}
                   {(() => {
