@@ -57,6 +57,8 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
   const [hubResolved, setHubResolved] = React.useState(false); // T2-38: me() has answered
   const [fDesign, setFDesign] = React.useState('');
   const [fFabric, setFFabric] = React.useState('');
+  const [central, setCentral] = React.useState<Map<string, number>>(new Map());
+  const [centralUnavailable, setCentralUnavailable] = React.useState(false);
   const [fQty, setFQty] = React.useState('');
   const [fNote, setFNote] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
@@ -90,6 +92,16 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
     if (!isProc) {
       designsApi.list({ status: 'published' }).then(setDesigns).catch(() => {});
       fabricsApi.list({ active: true }).then(setFabrics).catch(() => {});
+      // [CM-19-5] Central availability, so an option can say whether it is fulfillable.
+      // The dropdown listed every active fabric with no hint — including ones with no
+      // stock at any hub and no central pool record at all. Per [PRC-16-2] a request for
+      // those is accepted, marked shipped without any check, and only fails at fulfil, so
+      // the easiest request to raise was the one that could not be satisfied.
+      fabricsApi
+        .centralStock()
+        .then((rows) => setCentral(new Map(rows.map((r) => [r.fabric_id, Number(r.available_meters) || 0]))))
+        // Kept: an unknown availability must read as unknown, not as zero.
+        .catch(() => setCentralUnavailable(true));
       adminAuthExtApi.me()
         .then((m) => setMyHubId(m.hubId ?? null))
         .catch(() => {})
@@ -326,8 +338,35 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
             <label className={s.field}>Fabric
               <select value={fFabric} onChange={(e) => setFFabric(e.target.value)}>
                 <option value="">Select…</option>
-                {fabrics.map((f) => <option key={f.id} value={f.id}>{f.name} ({f.code})</option>)}
+                {/* [CM-19-5] Fulfillable first, and every option says how much central
+                    stock stands behind it. Sorting matters as much as the label: the
+                    unfulfillable ones were previously indistinguishable and often first. */}
+                {[...fabrics]
+                  .sort((a, b) => (central.get(b.id) ?? 0) - (central.get(a.id) ?? 0))
+                  .map((f) => {
+                    const m = central.get(f.id);
+                    const hint = centralUnavailable
+                      ? ''
+                      : m == null || m <= 0
+                        ? ' · 0 m central'
+                        : ` · ${m} m central`;
+                    return (
+                      <option key={f.id} value={f.id}>
+                        {f.name} ({f.code}){hint}
+                      </option>
+                    );
+                  })}
               </select>
+              {/* [CM-19-5] The label is easy to skim past; this is not. Requesting a
+                  fabric with no central stock is accepted, marked shipped without a check,
+                  and only fails at fulfil — so the warning belongs before the ask, not
+                  after it. A warning, not a block: procurement can receive stock into
+                  central between the request and the send. */}
+              {!centralUnavailable && fFabric && (central.get(fFabric) ?? 0) <= 0 && (
+                <span className={s.fabricWarn}>
+                  No central stock for this fabric — procurement has nothing to send yet.
+                </span>
+              )}
             </label>
             <label className={s.field}>Hub
               <span className={s.lockedHub} title="You can only request for your own hub">{myHubName || 'your hub'}</span>
