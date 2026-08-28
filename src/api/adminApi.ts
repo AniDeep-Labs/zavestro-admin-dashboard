@@ -4046,9 +4046,35 @@ export interface CmListingInput {
   allow_below_cost?: boolean; // G-26: confirm an intentional below-cost price
 }
 
+/**
+ * [CM-18-5] Every publish gate, answered before Publish is pressed.
+ *
+ * `can_publish` reflects the two HARD gates only — a below-cost price is overridable and
+ * no-stock is a warning, so treating either as fatal would make the checklist refuse
+ * things the system allows.
+ */
+export interface ListingPreflight {
+  sample: { ok: boolean; detail: string };
+  sew_validated: { ok: boolean; detail: string };
+  price: { ok: boolean; cost_floor: number; detail: string };
+  stock: { ok: boolean; garments_left: number | null; detail: string };
+  can_publish: boolean;
+}
+
 export const cmListingsApi = {
   list: async (): Promise<CmListing[]> =>
     req<CmListing[]>(`/api/admin/listings`),
+  preflight: async (p: {
+    design_id: string;
+    fabric_id: string;
+    hub_id?: string;
+    price?: number;
+  }): Promise<ListingPreflight> => {
+    const qs = new URLSearchParams({ design_id: p.design_id, fabric_id: p.fabric_id });
+    if (p.hub_id) qs.set("hub_id", p.hub_id);
+    if (p.price != null && p.price > 0) qs.set("price", String(p.price));
+    return req<ListingPreflight>(`/api/admin/listings/preflight?${qs}`);
+  },
   ready: async (): Promise<ReadyToListSample[]> =>
     req<ReadyToListSample[]>(`/api/admin/listings/ready`),
   create: async (input: CmListingInput): Promise<{ id: string }> =>

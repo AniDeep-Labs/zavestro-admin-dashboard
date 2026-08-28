@@ -115,3 +115,38 @@
 .autoFactsList > div { display: grid; grid-template-columns: 96px 1fr; gap: 10px; }
 .autoFactsList dt { margin: 0; font-size: 12px; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
 .autoFactsList dd { margin: 0; font-size: var(--font-size-sm); color: var(--color-text-primary); }
+
+/* [CM-18-5] The publish pre-flight. Hard gates refuse (✕), soft ones warn (⚠) — a
+   below-cost price is overridable and no-stock still publishes, so they must not look
+   like the two that actually block. */
+.preflight {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  background: var(--color-surface);
+}
+.preflightHead {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-tertiary);
+  margin-bottom: 6px;
+}
+.preflightOk, .preflightFail, .preflightWarn {
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 2px 0;
+}
+.preflightOk { color: var(--color-text-secondary); }
+.preflightFail { color: var(--color-error); }
+.preflightWarn { color: var(--color-warning); }
+.preflightDetail {
+  font-weight: 400;
+  color: var(--color-text-tertiary);
+  font-size: 11.5px;
+}
