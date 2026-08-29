@@ -313,3 +313,13 @@
 .fieldInput { height: 40px; padding: 0 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; width: 100%; box-sizing: border-box; }
 .fieldInput:focus { border-color: var(--color-primary); }
 .roleCaps { margin: 6px 0 0; font-size: var(--font-size-sm); color: var(--color-text-secondary); line-height: 1.4; }
+
+/* [SHL-7-3] One line under a section heading saying what the group actually means —
+   "deactivated" and "never activated" look identical in a list and are not the same
+   event, so the heading alone was carrying more meaning than it could. */
+.sectionNote {
+  margin: -4px 0 12px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
