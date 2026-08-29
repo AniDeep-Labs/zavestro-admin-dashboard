@@ -4752,6 +4752,12 @@ export interface AdminFitProfile {
   is_default: boolean;
   measurements: Record<string, number | null>;
   created_at: string;
+  // [SUP-30-5] The two sanity checks on a suspicious profile. height also drives
+  // `garment_length_by_height` in the engine.
+  height_cm: number | null;
+  usual_size: string | null;
+  /** Set once the retention job has purged the numbers — absent is not the same as gone. */
+  measurements_purged_at: string | null;
   flagged_at: string | null;
   flagged_reason: string | null;
 }
