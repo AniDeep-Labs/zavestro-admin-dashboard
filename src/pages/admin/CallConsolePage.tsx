@@ -100,11 +100,21 @@ export const CallConsolePage: React.FC = () => {
   // Problem capture
   const [problemOrderId, setProblemOrderId] = React.useState<string>("");
   // [SUP-33-4] Single-sourced from the server, as TicketDetailPage already does.
+  //
+  // [RC-3] The failure is kept, not discarded. The point of this fix was that the page
+  // must not act on a stale idea of the cap — so silently falling back to the built-in
+  // 500 and saying nothing would reintroduce the same defect in a quieter form. The
+  // fallback still applies (it errs toward finance approval, the safe direction), but
+  // the agent is told the number on screen may not be current policy.
   const [creditCap, setCreditCap] = React.useState(SUPPORT_CREDIT_CAP_FALLBACK);
+  const [capErr, setCapErr] = React.useState<unknown>(null);
   React.useEffect(() => {
     fetchMoneyConfig()
-      .then((c) => setCreditCap(c.support_credit_cap))
-      .catch(() => {});
+      .then((c) => {
+        setCreditCap(c.support_credit_cap);
+        setCapErr(null);
+      })
+      .catch(setCapErr);
   }, []);
   const [subject, setSubject] = React.useState("");
   const [category, setCategory] = React.useState(CATEGORIES[0]);
@@ -768,6 +778,12 @@ export const CallConsolePage: React.FC = () => {
                 placeholder="Reason (shown in the wallet ledger)"
                 rows={2}
               />
+              {capErr != null && (
+                <p className={styles.cardHint}>
+                  Couldn&rsquo;t load the current credit policy — using the default ₹
+                  {SUPPORT_CREDIT_CAP_FALLBACK} cap, which may not be current.
+                </p>
+              )}
               {Number(creditAmount) > creditCap && (
                 <p className={styles.cardHint}>
                   Over the ₹{creditCap} cap — goes to finance for
