@@ -220,6 +220,32 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
               ))}
             </div>
 
+            {tab === 'stock' && fabric.central && (
+              /* [PRC-14-5] The central position, above the hub table, because it is where
+                 the cloth is before it is anywhere else. Without it the page answered
+                 "where is this fabric?" with only the last leg of the journey. */
+              <div className={s.card}>
+                <h4 className={s.cardTitle}>Central warehouse</h4>
+                <table className={base.table}>
+                  <thead>
+                    <tr><th>Received</th><th>Allocated</th><th>Available</th><th>In transit</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>{fabric.central.received_meters}m</td>
+                      {/* Allocated metres are spoken for even though they have not left the
+                          building — reading `received` alone is how the pool gets promised twice. */}
+                      <td>{fabric.central.allocated_meters}m</td>
+                      <td className={fabric.central.available_meters <= 0 ? s.stockLow : undefined}>
+                        {fabric.central.available_meters}m
+                      </td>
+                      <td>{fabric.central.in_transit_meters}m</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
             {tab === 'stock' && (
               <div className={s.card}>
                 <h4 className={s.cardTitle}>Hub stock &amp; reorder points</h4>
@@ -303,12 +329,13 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
                       {movements.map((m) => (
                         <tr key={m.id}>
                           <td>{new Date(m.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
-                          <td>{m.hub_name}</td>
+                          {/* [PRC-14-5] Central events have no hub — that is the fact, not a gap. */}
+                          <td>{m.is_central ? <span className={s.centralTag}>central</span> : m.hub_name}</td>
                           <td>{m.kind}{m.lot_code ? ` · ${m.lot_code}` : ''}</td>
                           {/* T2-29: order that ate this fabric. CopyId (not a link) — procurement can't open OrderDetail. */}
                           <td onClick={(e) => e.stopPropagation()}>{m.order_number ? <CopyId value={m.order_number} /> : '—'}</td>
                           <td className={m.delta_meters < 0 ? s.stockLow : s.stockUp}>{m.delta_meters > 0 ? '+' : ''}{m.delta_meters}m</td>
-                          <td>{m.balance_after}m</td>
+                          <td>{m.balance_after == null ? '—' : `${m.balance_after}m`}</td>
                           <td className={s.moveNote}>{m.note ?? '—'}</td>
                         </tr>
                       ))}

@@ -3493,15 +3493,31 @@ export interface Fabric {
   watched_somewhere?: boolean;
   stock_value?: number | null;
   stock?: { hub_id: string; hub_name: string; available_meters: number; reserved_meters: number; reorder_meters?: number | null }[];
+  // [PRC-14-5] The other half of the fabric's position. Its page used to show hub stock
+  // only, so a fabric reading "Demo Hub 60m" could have several hundred metres in the
+  // warehouse and more in transit, and the page that decides whether to buy more said
+  // nothing about either.
+  central?: {
+    received_meters: number;
+    allocated_meters: number;
+    /** received − allocated: what procurement can still promise. */
+    available_meters: number;
+    /** Pushed, not yet received at a hub. Out of the warehouse, still ours. */
+    in_transit_meters: number;
+  };
 }
 // T2-28 (PR-1) fabric cockpit — one movement-ledger row (distinct from the request-event
 // FabricMovement + the shared FabricStockMovement; this one carries id + hub_name).
 export interface FabricLedgerEntry {
   id: string;
   kind: string;
-  hub_name: string;
+  // [PRC-14-5] null for a central-warehouse event: it happened before any hub had it.
+  hub_name: string | null;
+  is_central?: boolean;
   delta_meters: number;
-  balance_after: number;
+  // [PRC-14-5] null for a central event — a per-hub running balance is not a fact about
+  // the warehouse, and rendering one as 0 would be an invented number.
+  balance_after: number | null;
   note: string | null;
   lot_code: string | null;
   created_at: string;

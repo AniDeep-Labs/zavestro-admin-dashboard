@@ -144,3 +144,14 @@
 .moveNote { color: var(--color-text-secondary); font-size: var(--font-size-sm); }
 .pushForm { display: grid; gap: 12px; }
 .pushHub { font-size: var(--font-size-base); color: var(--color-text-primary); }
+
+/* [PRC-14-5] Marks a ledger row that happened in the warehouse rather than at a hub.
+   Reads as a place, not a status, because that is what the Hub column holds. */
+.centralTag {
+  padding: 1px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
