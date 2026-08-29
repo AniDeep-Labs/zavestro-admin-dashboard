@@ -81,7 +81,7 @@
   "src/pages/admin/ListingsManagePage.module.css": 3,
   "src/pages/admin/NotificationBell.module.css": 1,
   "src/pages/admin/NotificationBlastPage.tsx": 4,
-  "src/pages/admin/OrderDetailPage.module.css": 23,
+  "src/pages/admin/OrderDetailPage.module.css": 21,
   "src/pages/admin/OrdersListPage.module.css": 21,
   "src/pages/admin/PincodeWaitlistPage.tsx": 2,
   "src/pages/admin/ProductEditPage.module.css": 11,

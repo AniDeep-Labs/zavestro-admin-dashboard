@@ -17,6 +17,29 @@ import { StatusBadge, Select, CopyId, MoneyCell } from '../../components';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const swatchUrl = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
+
+// [PRC-14-11] "No swatch on file" and "the stored key doesn't resolve" produced the exact
+// same placeholder tile. A swatch is REQUIRED at create (`min(1)`), so an empty tile on a
+// fabric master almost always means the key is broken, not that nobody uploaded one — and
+// for a fabric, the swatch is half the identity. The two states are different problems with
+// different owners: one is a missing upload, the other is a storage or CDN fault.
+type SwatchState = 'ok' | 'none-on-file' | 'unreachable';
+const swatchState = (
+  keys: string[] | null | undefined,
+  url: string,
+  isBroken: boolean,
+): SwatchState => {
+  if (!keys?.length) return 'none-on-file';
+  // A key exists but no public base URL is configured, or the image failed to load.
+  if (!url || isBroken) return 'unreachable';
+  return 'ok';
+};
+const SWATCH_TITLE: Record<SwatchState, string> = {
+  ok: '',
+  'none-on-file': 'No swatch uploaded for this fabric',
+  unreachable: 'A swatch is on file but its image could not be loaded — the key may be broken or storage unreachable',
+};
+
 const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', width_cm: '', origin: '', supplier: '', supplier_city: '', supplier_lead_time: '', supplier_moq: '', supplier_phone: '', supplier_email: '', supplier_gstin: '', price_per_meter: '', care: '', fabric_type: 'woven', stretch_pct: '', shrinkage_pct: '' };
 type Form = typeof EMPTY;
 
@@ -352,9 +375,22 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
             return (
               <div key={f.id} className={s.card} onClick={() => navigate(`${basePath}/${f.id}`)}>
                 <div className={s.swatch}>
-                  {url && !broken.has(f.id)
-                    ? <img src={url} alt={f.name} onError={() => markBroken(f.id)} />
-                    : <span className={s.swatchEmpty}><UilImage size={20} /></span>}
+                  {(() => {
+                    const st = swatchState(f.image_keys, url, broken.has(f.id));
+                    return st === 'ok' ? (
+                      <img src={url} alt={f.name} onError={() => markBroken(f.id)} />
+                    ) : (
+                      <span
+                        className={`${s.swatchEmpty} ${st === 'unreachable' ? s.swatchBroken : ''}`}
+                        title={SWATCH_TITLE[st]}
+                      >
+                        <UilImage size={20} />
+                        <span className={s.swatchNote}>
+                          {st === 'unreachable' ? 'image unreachable' : 'no swatch'}
+                        </span>
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className={s.body}>
                   <div className={s.name}>{f.name}</div>
@@ -406,9 +442,19 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
                     <tr key={f.id} className={base.row} {...rowActivation(() => navigate(`${basePath}/${f.id}`))}>
                       <td>
                         <div className={base.fabricCell}>
-                          {url && !broken.has(f.id)
-                            ? <img className={base.swatchThumb} src={url} alt="" onError={() => markBroken(f.id)} />
-                            : <span className={base.swatchThumb}><UilImage size={16} /></span>}
+                          {(() => {
+                            const st = swatchState(f.image_keys, url, broken.has(f.id));
+                            return st === 'ok' ? (
+                              <img className={base.swatchThumb} src={url} alt="" onError={() => markBroken(f.id)} />
+                            ) : (
+                              <span
+                                className={`${base.swatchThumb} ${st === 'unreachable' ? s.swatchBroken : ''}`}
+                                title={SWATCH_TITLE[st]}
+                              >
+                                <UilImage size={16} />
+                              </span>
+                            );
+                          })()}
                           <span>{f.name}{f.color_name ? ` · ${f.color_name}` : ''}</span>
                         </div>
                       </td>
