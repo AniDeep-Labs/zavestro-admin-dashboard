@@ -28,3 +28,10 @@
   color: var(--color-warning, var(--color-text-secondary));
   margin: 0 0 var(--spacing-md);
 }
+
+/* [DSG-13-8] The rating band behind a bucket name. Quiet — it qualifies the word next to
+   it rather than competing with the number. */
+.threshold {
+  color: var(--color-text-tertiary);
+  font-size: 0.9em;
+}

@@ -69,11 +69,11 @@ export const DesignAnalyticsPage: React.FC = () => {
   const fitPct = totals?.fit_accuracy_pct;
   const kpis = [
     {
-      label: 'Fit accuracy',
+      label: 'Fit accuracy (design orders only)',
       value: fitPct != null ? `${fitPct}%` : '—',
       tone: fitPct != null ? toneClass(fitTone(fitPct)) : undefined,
     },
-    { label: 'Delivered orders', value: totals ? totals.delivered.toLocaleString('en-IN') : '—' },
+    { label: 'Delivered orders (with a design item)', value: totals ? totals.delivered.toLocaleString('en-IN') : '—' },
     { label: 'Fit-issue orders', value: totals ? totals.fit_issues.toLocaleString('en-IN') : '—' },
   ];
 
@@ -88,7 +88,13 @@ export const DesignAnalyticsPage: React.FC = () => {
       <PageHeader
         eyebrow="Design · Analytics"
         title="Design Analytics"
-        subtitle="How your designs perform on fit & demand — worst fitters first, so chart/construction fixes surface."
+        /* [DSG-13-4] Name the population. These figures count only orders containing a
+           DESIGN item — deliberately, so legacy off-the-rack orders don't inflate the
+           design team's own metric — and there are currently very few. In one session this
+           page read "Delivered orders 0" while Fit Outcomes, one click away, graded the
+           same period at 50% FTR. Both were correct under their own scope; neither stated
+           it, so the pair read as a contradiction rather than as two questions. */
+        subtitle="How your designs perform on fit & demand — worst fitters first, so chart/construction fixes surface. Counts ONLY orders containing a design item, so legacy off-the-rack orders are excluded; Fit Outcomes counts every delivered order and will show higher numbers."
       />
 
       <div className={local.toolbar}>

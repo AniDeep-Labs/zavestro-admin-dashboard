@@ -60,7 +60,10 @@ export const FitOutcomesPage: React.FC = () => {
   const lowSample = !!o && overallResponded < MIN_RESPONSES;
 
   const kpis = [
-    { label: 'First-time-right (FTR)', value: o?.ftr_pct != null ? `${o.ftr_pct}%` : '—', tone: ftrTone(o?.ftr_pct ?? null, lowSample), accent: true },
+    // [DSG-13-8] The label carries the threshold. "First-time-right" reads as "needed no
+    // alteration" — a different, stricter thing (alterations are their own bucket and
+    // outrank feedback). What it actually measures is a 4-or-5 rating out of 5.
+    { label: 'First-time-right (rated 4–5 of 5)', value: o?.ftr_pct != null ? `${o.ftr_pct}%` : '—', tone: ftrTone(o?.ftr_pct ?? null, lowSample), accent: true },
     { label: 'Alteration rate', value: o?.alteration_pct != null ? `${o.alteration_pct}%` : '—' },
     { label: 'Refund rate', value: o?.refund_pct != null ? `${o.refund_pct}%` : '—' },
     { label: 'Feedback response', value: o?.response_pct != null ? `${o.response_pct}%` : '—' },
@@ -71,7 +74,11 @@ export const FitOutcomesPage: React.FC = () => {
       <PageHeader
         eyebrow="Insights · Fit"
         title="Fit Outcomes"
-        subtitle="The made-to-fit master metric (FTR) across all delivered orders, broken down by hub so fit problems surface where they happen."
+        /* [DSG-13-4] Say which population. Design Analytics scopes its fit accuracy to
+           orders containing a DESIGN item, deliberately, so legacy off-the-rack orders
+           don't inflate the design team's metric — and it reported "0 delivered" in the
+           same session this page graded at 50%. Both were true; neither said over what. */
+        subtitle="The made-to-fit master metric (FTR) across EVERY delivered order, including legacy off-the-rack ones, broken down by hub so fit problems surface where they happen. Design Analytics counts only orders with a design item, so its figures are narrower and will not match this page."
       />
 
       <div className={local.toolbar}>
@@ -110,8 +117,13 @@ export const FitOutcomesPage: React.FC = () => {
 
           {o && o.delivered > 0 && (
             <p className={s.summarySub}>
-              {o.delivered} delivered · {o.perfect} perfect · {o.ok} acceptable · {o.altered} altered ·{' '}
-              {o.refunded} refunded · {o.poor} poor · {o.no_response} no response
+              {/* [DSG-13-8] Bare "perfect" and "poor" are the words the view uses; the
+                  numbers behind them are thresholds, and a legend that hides its cut-offs
+                  invites everyone to assume a different one. */}
+              {o.delivered} delivered · {o.perfect} perfect <span className={local.threshold}>(4–5 of 5)</span> ·{' '}
+              {o.ok} acceptable <span className={local.threshold}>(3)</span> · {o.altered} altered ·{' '}
+              {o.refunded} refunded · {o.poor} poor <span className={local.threshold}>(1–2)</span> ·{' '}
+              {o.no_response} no response
             </p>
           )}
 
