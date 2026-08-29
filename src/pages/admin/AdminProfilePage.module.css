@@ -1,0 +1,10 @@
+
+/* [SHL-2-11] Shown beside the role when the live identity fetch failed — the value on
+   screen is then the login-time cache, and the page should say so rather than present it
+   as current. */
+.staleHint {
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: none;
+  color: var(--color-text-tertiary);
+}
