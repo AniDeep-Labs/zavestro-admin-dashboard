@@ -280,7 +280,7 @@ export const DistributionPage: React.FC = () => {
     if (overPush) { toast('error', 'Not enough central stock', `Central has ${centralAvail}m; you're pushing ${shipTotal}m.`); return; }
     setPushing(true);
     try {
-      await distributionApi.push({
+      const pushed = await distributionApi.push({
         design_id: restockMode ? null : designId,
         fabric_id: fabricId || null,
         hub_id: hubId,
@@ -288,7 +288,20 @@ export const DistributionPage: React.FC = () => {
         sellable_qty: Number(sellableQty) || 0,
         lot_code: lotCode.trim() || undefined,
       });
-      toast('success', restockMode ? 'Restock pushed to hub' : 'Pushed to hub', 'The hub will receive and stock it.');
+      // [PRC-15-5] The server converts a design push into a fabric-less one when the hub
+      // already stocks the SKU. Saying "the hub will receive and stock it" for that shipment
+      // was wrong: no fabric ships and nothing is drawn from central. The list discloses it
+      // afterwards ("hub stocks SKU" in the Fabric column) — this says it at the moment the
+      // operator is still looking at what they just did.
+      if (pushed.fabric_skipped) {
+        toast(
+          'info',
+          'Pushed — no fabric shipped',
+          'The hub already stocks this SKU, so no metres were dispatched or drawn from central.',
+        );
+      } else {
+        toast('success', restockMode ? 'Restock pushed to hub' : 'Pushed to hub', 'The hub will receive and stock it.');
+      }
       setOpen(false);
       load();
     } catch (e) {

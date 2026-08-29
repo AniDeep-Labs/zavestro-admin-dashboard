@@ -3904,8 +3904,13 @@ export const distributionApi = {
     const s = qs.toString();
     return req<Distribution[]>(`/api/admin/distribution${s ? `?${s}` : ""}`);
   },
-  push: async (input: PushDistributionInput): Promise<Distribution> =>
-    req<Distribution>(`/api/admin/distribution`, {
+  // [PRC-15-5] The server returns fabric_skipped when it converted a design push into a
+  // fabric-less one because the hub already stocks the SKU. The page threw that away and
+  // toasted "The hub will receive and stock it." either way.
+  push: async (
+    input: PushDistributionInput,
+  ): Promise<Distribution & { fabric_skipped?: boolean }> =>
+    req<Distribution & { fabric_skipped?: boolean }>(`/api/admin/distribution`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
