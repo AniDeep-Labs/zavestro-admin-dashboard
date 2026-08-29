@@ -567,6 +567,13 @@ const NAV_LESS_CAP: { prefix: string; caps: string[] }[] = [
   // floor verb held as break-glass; without an entry here a role without `qc:write`
   // deep-links into a page whose only button is hidden.
   { prefix: "/admin/orders/qc", caps: ["qc:write"] },
+  // [LGC-24-2] The legacy product catalogue has no nav item at all — it was retired from
+  // the sidebar and left reachable by URL — so `currentNav` misses it and NAV_CAP cannot
+  // cover it. Rendered as `design` it gave the full page, filters and an "Add Product"
+  // button, with three "your admin role lacks permission" toasts. The API denies
+  // correctly; only the UI was wrong, which is the worse half: a role is shown a console
+  // it cannot use and told so three times by a toast instead of once by the page.
+  { prefix: "/admin/catalog/products", caps: ["catalog:write"] },
 ];
 
 // T3-1 (S-1 + S-3): cap-gated create verbs — the single source for both the palette actions
