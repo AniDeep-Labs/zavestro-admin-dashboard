@@ -6,6 +6,11 @@ import styles from './AppConfigPage.module.css';
 import { UilEye, UilEyeSlash, UilKeySkeletonAlt, UilQuestionCircle, UilShield } from "@iconscout/react-unicons";
 import { StatusBadge } from '../../components';
 
+// [SHL-2-10] These five strings MUST stay character-identical to
+// DECOY_SECURITY_QUESTIONS in the backend's admin-auth.service.ts. That list is what an
+// unknown email is answered with, so any wording that appears in one list and not the
+// other tells an attacker which pool the response came from — i.e. whether the account
+// exists. Two of them had drifted apart by a paraphrase.
 const SECURITY_QUESTIONS = [
   "What was the name of your first pet?",
   "What city were you born in?",
