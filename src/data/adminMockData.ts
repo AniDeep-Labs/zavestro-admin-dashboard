@@ -181,7 +181,11 @@ export interface SupportTicket {
   phone: string;
   subject: string;
   category: string;
-  priority: 'High' | 'Medium' | 'Low';
+  // [SUP-32-6] `urgent` is a real value in the DB (low | normal | high | urgent) and was
+  // missing here, so the mapper collapsed it to 'High' and any re-save wrote 'high' back
+  // over it — the top severity in the system was unreachable, invisible, and destroyed by
+  // opening the ticket.
+  priority: 'Urgent' | 'High' | 'Medium' | 'Low';
   status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
   assignedTo: string | null;
   created: string;

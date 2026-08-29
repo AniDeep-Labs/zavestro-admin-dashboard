@@ -29,6 +29,9 @@ function useDebounce<T>(v: T, d: number) {
 }
 
 const priorityCss: Record<string, string> = {
+  // [SUP-32-6] Urgent needs its own weight — collapsed into High it was indistinguishable
+  // from the tickets it is supposed to outrank.
+  Urgent: "priorityUrgent",
   High: "priorityHigh",
   Medium: "priorityMedium",
   Low: "priorityLow",
@@ -730,6 +733,8 @@ export const SupportListPage: React.FC = () => {
                     <option>Low</option>
                     <option>Medium</option>
                     <option>High</option>
+                    {/* [SUP-32-6] The DB has always allowed this; the form never offered it. */}
+                    <option>Urgent</option>
                   </select>
                 </div>
               </div>

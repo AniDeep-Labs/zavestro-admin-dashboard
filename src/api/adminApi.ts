@@ -918,8 +918,10 @@ function mapTicket(t: Record<string, unknown>): SupportTicket {
     resolved: "Resolved",
     closed: "Closed",
   };
+  // [SUP-32-6] `urgent` maps to itself. It used to collapse to "High", which put the top
+  // severity beside genuinely-high tickets with nothing to tell them apart.
   const PRIORITY_MAP: Record<string, SupportTicket["priority"]> = {
-    urgent: "High",
+    urgent: "Urgent",
     high: "High",
     normal: "Medium",
     medium: "Medium",
@@ -1031,7 +1033,10 @@ export const supportApi = {
       Resolved: "resolved",
       Closed: "closed",
     };
+    // [SUP-32-6] Round-trips. Without the Urgent entry, saving an urgent ticket wrote
+    // "high" over it — a silent downgrade performed by merely editing anything else.
     const PRIORITY_TO_DB: Record<string, string> = {
+      Urgent: "urgent",
       High: "high",
       Medium: "normal",
       Low: "low",
