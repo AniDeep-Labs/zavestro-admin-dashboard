@@ -253,7 +253,9 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       .then(hydrate)
       .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-  }, [id]);
+    // `hydrate` is a useCallback over [] and reads nothing but its own argument, so
+    // listing it here is a no-op that keeps the linter honest rather than silenced.
+  }, [id, hydrate]);
 
   // ── field + preset chips ──
   const fillStandardFields = () => {
