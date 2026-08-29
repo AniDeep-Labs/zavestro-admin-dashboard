@@ -59,3 +59,16 @@
 .retryBtn { margin-top: 10px; padding: 6px 18px; background: var(--color-primary, #1F6B4F); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
 
 .editorModal { max-width: 1380px !important; width: 96vw; }
+
+/* [CM-21-3] Live collections with no products — an exception, not a status. Amber rather
+   than red: the collection isn't broken, it just isn't ready to be pointed at. */
+.emptyLiveWarn {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-warning-border, var(--color-border));
+  background: var(--color-warning-bg, var(--color-bg-secondary));
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
