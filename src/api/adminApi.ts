@@ -977,7 +977,25 @@ export interface SupportInbox {
   counts: { needs_reply: number; waiting: number; resolved: number };
 }
 
+export interface AssignableAgent {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export const supportApi = {
+  /**
+   * [SUP-32-4] Who this ticket can be handed to.
+   *
+   * The dropdown used to read the full admin roster (`/admin/auth/users`), which is
+   * super_admin-only — so for support, the one role that works this page, it 403'd and
+   * rendered empty. This endpoint answers only the picker's question, and the server
+   * decides who qualifies from the capability table rather than the client guessing
+   * from role names.
+   */
+  assignableAgents: (): Promise<AssignableAgent[]> =>
+    req<AssignableAgent[]>("/api/admin/support/assignable"),
+
   create: async (data: Record<string, any>): Promise<SupportTicket> => {
     const raw = await req<Record<string, unknown>>("/api/admin/support", {
       method: "POST",
