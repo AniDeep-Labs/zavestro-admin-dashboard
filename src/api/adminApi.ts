@@ -4020,6 +4020,10 @@ export type ListingRequestStatus =
   | "rejected"
   | "cancelled";
 export interface ListingRequest {
+  // [PRC-16-11] Who approved committing this cloth to a hub. Stored on every decided row
+  // since the feature shipped and displayed by no screen until now.
+  approved_by?: string | null;
+  approved_by_name?: string | null;
   id: string;
   design_id: string;
   fabric_id: string;
