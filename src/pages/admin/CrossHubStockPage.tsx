@@ -409,7 +409,18 @@ export const CrossHubStockPage: React.FC = () => {
           <div className={s.summaryValue}>{loading ? '—' : `${totalAvail.toLocaleString('en-IN')}m`}</div>
         </div>
         <div className={s.summaryCard}>
-          <div className={s.summaryLabel}>Capital in stock</div>
+          {/* [PRC-17-2] "Capital in stock" is what a founder reads as the total, and this
+              figure is not the total — it is what sits on HUB SHELVES. The central pool,
+              quarantine and cloth in transit are all owned and none of them are here, so
+              the Fabrics Master KPI (which counts all five components at weighted-average
+              cost) is legitimately higher. Two different questions; they now have two
+              different labels instead of one shared one. */}
+          <div
+            className={s.summaryLabel}
+            title="Available + reserved metres on hub shelves × ₹/m. Excludes the central pool, quarantine and in-transit cloth — see Fabrics for the all-in figure."
+          >
+            Capital on hub shelves
+          </div>
           <div className={s.summaryValue}>{loading ? '—' : `₹${Math.round(totalValue).toLocaleString('en-IN')}`}</div>
         </div>
         <div className={s.summaryCard}>

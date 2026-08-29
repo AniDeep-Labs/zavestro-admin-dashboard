@@ -130,7 +130,16 @@ export const FabricAtHubPage: React.FC = () => {
   const avail = Number(data.stock.available_meters);
   const reserved = Number(data.stock.reserved_meters);
   const ppm = f.price_per_meter != null ? Number(f.price_per_meter) : null;
-  const capital = ppm != null ? Math.round(avail * ppm) : null;
+  // [PRC-17-2] Every metre on this shelf, not just the sellable ones.
+  //
+  // This read `avail * ppm` under the label "Capital (avail)" — honest about its own
+  // arithmetic, but it is one of three formulas the admin used for the word "capital",
+  // and the narrowest. Reserved cloth is committed to an order and not yet cut; quarantine
+  // is on QC hold. Both are metres the brand has paid for and is holding. Excluding them
+  // understates what is tied up at this hub, which is the only question this card is for.
+  const quarantine = Number(data.stock.quarantine_meters ?? 0);
+  const capitalMeters = avail + reserved + quarantine;
+  const capital = ppm != null ? Math.round(capitalMeters * ppm) : null;
   const reorder = data.stock.reorder_meters != null ? Number(data.stock.reorder_meters) : null;
   const belowReorder = reorder != null && avail < reorder;
 
@@ -217,7 +226,9 @@ export const FabricAtHubPage: React.FC = () => {
           </div>
         )}
         <div className={kpi.summaryCard}>
-          <div className={kpi.summaryLabel}>Capital (avail)</div>
+          <div className={kpi.summaryLabel} title="Available + reserved + quarantine metres × ₹/m — everything on this shelf that the brand has paid for">
+            Capital on this shelf
+          </div>
           <div className={kpi.summaryValue}>{capital != null ? `₹${capital.toLocaleString('en-IN')}` : '—'}</div>
         </div>
         <div className={kpi.summaryCard}>
