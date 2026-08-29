@@ -1950,12 +1950,15 @@ export interface ReturnsResponse {
 
 export const returnsApi = {
   list: async (
-    params: { status?: string; page?: number; limit?: number } = {},
+    params: { status?: string; page?: number; limit?: number; search?: string } = {},
   ): Promise<ReturnsResponse> => {
     const qs = new URLSearchParams();
     if (params.status) qs.set("status", params.status);
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
+    // [SUP-31-5] Server-side, so a search reaches past the loaded page — and so it can
+    // match customer_phone, which the browser filter never looked at.
+    if (params.search) qs.set("search", params.search);
     return req<ReturnsResponse>(`/api/admin/returns?${qs}`);
   },
 
