@@ -213,3 +213,25 @@
 .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md); }
 .formGrid > :nth-child(3) { grid-column: 1 / -1; }
 @media (max-width: 560px) { .formGrid { grid-template-columns: 1fr; } }
+
+/* [PRC-14-4] The line under a KPI that says what the number covers. A count with an
+   unstated denominator reads as reassurance; this is the denominator. */
+.kpiNote {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+}
+
+/* [PRC-14-4] Deliberately not styled like .lowTag — "unwatched" is not an alarm about the
+   stock, it is a statement that nobody is watching it. Neutral, but not invisible. */
+.unwatchedTag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}

@@ -62,7 +62,11 @@ export function hasCapability(cap: string): boolean {
 
 // ─── Core fetch ───────────────────────────────────────────────────────────────
 
-async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
+// [PRC-14-4] The whole response envelope, error handling included. `req` below is this
+// plus the `data` unwrap — which is what nearly every caller wants, but it also throws away
+// any `meta` the server sent, so a page that needs (say) a count's denominator had no way to
+// see it without a second round trip.
+async function reqEnvelope<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getAdminToken();
   const isForm = init.body instanceof FormData;
   const headers: Record<string, string> = {
@@ -102,9 +106,15 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw err;
   }
   if (res.status === 204) return undefined as T;
-  const json = await res.json();
+  return (await res.json()) as T;
+}
+
+async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const json = await reqEnvelope<unknown>(path, init);
   return (
-    json && typeof json === "object" && "data" in json ? json.data : json
+    json && typeof json === "object" && "data" in json
+      ? (json as { data: T }).data
+      : json
   ) as T;
 }
 
@@ -3477,6 +3487,10 @@ export interface Fabric {
   total_available?: number;
   total_reserved?: number;
   low_somewhere?: boolean;
+  // [PRC-14-4] Whether ANY hub holding this fabric has a reorder point. A false
+  // low_somewhere means "not below threshold"; with this false it means "no threshold",
+  // which is a different fact and the far more common one.
+  watched_somewhere?: boolean;
   stock_value?: number | null;
   stock?: { hub_id: string; hub_name: string; available_meters: number; reserved_meters: number; reorder_meters?: number | null }[];
 }
@@ -3563,6 +3577,21 @@ export interface DeadStock {
   total_capital: number;
   min_days: number;
 }
+// [PRC-14-6] Which commercial fields the server actually sent. Masked fields are ABSENT,
+// not null — so without this a hub merchant cannot tell "this mill has no GSTIN on file"
+// from "you may not see this mill's GSTIN", and the mask would just move the lie.
+export interface FabricFieldVisibility {
+  supplier: boolean;
+  price: boolean;
+}
+
+export interface ReorderCoverage {
+  /** Shelf positions (hub × fabric) with a reorder point set. */
+  with_reorder_point: number;
+  /** Shelf positions in total, whether or not they have one. */
+  total_positions: number;
+}
+
 export const fabricsApi = {
   list: async (
     params: { q?: string; active?: boolean; low?: boolean } = {},
@@ -3573,6 +3602,31 @@ export const fabricsApi = {
     if (params.low) qs.set("low", "true");
     const s = qs.toString();
     return req<Fabric[]>(`/api/admin/fabrics${s ? `?${s}` : ""}`);
+  },
+  // [PRC-14-4] Same call, but keeps `meta.reorder_coverage` — how many shelf positions have
+  // a reorder point at all. Without it "Below reorder: 0" is unreadable: it says the same
+  // thing whether nothing is low or nothing is watched.
+  listWithCoverage: async (
+    params: { q?: string; active?: boolean; low?: boolean } = {},
+  ): Promise<{
+    data: Fabric[];
+    meta?: {
+      reorder_coverage?: ReorderCoverage;
+      fabric_fields_visible?: FabricFieldVisibility;
+    };
+  }> => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set("q", params.q);
+    if (params.active !== undefined) qs.set("active", String(params.active));
+    if (params.low) qs.set("low", "true");
+    const s = qs.toString();
+    return reqEnvelope<{
+      data: Fabric[];
+      meta?: {
+        reorder_coverage?: ReorderCoverage;
+        fabric_fields_visible?: FabricFieldVisibility;
+      };
+    }>(`/api/admin/fabrics${s ? `?${s}` : ""}`);
   },
   get: async (id: string): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics/${id}`),

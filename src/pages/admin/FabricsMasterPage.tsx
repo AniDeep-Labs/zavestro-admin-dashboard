@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fabricsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
+import type { ReorderCoverage, FabricFieldVisibility } from '../../api/adminApi';
 import type { Fabric, FabricInput } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
@@ -28,6 +29,12 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
   const [search, setSearch] = React.useState('');
   const [activeFilter, setActiveFilter] = React.useState('');
   const [lowOnly, setLowOnly] = React.useState(false); // "Low somewhere" (procurement)
+  // [PRC-14-4] How many shelf positions have a reorder point at all — the denominator
+  // the "Below reorder" count needs before it means anything.
+  const [coverage, setCoverage] = React.useState<ReorderCoverage | null>(null);
+  // [PRC-14-6] Which commercial columns the server sent. A masked supplier must not read
+  // as an absent one — this page's whole job is knowing who to call to buy more cloth.
+  const [fieldVis, setFieldVis] = React.useState<FabricFieldVisibility | null>(null);
   // sort (procurement table) + client-side pagination
   const [sortKey, setSortKey] = React.useState<'name' | 'total_available' | 'stock_value' | 'price_per_meter'>('name');
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('asc');
@@ -56,8 +63,12 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
   const load = React.useCallback(() => {
     setLoading(true);
     fabricsApi
-      .list({ q: search || undefined, active: activeFilter === '' ? undefined : activeFilter === 'true', low: lowOnly || undefined })
-      .then(setFabrics)
+      .listWithCoverage({ q: search || undefined, active: activeFilter === '' ? undefined : activeFilter === 'true', low: lowOnly || undefined })
+      .then((r) => {
+        setFabrics(r.data);
+        setCoverage(r.meta?.reorder_coverage ?? null);
+        setFieldVis(r.meta?.fabric_fields_visible ?? null);
+      })
       .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [search, activeFilter, lowOnly]);
@@ -270,7 +281,12 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
             type="button"
             className={`${s.lowChip} ${lowOnly ? s.lowChipActive : ''}`}
             onClick={() => setLowOnly((v) => !v)}
-            title="Fabrics below their reorder point at some hub"
+            title={
+              coverage && coverage.with_reorder_point === 0
+                ? 'No hub has a reorder point set, so this filter can only return nothing'
+                : 'Fabrics below their reorder point at some hub'
+            }
+            disabled={!!coverage && coverage.with_reorder_point === 0}
           >
             Low somewhere
           </button>
@@ -292,9 +308,30 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
             <div className={kpi.summaryLabel}>Capital in stock</div>
             <div className={kpi.summaryValue}>₹{capital.toLocaleString('en-IN')}</div>
           </div>
+          {/* [PRC-14-4] A reorder point is optional and almost nobody sets one, so this card
+              used to render a calm green 0 whether nothing was low or nothing was watched.
+              With no thresholds set anywhere the count cannot mean anything, and says so. */}
           <div className={kpi.summaryCard}>
             <div className={kpi.summaryLabel}>Below reorder</div>
-            <div className={`${kpi.summaryValue} ${lowCount ? s.stockLow : ''}`}>{lowCount}</div>
+            {coverage && coverage.with_reorder_point === 0 ? (
+              <>
+                <div className={kpi.summaryValue}>—</div>
+                <div className={s.kpiNote}>
+                  no reorder point set on any of {coverage.total_positions} shelf position
+                  {coverage.total_positions === 1 ? '' : 's'}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={`${kpi.summaryValue} ${lowCount ? s.stockLow : ''}`}>{lowCount}</div>
+                {coverage && coverage.with_reorder_point < coverage.total_positions && (
+                  <div className={s.kpiNote}>
+                    watching {coverage.with_reorder_point} of {coverage.total_positions} shelf
+                    positions
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
@@ -324,7 +361,17 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
                   <div className={s.code}>{f.code}{f.color_name ? ` · ${f.color_name}` : ''}</div>
                   <div className={s.meta}>{f.composition}{f.weave ? ` · ${f.weave}` : ''}</div>
                   <div className={s.foot}>
-                    <span className={s.price}>{f.price_per_meter ? `₹${Number(f.price_per_meter).toLocaleString('en-IN')}/m` : '—'}</span>
+                    {/* [PRC-14-6] Design holds neither distribution:write nor catalog:write,
+                        so the server does not send ₹/m here. A bare "—" would say the fabric
+                        has no price; it has one, and this role is not the one that sets or
+                        spends against it. */}
+                    <span className={s.price}>
+                      {fieldVis && !fieldVis.price
+                        ? 'cost restricted'
+                        : f.price_per_meter
+                          ? `₹${Number(f.price_per_meter).toLocaleString('en-IN')}/m`
+                          : '—'}
+                    </span>
                     <StatusBadge status={f.is_active ? 'active' : 'inactive'} />
                   </div>
                 </div>
@@ -368,15 +415,47 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
                       <td onClick={(e) => e.stopPropagation()}><CopyId value={f.code} /></td>
                       <td>{f.composition}</td>
                       <td>
-                        <div>{f.supplier ?? '—'}{f.supplier_city ? ` · ${f.supplier_city}` : ''}</div>
-                        {f.supplier_lead_time_days != null && (
-                          <div className={s.subtle}>{f.supplier_lead_time_days}d lead</div>
+                        {/* [PRC-14-6] Restricted ≠ missing. The server omits these fields for
+                            roles that may not see them, and a bare "—" would claim the mill
+                            has no name on file. */}
+                        {fieldVis && !fieldVis.supplier ? (
+                          <div className={s.subtle} title="Supplier identity is visible to procurement and finance">
+                            restricted
+                          </div>
+                        ) : (
+                          <>
+                            <div>{f.supplier ?? '—'}{f.supplier_city ? ` · ${f.supplier_city}` : ''}</div>
+                            {f.supplier_lead_time_days != null && (
+                              <div className={s.subtle}>{f.supplier_lead_time_days}d lead</div>
+                            )}
+                          </>
                         )}
                       </td>
-                      <td>{f.price_per_meter ? `₹${Number(f.price_per_meter).toLocaleString('en-IN')}` : '—'}</td>
+                      <td>
+                        {fieldVis && !fieldVis.price ? (
+                          <span className={s.subtle} title="Cost is visible to procurement, finance and catalog">
+                            restricted
+                          </span>
+                        ) : f.price_per_meter ? (
+                          `₹${Number(f.price_per_meter).toLocaleString('en-IN')}`
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td className={f.low_somewhere ? s.stockLow : undefined}>
                         {(f.total_available ?? 0).toLocaleString('en-IN')}m
                         {f.low_somewhere && <span className={s.lowTag}>low</span>}
+                        {/* [PRC-14-4] Stock on the shelf and no threshold anywhere: this row
+                            can never show "low", so its silence means nothing. Say so, and
+                            point at the page that fixes it (the row already opens the PDP). */}
+                        {!f.low_somewhere && !f.watched_somewhere && (f.total_available ?? 0) > 0 && (
+                          <span
+                            className={s.unwatchedTag}
+                            title="No hub has a reorder point for this fabric, so it can never be flagged low. Open the fabric to set one."
+                          >
+                            unwatched
+                          </span>
+                        )}
                       </td>
                       <td><MoneyCell amount={f.stock_value ?? null} /></td>
                       <td><StatusBadge status={f.is_active ? 'active' : 'inactive'} /></td>
