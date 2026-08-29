@@ -299,6 +299,16 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
 
   const pending = rows.filter((r) => r.status === 'requested');
   const transit = rows.filter((r) => r.status === 'approved');
+  // [PRC-16-6] "Open" means not yet concluded, which includes what is in transit.
+  //
+  // The header counted only `requested`, so it rendered "0 open · 5 total" directly above
+  // a section headed "In transit 2" whose cards each carry procurement's own "Mark
+  // received" button. The number that tells procurement whether it has work said no while
+  // the list underneath said yes — and the number is what someone scans first.
+  //
+  // RestockQueuePage already gets this right (`requested || shipped`); this is the same
+  // queue shape with `approved` in place of `shipped`.
+  const openWork = [...pending, ...transit];
   const received = rows.filter((r) => r.status === 'received');
   const closed = rows.filter((r) => r.status === 'rejected' || r.status === 'cancelled');
 
@@ -319,7 +329,7 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
         subtitle={isProc
           ? 'A catalog manager wants fabric to list — approve & send from central, then confirm it lands at the hub.'
           : 'Ask procurement for the fabric you need to list an approved sample. Track each request to in-stock.'}
-        meta={!loading && <span className={s.cardAge}>{pending.length} open · {rows.length} total</span>}
+        meta={!loading && <span className={s.cardAge}>{openWork.length} open · {rows.length} total</span>}
       />
 
       {/* T2-38 (PR-5): a hub-less CM can't raise listing requests (hub-scoped) — dead-end honestly. */}

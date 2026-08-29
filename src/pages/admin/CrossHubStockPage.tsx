@@ -180,6 +180,21 @@ export const CrossHubStockPage: React.FC = () => {
     return m;
   }, [deadFromLedger]);
   const deadStock = visibleRows.filter((r) => deadKeys.has(`${r.hub_id}:${r.fabric_id}`));
+
+  // [PRC-17-4] Say what these numbers are counting.
+  //
+  // Every figure on this page — the KPIs, the exception counts, the per-hub footers — is
+  // computed over `visibleRows`, i.e. what is currently loaded AND filtered. The hub and
+  // fabric selectors change them silently, so "Below reorder 0" can mean "this hub is
+  // fine" or "the one fabric you filtered to is fine", and the card reads identically
+  // either way. The list is unpaginated today, so scope is the only gap; when it isn't,
+  // the same cards will confidently describe a page instead of the business.
+  const scopeNote = [
+    hubFilter ? (hubs.find((h) => h.id === hubFilter)?.name ?? 'one hub') : null,
+    fabricFilter ? 'one fabric' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const totalAvail = visibleRows.reduce((sum, r) => sum + Number(r.available_meters), 0);
   const totalValue = visibleRows.reduce((sum, r) => sum + (value(r) ?? 0), 0);
 
@@ -424,7 +439,10 @@ export const CrossHubStockPage: React.FC = () => {
           <div className={s.summaryValue}>{loading ? '—' : `₹${Math.round(totalValue).toLocaleString('en-IN')}`}</div>
         </div>
         <div className={s.summaryCard}>
-          <div className={s.summaryLabel}>Below reorder</div>
+          <div className={s.summaryLabel}>
+            Below reorder
+            {scopeNote && <span className={cs.scopeNote}> · {scopeNote} only</span>}
+          </div>
           <div className={`${s.summaryValue} ${belowReorder.length ? s.pendingAccent : ''}`}>
             {loading ? '—' : belowReorder.length}
           </div>
