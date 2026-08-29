@@ -2337,6 +2337,9 @@ export interface GarmentCategoryOption {
   calibrated_fit_presets?: string[] | null;
   garment_types?: string[] | null;
   used_by_designs?: number;
+  /** [DSG-11-13] The other two conditions the server blocks a delete on. */
+  used_by_fit_profiles?: number;
+  used_by_storefront_categories?: number;
 }
 
 export interface CreateGarmentCategoryInput {
@@ -2379,6 +2382,9 @@ export interface GarmentTemplate {
   length_bands?: LengthBand[] | null;
   chart: ChartRow[];
   used_by_designs?: number;
+  /** [DSG-11-13] The other two conditions the server blocks a delete on. */
+  used_by_fit_profiles?: number;
+  used_by_storefront_categories?: number;
   used_by_orders?: number;
 }
 export interface FitPresetDef {

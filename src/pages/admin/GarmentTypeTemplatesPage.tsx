@@ -150,6 +150,21 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
                 const presets = c.calibrated_fit_presets != null ? calibrated : authored;
                 const configured = captureCount(c) > 0 || presets.length > 0;
                 const usedBy = c.used_by_designs ?? 0;
+                // [DSG-11-13] The server refuses a delete on designs OR customer fit
+                // profiles OR storefront categories. The button knew only the first, so a
+                // type used by 50 fit profiles and 0 designs offered an enabled bin, opened
+                // the confirm, and failed with a 409 — after the operator had committed to
+                // it. On this data 5 of 18 types are in exactly that state.
+                const blockers = [
+                  usedBy > 0 ? `${usedBy} design${usedBy === 1 ? '' : 's'}` : null,
+                  (c.used_by_storefront_categories ?? 0) > 0
+                    ? `${c.used_by_storefront_categories} storefront categor${c.used_by_storefront_categories === 1 ? 'y' : 'ies'}`
+                    : null,
+                  (c.used_by_fit_profiles ?? 0) > 0
+                    ? `${c.used_by_fit_profiles} customer fit profile${c.used_by_fit_profiles === 1 ? '' : 's'}`
+                    : null,
+                ].filter(Boolean) as string[];
+                const deleteBlocked = blockers.length > 0;
                 return (
                   <tr key={c.id} className={styles.row}>
                     <td className={styles.customerName} style={{ fontWeight: 500 }}>{c.name}</td>
@@ -188,10 +203,10 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
                         <button
                           type="button"
                           className={styles.actionBtn}
-                          title={usedBy > 0 ? `In use by ${usedBy} design${usedBy === 1 ? '' : 's'} — can't delete` : 'Delete this garment type'}
-                          disabled={usedBy > 0}
+                          title={deleteBlocked ? `In use by ${blockers.join(', ')} — can't delete` : 'Delete this garment type'}
+                          disabled={deleteBlocked}
                           onClick={() => setDelTarget(c)}
-                          style={{ padding: '4px 8px', opacity: usedBy > 0 ? 0.35 : 1, cursor: usedBy > 0 ? 'not-allowed' : 'pointer' }}
+                          style={{ padding: '4px 8px', opacity: deleteBlocked ? 0.35 : 1, cursor: deleteBlocked ? 'not-allowed' : 'pointer' }}
                         >
                           <UilTrashAlt size={14} />
                         </button>
