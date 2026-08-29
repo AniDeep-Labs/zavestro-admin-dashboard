@@ -193,48 +193,63 @@ export const GarmentTemplateEditorPage: React.FC = () => {
     setToasts((t) => [...t, createToast(type, title, msg)]);
   const dismiss = (t: string) => setToasts((x) => x.filter((y) => y.id !== t));
 
+  // [DSG-11-10] ONE hydrate, used on load AND after save.
+  //
+  // `save()` drops incomplete rows before sending, and the server drops more (bands with
+  // height_min_cm ≤ 0 or length_value ≤ 0 are skipped; heights are rounded). The page then
+  // recomputed its baseline from LOCAL state and never re-read the response, so a row the
+  // server had refused stayed on screen under "no unsaved changes" — and vanished on
+  // reload. `addBand` creates exactly such a row: 0 / 0.
+  //
+  // Re-hydrating from `saved` makes the screen show what was actually persisted. The
+  // dropped row disappearing IS the feedback; a save that silently keeps your work only in
+  // the browser is worse than one that visibly discards it.
+  const hydrate = React.useCallback((t: GarmentTemplate) => {
+      setTpl(t);
+      const cs = t.capture_set ?? [];
+      const fromChart = Array.from(new Set(t.chart.flatMap((r) => Object.keys(r.measurements))));
+      setFields(Array.from(new Set([...fromChart, ...cs])));
+      // Preset DEFINITIONS (name + ease constants). Backend returns one per name —
+      // legacy names with no params come back with empty params for the designer to fill.
+      const defs: FitPresetDef[] =
+        t.fit_presets ?? (t.available_fit_presets ?? []).map((fp) => ({ fit_preset: fp, params: {} }));
+      setPresetDefs(defs);
+      setCaptureSet(cs);
+      setChart(t.chart);
+      setChartUnit(t.chart[0]?.unit === 'cm' ? 'cm' : 'in');
+      setChartBasis(t.chart[0]?.measurement_basis === 'finished' ? 'finished' : 'body');
+      const types = t.garment_types ?? [];
+      setGarmentTypes(types);
+      const bands = t.length_bands ?? [];
+      setLengthBands(bands);
+      const pm = t.pain_point_menu ?? {};
+      const loadedPains = Object.entries(pm).flatMap(([tag, fd]) =>
+        Object.entries(fd).map(([field, delta]) => ({ tag, field, delta: String(delta) })),
+      );
+      setPains(loadedPains);
+      const bsm = t.body_shape_menu ?? {};
+      const loadedShapes = Object.entries(bsm).flatMap(([shape, fd]) =>
+        Object.entries(fd).map(([field, delta]) => ({ shape, field, delta: String(delta) })),
+      );
+      setShapes(loadedShapes);
+      const tol: Record<string, string> = {};
+      for (const [field, v] of Object.entries(t.tolerances ?? {})) tol[field] = String(v);
+      setTolerances(tol);
+      const seam = {
+        seam: t.seam_allowance_cm != null ? String(t.seam_allowance_cm) : '',
+        hem: t.hem_allowance_cm != null ? String(t.hem_allowance_cm) : '',
+      };
+      setSeamAllow(seam);
+      setBaseline(snap(cs, defs, t.chart, loadedPains, types, bands, loadedShapes, tol, seam));
+    },
+    [],
+  );
+
   React.useEffect(() => {
     if (!id) return;
     designsApi
       .getTemplate(id)
-      .then((t) => {
-        setTpl(t);
-        const cs = t.capture_set ?? [];
-        const fromChart = Array.from(new Set(t.chart.flatMap((r) => Object.keys(r.measurements))));
-        setFields(Array.from(new Set([...fromChart, ...cs])));
-        // Preset DEFINITIONS (name + ease constants). Backend returns one per name —
-        // legacy names with no params come back with empty params for the designer to fill.
-        const defs: FitPresetDef[] =
-          t.fit_presets ?? (t.available_fit_presets ?? []).map((fp) => ({ fit_preset: fp, params: {} }));
-        setPresetDefs(defs);
-        setCaptureSet(cs);
-        setChart(t.chart);
-        setChartUnit(t.chart[0]?.unit === 'cm' ? 'cm' : 'in');
-        setChartBasis(t.chart[0]?.measurement_basis === 'finished' ? 'finished' : 'body');
-        const types = t.garment_types ?? [];
-        setGarmentTypes(types);
-        const bands = t.length_bands ?? [];
-        setLengthBands(bands);
-        const pm = t.pain_point_menu ?? {};
-        const loadedPains = Object.entries(pm).flatMap(([tag, fd]) =>
-          Object.entries(fd).map(([field, delta]) => ({ tag, field, delta: String(delta) })),
-        );
-        setPains(loadedPains);
-        const bsm = t.body_shape_menu ?? {};
-        const loadedShapes = Object.entries(bsm).flatMap(([shape, fd]) =>
-          Object.entries(fd).map(([field, delta]) => ({ shape, field, delta: String(delta) })),
-        );
-        setShapes(loadedShapes);
-        const tol: Record<string, string> = {};
-        for (const [field, v] of Object.entries(t.tolerances ?? {})) tol[field] = String(v);
-        setTolerances(tol);
-        const seam = {
-          seam: t.seam_allowance_cm != null ? String(t.seam_allowance_cm) : '',
-          hem: t.hem_allowance_cm != null ? String(t.hem_allowance_cm) : '',
-        };
-        setSeamAllow(seam);
-        setBaseline(snap(cs, defs, t.chart, loadedPains, types, bands, loadedShapes, tol, seam));
-      })
+      .then(hydrate)
       .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [id]);
@@ -522,9 +537,10 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         chart: cleanChart,
         note: note.trim() || undefined,
       });
-      setTpl(saved);
-      setPresetDefs(explicitPresetDefs);
-      setBaseline(snap(captureSet, explicitPresetDefs, cleanChart, pains, garmentTypes, lengthBands, shapes, tolerances, seamAllow)); // clears dirty
+      // [DSG-11-10] Re-hydrate from what came BACK, not from what we sent. The old code
+      // set the baseline from local state, so any row the server dropped stayed on screen
+      // marked as saved. `hydrate` also clears dirty, from the persisted values.
+      hydrate(saved);
       setNote('');
       toast('success', 'Template saved');
     } catch (e) {
