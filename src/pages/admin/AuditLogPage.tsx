@@ -156,7 +156,24 @@ export const AuditLogPage: React.FC = () => {
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Audit Log</h1>
-      <div className={styles.subtitle}>Read-only. Every admin write action is automatically logged with the admin's identity.</div>
+      {/* [SHL-7-12] The old line read "Every admin write action is automatically logged
+          with the admin's identity." It was disproved by experiment — role change,
+          deactivate/reactivate and set-temp-password all returned 200 and wrote nothing —
+          and it is the strongest possible claim, printed on the surface an auditor
+          consults to check it. Someone verifying coverage reads that sentence and stops.
+
+          Those three are audited now (recordGovernance), as are staff activate/deactivate
+          [SHL-6-6], service-pincode writes [SHL-6-11] and garment-type create/delete
+          [DSG-11-13]. But the claim is absolute over ~369 write routes in 56 files, and
+          no page can honestly guarantee that. So it says what it can stand behind, and
+          names the one inference an auditor must not draw. */}
+      <div className={styles.subtitle}>
+        Read-only. Actions are logged where the code records them — with the actor, the
+        time, and (increasingly) the before/after values. Coverage is per-action, not
+        automatic: <strong>the absence of a row is not proof an action did not happen.</strong>{' '}
+        If you are auditing a specific verb, confirm it writes here before relying on this
+        page.
+      </div>
 
       {/* Pinned views: break-glass overrides lead — the highest-trust action */}
       <div className={styles.pinnedViews}>
