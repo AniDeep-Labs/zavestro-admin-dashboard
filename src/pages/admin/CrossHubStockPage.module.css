@@ -88,3 +88,11 @@
   padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 6px;
   font-size: 0.85rem; min-width: 240px; background: var(--color-bg-input, var(--color-bg-card)); color: var(--color-text-primary);
 }
+
+/* [PRC-17-4] Names the scope a count was computed over, when a filter narrows it.
+   Without this, "Below reorder 0" reads as "the network is fine" whether it means that
+   or "the one fabric you filtered to is fine". */
+.scopeNote {
+  font-weight: 400;
+  color: var(--color-text-tertiary);
+}

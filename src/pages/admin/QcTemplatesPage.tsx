@@ -125,9 +125,19 @@ export const QcTemplatesPage: React.FC = () => {
 
       <div className={s.pageHeader}>
         <h1 className={s.title}>QC Templates</h1>
+        {/* [CM-20-5] This described one of the table's two jobs. The same rows are read by
+            checksForLayer('house') in the dispatch gate, so a CM authoring "seam strength"
+            for a FABRIC RECEIPT was simultaneously defining what a FINISHED GARMENT must
+            pass — with nothing on screen saying so. Splitting the two uses into separate
+            templates is a bigger change; saying what these rows actually do is not. */}
         <p className={s.subtitle}>
-          Per-garment-category inbound-QC checklists — which fabric checks are required and their
-          pass tolerances. Drives the receive-QC form from the design's category.
+          Per-garment-category QC checklists — the required checks and their pass tolerances.
+        </p>
+        <p className={s.subtitleWarn}>
+          These rows are used <strong>twice</strong>: on the distribution receive-QC form when
+          fabric arrives, <strong>and</strong> as the house layer of the garment QC gate at
+          dispatch. A check added here has to make sense for both — it decides whether cloth is
+          accepted <em>and</em> whether a finished garment may ship.
         </p>
       </div>
 

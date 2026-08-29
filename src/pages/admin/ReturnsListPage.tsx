@@ -65,9 +65,15 @@ export const ReturnsListPage: React.FC = () => {
 
   // Worklist: pull the newest 100 and group by section client-side (RefundsPage pattern).
   // Closed returns age out naturally since the list is newest-first.
+  //
+  // [SUP-31-5] SEARCH, though, goes to the server. Filtering the loaded 100 in the
+  // browser meant the 101st return could not be found at all — and since the list is
+  // newest-first, "closed returns age out naturally" also means NEEDS ACTION ages out
+  // once volume passes 100. The server also matches customer_phone, which this page
+  // displays as its own column and which is the only identifier a caller reliably has.
   React.useEffect(() => {
     setLoading(true);
-    returnsApi.list({ limit: 100 })
+    returnsApi.list({ limit: 100, search: debouncedSearch || undefined })
       .then(r => {
         setReturns(r.returns);
         // [SCA-44-3] The TRUE counts, from the server, over the whole set.
@@ -76,7 +82,7 @@ export const ReturnsListPage: React.FC = () => {
       })
       .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-  }, [refreshTick]);
+  }, [refreshTick, debouncedSearch]);
 
   React.useEffect(() => {
     if (!selCustomer) { setCustOrders([]); setSelOrderId(''); return; }
@@ -118,20 +124,22 @@ export const ReturnsListPage: React.FC = () => {
     }
   };
 
-  const filtered = debouncedSearch
-    ? returns.filter(r =>
-        r.order_number?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        r.customer_name?.toLowerCase().includes(debouncedSearch.toLowerCase())
-      )
-    : returns;
+  // [SUP-31-5] The server has already applied the search — re-filtering here would
+  // silently drop phone matches, since these rows are matched on digits.
+  const filtered = returns;
 
   const bySection = (key: ReturnSection) => filtered.filter(r => (r.section ?? 'closed') === key);
   // [SCA-44-3] Show what EXISTS, not what happened to load. The header used to
   // count the rows in the browser, so at 101 returns an operator could not tell a
   // quiet day from a truncated list — and nothing on screen changed shape to say so.
-  // While a search filter is active the loaded rows ARE the honest denominator.
+  //
+  // [SUP-31-5] This used to fall back to the loaded count during a search, because the
+  // search ran in the browser and the server's counts described the unfiltered set. The
+  // search is now part of the same WHERE that produces those counts, so they describe
+  // the filtered set and stay authoritative — which matters most here: a phone search
+  // that matches beyond the loaded page would otherwise under-report its own results.
   const sectionCount = (key: ReturnSection, loaded: number) =>
-    !debouncedSearch && sectionCounts ? (sectionCounts[key] ?? loaded) : loaded;
+    sectionCounts ? (sectionCounts[key] ?? loaded) : loaded;
 
   const renderSection = ({ key, title }: { key: ReturnSection; title: string }) => {
     const list = bySection(key);
@@ -205,7 +213,7 @@ export const ReturnsListPage: React.FC = () => {
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>
           <UilSearch size={15} className={styles.searchIcon} />
-          <input className={styles.searchInput} placeholder="Search order or customer…"
+          <input className={styles.searchInput} placeholder="Search order, customer or phone…"
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         {search && (

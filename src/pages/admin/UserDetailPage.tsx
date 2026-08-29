@@ -20,6 +20,8 @@ import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
 import { isDenied, errorMessage } from "../../components/EmptyState/asyncState"; // [SUP-30-4]
 import type { NoteEntry } from "../../components";
 import styles from "./UserDetailPage.module.css";
+import { fmtDate } from "../../utils/date";
+import { orderedMeasurementKeys } from "../../utils/measurements";
 import {
   UilAngleLeft,
   UilGift,
@@ -864,6 +866,29 @@ export const UserDetailPage: React.FC = () => {
                         <span className={styles.flagBadge}>⚠ Flagged incorrect</span>
                       )}
                     </div>
+                    {/* [SUP-30-5] When these numbers were taken, and the two sanity
+                        checks on them. Without a date an agent cannot tell a three-day-old
+                        body from a three-year-old one — and `created_at` was in the payload
+                        the whole time. Height and usual size are what you check a
+                        suspicious profile against; height also drives
+                        garment_length_by_height in the engine. */}
+                    <div className={styles.profileMeta}>
+                      <span>Measured {fmtDate(activeProfile.created_at)}</span>
+                      {activeProfile.height_cm != null && (
+                        <span>Height {activeProfile.height_cm} cm</span>
+                      )}
+                      {activeProfile.usual_size && (
+                        <span>Usually wears {activeProfile.usual_size}</span>
+                      )}
+                    </div>
+                    {activeProfile.measurements_purged_at ? (
+                      /* Gone is not the same as never recorded — say which. */
+                      <div className={styles.profileMeta}>
+                        Measurements were purged on{" "}
+                        {fmtDate(activeProfile.measurements_purged_at)} under the retention
+                        policy.
+                      </div>
+                    ) : null}
                     <div
                       style={{
                         display: "grid",
@@ -871,24 +896,16 @@ export const UserDetailPage: React.FC = () => {
                         gap: "6px 12px",
                       }}
                     >
-                      {(
-                        [
-                          "chest",
-                          "waist",
-                          "hips",
-                          "shoulders",
-                          "sleeve_length",
-                          "neck",
-                          "inseam",
-                          "thigh",
-                          "calf",
-                          "bicep",
-                          "wrist",
-                          "shirt_length",
-                          "kurta_length",
-                          "trouser_length",
-                        ] as const
-                      ).map((field) => {
+                      {/* [SUP-30-5] Render every stored measurement, not a fixed list.
+                          `measurements` is open JSONB and this panel was a hardcoded
+                          14-key allow-list, so anything outside it vanished with no
+                          sign it existed. In the live data that was `knee` on 3
+                          profiles — which is not decoration, size-engine.ts reads it
+                          and knee_ease / hem_vs_knee cut the trouser from it — and
+                          `shoulder` on 1, because the list spelled it "shoulders".
+                          A list of names is a promise to maintain it; the data is the
+                          only thing that can't fall behind itself. */}
+                      {orderedMeasurementKeys(activeProfile.measurements).map((field) => {
                         const v = activeProfile.measurements[field];
                         if (v == null) return null;
                         return (

@@ -50,6 +50,9 @@ export const StaffAssignmentDropdown: React.FC<Props> = ({
 }) => {
   const [staff, setStaff] = React.useState<StaffOption[]>([]);
   const [loading, setLoading] = React.useState(false);
+  // [SUP-29-3] "the request failed" and "there is nobody to assign" are different
+  // facts and used to render identically, because the fetch swallowed its error.
+  const [loadFailed, setLoadFailed] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -65,8 +68,9 @@ export const StaffAssignmentDropdown: React.FC<Props> = ({
         let filtered = result as StaffOption[];
         if (filterRoles?.length) filtered = filtered.filter(s => filterRoles.includes(s.role));
         setStaff(filtered.filter(s => s.is_active));
+        setLoadFailed(false);
       })
-      .catch(() => {})
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }, [hubId, showWorkload, filterRoles?.join(',')]);
 
@@ -158,7 +162,7 @@ export const StaffAssignmentDropdown: React.FC<Props> = ({
           </button>
           {staff.length === 0 && !loading && (
             <div style={{ padding: '12px 14px', fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>
-              No staff available
+              {loadFailed ? "Couldn't load staff — reload to try again" : 'No staff available'}
             </div>
           )}
           {staff.map((s) => {

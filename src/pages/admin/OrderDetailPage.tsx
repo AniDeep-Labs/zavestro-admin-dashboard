@@ -38,6 +38,7 @@ import {
   UilExclamationCircle,
   UilFileAlt,
   UilPauseCircle,
+  UilCalendarAlt,
   UilProcess,
   UilRuler,
   UilShieldCheck,
@@ -107,6 +108,10 @@ function timelineClass(eventType?: string): string {
       return styles.timelineAssign;
     case "hold":
       return styles.timelineHold;
+    // [SUP-29-4] The promised delivery date moving is a customer-facing change, not
+    // an ordinary step — it reads on the timeline as one.
+    case "promise_changed":
+      return styles.timelinePromise;
     case "admin_override":
       return styles.timelineAdmin;
     default:
@@ -126,6 +131,8 @@ function timelineIcon(eventType?: string) {
       return <UilRuler size={13} />;
     case "hold":
       return <UilPauseCircle size={13} />;
+    case "promise_changed":
+      return <UilCalendarAlt size={13} />;
     case "admin_override":
       return <UilFileAlt size={13} />;
     default:

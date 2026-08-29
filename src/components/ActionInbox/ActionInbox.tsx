@@ -36,6 +36,11 @@ const ITEMS: InboxItem[] = [
     label: n => `${n} COD deposit${n === 1 ? '' : 's'} to confirm` },
   { key: 'cod_variances_open', tone: 'blocked', to: '/admin/finance/cod-reconciliation',
     label: n => `${n} COD variance${n === 1 ? '' : 's'} to resolve` },
+  // [PRC-15-8] Above below-reorder on purpose: a shipment that never arrived is cloth
+  // already paid for, gone from the central pool and absent from the hub's shelf. The
+  // supply page has shown a red age chip on these for weeks and nothing acted on it.
+  { key: 'stale_shipments', tone: 'blocked', to: '/admin/procurement/stock',
+    label: n => `${n} shipment${n === 1 ? '' : 's'} unconfirmed for 14+ days` },
   { key: 'below_reorder', tone: 'qc', to: '/admin/procurement/stock',
     label: n => `${n} fabric SKU${n === 1 ? '' : 's'} below reorder` },
   { key: 'listings_oos', tone: 'qc', to: '/admin/catalog/listings',

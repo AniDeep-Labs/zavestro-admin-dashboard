@@ -145,14 +145,14 @@ export const AdminDashboardPage: React.FC = () => {
   const [refreshTick, setRefreshTick] = React.useState(0);
   const refresh = React.useCallback(() => setRefreshTick(t => t + 1), []);
 
-  const revenueTotal = React.useMemo(
-    () => (data?.revenue ?? []).reduce((sum, r) => sum + (r.simplified || 0), 0),
-    [data],
-  );
-  const aov = React.useMemo(() => {
-    const orders = (data?.stats?.totalOrders?.value as number) ?? 0;
-    return orders > 0 ? Math.round(revenueTotal / orders) : 0;
-  }, [data, revenueTotal]);
+  // [SHL-4-3] AOV comes from the server, computed from one period and one revenue
+  // basis. It used to be divided here: `revenueTotal` (period, collected) ÷
+  // `stats.totalOrders` (ALL-TIME), which rendered "Avg. Order Value ₹179" for orders
+  // averaging an order of magnitude more. Two numbers answering different questions,
+  // divided by each other, produce a third that answers neither — and the page had no
+  // way to know it. The client no longer chooses the operands — and the server already
+  // had `avgOrderValue`, correct and with its denominator labelled, going unread.
+  const aov = (data?.stats?.avgOrderValue?.value as number) ?? 0;
   // [SHL-4-2] Average only the hubs that have actually inspected something.
   //
   // The backend used to send the literal 100 per hub and this faithfully averaged

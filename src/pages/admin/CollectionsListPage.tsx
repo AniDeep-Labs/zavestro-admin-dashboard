@@ -31,6 +31,11 @@ export const CollectionsListPage: React.FC = () => {
   const debouncedSearch = useDebounce(search, 300);
 
   const [collections, setCollections] = React.useState<Collection[]>([]);
+  // [CM-21-3] Published, and empty. Computed from what the list already carries.
+  const emptyLive = React.useMemo(
+    () => collections.filter(c => c.status === 'Active' && (c.products ?? 0) === 0),
+    [collections],
+  );
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
@@ -84,6 +89,19 @@ export const CollectionsListPage: React.FC = () => {
           <UilPlus size={15}/> Create Collection
         </button>
       </div>
+
+      {/* [CM-21-3] A live collection with nothing in it is a rail that lands the customer
+          on an empty page. Nothing blocked publishing one, and nothing marked it
+          afterwards — the row honestly showed "0", and a zero in a column reads as a
+          quiet fact rather than a problem. This is the same exception strip the Listings
+          page uses for out-of-stock: the count was always there; what was missing was
+          anyone saying it mattered. */}
+      {emptyLive.length > 0 && (
+        <div className={styles.emptyLiveWarn} role="status">
+          <strong>{emptyLive.length} live {emptyLive.length === 1 ? 'collection has' : 'collections have'} no products.</strong>{' '}
+          Each one is a storefront rail that opens an empty page: {emptyLive.map(c => c.name).join(' · ')}
+        </div>
+      )}
 
       <div className={styles.filterBar}>
         <div className={styles.searchWrap}>

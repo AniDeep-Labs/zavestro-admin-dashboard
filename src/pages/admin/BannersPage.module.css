@@ -14,6 +14,15 @@
 }
 .hint { font-size: 11px; color: var(--color-text-tertiary); margin-top: 3px; display: block; }
 .hintError { color: var(--color-error); }
+/* [CM-22-5] A destination that resolves but is empty is a warning, not an error — the
+   banner will publish, it just may open a page with nothing on it. */
+.warnHint {
+  font-size: 11px;
+  color: var(--color-warning);
+  margin-top: 3px;
+  display: block;
+  font-weight: 500;
+}
 
 /* Live hero preview (gradient set inline — data-driven) */
 .hero {
@@ -64,7 +73,7 @@
 
 /* Preview-on-device button + full-size device modal */
 .devicePreviewBtn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-bg-primary); color: var(--color-text-primary); font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-.devicePreviewBtn:hover { border-color: var(--color-primary, #1F6B4F); color: var(--color-primary, #1F6B4F); }
+.devicePreviewBtn:hover { border-color: var(--color-primary); color: var(--color-primary, #1F6B4F); }
 .devModal { position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,0.62); display: flex; align-items: center; justify-content: center; padding: 24px; }
 .devModalCard { background: var(--color-bg-primary); border-radius: 16px; padding: 20px 22px; max-width: 1180px; width: 100%; max-height: 92vh; overflow: auto; box-shadow: 0 24px 70px rgba(0,0,0,0.4); }
 .devModalHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
@@ -79,7 +88,7 @@
 
 .previewLabelRow { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
 .statusChip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; }
-.statusActive { background: rgba(31,107,79,0.14); color: var(--color-primary, #1F6B4F); }
+.statusActive { background: rgba(31,107,79,0.14); color: var(--color-primary); }
 .statusScheduled { background: rgba(201,153,94,0.18); color: var(--color-gold, #B07F3E); }
 .statusExpired { background: rgba(120,113,108,0.16); color: var(--color-text-secondary); }
 .statusDraft { background: rgba(120,113,108,0.12); color: var(--color-text-tertiary); }
@@ -87,7 +96,7 @@
 .deviceTabs { display: flex; gap: 8px; }
 .deviceTab { flex: 1; padding: 11px; border: 1.5px solid var(--color-border); border-radius: 10px; background: var(--color-bg-primary); color: var(--color-text-secondary); font-size: 13px; font-weight: 700; cursor: pointer; }
 .deviceTab:hover { border-color: var(--color-text-tertiary); }
-.deviceTabOn { border-color: var(--color-primary, #1F6B4F); color: var(--color-primary, #1F6B4F); box-shadow: 0 0 0 2px rgba(31,107,79,0.15); }
+.deviceTabOn { border-color: var(--color-primary); color: var(--color-primary, #1F6B4F); box-shadow: 0 0 0 2px rgba(31,107,79,0.15); }
 .previewDevLabel { font-size: 12px; color: var(--color-text-tertiary); font-weight: 600; }
 
 .deviceToggle { display: inline-flex; background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 999px; padding: 2px; }
@@ -139,7 +148,7 @@
 .layoutGallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .layoutCard { border: 1.5px solid var(--color-border); border-radius: 10px; padding: 6px; cursor: pointer; background: var(--color-bg-primary); display: flex; flex-direction: column; gap: 6px; text-align: left; transition: border-color .15s; }
 .layoutCard:hover { border-color: var(--color-text-tertiary); }
-.layoutCardActive { border-color: var(--color-primary, #1F6B4F); box-shadow: 0 0 0 2px rgba(31,107,79,0.18); }
+.layoutCardActive { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(31,107,79,0.18); }
 .layoutCardLabel { font-size: 11.5px; font-weight: 600; color: var(--color-text-primary); }
 
 /* Segmented controls (text position / colour) */
@@ -147,10 +156,10 @@
 .seg { border: none; background: var(--color-bg-primary); color: var(--color-text-secondary); font-size: 12px; font-weight: 600; padding: 7px 12px; cursor: pointer; border-right: 1px solid var(--color-border); }
 .seg:last-child { border-right: none; }
 .segActive { background: var(--color-primary, #1F6B4F); color: #fff; }
-.slider { width: 100%; accent-color: var(--color-primary, #1F6B4F); }
+.slider { width: 100%; accent-color: var(--color-primary); }
 .sizePresets { display: flex; gap: 6px; margin-top: 6px; }
 .sizePreset { flex: 1; padding: 5px 4px; font-size: 11px; font-weight: 600; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg-primary); color: var(--color-text-secondary); cursor: pointer; }
-.sizePresetOn { border-color: var(--color-primary, #1F6B4F); color: var(--color-primary, #1F6B4F); background: rgba(31,107,79,0.08); }
+.sizePresetOn { border-color: var(--color-primary); color: var(--color-primary, #1F6B4F); background: rgba(31,107,79,0.08); }
 
 /* Studio v3 controls */
 .logoThumb { height: 22px; max-width: 80px; object-fit: contain; background: var(--color-bg-secondary); border-radius: 4px; padding: 2px 4px; }
@@ -373,3 +382,16 @@
 .iconBtnDanger { color: var(--color-error); }
 
 .hidden { display: none; }
+
+/* [CM-22-3] Audience: a global banner reaches every customer; a hub-scoped one reaches
+   only the customers that hub serves. Two different facts, so two different weights. */
+.audienceGlobal {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.audienceHub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+}

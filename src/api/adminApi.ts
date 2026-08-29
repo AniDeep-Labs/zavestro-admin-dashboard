@@ -918,8 +918,10 @@ function mapTicket(t: Record<string, unknown>): SupportTicket {
     resolved: "Resolved",
     closed: "Closed",
   };
+  // [SUP-32-6] `urgent` maps to itself. It used to collapse to "High", which put the top
+  // severity beside genuinely-high tickets with nothing to tell them apart.
   const PRIORITY_MAP: Record<string, SupportTicket["priority"]> = {
-    urgent: "High",
+    urgent: "Urgent",
     high: "High",
     normal: "Medium",
     medium: "Medium",
@@ -975,7 +977,25 @@ export interface SupportInbox {
   counts: { needs_reply: number; waiting: number; resolved: number };
 }
 
+export interface AssignableAgent {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export const supportApi = {
+  /**
+   * [SUP-32-4] Who this ticket can be handed to.
+   *
+   * The dropdown used to read the full admin roster (`/admin/auth/users`), which is
+   * super_admin-only — so for support, the one role that works this page, it 403'd and
+   * rendered empty. This endpoint answers only the picker's question, and the server
+   * decides who qualifies from the capability table rather than the client guessing
+   * from role names.
+   */
+  assignableAgents: (): Promise<AssignableAgent[]> =>
+    req<AssignableAgent[]>("/api/admin/support/assignable"),
+
   create: async (data: Record<string, any>): Promise<SupportTicket> => {
     const raw = await req<Record<string, unknown>>("/api/admin/support", {
       method: "POST",
@@ -1031,7 +1051,10 @@ export const supportApi = {
       Resolved: "resolved",
       Closed: "closed",
     };
+    // [SUP-32-6] Round-trips. Without the Urgent entry, saving an urgent ticket wrote
+    // "high" over it — a silent downgrade performed by merely editing anything else.
     const PRIORITY_TO_DB: Record<string, string> = {
+      Urgent: "urgent",
       High: "high",
       Medium: "normal",
       Low: "low",
@@ -1434,6 +1457,12 @@ export interface Banner {
   bg_color_1: string;
   bg_color_2: string;
   sort_order: number;
+  /**
+   * [CM-22-3] Which hub's customers see this. NULL = everyone. The admin list has always
+   * SELECTed it; nothing rendered it, so "who sees this banner?" was unanswerable from the
+   * page that manages it — and [CM-22-2] made hub_id decide exactly that on the storefront.
+   */
+  hub_id?: string | null;
   is_active: boolean;
   starts_at: string | null;
   ends_at: string | null;
@@ -1833,8 +1862,13 @@ export interface AdminReview {
   user_id: string;
   user_name: string;
   order_id: string;
-  product_id: string;
-  product_name: string;
+  // [SUP-34-2] Nullable in the database: a review can be about a brand, or about
+  // neither. Typed honestly so the compiler catches the `.toLowerCase()` sites.
+  product_id: string | null;
+  product_name: string | null;
+  brand_name: string | null;
+  /** What the review is about: product name, else brand name, else neither. */
+  subject_name: string | null;
   rating: number;
   comment: string | null;
   photo_keys: string[];
@@ -1916,12 +1950,15 @@ export interface ReturnsResponse {
 
 export const returnsApi = {
   list: async (
-    params: { status?: string; page?: number; limit?: number } = {},
+    params: { status?: string; page?: number; limit?: number; search?: string } = {},
   ): Promise<ReturnsResponse> => {
     const qs = new URLSearchParams();
     if (params.status) qs.set("status", params.status);
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
+    // [SUP-31-5] Server-side, so a search reaches past the loaded page — and so it can
+    // match customer_phone, which the browser filter never looked at.
+    if (params.search) qs.set("search", params.search);
     return req<ReturnsResponse>(`/api/admin/returns?${qs}`);
   },
 
@@ -2127,6 +2164,24 @@ export const sampleJobsApi = {
     }),
 
   // Design requests a sample (design × fabric × hub) → goes to the hub.
+  /**
+   * [DSG-12-5] What a request would collide with, before spending a garment of cloth.
+   * `in_flight` means the POST will 409; `reviewed_at` means it will succeed and probably
+   * shouldn't.
+   */
+  precondition: async (input: {
+    design_id: string;
+    fabric_id: string;
+    hub_id: string;
+  }): Promise<{
+    in_flight: { id: string; status: string } | null;
+    reviewed_at: string | null;
+    paired: boolean;
+  }> =>
+    req(
+      `/api/admin/sample-jobs/precondition?design_id=${input.design_id}&fabric_id=${input.fabric_id}&hub_id=${input.hub_id}`,
+    ),
+
   request: async (input: {
     design_id: string;
     fabric_id: string;
@@ -3176,6 +3231,11 @@ export interface NavCounts {
   tickets_open?: number;
   returns_requested?: number;
   stuck_orders?: number;
+  /** T2-15: dead stock flagged for markdown → the CM inbox. Returned all along; the type
+   *  simply never declared it, so nothing could read it without a cast. */
+  markdown_flagged?: number;
+  /** [PRC-15-8] Pushes to a hub still unconfirmed past the stale window. */
+  stale_shipments?: number;
 }
 export const navCountsApi = {
   get: async (): Promise<NavCounts> => req<NavCounts>("/api/admin/nav-counts"),
@@ -3978,6 +4038,13 @@ export const listingsAdminApi = {
 // ─── Catalog-manager listings management ──────────────────────────────────────
 
 export interface CmListing {
+  /**
+   * [CM-19-2] Garments the hub can still cut — computed server-side from worst-case metres
+   * × fabric width × cutting wastage, the same figure the Fabric Stock page and the publish
+   * pre-flight use. Do NOT recompute it from meters_per_garment: that overstates.
+   */
+  garments_available?: number | null;
+  per_garment_meters?: number | null;
   id: string;
   design_id: string;
   fabric_id: string;
@@ -4040,9 +4107,35 @@ export interface CmListingInput {
   allow_below_cost?: boolean; // G-26: confirm an intentional below-cost price
 }
 
+/**
+ * [CM-18-5] Every publish gate, answered before Publish is pressed.
+ *
+ * `can_publish` reflects the two HARD gates only — a below-cost price is overridable and
+ * no-stock is a warning, so treating either as fatal would make the checklist refuse
+ * things the system allows.
+ */
+export interface ListingPreflight {
+  sample: { ok: boolean; detail: string };
+  sew_validated: { ok: boolean; detail: string };
+  price: { ok: boolean; cost_floor: number; detail: string };
+  stock: { ok: boolean; garments_left: number | null; detail: string };
+  can_publish: boolean;
+}
+
 export const cmListingsApi = {
   list: async (): Promise<CmListing[]> =>
     req<CmListing[]>(`/api/admin/listings`),
+  preflight: async (p: {
+    design_id: string;
+    fabric_id: string;
+    hub_id?: string;
+    price?: number;
+  }): Promise<ListingPreflight> => {
+    const qs = new URLSearchParams({ design_id: p.design_id, fabric_id: p.fabric_id });
+    if (p.hub_id) qs.set("hub_id", p.hub_id);
+    if (p.price != null && p.price > 0) qs.set("price", String(p.price));
+    return req<ListingPreflight>(`/api/admin/listings/preflight?${qs}`);
+  },
   ready: async (): Promise<ReadyToListSample[]> =>
     req<ReadyToListSample[]>(`/api/admin/listings/ready`),
   create: async (input: CmListingInput): Promise<{ id: string }> =>
@@ -4090,6 +4183,9 @@ export interface PromoCode {
   created_at: string;
   // T2-34 (F-5): actual redemptions + total ₹ discount spent (net of cancelled/refunded).
   usage_count?: number;
+  /** [PM-26-4] The counter `max_uses` is actually enforced against. Not the same number
+   *  as `usage_count`, which is net of reversals — see the usage cell. */
+  enforced_uses?: number;
   total_spend?: number;
 }
 
@@ -4682,6 +4778,12 @@ export interface AdminFitProfile {
   is_default: boolean;
   measurements: Record<string, number | null>;
   created_at: string;
+  // [SUP-30-5] The two sanity checks on a suspicious profile. height also drives
+  // `garment_length_by_height` in the engine.
+  height_cm: number | null;
+  usual_size: string | null;
+  /** Set once the retention job has purged the numbers — absent is not the same as gone. */
+  measurements_purged_at: string | null;
   flagged_at: string | null;
   flagged_reason: string | null;
 }

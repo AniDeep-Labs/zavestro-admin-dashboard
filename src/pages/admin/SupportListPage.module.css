@@ -83,6 +83,9 @@
 .subject { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .categoryPill { display: inline-block; padding: 2px 8px; background: var(--color-bg-secondary); border-radius: var(--radius-full); font-size: 11px; color: var(--color-text-secondary); white-space: nowrap; }
 .priorityPill { display: inline-block; padding: 2px 8px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); white-space: nowrap; }
+/* [SUP-32-6] Urgent outranks High, so it has to look like it does — solid rather than a
+   tint, because a wash of the same red beside High is what made them interchangeable. */
+.priorityUrgent { background: var(--color-error); color: var(--color-on-accent); }
 .priorityHigh { background: rgba(215, 91, 91,0.08); color: var(--color-error); }
 .priorityMedium { background: rgba(212, 165, 116,0.15); color: #9E7340; }
 .priorityLow { background: rgba(168, 162, 158,0.12); color: var(--color-text-secondary); }

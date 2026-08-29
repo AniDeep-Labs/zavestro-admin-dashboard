@@ -131,8 +131,14 @@ export const ProductsListPage: React.FC = () => {
       {/* T1-30 (P-13): make it unmistakable this is the LEGACY catalog. */}
       <Alert
         type="warning"
-        title="Legacy catalog — edits here do NOT feed the new listings flow"
-        message="This is the old product catalog kept live only for the legacy customer flow until the P5 cutover. To merchandise the new storefront, use Designs → Listings. Changes here won't appear there."
+        title="Legacy catalog — but LIVE: edits here reach customers now"
+        /* [LGC-24-3] The old copy said only "changes here won't appear there" — true about
+           the listings flow, and silent about the direction that matters. These products
+           ARE served by the public /api/catalog/products, and collections, the legacy
+           categories and the home rails all point at this table. "Kept live only for the
+           legacy customer flow" reads as inert; it is in fact the only populated catalogue
+           the storefront has. Both directions, with the customer-facing one first. */
+        message="Products here ARE live on the customer catalogue — the public catalogue, collections and home rails all read this table, so an edit or an archive here reaches customers immediately. It is the OLD catalogue, kept until the P5 cutover: changes here do not appear in Designs → Listings, which is where the new storefront is merchandised."
       />
 
 

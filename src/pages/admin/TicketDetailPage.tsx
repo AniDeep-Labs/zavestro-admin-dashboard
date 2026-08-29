@@ -15,7 +15,6 @@ import type {
   AdminOrder,
   RescueSummary,
 } from "../../api/adminApi";
-import { catalogApi } from "../../api/catalogApi";
 import type { AdminUser } from "../../api/catalogApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
@@ -317,11 +316,19 @@ export const TicketDetailPage: React.FC = () => {
 
   useBreadcrumbTitle(ticket?.subject);
 
+  // [SUP-32-4] Ask who can take this ticket, not for the whole admin roster. The old
+  // call was super_admin-only, so support got a 403 that this `.catch(() => {})`
+  // swallowed: the control rendered with nothing in it and no sign anything had failed,
+  // which is how a dead affordance survives review. A failure here is now visible.
+  const [assignLoadError, setAssignLoadError] = React.useState(false);
   React.useEffect(() => {
-    catalogApi
-      .listAdminUsers()
-      .then(setAdminUsers)
-      .catch(() => {});
+    supportApi
+      .assignableAgents()
+      .then((a) => {
+        setAdminUsers(a as unknown as AdminUser[]);
+        setAssignLoadError(false);
+      })
+      .catch(() => setAssignLoadError(true));
   }, []);
 
   React.useEffect(() => {
@@ -563,15 +570,29 @@ export const TicketDetailPage: React.FC = () => {
                 const current = adminUsers.find(
                   (u) => u.id === ticket.assignedTo,
                 );
+                // [SUP-32-4] The picker is now a narrower list than the full admin
+                // roster, so "not in the list" no longer means "not assigned". A ticket
+                // held by an account that can no longer work tickets must not render as
+                // Unassigned — that would quietly hide a ticket nobody is coming for.
+                const label = current
+                  ? current.name
+                  : ticket.assignedTo
+                    ? "Assigned to an account that can no longer work tickets"
+                    : "Unassigned";
                 return (
                   <span
                     className={current ? styles.metaValue : styles.unassigned}
                     style={{ marginBottom: 4 }}
                   >
-                    {current ? current.name : "Unassigned"}
+                    {label}
                   </span>
                 );
               })()}
+              {assignLoadError && (
+                <span className={styles.unassigned}>
+                  Couldn&rsquo;t load the list of agents — reload to try again.
+                </span>
+              )}
               <select
                 className={styles.fieldSelect}
                 value={selectedAssignee}
@@ -592,15 +613,11 @@ export const TicketDetailPage: React.FC = () => {
                   <option value="__unassign__">— Remove assignment —</option>
                 )}
                 {adminUsers
-                  // G-43: only support-capable roles are offered (a ticket
-                  // shouldn't land with design/procurement/finance). A current
-                  // out-of-scope assignee is still shown so it isn't dropped.
-                  .filter(
-                    (u) =>
-                      u.is_active &&
-                      (["support", "admin", "super_admin"].includes(u.role) ||
-                        u.id === selectedAssignee),
-                  )
+                  // G-43 is now enforced server-side (/support/assignable returns only
+                  // active admins holding customers:write), so there is no role list to
+                  // keep in sync here — and the old one offered super_admin, who cannot
+                  // reply to or assign a ticket at all. An out-of-scope current
+                  // assignee is surfaced in the label above rather than in this list.
                   .map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.name}

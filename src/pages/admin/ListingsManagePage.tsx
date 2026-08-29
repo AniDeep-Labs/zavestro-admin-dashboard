@@ -16,6 +16,7 @@ import type {
   Fabric,
   Hub,
   FabricStockRow,
+  ListingPreflight,
 } from "../../api/adminApi";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -97,6 +98,21 @@ type Editor = {
   inStock?: boolean;
 };
 
+/**
+ * [CM-18-4 / CM-19-2] Garments left comes from the SERVER, not from this page.
+ *
+ * The first version divided available_meters by meters_per_garment in the browser. That
+ * ignores the size run, the fabric width and cutting wastage, so it OVERSTATED the count —
+ * showing ~52 where the Fabric Stock page next door said 46 for the same fabric, which is
+ * exactly the "two definitions in one console" defect [CM-19-4] describes.
+ *
+ * `garments_available` now arrives on the listing payload, computed by the one shared
+ * helper the fabric-stock page and the publish pre-flight also use.
+ */
+
+/** Under this many garments left, the merchant should be reordering, not discovering. */
+const LOW_GARMENTS = 5;
+
 export const ListingsManagePage: React.FC = () => {
   const [listings, setListings] = React.useState<CmListing[]>([]);
   const [ready, setReady] = React.useState<ReadyToListSample[]>([]);
@@ -115,6 +131,17 @@ export const ListingsManagePage: React.FC = () => {
   // T2-27 (CM-1): status tabs. T2-27 (CM-2): live hub stock for the chosen fabric while picking.
   const [tab, setTab] = React.useState<"all" | "ready" | "drafts" | "oos">("all");
   const [editorStock, setEditorStock] = React.useState<FabricStockRow[] | null>(null);
+
+  /**
+   * [CM-18-5] Every publish gate, computed when the editor opens.
+   *
+   * Publishing a blocked draft used to return SAMPLE_REQUIRED and only that — behind it sat
+   * sew-validation, the photo rule and the stock warning, each discovered by fixing the
+   * previous one and pressing Publish again. Three round trips to learn what this editor
+   * already had the inputs to ask about once.
+   */
+  const [preflight, setPreflight] = React.useState<ListingPreflight | null>(null);
+  const [preflightErr, setPreflightErr] = React.useState<unknown>(null);
   const [uploading, setUploading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -268,6 +295,30 @@ export const ListingsManagePage: React.FC = () => {
   const [showBelowCostWarn, setShowBelowCostWarn] = React.useState(false);
   const [belowCostMsg, setBelowCostMsg] = React.useState("");
   const [pendingPublish, setPendingPublish] = React.useState(false);
+
+  // Re-asked whenever the triple or the price changes — those are the only inputs the
+  // answer depends on.
+  const pfDesign = editor?.design_id ?? '';
+  const pfFabric = editor?.fabric_id ?? '';
+  const pfHub = editor?.hub_id ?? '';
+  const pfPrice = editor?.price ?? '';
+  React.useEffect(() => {
+    if (!pfDesign || !pfFabric) { setPreflight(null); setPreflightErr(null); return; }
+    let alive = true;
+    setPreflightErr(null);
+    cmListingsApi
+      .preflight({
+        design_id: pfDesign,
+        fabric_id: pfFabric,
+        hub_id: pfHub || undefined,
+        price: Number(pfPrice) || undefined,
+      })
+      .then((r) => { if (alive) setPreflight(r); })
+      // Kept, not discarded: a checklist that fails to load must say so rather than
+      // silently showing nothing, which reads as "all clear".
+      .catch((e) => { if (alive) { setPreflight(null); setPreflightErr(e); } });
+    return () => { alive = false; };
+  }, [pfDesign, pfFabric, pfHub, pfPrice]);
 
   const save = async (publish: boolean, publishAnyway = false, belowCostOk = false) => {
     if (!editor) return;
@@ -538,12 +589,24 @@ export const ListingsManagePage: React.FC = () => {
                   {l.in_stock === false ? (
                     <div className={s.stockOut}>● Out of stock — fabric short at hub</div>
                   ) : l.in_stock === true ? (
-                    <div className={s.stockOk}>
-                      ● In stock
-                      {l.available_meters != null
-                        ? ` · ${Number(l.available_meters)}m`
-                        : ""}
-                    </div>
+                    (() => {
+                      // [CM-18-4] Garments first — that is the unit this person sells in.
+                      // The metres stay, in brackets, because the restock conversation is
+                      // held in metres.
+                      const left = l.garments_available ?? null;
+                      const low = left != null && left < LOW_GARMENTS;
+                      return (
+                        <div className={low ? s.stockLow : s.stockOk}>
+                          ● {low ? "Running low" : "In stock"}
+                          {left != null
+                            ? ` · ~${left} garment${left === 1 ? "" : "s"}`
+                            : ""}
+                          {l.available_meters != null
+                            ? ` (${Number(l.available_meters)}m)`
+                            : ""}
+                        </div>
+                      );
+                    })()
                   ) : null}
                   {/* G-26: margin vs the cost floor (fabric + make + overhead) */}
                   {(() => {
@@ -630,6 +693,38 @@ export const ListingsManagePage: React.FC = () => {
       >
         {editor && (
           <div className={s.form}>
+            {/* [CM-18-5] The whole answer, before Publish is pressed. Each row states its
+                own verdict, so a draft blocked by two gates shows two crosses instead of
+                revealing the second only after the first is fixed. */}
+            {(preflight != null || preflightErr != null) && (
+              <div className={s.preflight}>
+                <div className={s.preflightHead}>Before this can go live</div>
+                {preflightErr ? (
+                  <div className={s.preflightFail}>
+                    ✕ Couldn&apos;t check the publish gates — Publish will still tell you, one at a time.
+                  </div>
+                ) : (
+                  <>
+                    {([
+                      ['Reviewed sample at this hub', preflight!.sample.ok, preflight!.sample.detail, true],
+                      ['Design passed sew-validation', preflight!.sew_validated.ok, preflight!.sew_validated.detail, true],
+                      ['Price at or above the cost floor', preflight!.price.ok, preflight!.price.detail, false],
+                      ['Fabric at this hub', preflight!.stock.ok, preflight!.stock.detail, false],
+                      // The photo rule is the editor's own — it never needed a round trip.
+                      ['At least one photo', editor.photos.length > 0,
+                        editor.photos.length > 0
+                          ? `${editor.photos.length} attached.`
+                          : 'A listing needs at least one photograph.', false],
+                    ] as [string, boolean, string, boolean][]).map(([label, ok, detail, hard]) => (
+                      <div key={label} className={ok ? s.preflightOk : hard ? s.preflightFail : s.preflightWarn}>
+                        {ok ? '✓' : hard ? '✕' : '⚠'} {label}
+                        <span className={s.preflightDetail}>{detail}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
             {editor.mode === "direct" ? (
               <>
                 <label className={s.field}>
