@@ -8,6 +8,7 @@ import type {
   Distribution,
   HubStockVariance,
   StaleReservation,
+  DeadStock,
 } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -66,6 +67,25 @@ export const CrossHubStockPage: React.FC = () => {
 
   React.useEffect(() => { load(); }, [load]);
   React.useEffect(() => { hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {}); }, []);
+  // [PRC-17-3] Dead stock comes from the server, keyed on the LEDGER.
+  //
+  // This page derived it as `now - hub_fabric_stock.updated_at > 60 days`. That column is
+  // bumped by every write to the row — a reorder-point edit, a reservation, a receipt, a
+  // count — so "no movement for 60+ days" actually meant "nobody has touched this row",
+  // and setting a reorder point on a dusty SKU reset its dead-stock clock.
+  //
+  // On this database the two answers were DISJOINT: the page showed a fabric whose cloth
+  // moved 11 days ago, and hid one idle for 111 days because an edit had touched its row.
+  // The false negative is the expensive half — that is the capital nobody is looking at.
+  //
+  // `GET /fabrics/dead-stock` already computes it from `fabric_stock_movements` and was
+  // built for exactly this; the page simply never called it. (Same figure the CM-side
+  // DeadStockPage shows, so the two surfaces now agree.)
+  const [deadFromLedger, setDeadFromLedger] = React.useState<DeadStock | null>(null);
+  React.useEffect(() => {
+    fabricsApi.deadStock().then(setDeadFromLedger).catch(() => setDeadFromLedger(null));
+  }, []);
+
   // T1-10: count-variance + monthly-count-due by hub.
   const [variance, setVariance] = React.useState<HubStockVariance[]>([]);
   React.useEffect(() => { fabricsApi.hubStockVariance().then(setVariance).catch(() => {}); }, []);
@@ -148,11 +168,18 @@ export const CrossHubStockPage: React.FC = () => {
   const belowReorder = visibleRows.filter(
     (r) => r.reorder_meters != null && Number(r.available_meters) < Number(r.reorder_meters),
   );
-  const deadStock = visibleRows.filter(
-    (r) =>
-      Number(r.available_meters) > 0 &&
-      Date.now() - new Date(r.updated_at).getTime() > DEAD_STOCK_DAYS * 24 * 3_600_000,
-  );
+  // [PRC-17-3] Membership decided by the ledger, rendering kept local (swatch, links and
+  // the drill-in to the movement ledger all live on FabricStockRow).
+  const deadKeys = React.useMemo(() => {
+    const m = new Map<string, { last_movement: string | null; days_idle: number }>();
+    for (const i of deadFromLedger?.items ?? []) {
+      if (i.days_idle >= DEAD_STOCK_DAYS) {
+        m.set(`${i.hub_id}:${i.fabric_id}`, { last_movement: i.last_movement, days_idle: i.days_idle });
+      }
+    }
+    return m;
+  }, [deadFromLedger]);
+  const deadStock = visibleRows.filter((r) => deadKeys.has(`${r.hub_id}:${r.fabric_id}`));
   const totalAvail = visibleRows.reduce((sum, r) => sum + Number(r.available_meters), 0);
   const totalValue = visibleRows.reduce((sum, r) => sum + (value(r) ?? 0), 0);
 
@@ -244,7 +271,15 @@ export const CrossHubStockPage: React.FC = () => {
               <td className={styles.date}>
                 {kind === 'reorder'
                   ? `${Number(r.reorder_meters)}m`
-                  : new Date(r.updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  : (() => {
+                      // [PRC-17-3] The last ledger movement — the column is headed
+                      // "No movement since", and updated_at answers a different question.
+                      const d = deadKeys.get(`${r.hub_id}:${r.fabric_id}`);
+                      if (!d) return '—';
+                      return d.last_movement
+                        ? new Date(d.last_movement).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                        : 'never moved';
+                    })()}
               </td>
               {kind === 'reorder' && (
                 <td className={styles.total}>
