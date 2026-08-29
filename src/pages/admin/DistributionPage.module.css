@@ -78,3 +78,15 @@
   margin-top: 4px;
   font-weight: 400;
 }
+
+/* [PRC-15-6] The variance/cancel note, on the row. It is mandatory to record and was
+   reachable only by hovering the badge, which nothing invited. Truncated rather than
+   wrapped so a long note cannot push the action buttons out of reach. */
+.varianceReason {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}

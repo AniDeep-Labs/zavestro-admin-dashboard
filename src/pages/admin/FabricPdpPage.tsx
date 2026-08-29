@@ -253,7 +253,10 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
                   <p className={s.stockEmpty}>Not stocked at any hub yet. Use “Distribute →” to send some.</p>
                 ) : (
                   <table className={base.table}>
-                    <thead><tr><th>Hub</th><th>Available</th><th>Reserved</th><th>Reorder at</th><th></th></tr></thead>
+                    {/* [PRC-15-9] Held metres arrived, were paid for, and sit on the hub's
+                        shelf failing QC — and no admin page showed them. A hub reading short
+                        gave no hint that some of its cloth was in quarantine. */}
+                    <thead><tr><th>Hub</th><th>Available</th><th>Reserved</th><th>Held (QC)</th><th>Reorder at</th><th></th></tr></thead>
                     <tbody>
                       {fabric.stock!.map((st) => {
                         const editing = st.hub_id in reorderEdits;
@@ -263,6 +266,9 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
                             <td className={s.stockHub}>{st.hub_name}</td>
                             <td className={low ? s.stockLow : undefined}><strong>{st.available_meters}m</strong></td>
                             <td>{st.reserved_meters > 0 ? `${st.reserved_meters}m` : '—'}</td>
+                            <td className={(st.quarantine_meters ?? 0) > 0 ? s.stockLow : undefined}>
+                              {(st.quarantine_meters ?? 0) > 0 ? `${st.quarantine_meters}m` : '—'}
+                            </td>
                             <td>
                               <input
                                 className={s.reorderInput}

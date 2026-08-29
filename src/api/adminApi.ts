@@ -3492,7 +3492,8 @@ export interface Fabric {
   // which is a different fact and the far more common one.
   watched_somewhere?: boolean;
   stock_value?: number | null;
-  stock?: { hub_id: string; hub_name: string; available_meters: number; reserved_meters: number; reorder_meters?: number | null }[];
+  // [PRC-15-9] quarantine_meters is written by the QC hold path and was rendered nowhere.
+  stock?: { hub_id: string; hub_name: string; available_meters: number; reserved_meters: number; quarantine_meters?: number; reorder_meters?: number | null }[];
   // [PRC-14-5] The other half of the fabric's position. Its page used to show hub stock
   // only, so a fabric reading "Demo Hub 60m" could have several hundred metres in the
   // warehouse and more in transit, and the page that decides whether to buy more said
@@ -3865,6 +3866,15 @@ export interface Distribution {
   status: "pushed" | "received" | "cancelled";
   received_meters?: string | number | null;
   variance_reason?: string | null;
+  // [PRC-15-6] Why an in-transit push was CANCELLED. Until migration 252 this note was
+  // written into variance_reason, so one column answered two unrelated questions.
+  cancel_reason?: string | null;
+  /** (received − pushed) / pushed, as a percentage. null when there is no denominator. */
+  variance_pct?: number | string | null;
+  // [PRC-15-13] Who recorded the receipt. Procurement records them on the hub's behalf, so
+  // without this a 400% variance is signed by nobody. null on pre-migration-253 receipts.
+  received_by?: string | null;
+  received_by_name?: string | null;
   // T1-13 inbound QC
   accepted_meters?: string | number | null;
   rejected_meters?: string | number | null;
