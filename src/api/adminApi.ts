@@ -3829,6 +3829,9 @@ export interface StaleReservation {
 export interface FabricStockRow {
   hub_id: string;
   hub_name: string;
+  // [PRC-17-6] Held by QC — arrived, paid for, on the shelf, not available. The query did
+  // not select it, so no cross-hub surface could show it.
+  quarantine_meters?: string | number | null;
   fabric_id: string;
   fabric_code: string;
   fabric_name: string;

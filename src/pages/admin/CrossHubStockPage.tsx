@@ -266,7 +266,11 @@ export const CrossHubStockPage: React.FC = () => {
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead><tr>
-          <th>Hub</th><th>Fabric</th><th>Available</th>
+          {/* [PRC-17-6] Held-by-QC metres. The server did not even SELECT the column for
+              this query, so however much cloth was quarantined the grid could not say —
+              the only surface that ever showed it was FabricAtHubPage, which has no nav
+              entry. Held cloth is owned, paid for, on the shelf, and not sellable. */}
+          <th>Hub</th><th>Fabric</th><th>Available</th><th>Held (QC)</th>
           {kind === 'reorder' ? <th>Reorder at</th> : <th>No movement since</th>}
           {/* T3-4 (W-P4): the raw draw behind the reorder point — makes it checkable, not trusted. */}
           {kind === 'reorder' && <th>Consumed (30d)</th>}
@@ -283,6 +287,13 @@ export const CrossHubStockPage: React.FC = () => {
                 </div>
               </td>
               <td className={styles.total}>{Number(r.available_meters)}m</td>
+              <td className={styles.total}>
+                {Number(r.quarantine_meters ?? 0) > 0 ? (
+                  <span className={styles.heldMeters}>{Number(r.quarantine_meters)}m</span>
+                ) : (
+                  '—'
+                )}
+              </td>
               <td className={styles.date}>
                 {kind === 'reorder'
                   ? `${Number(r.reorder_meters)}m`
