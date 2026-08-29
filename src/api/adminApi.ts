@@ -4183,6 +4183,9 @@ export interface PromoCode {
   created_at: string;
   // T2-34 (F-5): actual redemptions + total ₹ discount spent (net of cancelled/refunded).
   usage_count?: number;
+  /** [PM-26-4] The counter `max_uses` is actually enforced against. Not the same number
+   *  as `usage_count`, which is net of reversals — see the usage cell. */
+  enforced_uses?: number;
   total_spend?: number;
 }
 
