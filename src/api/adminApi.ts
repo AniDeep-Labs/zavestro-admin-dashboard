@@ -1844,8 +1844,13 @@ export interface AdminReview {
   user_id: string;
   user_name: string;
   order_id: string;
-  product_id: string;
-  product_name: string;
+  // [SUP-34-2] Nullable in the database: a review can be about a brand, or about
+  // neither. Typed honestly so the compiler catches the `.toLowerCase()` sites.
+  product_id: string | null;
+  product_name: string | null;
+  brand_name: string | null;
+  /** What the review is about: product name, else brand name, else neither. */
+  subject_name: string | null;
   rating: number;
   comment: string | null;
   photo_keys: string[];

@@ -60,7 +60,7 @@ export const ReviewsListPage: React.FC = () => {
   const filtered = search
     ? reviews.filter(r =>
         r.user_name.toLowerCase().includes(search.toLowerCase()) ||
-        r.product_name.toLowerCase().includes(search.toLowerCase())
+        (r.subject_name ?? '').toLowerCase().includes(search.toLowerCase())
       )
     : reviews;
 
@@ -191,7 +191,11 @@ export const ReviewsListPage: React.FC = () => {
                     {r.verified_purchase && <span className={rs.verifiedChip}>✓ Verified purchase</span>}
                   </td>
                   <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {r.product_name}
+                    {r.subject_name ?? (
+                      <span className={rs.noSubject} title="This review is not linked to a product or brand">
+                        No subject
+                      </span>
+                    )}
                   </td>
                   <td><StarRating rating={r.rating} /></td>
                   <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
