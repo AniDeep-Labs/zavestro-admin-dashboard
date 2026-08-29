@@ -3,6 +3,7 @@ import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA11-3]
 import { useNavigate } from "react-router-dom";
 import {
   usersApi,
+  fetchMoneyConfig,
   ordersApi,
   supportApi,
   alterationsApi,
@@ -54,8 +55,13 @@ const CATEGORIES = [
   "General",
 ];
 const PRIORITIES = ["Low", "Medium", "High"];
-// W-5: above this, a wallet credit is submitted to finance (matches the backend cap).
-const SUPPORT_CREDIT_CAP = 500;
+// W-5: above this, a wallet credit is submitted to finance.
+// [SUP-33-4] Was `const SUPPORT_CREDIT_CAP = 500` — a module constant claiming to
+// "match the backend cap" while the backend reads `support_credit_cap` from config and
+// TicketDetailPage fetches it (T1-23's single-source rule). Change the config and this
+// page silently misroutes: refusing credits the server would allow, or sending finance
+// what it would not. The value below is only the pre-fetch default.
+const SUPPORT_CREDIT_CAP_FALLBACK = 500;
 
 // G-93: PII masking is now SERVER-side. The lookup returns masked contact fields
 // (verify=1); the real values arrive only from customerLookupApi.verify() on a
@@ -93,6 +99,13 @@ export const CallConsolePage: React.FC = () => {
 
   // Problem capture
   const [problemOrderId, setProblemOrderId] = React.useState<string>("");
+  // [SUP-33-4] Single-sourced from the server, as TicketDetailPage already does.
+  const [creditCap, setCreditCap] = React.useState(SUPPORT_CREDIT_CAP_FALLBACK);
+  React.useEffect(() => {
+    fetchMoneyConfig()
+      .then((c) => setCreditCap(c.support_credit_cap))
+      .catch(() => {});
+  }, []);
   const [subject, setSubject] = React.useState("");
   const [category, setCategory] = React.useState(CATEGORIES[0]);
   const [priority, setPriority] = React.useState("Medium");
@@ -316,7 +329,7 @@ export const CallConsolePage: React.FC = () => {
     setBusy("credit");
     try {
       // W-5: over the support cap → submit to finance instead of failing.
-      if (amt > SUPPORT_CREDIT_CAP) {
+      if (amt > creditCap) {
         await usersApi.requestCredit(customer.id, amt, creditReason.trim());
         toast(
           "success",
@@ -325,7 +338,18 @@ export const CallConsolePage: React.FC = () => {
         );
         logActivity(`Credit ₹${amt} requested (finance approval)`, "pending");
       } else {
-        await usersApi.issueCredits(customer.id, amt, creditReason.trim());
+        // [SUP-33-4] Pass the order. `problemOrderId` is chosen on this same screen and
+        // is already forwarded to the ticket and the re-measure — but not to the credit,
+        // and on the server EVERY goodwill guard sits inside `if (order_id)`: the
+        // per-order cap, the 60-minute cooldown, the ₹1,500/90-day rolling customer cap,
+        // the delivered-stage requirement and the 90-day expiry. Omitting it meant the
+        // company's highest-volume goodwill surface was its only unguarded one.
+        await usersApi.issueCredits(
+          customer.id,
+          amt,
+          creditReason.trim(),
+          problemOrderId || undefined,
+        );
         toast(
           "success",
           "Wallet credit issued",
@@ -744,9 +768,9 @@ export const CallConsolePage: React.FC = () => {
                 placeholder="Reason (shown in the wallet ledger)"
                 rows={2}
               />
-              {Number(creditAmount) > SUPPORT_CREDIT_CAP && (
+              {Number(creditAmount) > creditCap && (
                 <p className={styles.cardHint}>
-                  Over the ₹{SUPPORT_CREDIT_CAP} cap — goes to finance for
+                  Over the ₹{creditCap} cap — goes to finance for
                   approval.
                 </p>
               )}
@@ -759,7 +783,7 @@ export const CallConsolePage: React.FC = () => {
                 }
                 state={busy === "credit" ? "loading" : "default"}
               >
-                {Number(creditAmount) > SUPPORT_CREDIT_CAP
+                {Number(creditAmount) > creditCap
                   ? "Request finance approval"
                   : "Issue credit"}
               </Button>
