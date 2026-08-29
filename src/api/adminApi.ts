@@ -2164,6 +2164,24 @@ export const sampleJobsApi = {
     }),
 
   // Design requests a sample (design × fabric × hub) → goes to the hub.
+  /**
+   * [DSG-12-5] What a request would collide with, before spending a garment of cloth.
+   * `in_flight` means the POST will 409; `reviewed_at` means it will succeed and probably
+   * shouldn't.
+   */
+  precondition: async (input: {
+    design_id: string;
+    fabric_id: string;
+    hub_id: string;
+  }): Promise<{
+    in_flight: { id: string; status: string } | null;
+    reviewed_at: string | null;
+    paired: boolean;
+  }> =>
+    req(
+      `/api/admin/sample-jobs/precondition?design_id=${input.design_id}&fabric_id=${input.fabric_id}&hub_id=${input.hub_id}`,
+    ),
+
   request: async (input: {
     design_id: string;
     fabric_id: string;
