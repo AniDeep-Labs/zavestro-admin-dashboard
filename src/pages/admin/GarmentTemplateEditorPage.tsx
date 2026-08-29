@@ -5,6 +5,7 @@ import type { ChartRow, GarmentTemplate, SizePreviewResult, FitPresetDef, Length
 import { Button } from '../../components/Button/Button';
 import { Spinner } from '../../components/Spinner';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useDirtyGuard } from '../../hooks/useDirtyGuard';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
@@ -296,10 +297,17 @@ export const GarmentTemplateEditorPage: React.FC = () => {
     }
     setPresetDraft('');
   };
+  // [DSG-11-11] Removing a preset also removes EVERY chart row authored under it, and
+  // becomes permanent on the next save — the server deletes all garment_fit_preset rows
+  // and re-inserts only what was sent. That was one unconfirmed click on a small ×, with
+  // no count of what went with it and no undo. Ask first, and say what it costs.
+  const [presetToRemove, setPresetToRemove] = React.useState<string | null>(null);
+  const rowsUnderPreset = (p: string) => chart.filter((r) => r.fit_preset === p).length;
   const removePreset = (p: string) => {
     setPresetDefs(presetDefs.filter((x) => x.fit_preset !== p));
     setChart(chart.filter((r) => r.fit_preset !== p));
     if (activePreset === p) setActivePreset(BASE);
+    setPresetToRemove(null);
   };
   const setPresetParam = (name: string, key: string, value: string) => {
     setPresetDefs(
@@ -660,6 +668,25 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   return (
     <div className={base.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
+      <ConfirmDialog
+        open={presetToRemove !== null}
+        variant="danger"
+        title={`Remove the “${presetToRemove}” fit preset?`}
+        message={
+          <>
+            This also removes{' '}
+            <strong>
+              {presetToRemove ? rowsUnderPreset(presetToRemove) : 0} chart row
+              {presetToRemove && rowsUnderPreset(presetToRemove) === 1 ? '' : 's'}
+            </strong>{' '}
+            authored under it. Nothing is lost until you save — but the save deletes them for
+            good, and there is no undo afterwards.
+          </>
+        }
+        confirmLabel="Remove preset"
+        onConfirm={() => presetToRemove && removePreset(presetToRemove)}
+        onCancel={() => setPresetToRemove(null)}
+      />
       <Link to="/admin/design/templates" className={s.back}><UilArrowLeft size={16} /> Back to templates</Link>
       <div className={s.titleRow}>
         <h1 className={s.title}>
@@ -915,7 +942,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
               <div key={d.fit_preset} className={s.presetRow}>
                 <div className={s.presetHead}>
                   <span className={s.presetName}>{d.fit_preset}</span>
-                  <button type="button" className={s.presetRemove} onClick={() => removePreset(d.fit_preset)} aria-label={`Remove ${d.fit_preset}`}>
+                  <button type="button" className={s.presetRemove} onClick={() => setPresetToRemove(d.fit_preset)} aria-label={`Remove ${d.fit_preset}`}>
                     <UilTimes size={14} />
                   </button>
                 </div>
