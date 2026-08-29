@@ -4,6 +4,7 @@ import { cmsApi } from '../../api/adminApi';
 import type { LookbookItem, JournalPost, CustomerStory } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { Alert } from '../../components';
 import styles from './ContentPage.module.css';
 import { UilEditAlt, UilEye, UilEyeSlash, UilPlus, UilSearch, UilTimes, UilTrashAlt } from "@iconscout/react-unicons";
 import { StatusBadge } from '../../components';
@@ -51,8 +52,14 @@ export const ContentPage: React.FC = () => {
   >(null);
   const [deleting, setDeleting] = React.useState(false);
 
-  const validSection = (section as Section) in { lookbook: 1, stories: 1, journal: 1 }
-    ? (section as Section) : 'lookbook';
+  // [LGC-25-2] An unknown section used to fall back to Lookbook silently, with the
+  // address bar still reading e.g. /admin/content/craftspeople — a retired section. A
+  // stale bookmark, a doc link or a search result landed on content the operator did not
+  // ask for, and nothing said the section was gone. Falling back is right (a dead end is
+  // worse); doing it silently is not.
+  const knownSection = (section as Section) in { lookbook: 1, stories: 1, journal: 1 };
+  const validSection = knownSection ? (section as Section) : 'lookbook';
+  const retiredSection = section && !knownSection ? section : null;
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -261,6 +268,31 @@ export const ContentPage: React.FC = () => {
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* [LGC-25-2] The URL asked for a section that no longer exists. Falling back beats
+          a dead end, but silently swapping the content while the address bar still reads
+          the old name means a stale bookmark or doc link lands somewhere the operator did
+          not ask for, with nothing to say why. */}
+      {retiredSection && (
+        <Alert
+          type="warning"
+          title={`The “${retiredSection}” section was retired`}
+          message="Showing Lookbook instead. Update your bookmark or link — this address will not come back."
+        />
+      )}
+
+      {/* [LGC-25-1] This whole console is dormant, and nothing on it said so. Three
+          working authoring surfaces with Add Item / New Post, filters, tables and create
+          modals — and the judgement that none of it is displayed lived only in a code
+          comment the operator cannot see. The house standard is two passes old:
+          HomeSectionsPage and the legacy catalogue both carry a banner. This is the one
+          surface where writing content is GUARANTEED to be wasted, and it was the one
+          without the warning. */}
+      <Alert
+        type="warning"
+        title="Not connected to the storefront — nothing written here is displayed"
+        message="Lookbook, Stories and Journal are authored and stored, but no customer surface reads them yet. Everything below works; none of it reaches anyone. Check before investing time in content here."
+      />
 
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>{TITLES[validSection]}</h1>
