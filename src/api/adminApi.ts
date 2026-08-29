@@ -3213,6 +3213,11 @@ export interface NavCounts {
   tickets_open?: number;
   returns_requested?: number;
   stuck_orders?: number;
+  /** T2-15: dead stock flagged for markdown → the CM inbox. Returned all along; the type
+   *  simply never declared it, so nothing could read it without a cast. */
+  markdown_flagged?: number;
+  /** [PRC-15-8] Pushes to a hub still unconfirmed past the stale window. */
+  stale_shipments?: number;
 }
 export const navCountsApi = {
   get: async (): Promise<NavCounts> => req<NavCounts>("/api/admin/nav-counts"),
