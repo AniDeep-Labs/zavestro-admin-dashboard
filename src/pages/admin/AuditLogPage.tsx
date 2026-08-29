@@ -22,8 +22,18 @@ const LIMIT = 50;
 // and a filter list maintained by hand drifts the moment anyone adds an action. Derived
 // from `SELECT DISTINCT action`, options can only be actions that actually happened.
 
-// Break-glass = manual stage overrides (the Wave-2 reason-required action).
-const BREAK_GLASS_ACTION = 'update_order_stage';
+// [SHL-7-11] Break-glass is BOTH ways an order's stage moves by hand.
+//
+// The chip filtered `update_order_stage` alone. P1-e established that the actual
+// break-glass path is `POST /orders/:id/advance` — gated `system:manage` — which logs
+// `advance_order_stage`. Both rows existed in the log; the pinned view rendered one, and
+// it was the wrong one. A view whose entire job is "show me the overrides" that silently
+// omits the override is worse than no view: it answers the question, incorrectly, and
+// invites you to stop looking.
+//
+// Sent as a comma-separated list; the endpoint matches with `= ANY(...)`.
+const BREAK_GLASS_ACTIONS = ['advance_order_stage', 'update_order_stage'] as const;
+const BREAK_GLASS_ACTION = BREAK_GLASS_ACTIONS.join(',');
 
 // T2-22: entity types with a real detail page — their IDs deep-link to the record.
 const ENTITY_ROUTE: Record<string, ((id: string) => string) | undefined> = {
