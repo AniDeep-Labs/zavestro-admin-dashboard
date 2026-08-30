@@ -99,6 +99,12 @@ export const STATUS_VOCAB: Record<string, VocabEntry> = {
   failed: { label: 'Failed', tone: 'blocked' },
   active: { label: 'Active', tone: 'done' },
   inactive: { label: 'Inactive', tone: 'neutral' },
+  // [SHL-6-3] The same "off" state arrives under two words: the hub API says `Inactive`,
+  // the admin-users API says `Deactivated`. Until one of them wins (an API contract
+  // decision, not a badge one), both are listed here so the badge renders deliberately
+  // rather than by falling through to the generic transform — which happened to look
+  // right, and would have stopped looking right the moment the fallback changed.
+  deactivated: { label: 'Deactivated', tone: 'neutral' },
   draft: { label: 'Draft', tone: 'neutral' },
   live: { label: 'Live', tone: 'done' },
 
