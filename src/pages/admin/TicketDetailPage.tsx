@@ -728,6 +728,21 @@ export const TicketDetailPage: React.FC = () => {
 
       <div className={styles.card}>
         <h3 className={styles.sectionTitle}>Ticket Actions</h3>
+        {/* [SUP-32-8] Say why the card is empty.
+            Every CX lever here is wrapped in `ticket.user_id &&` — re-measure, credit,
+            alteration, return — and the create modal lets a ticket be raised by typing a
+            customer NAME with no lookup. Such a ticket rendered an empty Ticket Actions
+            card with nothing explaining it, so the agent reads "no actions available" as
+            a broken page rather than a missing link. The schema's own comment records the
+            history ("Previously dropped — tickets came in unlinked"); the modal still
+            permits it, so the detail has to cope with it honestly. */}
+        {!ticket.user_id && (
+          <p className={styles.unlinkedNote}>
+            This ticket isn't linked to a customer record, so re-measure, credit, alteration
+            and return can't be raised from it — they all act on a customer. Find the
+            customer and reopen the request from their profile, or from an order.
+          </p>
+        )}
         <div className={styles.actionList}>
           {/* Fit-Promise levers (G-37): the right moves for a fit complaint */}
           {ticket.user_id && (

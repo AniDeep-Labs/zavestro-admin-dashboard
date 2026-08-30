@@ -141,3 +141,15 @@
 
 /* T1-21b Phase 2: flagged rescue signal */
 .rescueFlag { color: var(--color-warning, #b7791f); font-weight: 600; }
+
+/* [SUP-32-8] Why the actions card is empty on an unlinked ticket. Reads as an explanation,
+   not an error — nothing is broken, the ticket simply has no customer behind it. */
+.unlinkedNote {
+  margin: 0 0 var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}

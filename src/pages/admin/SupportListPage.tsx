@@ -198,10 +198,17 @@ export const SupportListPage: React.FC = () => {
       });
       setSelectedCustomer(null);
       setCustomerSearch("");
+      // [SUP-32-8] An unlinked ticket is allowed, but the agent should know what they have
+      // given up: every CX lever on the detail (re-measure, credit, alteration, return)
+      // acts on a customer record and is hidden without one. Better to say it here, while
+      // they still remember who they were talking to, than to leave them at an empty
+      // Ticket Actions card later wondering what is broken.
       showToast(
-        "success",
+        selectedCustomer ? "success" : "warning",
         "Ticket created",
-        `Ticket #${newTicket.id} created successfully.`,
+        selectedCustomer
+          ? `Ticket #${newTicket.id} created successfully.`
+          : `Ticket #${newTicket.id} created, but no customer record is linked — re-measure, credit, alteration and return won't be available on it. Search the customer and create it from their profile to get those.`,
       );
     } catch (e) {
       showToast(
