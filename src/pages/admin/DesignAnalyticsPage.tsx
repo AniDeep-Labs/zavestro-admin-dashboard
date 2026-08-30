@@ -74,7 +74,8 @@ export const DesignAnalyticsPage: React.FC = () => {
       tone: fitPct != null ? toneClass(fitTone(fitPct)) : undefined,
     },
     { label: 'Delivered orders (with a design item)', value: totals ? totals.delivered.toLocaleString('en-IN') : '—' },
-    { label: 'Fit-issue orders', value: totals ? totals.fit_issues.toLocaleString('en-IN') : '—' },
+    // [DSG-13-7] Order-level, not garment-level — see the table header below.
+    { label: 'Orders w/ a fit issue (any item)', value: totals ? totals.fit_issues.toLocaleString('en-IN') : '—' },
   ];
 
   // Exceptions-first: worst fit accuracy leads (then most fit-issue orders).
@@ -94,7 +95,7 @@ export const DesignAnalyticsPage: React.FC = () => {
            page read "Delivered orders 0" while Fit Outcomes, one click away, graded the
            same period at 50% FTR. Both were correct under their own scope; neither stated
            it, so the pair read as a contradiction rather than as two questions. */
-        subtitle="How your designs perform on fit & demand — worst fitters first, so chart/construction fixes surface. Counts ONLY orders containing a design item, so legacy off-the-rack orders are excluded; Fit Outcomes counts every delivered order and will show higher numbers."
+        subtitle="How your designs perform on fit & demand — worst fitters first, so chart/construction fixes surface. Counts ONLY orders containing a design item, so legacy off-the-rack orders are excluded; Fit Outcomes counts every delivered order and will show higher numbers. Fit issues are recorded per ORDER, not per garment, so a multi-item order counts against every design in it — read the ranking as a shortlist to investigate, not a verdict."
       />
 
       <div className={local.toolbar}>
@@ -135,7 +136,22 @@ export const DesignAnalyticsPage: React.FC = () => {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Design</th><th>Units</th><th>Orders</th><th>Fit-issue orders</th><th>Fit accuracy</th></tr>
+            {/* [DSG-13-7] "Fit-issue orders" implied this design caused them. Both fit-issue
+                predicates are ORDER-level, and `alteration_requests` carries no
+                `order_item_id` and no `design_id` — the attribution does not exist at
+                source. In a two-garment order where only the trousers needed altering,
+                BOTH designs are counted, and the table that decides which chart to re-cut
+                would rank an innocent design as a worst fitter. The column says what it
+                actually measures until the schema can say more. */}
+            <tr>
+              <th>Design</th>
+              <th>Units</th>
+              <th>Orders</th>
+              <th title="Orders containing this design where SOME item had a fit issue — alterations are recorded per order, not per garment, so a multi-item order counts against every design in it.">
+                Orders w/ a fit issue (any item)
+              </th>
+              <th>Fit accuracy</th>
+            </tr>
           </thead>
           <tbody>
             {loading ? (
