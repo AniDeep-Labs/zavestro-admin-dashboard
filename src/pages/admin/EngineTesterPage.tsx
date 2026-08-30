@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { designsApi, fabricsApi } from '../../api/adminApi';
+import { ENTERED, provenanceFor } from '../../constants/provenance';
 import type { GarmentCategoryOption, SizePreviewResult, Fabric } from '../../api/adminApi';
 import { PageHeader } from '../../components';
 import { Button } from '../../components/Button/Button';
@@ -60,6 +61,7 @@ export const EngineTesterPage: React.FC = () => {
   const [result, setResult] = React.useState<SizePreviewResult | null>(null);
   // What fabric (if any) was actually folded into the LAST run — so the result meta
   // can say so, rather than the user wondering if the dropdown mattered.
+  const [enteredFields, setEnteredFields] = React.useState<Set<string>>(new Set());
   const [appliedFabric, setAppliedFabric] = React.useState<{ name: string; stretch: number; shrink: number } | null>(null);
   const [running, setRunning] = React.useState(false);
   const [triedRun, setTriedRun] = React.useState(false);
@@ -143,6 +145,16 @@ export const EngineTesterPage: React.FC = () => {
         ...(shrink > 0 ? { shrinkage_pct: shrink } : {}),
       });
       setResult(r);
+      // [DSG-11-19] The engine doesn't tag a field the caller supplied — it just echoes it.
+      // Labelling an echoed input "not stated" would be its own small lie, so remember what
+      // this run actually sent and render those as entered.
+      setEnteredFields(
+        new Set(
+          Object.entries(anchors)
+            .filter(([, v]) => v !== undefined && v !== null && Number.isFinite(Number(v)))
+            .map(([k]) => k),
+        ),
+      );
       setAppliedFabric(fabric ? { name: fabric.name, stretch, shrink } : null);
     } catch (e) {
       // The engine fails loudly with a plain message ("needs chest and shoulder",
@@ -353,16 +365,31 @@ export const EngineTesterPage: React.FC = () => {
                       <tr>
                         <th>Measurement</th>
                         <th className={s.num}>Finished (in)</th>
+                        {/* [DSG-11-19] Where each number came from. A trouser chart has two
+                            columns and this table shows seven fields — without this the five
+                            the engine invented looked exactly like the two you calibrated. */}
+                        <th>Source</th>
                         {hasTolerances && <th className={s.num}>Expected ± </th>}
                       </tr>
                     </thead>
                     <tbody>
                       {Object.entries(result.spec).map(([k, v]) => {
                         const tol = Number(tols[k] ?? 0);
+                        const prov = enteredFields.has(k)
+                          ? ENTERED
+                          : provenanceFor(result.provenance?.[k]);
                         return (
                           <tr key={k}>
                             <td>{k}</td>
                             <td className={`${s.num} ${s.finished}`}>{v}</td>
+                            <td>
+                              <span
+                                className={prov.provisional ? s.provProvisional : s.provSolid}
+                                title={prov.detail}
+                              >
+                                {prov.label}
+                              </span>
+                            </td>
                             {hasTolerances && (
                               <td className={s.num}>{tol > 0 ? `${round(v - tol)} – ${round(v + tol)}` : '—'}</td>
                             )}
@@ -371,6 +398,19 @@ export const EngineTesterPage: React.FC = () => {
                       })}
                     </tbody>
                   </table>
+                  {(() => {
+                    const guessed = Object.keys(result.spec).filter(
+                      (k) => !enteredFields.has(k) && provenanceFor(result.provenance?.[k]).provisional,
+                    );
+                    return guessed.length ? (
+                      <p className={s.provNote}>
+                        <strong>{guessed.length} of {Object.keys(result.spec).length} numbers are not calibrated</strong>{' '}
+                        ({guessed.join(', ')}). They come from national-average relations with a ±4cm
+                        residual, held as provisional until the sew-test run. Adding those columns to
+                        this garment type’s size chart replaces them.
+                      </p>
+                    ) : null;
+                  })()}
                   <p className={s.resultHint}>
                     {hasTolerances ? (
                       <>Target measurements after the "{result.fit_preset}" ease (plus any fabric / body-shape). The band is the expected variance authored on the garment type — it is not what QC judges against. [CM-20-4]</>

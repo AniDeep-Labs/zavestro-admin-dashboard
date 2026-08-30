@@ -250,3 +250,25 @@
   padding-top: var(--spacing-lg);
   line-height: 1.5;
 }
+
+/* [DSG-11-19] Per-field provenance. A guessed number and a calibrated one must not read
+   the same — the whole point of showing the source is that they are different claims. */
+.provSolid {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+.provProvisional {
+  font-size: var(--font-size-xs);
+  color: var(--color-warning);
+  font-weight: 600;
+  cursor: help;
+}
+.provNote {
+  margin: var(--spacing-sm) 0 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-left: 3px solid var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  border-radius: var(--radius-sm);
+}

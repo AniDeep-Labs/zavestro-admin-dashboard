@@ -2844,6 +2844,8 @@ export interface SizePreviewResult {
   fit_preset: string;
   type: string;
   spec: Record<string, number>;
+  /** Per-field authority: where each number came from. Null when the engine did not tag. [DSG-11-19] */
+  provenance?: Record<string, string> | null;
   /**
    * [DSG-9-5] Whether the engine is allowed to drive a real cut (`ENGINE_DRIVES_CUTS`).
    *
