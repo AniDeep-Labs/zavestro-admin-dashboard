@@ -46,14 +46,13 @@ import {
   UilClipboardNotes,
   UilProcess,
 } from "@iconscout/react-unicons";
+import { TICKET_CATEGORIES } from '../../constants/ticketCategories';
 
-const CATEGORIES = [
-  "Fit issue",
-  "Delivery",
-  "Payment / refund",
-  "Order change",
-  "General",
-];
+// [SUP-33-7] One vocabulary, shared with the Support list and the backend contract.
+// This page's list was the only one offering "Fit issue" — the category a made-to-measure
+// brand most needs countable — and the Support list wrote different strings into the same
+// column. The SLUG is stored now, not the label.
+const CATEGORIES = TICKET_CATEGORIES;
 const PRIORITIES = ["Low", "Medium", "High"];
 // W-5: above this, a wallet credit is submitted to finance.
 // [SUP-33-4] Was `const SUPPORT_CREDIT_CAP = 500` — a module constant claiming to
@@ -117,7 +116,7 @@ export const CallConsolePage: React.FC = () => {
       .catch(setCapErr);
   }, []);
   const [subject, setSubject] = React.useState("");
-  const [category, setCategory] = React.useState(CATEGORIES[0]);
+  const [category, setCategory] = React.useState(CATEGORIES[0].slug);
   const [priority, setPriority] = React.useState("Medium");
   const [message, setMessage] = React.useState("");
   const [creating, setCreating] = React.useState(false);
@@ -160,7 +159,7 @@ export const CallConsolePage: React.FC = () => {
     setDetail(null);
     setProblemOrderId("");
     setSubject("");
-    setCategory(CATEGORIES[0]);
+    setCategory(CATEGORIES[0].slug);
     setPriority("Medium");
     setMessage("");
     setRemeasureReason("");
@@ -922,8 +921,8 @@ export const CallConsolePage: React.FC = () => {
             onChange={(e) => setCategory(e.target.value)}
           >
             {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
+              <option key={c.slug} value={c.slug} title={c.hint}>
+                {c.label}
               </option>
             ))}
           </select>

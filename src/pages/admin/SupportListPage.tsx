@@ -15,6 +15,7 @@ import {
   UilSearch,
   UilTimes,
 } from "@iconscout/react-unicons";
+import { TICKET_CATEGORIES } from '../../constants/ticketCategories';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const LIMIT = 25;
@@ -74,7 +75,7 @@ export const SupportListPage: React.FC = () => {
     customerName: "",
     customerPhone: "",
     subject: "",
-    category: "General",
+    category: "general", // [SUP-33-7] the canonical slug, not the old label
     priority: "Medium",
     message: "",
   });
@@ -192,7 +193,7 @@ export const SupportListPage: React.FC = () => {
         customerName: "",
         customerPhone: "",
         subject: "",
-        category: "General",
+        category: "general", // [SUP-33-7] the canonical slug, not the old label
         priority: "Medium",
         message: "",
       });
@@ -724,10 +725,13 @@ export const SupportListPage: React.FC = () => {
                     value={form.category}
                     onChange={(e) => setF("category", e.target.value)}
                   >
-                    <option>General</option>
-                    <option>Order Issue</option>
-                    <option>Return/Refund</option>
-                    <option>Technical Support</option>
+                    {/* [SUP-33-7] The same list the Call Console offers. This one had no
+                        "Fit issue" at all, so a fit complaint logged here was uncountable. */}
+                    {TICKET_CATEGORIES.map((c) => (
+                      <option key={c.slug} value={c.slug} title={c.hint}>
+                        {c.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className={styles.field}>
