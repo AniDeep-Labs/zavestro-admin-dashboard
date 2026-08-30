@@ -2432,6 +2432,8 @@ export interface GarmentCategoryOption {
   name: string;
   slug: string;
   body_region: string | null;
+  /** Which block the fit engine drafts this on: mens_upper | womens_upper | lower. [DSG-11-7] */
+  drafting_block?: string | null;
   capture_set: unknown;
   pain_point_menu: Record<string, unknown> | null;
   body_shape_menu?: Record<string, Record<string, number>> | null;
@@ -2450,6 +2452,11 @@ export interface GarmentCategoryOption {
 export interface CreateGarmentCategoryInput {
   name: string;
   body_region: "upper" | "lower";
+  /**
+   * Which block the engine drafts this on. Optional for back-compat; an upper garment
+   * without it defaults to the men's block, exactly as before. [DSG-11-7]
+   */
+  drafting_block?: "mens_upper" | "womens_upper" | "lower";
   garment_types?: string[];
   description?: string | null;
 }
@@ -2494,6 +2501,8 @@ export interface GarmentTemplate {
   pain_point_menu: Record<string, Record<string, number>> | null;
   body_shape_menu?: Record<string, Record<string, number>> | null;
   tolerances?: Record<string, number> | null;
+  /** Which block the fit engine drafts this on: mens_upper | womens_upper | lower. */
+  drafting_block?: string | null;
   /** null when this garment type has no spec row — it cannot be cut yet. */
   cutting_spec?: CuttingSpec | null;
   /** Where QC thresholds really live, so the editor can stop implying it owns them. */
@@ -2511,7 +2520,11 @@ export interface GarmentTemplate {
 }
 export interface FitPresetDef {
   fit_preset: string;
-  params: Record<string, number>;
+  /**
+   * Ease values, EXCEPT the women's-block silhouette modes (`waist_mode`, `hem_mode`),
+   * which are enums. The backend validator accepts exactly those two as strings. [DSG-11-7]
+   */
+  params: Record<string, number | string>;
 }
 export interface LengthBand {
   length_field?: string;

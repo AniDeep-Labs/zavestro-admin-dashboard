@@ -3,6 +3,14 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { designsApi } from '../../api/adminApi';
 import type { ChartRow, GarmentTemplate, SizePreviewResult, FitPresetDef, LengthBand } from '../../api/adminApi';
 import { isValidSizeLabel, sizeLabelError } from '../../constants/sizeLabel';
+import {
+  DRAFTING_BLOCK_HINTS,
+  DRAFTING_BLOCK_LABELS,
+  HEM_MODES,
+  WAIST_MODES,
+  blockOf,
+  isModeParam,
+} from '../../constants/draftingBlock';
 import { Button } from '../../components/Button/Button';
 import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { Spinner } from '../../components/Spinner';
@@ -38,8 +46,11 @@ const CUTTING_SPEC_FIELDS = [
 type CuttingSpecField = (typeof CUTTING_SPEC_FIELDS)[number]['key'];
 const BLANK_SPEC = Object.fromEntries(CUTTING_SPEC_FIELDS.map((f) => [f.key, ''])) as Record<CuttingSpecField, string>;
 
+// Keyed by DRAFTING BLOCK, not body_region — the women's block measures a bust and an
+// underbust (the two the bust dart is computed from), never a chest. [DSG-11-7]
 const STANDARD_FIELDS: Record<string, string[]> = {
-  upper: ['chest', 'shoulder', 'sleeve', 'neck', 'bicep', 'waist'],
+  mens_upper: ['chest', 'shoulder', 'sleeve', 'neck', 'bicep', 'waist'],
+  womens_upper: ['bust', 'underbust', 'shoulder', 'waist', 'hip', 'length'],
   lower: ['waist', 'hip', 'thigh', 'knee', 'calf', 'inseam'],
 };
 // Clean labels for the preview anchors (auto-humanising gives ugly "Height Cm").
@@ -62,11 +73,29 @@ const ANCHOR_LABELS: Record<string, string> = {
 // cannot be buttoned, a sleeve at the exact bicep girth cannot be bent into. The engine applies
 // these regardless of what is typed, so the editor says so rather than letting a designer
 // believe a number that will not be used.
-const PRESET_PARAM_FIELDS: Record<string, { key: string; label: string; hint: string; floor?: number }[]> = {
-  upper: [
+const PRESET_PARAM_FIELDS: Record<
+  string,
+  { key: string; label: string; hint: string; floor?: number; options?: readonly string[] }[]
+> = {
+  mens_upper: [
     { key: 'chest_ease', label: 'Chest ease', hint: 'roominess added across the chest' },
     { key: 'waist_supp', label: 'Waist suppression', hint: 'how much to take IN at the waist (more = more fitted)' },
     { key: 'hem_supp', label: 'Hem suppression', hint: 'how much to taper the bottom hem' },
+    { key: 'shoulder_ease', label: 'Shoulder ease', hint: 'extra across the shoulders' },
+    { key: 'sleeve_ease', label: 'Sleeve ease', hint: 'extra sleeve length' },
+    { key: 'neck_ease', label: 'Neck ease', hint: 'extra room at the neck', floor: 0.5 },
+    { key: 'bicep_ease', label: 'Bicep ease', hint: 'extra sleeve width at the bicep', floor: 1 },
+  ],
+  // [DSG-11-7] The women's block (buildWomensUpper). These fields existed in the engine and
+  // had no authoring surface at all, so Saree Blouse and Salwar Kameez were calibrated with
+  // men's-top parameters that their block never reads. Two of them are MODES, not
+  // measurements — which is why the params validator had to stop being numbers-only.
+  womens_upper: [
+    { key: 'bust_ease', label: 'Bust ease', hint: 'roominess added across the bust' },
+    { key: 'waist_mode', label: 'Waist', hint: 'suppress = nipped in · straight = boxy · flare = nipped then flared', options: WAIST_MODES },
+    { key: 'waist_ease', label: 'Waist ease', hint: 'only read when Waist is "suppress"' },
+    { key: 'hem_mode', label: 'Hem', hint: 'hip = sits at the hip · chest = falls straight from the bust · flare = fixed width', options: HEM_MODES },
+    { key: 'hem_value', label: 'Hem value', hint: 'ease over the hip, or the flare width — not read when Hem is "chest"' },
     { key: 'shoulder_ease', label: 'Shoulder ease', hint: 'extra across the shoulders' },
     { key: 'sleeve_ease', label: 'Sleeve ease', hint: 'extra sleeve length' },
     { key: 'neck_ease', label: 'Neck ease', hint: 'extra room at the neck', floor: 0.5 },
@@ -313,7 +342,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
 
   // ── field + preset chips ──
   const fillStandardFields = () => {
-    const std = STANDARD_FIELDS[tpl?.body_region ?? ''] ?? [];
+    const std = STANDARD_FIELDS[blockOf(tpl)] ?? [];
     if (std.length === 0) return;
     setFields((prev) => Array.from(new Set([...prev, ...std])));
     setCaptureSet((prev) => Array.from(new Set([...prev, ...std])));
@@ -371,6 +400,9 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         if (d.fit_preset !== name) return d;
         const params = { ...d.params };
         if (value.trim() === '') delete params[key];
+        // A silhouette MODE is an enum, not a measurement — Number('suppress') is NaN, which
+        // would reach the engine as a broken param. [DSG-11-7]
+        else if (isModeParam(key)) params[key] = value;
         else params[key] = Number(value);
         return { ...d, params };
       }),
@@ -601,10 +633,21 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       //
       // So the save makes every field explicit. What is stored is now what the designer can
       // see, and "I meant zero" and "I did not fill this in" can no longer produce the same row.
-      const presetFields = (PRESET_PARAM_FIELDS[tpl?.body_region ?? 'upper'] ?? []).map((f) => f.key);
+      // [DSG-11-7] "Explicit" means the field's own default, not 0. Zero is a meaningful ease
+      // but not a legal silhouette MODE, and writing 0 into waist_mode made the save 422 on
+      // every preset the author hadn't touched. The defaults below are what buildWomensUpper
+      // already does when the mode is absent (it falls through to the straight/chest branch),
+      // so making them explicit states existing behaviour rather than changing it.
       const explicitPresetDefs = presetDefs.map((d) => {
         const params = { ...d.params };
-        for (const key of presetFields) if (params[key] === undefined) params[key] = 0;
+        for (const f of PRESET_PARAM_FIELDS[blockOf(tpl)] ?? []) {
+          if (params[f.key] !== undefined) continue;
+          // A mode gets the engine's implicit default; a FLOORED ease gets its floor, not 0.
+          // The engine applies the floor regardless of what is stored (the note beside the
+          // field says so), so writing 0 stored a number that was never used AND made the
+          // save 400 on every newly created garment type, whose presets start empty.
+          params[f.key] = f.options ? f.options[0] : (f.floor ?? 0);
+        }
         return { ...d, params };
       });
       const saved = await designsApi.saveTemplate(id, {
@@ -701,7 +744,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
     );
 
   const presetTabs = [BASE, ...presets];
-  const paramFields = PRESET_PARAM_FIELDS[tpl.body_region ?? 'upper'] ?? PRESET_PARAM_FIELDS.upper;
+  const paramFields = PRESET_PARAM_FIELDS[blockOf(tpl)] ?? PRESET_PARAM_FIELDS.mens_upper;
 
   // Completeness (W-10): an incomplete chart starves the fit engine (G-35 note).
   // Ready = fields defined + ≥1 BASE chart row with measurements.
@@ -829,7 +872,13 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       <div className={s.titleRow}>
         <h1 className={s.title}>
           {tpl.name} <span className={s.sub}>· fit recipe</span>
-          {tpl.body_region && <span className={s.regionChip}>{tpl.body_region} body · locked</span>}
+          {/* Name the BLOCK, not just the region: "upper body" is true of both the men's and
+              the women's block, and they draft differently. [DSG-11-7] */}
+          {tpl.body_region && (
+            <span className={s.regionChip} title={DRAFTING_BLOCK_HINTS[blockOf(tpl)]}>
+              {DRAFTING_BLOCK_LABELS[blockOf(tpl)]} · locked
+            </span>
+          )}
         </h1>
         {dirty && <span className={s.dirtyBadge}>● Unsaved changes</span>}
       </div>
@@ -1100,18 +1149,33 @@ export const GarmentTemplateEditorPage: React.FC = () => {
                     <label key={f.key} className={s.presetParam}>
                       <span className={s.presetParamLabel}>{f.label}</span>
                       <span className={s.easeHint}>{f.hint}</span>
-                      <span className={s.easeInputWrap}>
-                      <input
-                        className={s.presetParamInput}
-                        type="number"
-                        step="0.5"
-                        value={d.params[f.key] ?? ''}
-                        placeholder="0"
-                        onChange={(e) => setPresetParam(d.fit_preset, f.key, e.target.value)}
-                      />
-                      <span className={s.easeUnit}>in</span>
-                      </span>
-                      {f.floor !== undefined && Number(d.params[f.key] ?? 0) < f.floor && (
+                      {/* Two of the women's-block params are MODES, not measurements — a
+                          number input would be meaningless for them. [DSG-11-7] */}
+                      {f.options ? (
+                        <select
+                          className={s.presetParamInput}
+                          value={String(d.params[f.key] ?? '')}
+                          onChange={(e) => setPresetParam(d.fit_preset, f.key, e.target.value)}
+                        >
+                          <option value="">—</option>
+                          {f.options.map((o) => (
+                            <option key={o} value={o}>{o}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={s.easeInputWrap}>
+                          <input
+                            className={s.presetParamInput}
+                            type="number"
+                            step="0.5"
+                            value={d.params[f.key] ?? ''}
+                            placeholder="0"
+                            onChange={(e) => setPresetParam(d.fit_preset, f.key, e.target.value)}
+                          />
+                          <span className={s.easeUnit}>in</span>
+                        </span>
+                      )}
+                      {!f.options && f.floor !== undefined && Number(d.params[f.key] ?? 0) < f.floor && (
                         <span className={s.easeFloorNote}>
                           the engine applies a {f.floor}in minimum here — a garment cut to the
                           exact body girth at this point cannot be put on

@@ -11,6 +11,12 @@ import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import styles from './OrdersListPage.module.css';
 import { UilAngleRightB, UilPlus, UilTimes, UilTrashAlt } from '@iconscout/react-unicons';
 import { StatusBadge } from '../../components';
+import {
+  DRAFTING_BLOCKS,
+  DRAFTING_BLOCK_HINTS,
+  DRAFTING_BLOCK_LABELS,
+  type DraftingBlock,
+} from '../../constants/draftingBlock';
 
 export const GarmentTypeTemplatesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -42,13 +48,18 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
   // ── create-category form (design self-serve) ──
   const [showCreate, setShowCreate] = React.useState(false);
   const [cName, setCName] = React.useState('');
-  const [cRegion, setCRegion] = React.useState<'upper' | 'lower'>('upper');
+  // [DSG-11-7] The author picks the BLOCK, and the body region follows from it. Before this
+  // the choice was upper/lower only, so every womenswear garment was created "upper" and
+  // drafted through the men's block — the engine's women's path (bust, bust dart,
+  // silhouette) was unreachable from this console for the whole womenswear catalogue.
+  const [cBlock, setCBlock] = React.useState<DraftingBlock>('mens_upper');
+  const cRegion: 'upper' | 'lower' = cBlock === 'lower' ? 'lower' : 'upper';
   const [cTypes, setCTypes] = React.useState<string[]>([]);
   const [typeDraft, setTypeDraft] = React.useState('');
   const [creating, setCreating] = React.useState(false);
 
   const resetCreate = () => {
-    setShowCreate(false); setCName(''); setCRegion('upper'); setCTypes([]); setTypeDraft('');
+    setShowCreate(false); setCName(''); setCBlock('mens_upper'); setCTypes([]); setTypeDraft('');
   };
   const addType = () => {
     const t = typeDraft.trim();
@@ -60,7 +71,7 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
     setCreating(true);
     try {
       const created = await designsApi.createGarmentCategory({
-        name: cName.trim(), body_region: cRegion, garment_types: cTypes,
+        name: cName.trim(), body_region: cRegion, drafting_block: cBlock, garment_types: cTypes,
       });
       toast('success', `Created "${created.name}"`, 'Now set its chart, capture-set & fit presets.');
       resetCreate();
@@ -195,7 +206,11 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
                         ? c.garment_types.join(', ')
                         : <span style={{ opacity: 0.5 }}>—</span>}
                     </td>
-                    <td style={{ textTransform: 'capitalize', color: 'var(--color-text-secondary)' }}>{c.body_region ?? '—'}</td>
+                    <td style={{ color: 'var(--color-text-secondary)' }}>
+                      {c.drafting_block
+                        ? DRAFTING_BLOCK_LABELS[c.drafting_block as DraftingBlock] ?? c.drafting_block
+                        : (c.body_region ?? '—')}
+                    </td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>
                       {captureCount(c) > 0 ? `${captureCount(c)} fields` : <span style={{ opacity: 0.5 }}>none</span>}
                     </td>
@@ -263,11 +278,13 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
           </div>
           <div className={styles.formField}>
             <label className={styles.formLabel}>Body region</label>
-            <select className={styles.formControl} value={cRegion} onChange={(e) => setCRegion(e.target.value as 'upper' | 'lower')}>
-              <option value="upper">Upper body (chest / shoulder — shirts, kurtas…)</option>
-              <option value="lower">Lower body (waist / hip — trousers, skirts…)</option>
+            <select className={styles.formControl} value={cBlock} onChange={(e) => setCBlock(e.target.value as DraftingBlock)}>
+              {DRAFTING_BLOCKS.map((b) => (
+                <option key={b} value={b}>{DRAFTING_BLOCK_LABELS[b]}</option>
+              ))}
             </select>
-            <p className={styles.formHint}>Decides which measurements the engine asks for. You can't change this later, so pick carefully.</p>
+            <p className={styles.formHint}>{DRAFTING_BLOCK_HINTS[cBlock]}</p>
+            <p className={styles.formHint}>Decides which measurements the engine asks for and how the garment is drafted. You can't change this later, so pick carefully.</p>
           </div>
           <div className={styles.formField}>
             <label className={styles.formLabel}>Cuts it can make (optional)</label>
