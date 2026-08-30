@@ -36,10 +36,20 @@ function useDebounce<T>(v: T, d: number) {
 export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [editing, setEditing] = React.useState<{ open: boolean; id?: string }>({ open: Boolean(autoNew) });
-  // Closing the editor restores the clean /library URL when it was opened via the /new deep-link.
+  // [DSG-10-3] The wizard's open state IS the URL. It used to be local state that the
+  // "New design" button set directly, so the button pushed no history entry: a designer
+  // five steps in who pressed browser-back — the reflexive "close this" gesture — left the
+  // page entirely and lost the work, with the ● Unsaved badge on screen and no prompt
+  // (`beforeunload` does not fire for an in-app route change). The /new route already
+  // existed and already behaved; the button just wasn't using it.
+  //
+  // Deriving from the URL rather than syncing to it matters: navigating /library → /new
+  // renders the same component with a different prop, so React does not remount and an
+  // initial-state read of `autoNew` would never fire.
+  const editorOpen = Boolean(autoNew);
+  const openEditor = () => navigate('/admin/design/library/new');
   const closeEditor = () => {
-    setEditing({ open: false });
+    // `replace` so closing doesn't leave /new in history for back to re-open.
     if (location.pathname.endsWith('/new')) navigate('/admin/design/library', { replace: true });
   };
   const [status, setStatus] = React.useState('');
@@ -88,9 +98,9 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
   // T3-5 (W-D3): the tag/drop options for the filter — refreshed when the editor closes
   // (a save may add a new tag).
   React.useEffect(() => {
-    if (editing.open) return;
+    if (editorOpen) return;
     designsApi.tags().then(setTagOptions).catch(() => {});
-  }, [editing.open]);
+  }, [editorOpen]);
 
   return (
     <div className={base.page}>
@@ -102,7 +112,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
             Every design you've created. Author it here, pair it with fabric, request a sample — then catalog lists it for customers to buy.
           </p>
         </div>
-        <Button variant="primary" onClick={() => setEditing({ open: true })}>
+        <Button variant="primary" onClick={openEditor}>
           <UilPlus size={16} /> New design
         </Button>
       </div>
@@ -185,7 +195,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
               icon={<UilImage size={30} />}
               title="No designs yet"
               body="Create your first design — pair it with fabric, sample it, then list it."
-              action={{ label: 'New design', onClick: () => setEditing({ open: true }) }}
+              action={{ label: 'New design', onClick: openEditor }}
             />
           );
         return (
@@ -287,8 +297,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
       )}
 
       <DesignEditorModal
-        open={editing.open}
-        designId={editing.id}
+        open={editorOpen}
         onClose={closeEditor}
         onSaved={() => { closeEditor(); load(true, 0); }}
       />

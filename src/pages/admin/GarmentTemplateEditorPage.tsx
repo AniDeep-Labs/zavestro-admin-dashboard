@@ -209,8 +209,20 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const [pvBusy, setPvBusy] = React.useState(false);
   // Dirty tracking via a load-time snapshot (no per-setter instrumentation).
   const [baseline, setBaseline] = React.useState('');
+  // [DSG-11-16] The dirty guard covers beforeunload and in-app logout, but NOT an in-app
+  // route change — react-router's useBlocker isn't available under <Routes>. This page puts
+  // its two likeliest exits exactly where the guard doesn't reach: "Back to templates" is
+  // the first link on the page, and Cancel sits in the sticky bottom bar next to Save,
+  // while the ● Unsaved badge is at the top of a ~4,200px document the author has scrolled
+  // away from. Verified before the fix: dirty, click Back, gone with no prompt.
+  //
+  // So the page confirms in its OWN handlers. No router upgrade, and it covers the exits
+  // that actually get used.
+  const [leaveTo, setLeaveTo] = React.useState<string | null>(null);
   const dirty = !loading && baseline !== '' && baseline !== snap(captureSet, presetDefs, chart, pains, garmentTypes, lengthBands, shapes, tolerances, cuttingSpec);
   useDirtyGuard(dirty);
+  /** Leave, or ask first when there is unsaved work. */
+  const leave = (to: string) => (dirty ? setLeaveTo(to) : navigate(to));
 
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
@@ -775,6 +787,20 @@ export const GarmentTemplateEditorPage: React.FC = () => {
     <div className={base.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
       <ConfirmDialog
+        open={leaveTo !== null}
+        variant="danger"
+        title="Leave without saving?"
+        message="This fit recipe has changes that haven't been saved. Leaving now discards them — the chart, ease values and cutting spec go back to what they were."
+        confirmLabel="Discard changes"
+        cancelLabel="Keep editing"
+        onConfirm={() => {
+          const to = leaveTo;
+          setLeaveTo(null);
+          if (to) navigate(to);
+        }}
+        onCancel={() => setLeaveTo(null)}
+      />
+      <ConfirmDialog
         open={presetToRemove !== null}
         variant="danger"
         title={`Remove the “${presetToRemove}” fit preset?`}
@@ -793,7 +819,13 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         onConfirm={() => presetToRemove && removePreset(presetToRemove)}
         onCancel={() => setPresetToRemove(null)}
       />
-      <Link to="/admin/design/templates" className={s.back}><UilArrowLeft size={16} /> Back to templates</Link>
+      <button
+        type="button"
+        className={s.back}
+        onClick={() => leave('/admin/design/templates')}
+      >
+        <UilArrowLeft size={16} /> Back to templates
+      </button>
       <div className={s.titleRow}>
         <h1 className={s.title}>
           {tpl.name} <span className={s.sub}>· fit recipe</span>
@@ -1317,7 +1349,10 @@ export const GarmentTemplateEditorPage: React.FC = () => {
           placeholder="What changed? (optional — recorded in the audit log)"
           onChange={(e) => setNote(e.target.value)}
         />
-        <Button variant="ghost" onClick={() => navigate('/admin/design/templates')}>Cancel</Button>
+        {/* The badge also lives at the top of the document; repeat it here, beside the
+            exits, because that is where the decision to leave is actually made. */}
+        {dirty && <span className={s.dirtyBadge}>● Unsaved changes</span>}
+        <Button variant="ghost" onClick={() => leave('/admin/design/templates')}>Cancel</Button>
         <Button variant="primary" state={saving ? 'loading' : 'default'} onClick={save}>Save template</Button>
       </div>
 

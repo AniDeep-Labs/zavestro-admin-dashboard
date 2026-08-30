@@ -4,14 +4,21 @@
   align-items: center;
   min-height: 40vh;
 }
+/* Used by both the <Link>s in the load/error states and the guarded <button> that
+   replaced the main one, so it carries the button resets too. [DSG-11-16] */
 .back {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+  font-family: inherit;
   text-decoration: none;
   margin-bottom: var(--spacing-sm);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
 .back:hover {
   color: var(--color-text);
