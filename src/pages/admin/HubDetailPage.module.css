@@ -154,3 +154,40 @@
 .activityTitle { font-size: var(--font-size-base); color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
 .activitySub { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
 .activityMeta { font-size: 12px; color: var(--color-text-tertiary); }
+
+/* [SHL-6-4] The hub's situation in one line, each number a way into the console that owns
+   it. The hub is the object that ties the dark-store together; its page should not be the
+   one that cannot answer what it is holding. */
+.situationStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin: 0 0 var(--spacing-md);
+}
+
+.situationItem {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.situationItem:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.situationItem strong {
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Said plainly rather than shown as zeros — a strip of confident 0s would be the same
+   fabricated impression this page family keeps producing. */
+.situationErr {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}

@@ -59,6 +59,23 @@ export const HubDetailPage: React.FC = () => {
     hubsApi.activity(id).then(setActivity).catch(() => setActivity([]));
   }, [id, isNew]);
 
+  // [SHL-6-4] "What is this hub's situation?" answered on the hub's own page.
+  //
+  // The one object that ties the dark-store together was the one page that did not connect
+  // to its parts: the roster lived in Staff Management, the pincodes in Service Areas and
+  // the stock in the procurement console, so the question took three navigations and a
+  // mental join. These are the same counts [SHL-6-2] measures for the deactivate confirm —
+  // read once on load, so the page can answer before anyone clicks anything.
+  React.useEffect(() => {
+    if (!id || id === 'new') return;
+    hubsApi
+      .blastRadius(id)
+      .then(setSituation)
+      .catch((e) => setSituationErr(e instanceof Error ? e.message : 'could not be loaded'));
+  }, [id]);
+  const [situation, setSituation] = React.useState<HubBlastRadius | null>(null);
+  const [situationErr, setSituationErr] = React.useState<string | null>(null);
+
   // [SHL-6-2] What this hub is holding, measured before the operator is asked to confirm.
   const [blast, setBlast] = React.useState<HubBlastRadius | null>(null);
   const [blastErr, setBlastErr] = React.useState<string | null>(null);
@@ -385,6 +402,35 @@ export const HubDetailPage: React.FC = () => {
       />
 
       {hub.status === 'Inactive' && <div className={styles.inactiveBanner}>This hub is inactive. It is not accepting new orders.</div>}
+
+      {/* [SHL-6-4] The hub's situation, with a way into each part of it. */}
+      <div className={styles.situationStrip}>
+        {situationErr && !situation ? (
+          <span className={styles.situationErr}>
+            Couldn't load this hub's situation ({situationErr}).
+          </span>
+        ) : !situation ? (
+          <span className={styles.situationErr}>Loading this hub's situation…</span>
+        ) : (
+          <>
+            <button className={styles.situationItem} onClick={() => navigate(`/admin/orders?hub_id=${id}`)}>
+              <strong>{situation.active_orders}</strong> active order{situation.active_orders === 1 ? '' : 's'}
+            </button>
+            <button className={styles.situationItem} onClick={() => navigate('/admin/procurement/stock')}>
+              <strong>{situation.fabric_meters}m</strong> fabric
+            </button>
+            <button className={styles.situationItem} onClick={() => navigate('/admin/system/staff')}>
+              <strong>{situation.active_staff}</strong> staff
+            </button>
+            <button className={styles.situationItem} onClick={() => navigate('/admin/catalog/listings')}>
+              <strong>{situation.live_listings}</strong> live listing{situation.live_listings === 1 ? '' : 's'}
+            </button>
+            <button className={styles.situationItem} onClick={() => navigate('/admin/system/service-areas')}>
+              <strong>{situation.service_pincodes}</strong> service pincode{situation.service_pincodes === 1 ? '' : 's'}
+            </button>
+          </>
+        )}
+      </div>
 
       <Tabs
         tabs={[
