@@ -59,14 +59,26 @@ export const FitOutcomesPage: React.FC = () => {
   const overallResponded = o ? responded(o) : 0;
   const lowSample = !!o && overallResponded < MIN_RESPONSES;
 
+  // [DSG-13-9] Every rate carries its own denominator, and its own low-confidence mark.
+  //
+  // MIN_RESPONSES greyed out FTR alone. On a two-order sample the neighbouring cards
+  // rendered "Alteration rate 0% · Refund rate 50% · Feedback response 100%" as bold,
+  // full-confidence numbers, and the amber note underneath spoke only about FTR — so the
+  // reader was invited to trust the three uncaveated numbers MORE than the caveated one,
+  // which is precisely backwards.
+  //
+  // They are not even the same fraction: FTR is over orders that RESPONDED, the other
+  // three are over orders DELIVERED. A single blanket caveat could never have been right
+  // for all four, so each says what it is out of.
+  const deliveredN = o?.delivered ?? 0;
   const kpis = [
     // [DSG-13-8] The label carries the threshold. "First-time-right" reads as "needed no
     // alteration" — a different, stricter thing (alterations are their own bucket and
     // outrank feedback). What it actually measures is a 4-or-5 rating out of 5.
-    { label: 'First-time-right (rated 4–5 of 5)', value: o?.ftr_pct != null ? `${o.ftr_pct}%` : '—', tone: ftrTone(o?.ftr_pct ?? null, lowSample), accent: true },
-    { label: 'Alteration rate', value: o?.alteration_pct != null ? `${o.alteration_pct}%` : '—' },
-    { label: 'Refund rate', value: o?.refund_pct != null ? `${o.refund_pct}%` : '—' },
-    { label: 'Feedback response', value: o?.response_pct != null ? `${o.response_pct}%` : '—' },
+    { label: 'First-time-right (rated 4–5 of 5)', value: o?.ftr_pct != null ? `${o.ftr_pct}%` : '—', tone: ftrTone(o?.ftr_pct ?? null, lowSample), accent: true, n: overallResponded, unit: 'responded' },
+    { label: 'Alteration rate', value: o?.alteration_pct != null ? `${o.alteration_pct}%` : '—', n: deliveredN, unit: 'delivered' },
+    { label: 'Refund rate', value: o?.refund_pct != null ? `${o.refund_pct}%` : '—', n: deliveredN, unit: 'delivered' },
+    { label: 'Feedback response', value: o?.response_pct != null ? `${o.response_pct}%` : '—', n: deliveredN, unit: 'delivered' },
   ];
 
   return (
@@ -101,7 +113,17 @@ export const FitOutcomesPage: React.FC = () => {
                     {loading ? '—' : <StatusBadge status={k.tone as string} label={k.value} />}
                   </div>
                 ) : (
-                  <div className={s.summaryValue}>{loading ? '—' : k.value}</div>
+                  <div className={`${s.summaryValue} ${!loading && k.n < MIN_RESPONSES ? local.lowValue : ''}`}>
+                    {loading ? '—' : k.value}
+                  </div>
+                )}
+                {/* [DSG-13-9] What the percentage is out of. A rate over two orders and a
+                    rate over two thousand look identical without it. */}
+                {!loading && (
+                  <div className={local.kpiDenominator}>
+                    n = {k.n} {k.unit}
+                    {k.n < MIN_RESPONSES ? ' · low confidence' : ''}
+                  </div>
                 )}
               </div>
             ))}
@@ -109,8 +131,10 @@ export const FitOutcomesPage: React.FC = () => {
 
           {!loading && lowSample && (
             <p className={local.lowNote}>
-              ⚠ FTR is based on only {overallResponded} responded order{overallResponded === 1 ? '' : 's'} —
-              treat as low-confidence until more fit feedback lands.
+              ⚠ Small sample: FTR is based on {overallResponded} responded order
+              {overallResponded === 1 ? '' : 's'}, and the other rates on {deliveredN} delivered
+              order{deliveredN === 1 ? '' : 's'} — every card above shows its own denominator.
+              Treat all four as low-confidence until more fit feedback lands.
             </p>
           )}
           {data?.note && <p className={s.summarySub}>{data.note}</p>}
