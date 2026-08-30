@@ -394,25 +394,45 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const removeBand = (i: number) => setLengthBands(lengthBands.filter((_, j) => j !== i));
   const setBand = (i: number, k: 'height_min_cm' | 'length_value', v: string) =>
     setLengthBands(lengthBands.map((b, j) => (j === i ? { ...b, [k]: v === '' ? 0 : Number(v) } : b)));
-  const fillDefaultBands = () => setLengthBands(DEFAULT_LENGTH_BANDS.map((b) => ({ ...b })));
+  // [DSG-11-15] Fill the gaps, do not replace the work.
+  //
+  // These three built a FRESH structure and threw away whatever the designer had authored —
+  // no confirm, no undo. `fillStandardFields` right above is the odd one out: it unions with
+  // what is already there, which is what "Fill" means everywhere else on this page. Only
+  // the two chart builders (Generate / Import) say they replace, and they say so.
+  //
+  // Keyed on what makes a row the same row, so a hand-tuned value survives a second click.
+  const fillDefaultBands = () =>
+    setLengthBands((prev) => {
+      const seen = new Set(prev.map((b) => `${b.length_field}@${b.height_min_cm}`));
+      const additions = DEFAULT_LENGTH_BANDS.filter(
+        (b) => !seen.has(`${b.length_field}@${b.height_min_cm}`),
+      ).map((b) => ({ ...b }));
+      return [...prev, ...additions];
+    });
 
   // ── body-shape menu (§5.4) ──
   const setShape = (i: number, patch: Partial<ShapeRow>) =>
     setShapes(shapes.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const fillStandardShapes = () =>
-    setShapes(
-      (STANDARD_SHAPES[tpl?.body_region ?? 'upper'] ?? STANDARD_SHAPES.upper).map((sh) => ({
-        shape: sh.shape, field: sh.field, delta: String(sh.delta),
-      })),
-    );
+    setShapes((prev) => {
+      const seen = new Set(prev.map((r) => `${r.shape}@${r.field}`));
+      const additions = (STANDARD_SHAPES[tpl?.body_region ?? 'upper'] ?? STANDARD_SHAPES.upper)
+        .filter((sh) => !seen.has(`${sh.shape}@${sh.field}`))
+        .map((sh) => ({ shape: sh.shape, field: sh.field, delta: String(sh.delta) }));
+      return [...prev, ...additions];
+    });
 
   // ── tolerances (§3) — ± allowed deviation per field (QC band) ──
   const setTol = (field: string, v: string) => setTolerances((t) => ({ ...t, [field]: v }));
-  const fillStandardTol = () => {
-    const t: Record<string, string> = {};
-    for (const f of fields) t[f] = '0.5';
-    setTolerances(t);
-  };
+  const fillStandardTol = () =>
+    setTolerances((prev) => {
+      const next = { ...prev };
+      // Only where nothing has been authored. A tolerance somebody set to 0.3 on purpose
+      // is exactly the value this used to overwrite with 0.5.
+      for (const f of fields) if (!next[f]?.toString().trim()) next[f] = '0.5';
+      return next;
+    });
 
   // ── chart grid for the active preset ──
   const presetKey = activePreset === BASE ? null : activePreset;
