@@ -313,6 +313,29 @@ export const tagsApi = {
     }),
 };
 
+export interface OrdersExportRow {
+  id: string;
+  reference_id: string | null;
+  customer: string | null;
+  /** Present only when the export was explicitly a contact export. */
+  phone?: string | null;
+  email?: string | null;
+  stage: string;
+  status: string;
+  payment_method: string | null;
+  hub: string;
+  total: string | number;
+  created_at: string;
+}
+
+export interface OrdersExport {
+  orders: OrdersExportRow[];
+  with_contact: boolean;
+  /** True when the export hit the server's row ceiling and is incomplete. */
+  truncated: boolean;
+  max_rows: number;
+}
+
 export const ordersApi = {
   list: async (params: OrdersParams = {}): Promise<OrdersResponse> => {
     const qs = new URLSearchParams();
@@ -329,6 +352,36 @@ export const ordersApi = {
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
     return req<OrdersResponse>(`/api/admin/orders?${qs}`);
+  },
+
+  // [SUP-27-3 / SUP-27-7] One audited request instead of up to 500 unaudited ones.
+  //
+  // The CSV used to be assembled client-side by paging this same endpoint 500 times, so
+  // the server saw an ordinary list and the largest PII egress in the admin left no trace
+  // at all. The export is a mode of the same handler now — same filters, no chance of the
+  // two drifting — and it writes an `export_orders` audit row with the count, the filters
+  // and whether contact details were included.
+  //
+  // `contact` is opt-in: most exports are a work list and do not need every customer's
+  // phone number and email address in a file on somebody's laptop.
+  exportAll: async (
+    params: OrdersParams = {},
+    opts: { contact?: boolean } = {},
+  ): Promise<OrdersExport> => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set("search", params.search);
+    if (params.stage) qs.set("stage", params.stage);
+    if (params.mode) qs.set("mode", params.mode);
+    if (params.userId) qs.set("user_id", params.userId);
+    if (params.paymentMethod) qs.set("payment_method", params.paymentMethod);
+    if (params.stuck) qs.set("stuck", "1");
+    if (params.owner && params.owner !== "all") qs.set("owner", params.owner);
+    if (params.hub_id) qs.set("hub_id", params.hub_id);
+    if (params.from) qs.set("from", params.from);
+    if (params.to) qs.set("to", params.to);
+    qs.set("export", "1");
+    if (opts.contact) qs.set("contact", "1");
+    return req<OrdersExport>(`/api/admin/orders?${qs}`);
   },
 
   get: async (id: string): Promise<AdminOrder> => {

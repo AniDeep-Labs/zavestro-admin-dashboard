@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ordersApi, orderExceptionsApi } from '../../api/adminApi';
+import type { OrdersExportRow } from '../../api/adminApi';
 import type { AdminOrder, AssignableAdmin } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -142,36 +143,57 @@ export const OrdersListPage: React.FC = () => {
   const assign = (o: AdminOrder, adminId: string) =>
     runAction(o.id, () => orderExceptionsApi.claim(o.uuid ?? o.id, { assigned_to: adminId }));
 
-  // Exports ALL orders matching the current filters (not just the current page).
-  const exportCSV = async () => {
+  // [SUP-27-3 / SUP-27-7] One audited request, and contact details only when asked for.
+  //
+  // This looped the list endpoint up to 500 times and wrote every customer's name, phone
+  // and email to a file. It respected the current filters, which default to NONE — so the
+  // ordinary path to a spreadsheet of the whole customer base was one button, with no
+  // reason asked, nothing warning what the file would contain, and no record afterwards.
+  //
+  // The server exports in one call now and writes an `export_orders` audit row. Contact
+  // columns are opt-in: a work list wants stage, hub and total, not phone numbers.
+  const exportCSV = async (withContact = false) => {
     if (exporting) return;
     setExporting(true);
     try {
-      const all: AdminOrder[] = [];
-      for (let p = 1; p <= 500; p++) {
-        const r = await ordersApi.list(queryParams(p, 100));
-        all.push(...r.orders);
-        if (p >= r.totalPages || r.orders.length === 0) break;
-      }
-      downloadCsv<AdminOrder>(
-        datedFilename('orders'),
+      const res = await ordersApi.exportAll(queryParams(1, 100), { contact: withContact });
+      downloadCsv<OrdersExportRow>(
+        datedFilename(withContact ? 'orders-with-contact' : 'orders'),
         [
           { header: 'Order ID', value: o => o.reference_id || o.id },
-          { header: 'Customer', value: o => o.customer },
-          { header: 'Phone', value: o => o.phone },
-          { header: 'Email', value: o => o.email ?? '' },
+          { header: 'Customer', value: o => o.customer ?? '' },
+          ...(res.with_contact
+            ? [
+                { header: 'Phone', value: (o: OrdersExportRow) => o.phone ?? '' },
+                { header: 'Email', value: (o: OrdersExportRow) => o.email ?? '' },
+              ]
+            : []),
           { header: 'Stage', value: o => statusLabel(o.stage) },
           { header: 'Status', value: o => o.status },
           { header: 'Payment', value: o => o.payment_method ?? '' },
           { header: 'Hub', value: o => o.hub },
-          { header: 'Total (INR)', value: o => o.total },
-          { header: 'Created', value: o => o.created },
+          { header: 'Total (INR)', value: o => String(o.total) },
+          { header: 'Created', value: o => o.created_at },
         ],
-        all,
+        res.orders,
       );
-      showToast('success', 'Export ready', `${all.length} order${all.length === 1 ? '' : 's'} exported.`);
-    } catch {
-      showToast('error', 'Export failed', 'Could not export orders. Please try again.');
+      // Truncation is said out loud. A silently short file is worse than a refusal,
+      // because the person acts on it believing it is complete.
+      if (res.truncated) {
+        showToast(
+          'warning',
+          `Export capped at ${res.max_rows.toLocaleString('en-IN')} rows`,
+          'Narrow the filters and export again — this file is not the whole set.',
+        );
+      } else {
+        showToast(
+          'success',
+          'Export ready',
+          `${res.orders.length} order${res.orders.length === 1 ? '' : 's'} exported${res.with_contact ? ' — includes contact details, and this download was recorded.' : '.'}`,
+        );
+      }
+    } catch (e) {
+      showToast('error', 'Export failed', e instanceof Error ? e.message : 'Could not export orders.');
     } finally {
       setExporting(false);
     }
@@ -190,7 +212,19 @@ export const OrdersListPage: React.FC = () => {
               is unreachable — the same "no caller" problem the scan work exists
               to avoid, in a different guise. */}
           <button className={styles.exportBtn} onClick={() => navigate('/admin/orders/tags')}>Garment tags</button>
-          <button className={styles.exportBtn} onClick={exportCSV} disabled={exporting}><UilImport size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
+          {/* [SUP-27-3] Two buttons, because they are two different acts. The plain
+              export is a work list; the contact export puts every customer's phone and
+              email in a file, is recorded against the person who asked for it, and says
+              so on the button rather than in a footnote nobody reads. */}
+          <button className={styles.exportBtn} onClick={() => exportCSV(false)} disabled={exporting}><UilImport size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
+          <button
+            className={styles.exportBtn}
+            onClick={() => exportCSV(true)}
+            disabled={exporting}
+            title="Includes every listed customer's phone and email. This download is recorded against your account."
+          >
+            <UilImport size={14} /> Export with contact details
+          </button>
         </div>
       </div>
 
