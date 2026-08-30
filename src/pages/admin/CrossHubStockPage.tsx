@@ -166,7 +166,11 @@ export const CrossHubStockPage: React.FC = () => {
   const visibleTransit = fabricFilter ? inTransit.filter((d) => d.fabric_id === fabricFilter) : inTransit;
 
   const belowReorder = visibleRows.filter(
-    (r) => r.reorder_meters != null && Number(r.available_meters) < Number(r.reorder_meters),
+    // [CM-19-4] Was `<`, while the CM's own Fabric Stock page used `<=` — one fabric,
+    // two verdicts. The server settles it; this stays only as a fallback.
+    (r) =>
+      r.is_low ??
+      (r.reorder_meters != null && Number(r.available_meters) <= Number(r.reorder_meters)),
   );
   // [PRC-17-3] Membership decided by the ledger, rendering kept local (swatch, links and
   // the drill-in to the movement ledger all live on FabricStockRow).
@@ -551,7 +555,9 @@ export const CrossHubStockPage: React.FC = () => {
                       const reserved = Number(r.reserved_meters);
                       const reorder = num(r.reorder_meters);
                       const sugg = num(r.reorder_suggestion);
-                      const low = reorder != null && avail < reorder;
+                      // [CM-19-4] A FOURTH derivation of "low", in the same file as the
+                      // one above and with a different boundary again. The server decides.
+                      const low = r.is_low ?? (reorder != null && avail <= reorder);
                       const key = rowKey(r);
                       return (
                         <td key={h.id} className={cs.hubCol}>
