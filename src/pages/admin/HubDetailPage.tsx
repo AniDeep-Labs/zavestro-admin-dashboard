@@ -419,9 +419,28 @@ export const HubDetailPage: React.FC = () => {
             <button className={styles.situationItem} onClick={() => navigate('/admin/procurement/stock')}>
               <strong>{situation.fabric_meters}m</strong> fabric
             </button>
-            <button className={styles.situationItem} onClick={() => navigate('/admin/system/staff')}>
-              <strong>{situation.active_staff}</strong> staff
+            {/* [SHL-6-7] Say WHICH staff. The count has always come from `staff` (ops login
+                accounts) while `hub_staff` — the floor roster that measurement provenance
+                points at — is surfaced on no admin page at all. A hub reading "5 staff"
+                was silently excluding it. Both are shown; which of the two tables is the
+                real roster is a data-model question this page cannot settle. */}
+            <button
+              className={styles.situationItem}
+              onClick={() => navigate('/admin/system/staff')}
+              title="Ops login accounts (the `staff` table) — the ones this console manages"
+            >
+              <strong>{situation.active_staff}</strong> login account
+              {situation.active_staff === 1 ? '' : 's'}
             </button>
+            {situation.roster_staff > 0 && (
+              <span
+                className={styles.situationItem}
+                title="Floor roster (the `hub_staff` table) — what measurement provenance points at. No admin page manages these yet."
+              >
+                <strong>{situation.roster_staff}</strong> roster entr
+                {situation.roster_staff === 1 ? 'y' : 'ies'} (unmanaged)
+              </span>
+            )}
             <button className={styles.situationItem} onClick={() => navigate('/admin/catalog/listings')}>
               <strong>{situation.live_listings}</strong> live listing{situation.live_listings === 1 ? '' : 's'}
             </button>

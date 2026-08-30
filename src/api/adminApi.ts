@@ -899,7 +899,13 @@ export const hubPincodesApi = {
 export interface HubBlastRadius {
   active_orders: number;
   fabric_meters: number;
+  /** Ops LOGIN accounts (`staff`). */
   active_staff: number;
+  /**
+   * [SHL-6-7] The floor roster (`hub_staff`) — a different table, which measurement
+   * provenance points at and which no admin page has ever shown.
+   */
+  roster_staff: number;
   live_listings: number;
   service_pincodes: number;
 }
