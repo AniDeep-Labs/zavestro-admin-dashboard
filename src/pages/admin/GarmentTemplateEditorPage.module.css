@@ -599,3 +599,16 @@
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
+
+/* A state the author must act on before this garment type can be cut at all — not a
+   styling flourish: without a cutting spec an order stops at the cut sheet. [DSG-11-8] */
+.warnNote {
+  margin: 0 0 var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-left: 3px solid var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-radius: var(--radius-sm);
+}

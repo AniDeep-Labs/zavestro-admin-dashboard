@@ -23,6 +23,20 @@ const ANCHOR_FIELDS: Record<string, string[]> = {
 };
 // Standard measurement fields per body region — the "Fill standard" helper for blank /
 // under-configured templates (mirrors the backend pre-seed for new types).
+// The cut-sheet spec fields, in the order they are authored. Labels and hints name the
+// downstream consumer, because the point of this section is that these numbers LEAVE the
+// design plane — the previous version claimed that and was wrong. [DSG-11-8]
+const CUTTING_SPEC_FIELDS = [
+  { key: 'seam_allowance_cm', label: 'Seam (cm)', hint: 'added to each finished edge', step: '0.25' },
+  { key: 'hem_allowance_cm', label: 'Hem (cm)', hint: 'added at the hem', step: '0.25' },
+  { key: 'fabric_width_cm', label: 'Fabric width (cm)', hint: 'usable width the marker is laid on', step: '1' },
+  { key: 'wastage_factor', label: 'Wastage factor', hint: 'multiplier, e.g. 1.12 = 12% waste', step: '0.01' },
+  { key: 'min_fabric_meters', label: 'Min fabric (m)', hint: 'floor on the estimate', step: '0.1' },
+  { key: 'max_fabric_meters', label: 'Max fabric (m)', hint: 'ceiling on the estimate', step: '0.1' },
+] as const;
+type CuttingSpecField = (typeof CUTTING_SPEC_FIELDS)[number]['key'];
+const BLANK_SPEC = Object.fromEntries(CUTTING_SPEC_FIELDS.map((f) => [f.key, ''])) as Record<CuttingSpecField, string>;
+
 const STANDARD_FIELDS: Record<string, string[]> = {
   upper: ['chest', 'shoulder', 'sleeve', 'neck', 'bicep', 'waist'],
   lower: ['waist', 'hip', 'thigh', 'knee', 'calf', 'inseam'],
@@ -136,8 +150,8 @@ const DEFAULT_LENGTH_BANDS: LengthBand[] = [
 
 // Snapshot of the editable state — drives the dirty indicator (compare to load).
 const snap = (
-  captureSet: string[], presetDefs: FitPresetDef[], chart: ChartRow[], pains: PainRow[], types: string[], bands: LengthBand[], shapes: ShapeRow[], tol: Record<string, string>, seam: { seam: string; hem: string },
-) => JSON.stringify({ captureSet, presetDefs, chart, pains, types, bands, shapes, tol, seam });
+  captureSet: string[], presetDefs: FitPresetDef[], chart: ChartRow[], pains: PainRow[], types: string[], bands: LengthBand[], shapes: ShapeRow[], tol: Record<string, string>, spec: Record<string, string>,
+) => JSON.stringify({ captureSet, presetDefs, chart, pains, types, bands, shapes, tol, spec });
 
 export const GarmentTemplateEditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -155,7 +169,13 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const [pains, setPains] = React.useState<PainRow[]>([]);
   const [shapes, setShapes] = React.useState<ShapeRow[]>([]);
   const [tolerances, setTolerances] = React.useState<Record<string, string>>({}); // field → ±
-  const [seamAllow, setSeamAllow] = React.useState<{ seam: string; hem: string }>({ seam: '', hem: '' });
+  // The cut-sheet spec (garment_cutting_specs) — the numbers the tailor actually gets.
+  // This used to edit garment_categories.seam_allowance_cm, which no consumer read, so a
+  // designer could set 1 cm and the floor would keep cutting 1.5. [DSG-11-8]
+  const [cuttingSpec, setCuttingSpec] = React.useState<Record<CuttingSpecField, string>>(BLANK_SPEC);
+  // Whether the server had a spec row at all. Null means this type cannot be cut yet.
+  const [hasSpec, setHasSpec] = React.useState(true);
+  const [qcReality, setQcReality] = React.useState<{ has_template: boolean; check_count: number }>({ has_template: false, check_count: 0 });
   const [chart, setChart] = React.useState<ChartRow[]>([]);
   // [FIT-76] What the chart's numbers ARE. Properties of the whole chart, not of a row.
   //
@@ -188,7 +208,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const [pvBusy, setPvBusy] = React.useState(false);
   // Dirty tracking via a load-time snapshot (no per-setter instrumentation).
   const [baseline, setBaseline] = React.useState('');
-  const dirty = !loading && baseline !== '' && baseline !== snap(captureSet, presetDefs, chart, pains, garmentTypes, lengthBands, shapes, tolerances, seamAllow);
+  const dirty = !loading && baseline !== '' && baseline !== snap(captureSet, presetDefs, chart, pains, garmentTypes, lengthBands, shapes, tolerances, cuttingSpec);
   useDirtyGuard(dirty);
 
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -237,12 +257,15 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       const tol: Record<string, string> = {};
       for (const [field, v] of Object.entries(t.tolerances ?? {})) tol[field] = String(v);
       setTolerances(tol);
-      const seam = {
-        seam: t.seam_allowance_cm != null ? String(t.seam_allowance_cm) : '',
-        hem: t.hem_allowance_cm != null ? String(t.hem_allowance_cm) : '',
-      };
-      setSeamAllow(seam);
-      setBaseline(snap(cs, defs, t.chart, loadedPains, types, bands, loadedShapes, tol, seam));
+      const spec = { ...BLANK_SPEC };
+      for (const f of CUTTING_SPEC_FIELDS) {
+        const v = t.cutting_spec?.[f.key];
+        spec[f.key] = v != null ? String(v) : '';
+      }
+      setCuttingSpec(spec);
+      setHasSpec(t.cutting_spec != null);
+      setQcReality(t.qc_reality ?? { has_template: false, check_count: 0 });
+      setBaseline(snap(cs, defs, t.chart, loadedPains, types, bands, loadedShapes, tol, spec));
     },
     [],
   );
@@ -576,8 +599,14 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         pain_point_menu,
         body_shape_menu,
         tolerances: tolerancesOut,
-        seam_allowance_cm: seamAllow.seam.trim() !== '' ? Number(seamAllow.seam) : undefined,
-        hem_allowance_cm: seamAllow.hem.trim() !== '' ? Number(seamAllow.hem) : undefined,
+        // Only the fields actually filled in. A blank leaves the stored value alone
+        // rather than resetting a number the floor is cutting to.
+        cutting_spec: Object.fromEntries(
+          CUTTING_SPEC_FIELDS.filter((f) => cuttingSpec[f.key].trim() !== '').map((f) => [
+            f.key,
+            Number(cuttingSpec[f.key]),
+          ]),
+        ),
         available_fit_presets: presets,
         fit_presets: explicitPresetDefs,
         garment_types: garmentTypes,
@@ -1039,7 +1068,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
 
       <h2 className={s.groupHeader}>5 · Advanced — optional fine-tuning</h2>
       <details className={s.advanced}>
-      <summary>Customer tweaks · body shapes · QC tolerance · seam allowance — most garments don’t need these</summary>
+      <summary>Customer tweaks · body shapes · expected variance · cutting spec — most garments don’t need these</summary>
 
       {/* Pain-point menu */}
       <section className={s.section}>
@@ -1087,10 +1116,17 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       {/* Tolerances (§3) — ± allowed deviation per measurement; QC checks the band */}
       <section className={s.section}>
         <div className={s.sectionHead}>
-          <h3 className={s.sectionTitle}>QC tolerance <span className={s.req}>· how much a finished garment may differ from target, ± inches</span></h3>
+          <h3 className={s.sectionTitle}>Expected variance <span className={s.req}>· the ± band the Engine Tester draws, ± inches</span></h3>
           <Button variant="ghost" onClick={fillStandardTol} disabled={fields.length === 0}><UilCalculatorAlt size={15} /> Fill standard (±0.5)</Button>
         </div>
-        <p className={s.hint}>The ± a finished garment may vary by at each measurement. QC fails a garment outside the band; the Engine Tester shows it as e.g. chest 45.0 (44.5–45.5).</p>
+        <p className={s.hint}>
+          The ± you expect at each measurement, shown in the Engine Tester as e.g. chest 45.0 (44.5–45.5).
+          <strong> This does not fail a garment.</strong> QC judges against the checks in{' '}
+          <Link to="/admin/catalog/qc-templates">Catalog → QC templates</Link>
+          {qcReality.has_template
+            ? ` — ${qcReality.check_count} check${qcReality.check_count === 1 ? '' : 's'} for this garment type.`
+            : ' — and this garment type has no QC template, so nothing is checked at all.'}
+        </p>
         {fields.length === 0 ? (
           <p className={s.hint}>Add measurement fields first.</p>
         ) : (
@@ -1108,19 +1144,35 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         )}
       </section>
 
-      {/* Seam allowance — added to the net pattern; printed on the cut sheet */}
+      {/* The cut-sheet spec. Writes garment_cutting_specs — the table the cut sheet, the
+          fabric calculator and checkout consumption actually read. [DSG-11-8] */}
       <section className={s.section}>
-        <h3 className={s.sectionTitle}>Seam allowance <span className={s.req}>· added to the net pattern (cm)</span></h3>
-        <p className={s.hint}>What the patternmaker adds to each finished edge. Printed on the cut sheet. Defaults: 1 cm seams · 4 cm hems.</p>
+        <h3 className={s.sectionTitle}>Cutting spec <span className={s.req}>· what the tailor is given</span></h3>
+        <p className={s.hint}>
+          These are the numbers the cut sheet prints and the fabric calculator bills against — change one and
+          the next order is cut differently. Blank means “leave as it is”.
+        </p>
+        {!hasSpec && (
+          <p className={s.warnNote} role="status">
+            This garment type has no cutting spec yet, so it cannot produce a cut sheet — an order would stop
+            with “No cutting spec configured”. Saving any value below creates one.
+          </p>
+        )}
         <div className={s.presetParams}>
-          <label className={s.presetParam}>
-            <span className={s.presetParamLabel}>Seam (cm)</span>
-            <input className={s.presetParamInput} type="number" step="0.25" min="0" value={seamAllow.seam} placeholder="1" onChange={(e) => setSeamAllow((x) => ({ ...x, seam: e.target.value }))} />
-          </label>
-          <label className={s.presetParam}>
-            <span className={s.presetParamLabel}>Hem (cm)</span>
-            <input className={s.presetParamInput} type="number" step="0.25" min="0" value={seamAllow.hem} placeholder="4" onChange={(e) => setSeamAllow((x) => ({ ...x, hem: e.target.value }))} />
-          </label>
+          {CUTTING_SPEC_FIELDS.map((f) => (
+            <label key={f.key} className={s.presetParam} title={f.hint}>
+              <span className={s.presetParamLabel}>{f.label}</span>
+              <input
+                className={s.presetParamInput}
+                type="number"
+                step={f.step}
+                min="0"
+                value={cuttingSpec[f.key]}
+                onChange={(e) => setCuttingSpec((x) => ({ ...x, [f.key]: e.target.value }))}
+              />
+              <span className={s.hint}>{f.hint}</span>
+            </label>
+          ))}
         </div>
       </section>
       </details>

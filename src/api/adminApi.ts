@@ -2470,6 +2470,21 @@ export interface ChartRow {
   unit?: 'in' | 'cm';
   measurement_basis?: 'body' | 'finished';
 }
+/**
+ * The cut-sheet spec (garment_cutting_specs) — the allowances and fabric geometry a
+ * garment is actually cut to. Replaces the two design-plane allowance fields, which no
+ * downstream consumer ever read. [DSG-11-8]
+ */
+export interface CuttingSpec {
+  fabric_width_cm: number;
+  seam_allowance_cm: number;
+  hem_allowance_cm: number;
+  wastage_factor: number;
+  min_fabric_meters: number;
+  max_fabric_meters: number;
+  cutting_notes: string | null;
+}
+
 export interface GarmentTemplate {
   id: string;
   name: string;
@@ -2479,8 +2494,10 @@ export interface GarmentTemplate {
   pain_point_menu: Record<string, Record<string, number>> | null;
   body_shape_menu?: Record<string, Record<string, number>> | null;
   tolerances?: Record<string, number> | null;
-  seam_allowance_cm?: number | null;
-  hem_allowance_cm?: number | null;
+  /** null when this garment type has no spec row — it cannot be cut yet. */
+  cutting_spec?: CuttingSpec | null;
+  /** Where QC thresholds really live, so the editor can stop implying it owns them. */
+  qc_reality?: { has_template: boolean; check_count: number };
   available_fit_presets: string[] | null;
   garment_types?: string[] | null;
   fit_presets?: FitPresetDef[] | null;
@@ -2506,8 +2523,7 @@ export interface GarmentTemplateInput {
   pain_point_menu: Record<string, Record<string, number>>;
   body_shape_menu?: Record<string, Record<string, number>>;
   tolerances?: Record<string, number>;
-  seam_allowance_cm?: number;
-  hem_allowance_cm?: number;
+  cutting_spec?: Partial<Omit<CuttingSpec, 'cutting_notes'>> & { cutting_notes?: string | null };
   available_fit_presets: string[];
   garment_types?: string[];
   fit_presets?: FitPresetDef[];

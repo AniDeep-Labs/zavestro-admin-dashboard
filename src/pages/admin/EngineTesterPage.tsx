@@ -353,7 +353,7 @@ export const EngineTesterPage: React.FC = () => {
                       <tr>
                         <th>Measurement</th>
                         <th className={s.num}>Finished (in)</th>
-                        {hasTolerances && <th className={s.num}>QC band (±)</th>}
+                        {hasTolerances && <th className={s.num}>Expected ± </th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -373,9 +373,9 @@ export const EngineTesterPage: React.FC = () => {
                   </table>
                   <p className={s.resultHint}>
                     {hasTolerances ? (
-                      <>Target measurements after the "{result.fit_preset}" ease (plus any fabric / body-shape). The QC band is the ± tolerance a finished garment may vary by.</>
+                      <>Target measurements after the "{result.fit_preset}" ease (plus any fabric / body-shape). The band is the expected variance authored on the garment type — it is not what QC judges against. [CM-20-4]</>
                     ) : (
-                      <>Target measurements after the "{result.fit_preset}" ease (plus any fabric / body-shape). No QC tolerances are set for this garment — add them in Garment Types to see acceptance bands.</>
+                      <>Target measurements after the "{result.fit_preset}" ease (plus any fabric / body-shape). No expected-variance band is set for this garment — add one in Garment Types to see it here.</>
                     )}
                   </p>
                 </>

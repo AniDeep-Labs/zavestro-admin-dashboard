@@ -224,7 +224,14 @@ export const CutSheetModal: React.FC<{ open: boolean; designId?: string; onClose
         )}
 
         <div className={s.notes}>
-          <div className={s.note}><strong>Seam allowance:</strong> {Number(tpl.seam_allowance_cm ?? 1)} cm on seams · {Number(tpl.hem_allowance_cm ?? 4)} cm on hems — add to the net pattern (these are finished measurements).</div>
+          {/* From garment_cutting_specs — the row the floor's cut sheet and the fabric
+              calculator read. This line used to print garment_categories.seam_allowance_cm,
+              which nothing downstream read: it showed 1 cm here while the tailor cut 1.5. */}
+          {tpl.cutting_spec ? (
+            <div className={s.note}><strong>Seam allowance:</strong> {tpl.cutting_spec.seam_allowance_cm} cm on seams · {tpl.cutting_spec.hem_allowance_cm} cm on hems — add to the net pattern (these are finished measurements).</div>
+          ) : (
+            <div className={s.note}><strong>Seam allowance:</strong> not set — this garment type has no cutting spec, so an order cannot be cut. Add one in the garment template editor.</div>
+          )}
           {techPackUrl
             ? <div className={s.note}><strong>Tech pack:</strong> <a href={techPackUrl} target="_blank" rel="noreferrer">{design.spec_sheet_key}</a></div>
             : <div className={s.note}><strong>Tech pack:</strong> none attached to this design.</div>}
