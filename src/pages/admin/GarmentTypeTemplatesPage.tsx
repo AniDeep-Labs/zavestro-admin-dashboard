@@ -6,6 +6,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Button } from '../../components/Button/Button';
 import { Modal } from '../../components/Modal/Modal';
+import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import styles from './OrdersListPage.module.css';
 import { UilAngleRightB, UilPlus, UilTimes, UilTrashAlt } from '@iconscout/react-unicons';
@@ -71,18 +72,24 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
     }
   };
 
-  React.useEffect(() => {
+  // [DSG-11-12] A failed load is not an empty library.
+  //
+  // The catch toasted "Load failed" and left `cats` at [], so the counter flipped to
+  // "0 of 0" and the table said "No garment types yet — create your first." — inviting the
+  // designer to author a duplicate of a garment type that already exists. That either 409s
+  // on the slug or, under a different name, silently forks the fit recipe.
+  const [error, setError] = React.useState<string | null>(null);
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(null);
     designsApi
       .garmentCategories()
       .then(setCats)
-      .catch((e) =>
-        setToasts((t) => [
-          ...t,
-          createToast('error', 'Load failed', e instanceof Error ? e.message : undefined),
-        ]),
-      )
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load garment types.'))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => { load(); }, [load]);
 
   const captureCount = (c: GarmentCategoryOption) =>
     Array.isArray(c.capture_set) ? (c.capture_set as string[]).length : 0;
@@ -91,6 +98,21 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
   const shown = query.trim()
     ? cats.filter((c) => c.name.toLowerCase().includes(query.trim().toLowerCase()))
     : cats;
+
+  if (error) {
+    // The server's own message, and a way back — not an invitation to create something
+    // that may already exist.
+    return (
+      <div className={styles.page}>
+        <ToastContainer toasts={toasts} onDismiss={dismiss} />
+        <EmptyState
+          title="Couldn't load garment types"
+          body={error}
+          action={{ label: 'Retry', onClick: load }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>

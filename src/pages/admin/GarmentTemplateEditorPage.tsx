@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { designsApi } from '../../api/adminApi';
 import type { ChartRow, GarmentTemplate, SizePreviewResult, FitPresetDef, LengthBand } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
+import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { Spinner } from '../../components/Spinner';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -246,16 +247,33 @@ export const GarmentTemplateEditorPage: React.FC = () => {
     [],
   );
 
-  React.useEffect(() => {
+  // [DSG-11-12] A 500 is not a 404.
+  //
+  // Any failure left `tpl` null and the page rendered "Garment type not found." — the third
+  // disguise from the wallet sweep (NEW-18..30): "it's gone, stop looking", when the server
+  // merely erred. The designer walks away from a template that exists.
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [notFound, setNotFound] = React.useState(false);
+  const loadTemplate = React.useCallback(() => {
     if (!id) return;
+    setLoading(true);
+    setLoadError(null);
+    setNotFound(false);
     designsApi
       .getTemplate(id)
       .then(hydrate)
-      .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
+      .catch((e: unknown) => {
+        const status = (e as { status?: number }).status;
+        // Only a real 404 means "gone". Everything else is a failure and says so.
+        if (status === 404) setNotFound(true);
+        else setLoadError(e instanceof Error ? e.message : 'Could not load this garment type.');
+      })
       .finally(() => setLoading(false));
-    // `hydrate` is a useCallback over [] and reads nothing but its own argument, so
-    // listing it here is a no-op that keeps the linter honest rather than silenced.
   }, [id, hydrate]);
+
+  React.useEffect(() => {
+    loadTemplate();
+  }, [loadTemplate]);
 
   // ── field + preset chips ──
   const fillStandardFields = () => {
@@ -597,11 +615,26 @@ export const GarmentTemplateEditorPage: React.FC = () => {
 
   if (loading)
     return <div className={base.page}><div className={s.center}><Spinner /></div></div>;
+  if (loadError)
+    return (
+      <div className={base.page}>
+        <Link to="/admin/design/templates" className={s.back}><UilArrowLeft size={16} /> Back</Link>
+        <EmptyState
+          title="Couldn't load this garment type"
+          body={loadError}
+          action={{ label: 'Retry', onClick: loadTemplate }}
+        />
+      </div>
+    );
   if (!tpl)
     return (
       <div className={base.page}>
         <Link to="/admin/design/templates" className={s.back}><UilArrowLeft size={16} /> Back</Link>
-        <div className={s.center}>Garment type not found.</div>
+        <div className={s.center}>
+          {notFound
+            ? 'Garment type not found.'
+            : 'Garment type not loaded — try again from the list.'}
+        </div>
       </div>
     );
 
