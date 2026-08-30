@@ -896,6 +896,14 @@ export const hubPincodesApi = {
     }),
 };
 
+export interface HubBlastRadius {
+  active_orders: number;
+  fabric_meters: number;
+  active_staff: number;
+  live_listings: number;
+  service_pincodes: number;
+}
+
 export const hubsApi = {
   list: async (params: HubsParams = {}): Promise<HubsResponse> => {
     const qs = new URLSearchParams();
@@ -926,13 +934,26 @@ export const hubsApi = {
     return mapHub(raw);
   },
 
-  update: async (id: string, data: Partial<Hub>): Promise<Hub> => {
+  // [SHL-6-2] What deactivating this hub would strand. The server measures it; the dialog
+  // states it. Previously the confirm asserted "existing orders are unaffected" with
+  // nothing behind that claim.
+  blastRadius: async (id: string): Promise<HubBlastRadius> =>
+    req<HubBlastRadius>(`/api/admin/hubs/${id}/blast-radius`),
+
+  update: async (
+    id: string,
+    data: Partial<Hub>,
+    opts: { force?: boolean } = {},
+  ): Promise<Hub> => {
     const { status, managerName, managerPhone, managerStaffId, ...rest } = data;
     const body: Record<string, unknown> = { ...rest };
     if (status !== undefined) body.is_active = status === "Active";
     if (managerName !== undefined) body.manager_name = managerName;
     if (managerPhone !== undefined) body.manager_phone = managerPhone;
     if (managerStaffId !== undefined) body.manager_staff_id = managerStaffId;
+    // The server refuses a deactivation that strands work unless this is set — so the
+    // operator confirms against measured counts rather than being stopped outright.
+    if (opts.force) body.force = true;
     const raw = await req<Record<string, unknown>>(`/api/admin/hubs/${id}`, {
       method: "PUT",
       body: JSON.stringify(body),

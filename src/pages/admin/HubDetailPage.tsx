@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import type { HubBlastRadius } from '../../api/adminApi';
 import { hubsApi, staffApi, fabricsApi } from '../../api/adminApi';
 import type { Hub, StaffMember, FabricStockRow, HubRecentOrder, HubActivityItem } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -58,12 +59,38 @@ export const HubDetailPage: React.FC = () => {
     hubsApi.activity(id).then(setActivity).catch(() => setActivity([]));
   }, [id, isNew]);
 
+  // [SHL-6-2] What this hub is holding, measured before the operator is asked to confirm.
+  const [blast, setBlast] = React.useState<HubBlastRadius | null>(null);
+  const [blastErr, setBlastErr] = React.useState<string | null>(null);
+  const [blastLoading, setBlastLoading] = React.useState(false);
+  const askDeactivate = async () => {
+    if (!hub) return;
+    setBlast(null);
+    setBlastErr(null);
+    setBlastLoading(true);
+    setConfirmDeactivate(true);
+    try {
+      setBlast(await hubsApi.blastRadius(hub.id));
+    } catch (e) {
+      // Keep the reason. The dialog says the counts could not be read AND why, rather
+      // than showing a reassuring zero — which is the failure this whole fix is about.
+      setBlastErr(e instanceof Error ? e.message : 'the counts could not be loaded');
+    } finally {
+      setBlastLoading(false);
+    }
+  };
+
   // T2-24: flip active/inactive (used by the deactivate confirm + the activate button).
   const setHubStatus = async (next: 'Active' | 'Inactive') => {
     if (!hub) return;
     setStatusSaving(true);
     try {
-      const updated = await hubsApi.update(hub.id, { status: next });
+      // Deactivation is force-confirmed: the operator has just read the counts above.
+      const updated = await hubsApi.update(
+        hub.id,
+        { status: next },
+        { force: next === 'Inactive' },
+      );
       setHub(updated); setForm(updated);
       showToast('success', `Hub ${updated.status.toLowerCase()}`);
       hubsApi.activity(hub.id).then(setActivity).catch(() => {});
@@ -350,7 +377,7 @@ export const HubDetailPage: React.FC = () => {
           <>
             <button className={styles.editBtn} disabled={saving} onClick={handleSave}><UilSave size={14}/> {saving ? 'Saving…' : 'Save Changes'}</button>
             <button className={styles.deactivateBtn} disabled={statusSaving}
-              onClick={() => hub.status === 'Active' ? setConfirmDeactivate(true) : setHubStatus('Active')}>
+              onClick={() => hub.status === 'Active' ? askDeactivate() : setHubStatus('Active')}>
               {hub.status === 'Active' ? <><UilPower size={14}/> Deactivate Hub</> : <><UilPower size={14}/> Activate Hub</>}
             </button>
           </>
@@ -372,7 +399,21 @@ export const HubDetailPage: React.FC = () => {
       <ConfirmDialog
         open={confirmDeactivate}
         title="Deactivate this hub?"
-        message={`${hub.name} will stop accepting new orders. Existing orders are unaffected. You can reactivate it anytime.`}
+        /* [SHL-6-2] Say what is actually at stake. This read "Existing orders are
+           unaffected" — an assertion with nothing behind it, on a hub that might be
+           holding ten live orders, a hundred metres of fabric and five people's shifts. */
+        message={
+          blastLoading
+            ? `${hub.name} will stop accepting new orders. Checking what it is holding…`
+            : !blast
+              ? `${hub.name} will stop accepting new orders. We could NOT read what this hub is currently holding (${blastErr ?? 'unknown error'}) — check its orders, stock and roster before continuing.`
+              : `${hub.name} will stop accepting new orders and is currently holding ` +
+                `${blast.active_orders} active order${blast.active_orders === 1 ? '' : 's'}, ` +
+                `${blast.fabric_meters}m fabric, ${blast.active_staff} staff and ` +
+                `${blast.live_listings} live listing${blast.live_listings === 1 ? '' : 's'} ` +
+                `across ${blast.service_pincodes} service pincode${blast.service_pincodes === 1 ? '' : 's'}. ` +
+                `Those orders keep running — nobody new can be routed here. You can reactivate it anytime.`
+        }
         confirmLabel="Deactivate hub"
         variant="danger"
         loading={statusSaving}
