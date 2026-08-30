@@ -8,7 +8,11 @@ import { UilEye, UilSlidersV, UilBriefcaseAlt } from '@iconscout/react-unicons';
 // T3-2 (W-U1): the in-product help page — "how this console works", per role. Super/legacy-admin
 // oversee every console, so they can flip between them; a role user sees just their own.
 export const HelpPage: React.FC = () => {
-  const role = getAdminUser()?.role ?? 'admin';
+  // [SHL-2-12] A THIRD instance of the fail-open default, which the audit did not name:
+  // defaulting to 'admin' made a role-less session an OVERSEER here, free to read every
+  // console's help. Only a help page, so it leaked documentation rather than data — but it
+  // is the same wrong direction, and the same one-word fix.
+  const role = getAdminUser()?.role ?? 'pending';
   const isOverseer = role === 'super_admin' || role === 'admin';
   const ownConsole = ROLE_CONSOLE[role] ?? 'super';
   const [selected, setSelected] = React.useState(ownConsole);

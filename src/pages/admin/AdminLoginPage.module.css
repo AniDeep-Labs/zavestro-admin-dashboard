@@ -109,6 +109,16 @@
   font-size: 16px;
   padding: 4px;
   line-height: 1;
+  /* [SHL-2-4] This declared no colour at all, so the icon inherited the card's near-black
+     body text and all but vanished against the dark input — the control that tells you
+     whether your password is on screen was the one you could not see. A token, so it
+     tracks the theme instead of a fixed value that is only right in one of them. */
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+}
+.showBtn:hover {
+  color: var(--color-text);
 }
 
 .error {
@@ -175,12 +185,12 @@
   margin-top: -4px;
 }
 
-.rememberRow input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
-  accent-color: var(--color-primary);
-  cursor: pointer;
-  flex-shrink: 0;
+/* [SHL-2-4] The raw <input type="checkbox"> that used to live here rendered as a stark
+   white native box in dark mode. The row now hosts the design system's Checkbox primitive,
+   which is themed, so this rule has nothing left to style — the label sits inside the
+   component and brings the row's own type with it. */
+.rememberRow {
+  color: var(--color-text-secondary);
 }
 
 .forgotBtn {

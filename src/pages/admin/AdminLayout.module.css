@@ -83,8 +83,11 @@
   flex-direction: column;
 }
 
+/* [SHL-3-3] .navItem and .navChild are <a> now, not <button> — an anchor brings its own
+   underline and visited colour, and does not inherit the button reset. */
 .navItem {
   position: relative;
+  text-decoration: none;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -147,6 +150,7 @@
 }
 
 .navChild {
+  text-decoration: none;
   display: flex;
   align-items: center;
   gap: 8px;

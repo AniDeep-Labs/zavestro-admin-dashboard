@@ -197,7 +197,29 @@
 }
 
 /* ===== DARK MODE (data-theme="dark") ===== */
+
+/*
+ * [SHL-2-4] Tell the browser which way round the page is.
+ *
+ * Found while fixing the login card's "Remember me" checkbox, and it is not a login-card
+ * bug: NOTHING in this stylesheet declared `color-scheme`, so every NATIVE control in the
+ * admin — checkboxes, radios, scrollbars, <select> dropdowns, date and time pickers, the
+ * spinner arrows on number inputs — rendered in light-mode chrome while the app was dark.
+ * A checkbox is just the most visible instance: `accent-color` only tints the CHECKED
+ * state, so an unchecked box stayed a stark white square no matter which component drew it.
+ * Swapping the raw input for the design system's Checkbox did NOT fix it, because the
+ * primitive is a real <input> too — which is the point: this could not be fixed in a
+ * component, only at the root.
+ *
+ * Light is the default and needs no declaration; the dark block sets it, so the two stay
+ * in step with the tokens around them.
+ */
+:root {
+  color-scheme: light;
+}
+
 [data-theme="dark"] {
+  color-scheme: dark;
   /* STATUS VOCABULARY TONES — dark: translucent fills, lifted foregrounds */
   --status-fit-fg: #8FB8DE;
   --status-making-fg: #E0BB93;

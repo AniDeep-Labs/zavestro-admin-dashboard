@@ -1,9 +1,10 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { catalogApi, setAdminToken, hasAdminToken } from '../../api/catalogApi';
 import { setAdminUser, setAdminCapabilities, adminAuthExtApi } from '../../api/adminApi';
+import { Checkbox } from '../../components/Checkbox/Checkbox';
 import styles from './AdminLoginPage.module.css';
-import regStyles from './AdminRegisterPage.module.css';
+import regStyles from './AuthCard.module.css';
 import { UilArrowLeft, UilArrowRight, UilEye, UilEyeSlash, UilSpinner } from "@iconscout/react-unicons";
 
 type View = 'login' | 'forgot' | 'security-q' | 'change-password';
@@ -58,7 +59,13 @@ export const AdminLoginPage: React.FC = () => {
     try {
       const res = await catalogApi.login(email, password, rememberMe);
       setAdminToken(res.token);
-      setAdminUser({ email: res.user?.email ?? email, role: res.user?.role ?? 'admin' });
+      // [SHL-2-12] `?? 'admin'` — the legacy god-mode role — was the fallback here, the
+      // same fail-open F-58b/SHL-3-6 already closed in AdminLayout. This is the write that
+      // FEEDS that cache, so it is where the wrong default originates. If a login response
+      // ever arrives without a role, the safe assumption is the one with no capabilities,
+      // not the one with all of them. `'pending'` is the same fail-closed value the shell
+      // reads, so the two cannot disagree about what "unknown" means.
+      setAdminUser({ email: res.user?.email ?? email, role: res.user?.role ?? 'pending' });
       // Fetch capabilities so the sidebar/routes gate by role (non-fatal).
       try { const me = await adminAuthExtApi.me(); setAdminCapabilities(me.capabilities ?? []); } catch { /* AdminLayout retries on mount */ }
       if (res.mustChangePassword) {
@@ -190,10 +197,24 @@ export const AdminLoginPage: React.FC = () => {
               </div>
               {submitted && !password && <span className={styles.fieldHint}>Password is required</span>}
             </div>
-            <label className={styles.rememberRow}>
-              <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} disabled={loading} />
-              <span>Remember me for 30 days</span>
-            </label>
+            {/* [SHL-2-4] Was a bare native <input type="checkbox"> — a stark white filled
+                box in dark mode, next to a card that is otherwise built entirely from the
+                design system. The canon component exists and this page simply wasn't
+                using it. */}
+            <div className={styles.rememberRow}>
+              <Checkbox
+                checked={rememberMe}
+                onChange={setRememberMe}
+                disabled={loading}
+                /* [SHL-2-3] It said "for 30 days". LEG-8-4 capped the admin token at
+                   MAX_ADMIN_TOKEN_TTL_SECONDS = 24h, so that a revocation record can
+                   never expire while a token it kills is still alive — but nobody
+                   moved the label, so the box promised 30 days and delivered 1.
+                   Measured live: rememberMe=true returns a token with a 24.0h life.
+                   The number is now what the server actually does. */
+                label="Keep me signed in for 24 hours"
+              />
+            </div>
             {error && <div className={styles.error} role="alert">{error}</div>}
             <button type="submit" className={styles.submitBtn} disabled={loading}>
               {loading ? <UilSpinner size={16} className={styles.spinnerIcon} /> : null}
@@ -207,9 +228,13 @@ export const AdminLoginPage: React.FC = () => {
                 Email me a reset link
               </button>
             </div>
+            {/* [SHL-2-5] This said "New team member? Request access" and linked to a form
+                that could not succeed — the worst possible first impression, aimed at
+                exactly the person least able to tell a dead route from a real one. It is a
+                statement now, because the truthful answer is a sentence, not a workflow:
+                nobody can self-serve an admin account. */}
             <div className={regStyles.loginLink}>
-              New team member?{' '}
-              <Link to="/admin/register" className={regStyles.link}>Request access</Link>
+              Need access? Ask a super admin to create your account.
             </div>
           </form>
         )}

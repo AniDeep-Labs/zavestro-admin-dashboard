@@ -1,3 +1,4 @@
+import { useOverviewFilters } from '../../hooks/useOverviewFilters';
 import React from 'react';
 import { fabricsApi, distributionApi, restockApi, listingRequestsApi, hubsApi } from '../../api/adminApi';
 import type { FabricStockRow, Distribution, RestockRequest, ListingRequest, Hub } from '../../api/adminApi';
@@ -29,9 +30,9 @@ export const SupplyOverviewPage: React.FC = () => {
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
-  const [hubId, setHubId] = React.useState('');
-  const [startDate, setStartDate] = React.useState('');
-  const [endDate, setEndDate] = React.useState('');
+  // [SHL-5-2] Hub + date window live in the URL, so refresh keeps them, browser-back out
+  // of a record returns to the same filtered view, and the view can be SENT to someone.
+  const { hubId, startDate, endDate, applyFilter } = useOverviewFilters();
 
   const load = React.useCallback(() => {
     setLoading(true);
@@ -143,11 +144,7 @@ export const SupplyOverviewPage: React.FC = () => {
       hubId={hubId}
       startDate={startDate}
       endDate={endDate}
-      onFilter={(p) => {
-        if (p.hubId !== undefined) setHubId(p.hubId);
-        if (p.startDate !== undefined) setStartDate(p.startDate);
-        if (p.endDate !== undefined) setEndDate(p.endDate);
-      }}
+      onFilter={applyFilter}
       tabs={tabs}
       csvName="supply-overview"
       headerExtra={kpis}

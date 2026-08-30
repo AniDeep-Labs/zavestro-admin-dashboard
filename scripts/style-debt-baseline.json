@@ -26,7 +26,6 @@
   "src/pages/admin/AdminLoginPage.module.css": 2,
   "src/pages/admin/AdminLoginPage.tsx": 3,
   "src/pages/admin/AdminProfilePage.tsx": 17,
-  "src/pages/admin/AdminRegisterPage.tsx": 1,
   "src/pages/admin/AdminResetPasswordPage.tsx": 1,
   "src/pages/admin/AdminUsersManagePage.module.css": 7,
   "src/pages/admin/AdminUsersManagePage.tsx": 5,

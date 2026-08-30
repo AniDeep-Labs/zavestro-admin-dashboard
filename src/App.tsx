@@ -9,7 +9,6 @@ import { lazy, type ComponentType } from "react";
 // Eager: the entry/auth pages + the layout shell (always needed on first paint).
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
-import { AdminRegisterPage } from "./pages/admin/AdminRegisterPage";
 import { AdminResetPasswordPage } from "./pages/admin/AdminResetPasswordPage";
 
 // G23 — route pages are lazy-loaded so each becomes its own chunk instead of
@@ -363,7 +362,16 @@ function App() {
 
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
-        <Route path="/admin/register" element={<AdminRegisterPage />} />
+        {/* [SHL-2-5 / SHL-2-6] Self-registration was removed (T1-8 / P-3) and the backend
+            has returned 410 ever since — but the page still RENDERED, so the one
+            call-to-action aimed at a brand-new colleague was a four-field form (name,
+            email, password, confirm) that could never succeed, ending in "ask someone
+            else". It also invited a password the system would never store, and its
+            "Request submitted! … pending activation" success screen was unreachable dead
+            code describing a workflow that no longer exists — a trap for the next
+            developer, who would read it as current. Component deleted; the path redirects
+            so an old bookmark lands somewhere real instead of on a 404. */}
+        <Route path="/admin/register" element={<Navigate to="/admin/login" replace />} />
         <Route
           path="/admin/reset-password"
           element={<AdminResetPasswordPage />}

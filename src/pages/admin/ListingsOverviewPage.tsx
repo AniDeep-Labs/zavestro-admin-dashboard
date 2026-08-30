@@ -1,3 +1,4 @@
+import { useOverviewFilters } from '../../hooks/useOverviewFilters';
 import React from 'react';
 import { money } from '../../utils/money'; // ACP-2 [KA11-2]
 import { listingsAdminApi, hubsApi } from '../../api/adminApi';
@@ -15,9 +16,9 @@ export const ListingsOverviewPage: React.FC = () => {
   const [data, setData] = React.useState<ListingExceptions | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
-  const [hubId, setHubId] = React.useState('');
-  const [startDate, setStartDate] = React.useState('');
-  const [endDate, setEndDate] = React.useState('');
+  // [SHL-5-2] Hub + date window live in the URL, so refresh keeps them, browser-back out
+  // of a record returns to the same filtered view, and the view can be SENT to someone.
+  const { hubId, startDate, endDate, applyFilter } = useOverviewFilters();
 
   React.useEffect(() => {
     hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
@@ -110,11 +111,7 @@ export const ListingsOverviewPage: React.FC = () => {
       hubId={hubId}
       startDate={startDate}
       endDate={endDate}
-      onFilter={(p) => {
-        if (p.hubId !== undefined) setHubId(p.hubId);
-        if (p.startDate !== undefined) setStartDate(p.startDate);
-        if (p.endDate !== undefined) setEndDate(p.endDate);
-      }}
+      onFilter={applyFilter}
       tabs={tabs}
       csvName="listings-overview"
     />

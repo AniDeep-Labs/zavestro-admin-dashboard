@@ -1,3 +1,4 @@
+import { useUrlTab } from '../../hooks/useOverviewFilters';
 import React from 'react';
 import type { Hub } from '../../api/adminApi';
 import { PeekDrawer } from '../../components/PeekDrawer/PeekDrawer';
@@ -60,7 +61,9 @@ export interface OverviewExceptionsProps<T> {
 // A single generic that TS is happy to erase per-tab.
 export function OverviewExceptions<T>(props: OverviewExceptionsProps<T>) {
   const { tabs, hubs, hubId, startDate, endDate, onFilter, loading, error } = props;
-  const [activeKey, setActiveKey] = React.useState(tabs[0]?.key);
+  // [SHL-5-2] The tab is part of "where I am", so it belongs in the URL with the filters.
+  // A shared oversight link should open on the tab the sender was looking at.
+  const [activeKey, setActiveKey] = useUrlTab(tabs.map((t) => t.key));
   const [peekRow, setPeekRow] = React.useState<T | null>(null);
 
   const active = tabs.find((t) => t.key === activeKey) ?? tabs[0];
