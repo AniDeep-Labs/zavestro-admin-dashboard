@@ -619,3 +619,50 @@
   line-height: 1.5;
   border-radius: var(--radius-sm);
 }
+
+/* [DSG-11-9] Revision spine: the way in, and the way a conflict is told. */
+
+.historyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 4px 10px;
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.historyBtn:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.versionChip {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+}
+
+/* Not a toast. A toast fades, and the author's next move would be to press Save again —
+   which is the one move that must not succeed here. */
+.conflict {
+  border: 1px solid var(--color-warning);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+.conflict p {
+  margin: 0 0 var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+.conflictActions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}

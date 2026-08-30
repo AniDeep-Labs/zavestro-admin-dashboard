@@ -22,7 +22,8 @@ import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import base from './OrdersListPage.module.css';
 import s from './GarmentTemplateEditorPage.module.css';
 import { Modal } from '../../components/Modal/Modal';
-import { UilArrowLeft, UilTimes, UilPlus, UilCalculatorAlt, UilImport } from '@iconscout/react-unicons';
+import { TemplateHistory } from '../../components/TemplateHistory/TemplateHistory';
+import { UilArrowLeft, UilTimes, UilPlus, UilCalculatorAlt, UilImport, UilHistory } from '@iconscout/react-unicons';
 
 const BASE = '__base__';
 // Body anchors the engine preview asks for, per body region (G-81).
@@ -238,6 +239,10 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const [pvBusy, setPvBusy] = React.useState(false);
   // Dirty tracking via a load-time snapshot (no per-setter instrumentation).
   const [baseline, setBaseline] = React.useState('');
+  // [DSG-11-9] The revision spine. `conflict` is a banner rather than a toast: a toast
+  // fades and the author just presses Save again, which is exactly the wrong move.
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [conflict, setConflict] = React.useState<string | null>(null);
   // [DSG-11-16] The dirty guard covers beforeunload and in-app logout, but NOT an in-app
   // route change — react-router's useBlocker isn't available under <Routes>. This page puts
   // its two likeliest exits exactly where the guard doesn't reach: "Back to templates" is
@@ -669,15 +674,29 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         length_bands: lengthBands,
         chart: cleanChart,
         note: note.trim() || undefined,
+        // [DSG-11-9] The version this page loaded. The save rewrites the WHOLE recipe —
+        // chart, presets, bands — so a second author saving over the first did not lose a
+        // field, they lost everything the first author did. Sending the token turns that
+        // into a 409 the page can explain.
+        expected_version: tpl?.version,
       });
       // [DSG-11-10] Re-hydrate from what came BACK, not from what we sent. The old code
       // set the baseline from local state, so any row the server dropped stayed on screen
       // marked as saved. `hydrate` also clears dirty, from the persisted values.
       hydrate(saved);
       setNote('');
+      setConflict(null);
       toast('success', 'Template saved');
     } catch (e) {
-      toast('error', 'Save failed', e instanceof Error ? e.message : undefined);
+      // [DSG-11-9] A conflict is not a generic failure and must not be a toast: a toast
+      // fades, and the author would try again and again. It is a persistent banner,
+      // because the only way forward is to look at what the other person did.
+      if ((e as { status?: number }).status === 409) {
+        setConflict(e instanceof Error ? e.message : 'Someone else saved this template while you were editing.');
+        toast('error', 'Not saved — someone else got there first');
+      } else {
+        toast('error', 'Save failed', e instanceof Error ? e.message : undefined);
+      }
     } finally {
       setSaving(false);
     }
@@ -862,6 +881,24 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         onConfirm={() => presetToRemove && removePreset(presetToRemove)}
         onCancel={() => setPresetToRemove(null)}
       />
+      {/* [DSG-11-9] The revision spine, and the only part of it a person sees. */}
+      <TemplateHistory
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        categoryId={id!}
+        templateName={tpl.name}
+        currentVersion={tpl.version ?? 0}
+        dirty={dirty}
+        onRestored={(restored) => {
+          // The restore returns the full template, so the page shows the restored recipe
+          // without a round trip — and `hydrate` resets the dirty baseline from it, so the
+          // discarded edits do not linger as "unsaved changes" over work that is gone.
+          hydrate(restored);
+          setConflict(null);
+          toast('success', 'Version restored', 'Recorded as a new version — the previous recipe is still in the history.');
+        }}
+        onError={(m) => toast('error', 'History', m)}
+      />
       <button
         type="button"
         className={s.back}
@@ -881,7 +918,38 @@ export const GarmentTemplateEditorPage: React.FC = () => {
           )}
         </h1>
         {dirty && <span className={s.dirtyBadge}>● Unsaved changes</span>}
+        {/* [DSG-11-9] Reachable from the header, beside the name of the thing it is the
+            history OF. The version number is on the button because "am I looking at what
+            I think I am?" is answerable without opening anything. */}
+        <button type="button" className={s.historyBtn} onClick={() => setHistoryOpen(true)}>
+          <UilHistory size={15} /> History
+          {typeof tpl.version === 'number' && tpl.version > 0 && (
+            <span className={s.versionChip}>v{tpl.version}</span>
+          )}
+        </button>
       </div>
+      {/* [DSG-11-9] Someone else saved while this page was open. The save rewrites the
+          WHOLE recipe, so pressing Save again would not merge — it would take everything
+          they did. The only honest next step is to look at what changed. */}
+      {conflict && (
+        <div className={s.conflict} role="alert">
+          <p>{conflict}</p>
+          <div className={s.conflictActions}>
+            <Button variant="secondary" onClick={() => setHistoryOpen(true)}>
+              See what changed
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConflict(null);
+                loadTemplate();
+              }}
+            >
+              Reload and lose my edits
+            </Button>
+          </div>
+        </div>
+      )}
       <p className={s.intro}>
         This is the <strong>fit recipe</strong> for {tpl.name}. The engine builds every customer's garment as{' '}
         <strong>finished&nbsp;=&nbsp;their body measurement&nbsp;+&nbsp;the fit's ease</strong>. Here you set the{' '}

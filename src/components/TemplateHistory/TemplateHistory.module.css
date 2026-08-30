@@ -1,0 +1,164 @@
+/* [DSG-11-9] Revision history for a garment type's fit recipe. */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.list > li {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+/* The version the editor is showing. Marked, not hidden — "where am I in this list?"
+   is the first question anyone opening a history asks. */
+.current {
+  border-color: var(--color-primary);
+}
+
+.rowBtn {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-family);
+  color: var(--color-text);
+}
+
+.vno {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  min-width: 3.5rem;
+}
+
+.meta {
+  flex: 1 1 16rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.hereChip {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-full);
+  padding: 0 var(--spacing-sm);
+  white-space: nowrap;
+}
+
+.note {
+  margin: var(--spacing-sm) 0 0 3.5rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.detail {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.detailTitle {
+  margin: var(--spacing-md) 0 var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+.detailTitle:first-child {
+  margin-top: 0;
+}
+
+/* A long path column must not push the page sideways — the table scrolls in its own box. */
+.diff {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.diff th,
+.diff td {
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--spacing-sm);
+  text-align: left;
+  vertical-align: top;
+}
+
+.diff thead th {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.path {
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.code {
+  font-size: var(--font-size-sm);
+}
+
+/* Direction is carried by more than colour: the "was" value is struck through, so the
+   two columns still read apart in greyscale and for a red/green-blind reader. */
+.was .code {
+  color: var(--color-error);
+  text-decoration: line-through;
+}
+.became .code {
+  color: var(--color-success);
+  font-weight: var(--font-weight-medium);
+}
+
+/* An absent value is not a blank cell — a blank reads as a rendering bug. */
+.absent {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.truncated,
+.none {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: var(--spacing-sm) 0 0;
+}
+
+.error {
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  align-items: flex-start;
+}
+.error p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}

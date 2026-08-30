@@ -2517,7 +2517,52 @@ export interface GarmentTemplate {
   used_by_fit_profiles?: number;
   used_by_storefront_categories?: number;
   used_by_orders?: number;
+  /**
+   * [DSG-11-9] The newest revision of this recipe. Echo it back on save: if someone else
+   * saved while this page was open the numbers no longer match and the save is refused
+   * (409) instead of silently winning the whole recipe. 0 = never saved since versioning.
+   */
+  version?: number;
+  version_saved_at?: string | null;
 }
+
+/** [DSG-11-9] One named field change between two revisions of a recipe. */
+export interface TemplateChange {
+  /** e.g. `chart · slim · 32 · chest`. */
+  path: string;
+  from: unknown;
+  to: unknown;
+}
+export interface TemplateDiff {
+  changes: TemplateChange[];
+  total: number;
+  truncated: boolean;
+}
+/** A row in the revision history. Carries the diff summary, not the whole snapshot. */
+export interface TemplateVersionRow {
+  version: number;
+  note: string | null;
+  /** `baseline` is the automatic record of the state before this type was ever versioned. */
+  source: 'save' | 'baseline' | 'restore';
+  created_at: string;
+  /** null for the baseline row, and for an author whose account was deleted. */
+  created_by: { id: string; name: string } | null;
+  changed: number;
+  changes: TemplateChange[];
+  truncated: boolean;
+}
+export interface TemplateVersionDetail {
+  version: number;
+  note: string | null;
+  source: string;
+  created_at: string;
+  snapshot: Record<string, unknown>;
+  /** What this save changed at the time. */
+  diff: TemplateDiff;
+  /** What restoring it would change now — the current state moves, this is computed live. */
+  diff_vs_current: TemplateDiff;
+}
+
 export interface FitPresetDef {
   fit_preset: string;
   /**
@@ -2543,6 +2588,8 @@ export interface GarmentTemplateInput {
   length_bands?: LengthBand[];
   chart: ChartRow[];
   note?: string; // "what changed" one-liner → audit trail
+  /** [DSG-11-9] The version this editor loaded. Stale → 409, not a silent overwrite. */
+  expected_version?: number;
 }
 
 export interface DesignOverviewRow {
@@ -2695,6 +2742,30 @@ export const designsApi = {
         method: "PUT",
         body: JSON.stringify(input),
       },
+    ),
+
+  // [DSG-11-9] The revision spine of a garment type's fit recipe.
+  listTemplateVersions: async (categoryId: string): Promise<TemplateVersionRow[]> =>
+    req<TemplateVersionRow[]>(
+      `/api/admin/designs/garment-categories/${categoryId}/template/versions`,
+    ),
+
+  getTemplateVersion: async (
+    categoryId: string,
+    version: number,
+  ): Promise<TemplateVersionDetail> =>
+    req<TemplateVersionDetail>(
+      `/api/admin/designs/garment-categories/${categoryId}/template/versions/${version}`,
+    ),
+
+  restoreTemplateVersion: async (
+    categoryId: string,
+    version: number,
+    note?: string,
+  ): Promise<GarmentTemplate> =>
+    req<GarmentTemplate>(
+      `/api/admin/designs/garment-categories/${categoryId}/template/versions/${version}/restore`,
+      { method: "POST", body: JSON.stringify({ note }) },
     ),
 
   create: async (input: DesignInput): Promise<DesignDetail> =>
