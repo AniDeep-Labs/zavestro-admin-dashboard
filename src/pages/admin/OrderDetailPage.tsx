@@ -1607,9 +1607,39 @@ export const OrderDetailPage: React.FC = () => {
                 Measurement
               </div>
               {order.fit_profile_id ? (
-                <span className={styles.measureOnFile}>
-                  ✓ Measurements on file — used for production
-                </span>
+                <>
+                  <span className={styles.measureOnFile}>
+                    ✓ Measurements on file — used for production
+                  </span>
+                  {/* [SUP-28-4] What the garment was actually cut to.
+                      The server has always sent `items[].measurement_snapshot`; nothing
+                      rendered it, so the single most common conversation on a
+                      made-to-measure order — "it doesn't fit" — was answered with a tick.
+                      The one fact that settles it (what we cut to, versus what the
+                      customer says they are) was one field away and invisible, and an
+                      agent could not sanity-check a suspicious value before ordering a
+                      re-measure. */}
+                  {(order.items ?? []).some(it => it.measurement_snapshot && Object.keys(it.measurement_snapshot).length > 0) && (
+                    <div className={styles.cutToBlock}>
+                      {(order.items ?? []).map(it =>
+                        it.measurement_snapshot && Object.keys(it.measurement_snapshot).length > 0 ? (
+                          <div key={it.id} className={styles.cutToItem}>
+                            <div className={styles.cutToLabel}>
+                              Cut to{(order.items ?? []).length > 1 ? ` · ${it.product_name}` : ""}
+                            </div>
+                            <div className={styles.cutToValues}>
+                              {Object.entries(it.measurement_snapshot).map(([k, v]) => (
+                                <span key={k} className={styles.cutToChip}>
+                                  {k.replace(/_/g, " ")} <strong>{String(v)}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null,
+                      )}
+                    </div>
+                  )}
+                </>
               ) : order.linked_home_visit_id ? (
                 <span className={styles.measureVisit}>
                   Agent home visit

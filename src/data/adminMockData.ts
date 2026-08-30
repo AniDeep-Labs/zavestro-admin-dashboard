@@ -22,6 +22,10 @@ export interface OrderItem {
   unit_price: number;
   cancelled_at?: string | null; // T2-8: item-level cancel
   cancel_reason?: string | null;
+  // [SUP-28-4] What this garment was actually cut to. The server has always sent it and
+  // the type never declared it, so the one fact that settles "it doesn't fit" was a field
+  // away and invisible — the agent saw only "✓ Measurements on file".
+  measurement_snapshot?: Record<string, number | string | null> | null;
 }
 
 export interface OrderTimelineEntry {

@@ -678,9 +678,18 @@ export const usersApi = {
     return mapUser(u);
   },
 
-  update: async (id: string, data: Partial<AdminUser>): Promise<AdminUser> => {
+  // [SUP-30-7] `reason` travels with the status change. The deactivation modal demands one
+  // before it will enable its button, and this builder used to emit `is_active` alone — so
+  // the reason the agent typed was discarded in this function, and the audit row recorded
+  // the click without the cause.
+  update: async (
+    id: string,
+    data: Partial<AdminUser>,
+    opts: { reason?: string } = {},
+  ): Promise<AdminUser> => {
     const body: Record<string, unknown> = {};
     if (data.status !== undefined) body.is_active = data.status === "Active";
+    if (opts.reason?.trim()) body.reason = opts.reason.trim();
     const u = await req<Record<string, unknown>>(`/api/admin/users/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
