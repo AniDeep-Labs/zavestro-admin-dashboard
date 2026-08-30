@@ -135,12 +135,29 @@ export const AlterationsListPage: React.FC = () => {
     }
     setCreating(true);
     try {
-      await alterationsApi.create({
+      const created = await alterationsApi.create({
         user_id: selCustomer.id,
         order_id: selOrderId,
         description: createDesc.trim(),
       });
-      showToast('success', 'Alteration created', 'First alteration on the order is free.');
+      // [SUP-31-7] Report the fee the server computed; do not assert a policy.
+      //
+      // This said "First alteration on the order is free." flatly, while the fee is worked
+      // out PER HUB from `alteration_fee` + `alteration_first_free` and returned on the
+      // created row — which the client threw away. Every hub is ₹0/first-free today, so it
+      // was latent rather than live; the day a hub sets a fee, the agent tells the customer
+      // it is free and the customer is billed. That is the wrong way round to be wrong
+      // about money.
+      const fee = Number(created?.fee_amount ?? 0);
+      showToast(
+        'success',
+        'Alteration created',
+        created?.fee_status === 'waived'
+          ? 'First alteration on this order — no charge at this hub.'
+          : fee > 0
+            ? `This hub charges ₹${fee.toLocaleString('en-IN')} for this alteration (${created?.fee_status ?? 'pending'}). Tell the customer before you proceed.`
+            : 'No charge for this alteration at this hub.',
+      );
       resetCreate();
       setRefreshTick(t => t + 1);
     } catch (e) {

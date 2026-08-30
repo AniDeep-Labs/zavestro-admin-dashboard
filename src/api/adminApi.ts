@@ -2077,6 +2077,12 @@ export const returnsApi = {
 // ─── Alterations ──────────────────────────────────────────────────────────────
 
 export interface AlterationRequest {
+  // [SUP-31-7] The fee the SERVER computed for this request, from the hub's own
+  // `alteration_fee` + `alteration_first_free`. It has always been on the created row
+  // (`RETURNING *`) and the client discarded it, then told the customer the alteration was
+  // free regardless of what the hub charges.
+  fee_amount?: string | number | null;
+  fee_status?: 'free' | 'waived' | 'pending' | null;
   id: string;
   order_id: string;
   order_number: string;
