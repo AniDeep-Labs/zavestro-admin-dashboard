@@ -35,6 +35,7 @@ import {
   UilClock,
   UilUserCheck,
 } from "@iconscout/react-unicons";
+import { ticketCategoryLabel } from '../../constants/ticketCategories';
 
 // T3-3 (W-S4): canned responses are now the agent's OWN, editable + persisted (localStorage),
 // seeded with these defaults. No more four hardcoded strings you can't change.
@@ -536,7 +537,12 @@ export const TicketDetailPage: React.FC = () => {
           >
             {ticket.priority}
           </span>
-          <span className={styles.categoryTag}>{ticket.category}</span>
+          {/* [SUP-32-5] Render the LABEL, not the raw column value. This printed
+              "order_issue" in the page header — a database spelling shown to an agent
+              mid-conversation, and unreadable to anyone who did not write the seed. */}
+          <span className={styles.categoryTag} title={ticket.category ?? undefined}>
+            {ticketCategoryLabel(ticket.category)}
+          </span>
         </>
       }
     />

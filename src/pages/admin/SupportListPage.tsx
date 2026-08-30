@@ -15,7 +15,7 @@ import {
   UilSearch,
   UilTimes,
 } from "@iconscout/react-unicons";
-import { TICKET_CATEGORIES } from '../../constants/ticketCategories';
+import { TICKET_CATEGORIES, ticketCategoryLabel } from '../../constants/ticketCategories';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const LIMIT = 25;
@@ -437,7 +437,8 @@ export const SupportListPage: React.FC = () => {
                         <div className={styles.customerPhone}><PhoneCell phone={t.phone} /></div>
                       </td>
                       <td className={styles.subject}>{t.subject}</td>
-                      <td>{t.category}</td>
+                      {/* [SUP-32-5] The label, not the stored spelling. */}
+                      <td title={t.category ?? undefined}>{ticketCategoryLabel(t.category)}</td>
                       <td>
                         <span
                           className={`${styles.priorityPill} ${styles[priorityCss[t.priority]]}`}
