@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { designsApi } from '../../api/adminApi';
 import type { ChartRow, GarmentTemplate, SizePreviewResult, FitPresetDef, LengthBand } from '../../api/adminApi';
+import { isValidSizeLabel, sizeLabelError } from '../../constants/sizeLabel';
 import { Button } from '../../components/Button/Button';
 import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { Spinner } from '../../components/Spinner';
@@ -723,10 +724,17 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       return;
     }
     const newRows: ChartRow[] = [];
+    const badSizes: string[] = [];
     for (let li = 1; li < lines.length; li++) {
       const cells = lines[li].split(delim).map((c) => c.trim());
       const size = cells[0];
       if (!size) continue;
+      // The engine keys the chart by number. A letter row would import cleanly, save
+      // cleanly and then vanish from every preview. [DSG-11-14]
+      if (!isValidSizeLabel(size)) {
+        badSizes.push(size);
+        continue;
+      }
       const measurements: Record<string, number> = {};
       fieldForCol.forEach((field, ci) => {
         if (!field) return;
@@ -738,8 +746,22 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       newRows.push({ fit_preset: presetKey, size_label: size, measurements });
     }
     if (newRows.length === 0) {
-      toast('error', 'No size rows found', 'Each row needs a size label in the first column.');
+      toast(
+        'error',
+        badSizes.length ? 'No usable size rows' : 'No size rows found',
+        badSizes.length
+          ? sizeLabelError(badSizes[0])
+          : 'Each row needs a size label in the first column.',
+      );
       return;
+    }
+    if (badSizes.length) {
+      // Imported what was usable and said what was left out, rather than dropping it quietly.
+      toast(
+        'warning',
+        `Skipped ${badSizes.length} row${badSizes.length === 1 ? '' : 's'}`,
+        `${badSizes.join(', ')} — sizes must be numeric (32, 32.5). The rest were imported.`,
+      );
     }
     // Replace only the active preset's rows (other presets untouched) — like Generate.
     setChart([...chart.filter((r) => (r.fit_preset ?? BASE) !== activePreset), ...newRows]);
@@ -948,11 +970,22 @@ export const GarmentTemplateEditorPage: React.FC = () => {
                 ) : rows.map((r, i) => (
                   <tr key={i}>
                     <td><input
-                      className={`${s.sizeInput} ${duplicateLabels.has(r.size_label.trim()) ? s.cellErr : ''}`}
-                      value={r.size_label} placeholder="e.g. M / 32"
-                      title={duplicateLabels.has(r.size_label.trim())
-                        ? `Another row in this fit is also "${r.size_label.trim()}" — sizes must be unique`
-                        : undefined}
+                      className={`${s.sizeInput} ${
+                        duplicateLabels.has(r.size_label.trim()) ||
+                        (r.size_label.trim() !== '' && !isValidSizeLabel(r.size_label))
+                          ? s.cellErr
+                          : ''
+                      }`}
+                      value={r.size_label} placeholder="e.g. 32 or 32.5"
+                      // Flag a label the engine would drop while it is being typed, not on
+                      // save — this cell used to suggest "M". [DSG-11-14]
+                      title={
+                        duplicateLabels.has(r.size_label.trim())
+                          ? `Another row in this fit is also "${r.size_label.trim()}" — sizes must be unique`
+                          : r.size_label.trim() !== '' && !isValidSizeLabel(r.size_label)
+                            ? sizeLabelError(r.size_label)
+                            : undefined
+                      }
                       onChange={(e) => renameSize(i, e.target.value)} /></td>
                     {chartFields.map((f) => {
                       const st = cellState(i, f);
@@ -1299,7 +1332,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
           className={s.importArea}
           rows={10}
           value={importText}
-          placeholder={`Size\t${chartFields.slice(0, 3).join('\t') || 'chest\twaist\thip'}\nS\t36\t30\t38\nM\t38\t32\t40\nL\t40\t34\t42`}
+          placeholder={`Size\t${chartFields.slice(0, 3).join('\t') || 'chest\twaist\thip'}\n36\t36\t30\t38\n38\t38\t32\t40\n40\t40\t34\t42`}
           onChange={(e) => setImportText(e.target.value)}
         />
         <div className={s.gradeActions}>
