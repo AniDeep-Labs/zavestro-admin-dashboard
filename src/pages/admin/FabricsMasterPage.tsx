@@ -40,6 +40,10 @@ const SWATCH_TITLE: Record<SwatchState, string> = {
   unreachable: 'A swatch is on file but its image could not be loaded — the key may be broken or storage unreachable',
 };
 
+// [PRC-14-10] The width design metres are authored against, mirrored from the backend's
+// REFERENCE_FABRIC_WIDTH_CM. A fabric with no width is reserved as if it were exactly this.
+const REFERENCE_WIDTH_CM = 112;
+
 const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', width_cm: '', origin: '', supplier: '', supplier_city: '', supplier_lead_time: '', supplier_moq: '', supplier_phone: '', supplier_email: '', supplier_gstin: '', price_per_meter: '', care: '', fabric_type: 'woven', stretch_pct: '', shrinkage_pct: '' };
 type Form = typeof EMPTY;
 
@@ -52,6 +56,8 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
   const [search, setSearch] = React.useState('');
   const [activeFilter, setActiveFilter] = React.useState('');
   const [lowOnly, setLowOnly] = React.useState(false); // "Low somewhere" (procurement)
+  // [PRC-14-8 / PRC-14-10] '' | 'supplier' | 'width' — which gap the grid is narrowed to.
+  const [gapFilter, setGapFilter] = React.useState<'' | 'supplier' | 'width'>('');
   // [PRC-14-4] How many shelf positions have a reorder point at all — the denominator
   // the "Below reorder" count needs before it means anything.
   const [coverage, setCoverage] = React.useState<ReorderCoverage | null>(null);
@@ -262,12 +268,36 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
     });
     return arr;
   }, [fabrics, sortKey, sortDir]);
+  // [PRC-14-8 / PRC-14-10] The two gaps that stop this console doing its job.
+  //
+  // `noSupplier`: a fabric nobody can reorder. `noWidth`: a fabric whose consumption maths
+  // is running on an ASSUMPTION — `widthAdjustedMeters` treats an unknown width as exactly
+  // the 112cm reference, so the reservation is silently wrong in proportion to how far the
+  // real roll is from that.
+  //
+  // Counted over ALL fabrics, not the filtered page: "how much of the master is
+  // unusable?" is a question about the master.
+  const noSupplier = React.useMemo(
+    () => fabrics.filter((f) => !String(f.supplier ?? '').trim()),
+    [fabrics],
+  );
+  const noWidth = React.useMemo(
+    () => fabrics.filter((f) => f.width_cm == null || String(f.width_cm).trim() === ''),
+    [fabrics],
+  );
   // Summary rollup (reflects the current filter set, matching the row count).
   const totalStock = fabrics.reduce((sum, f) => sum + (f.total_available ?? 0), 0);
   const capital = fabrics.reduce((sum, f) => sum + (f.stock_value ?? 0), 0);
   const lowCount = fabrics.filter((f) => f.low_somewhere).length;
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const pageRows = sorted.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  // Clicking a gap chip narrows the grid to exactly those rows, so the count is not just a
+  // statistic — it is a way in to fixing them.
+  const gapped = React.useMemo(() => {
+    if (gapFilter === 'supplier') return sorted.filter((f) => noSupplier.includes(f));
+    if (gapFilter === 'width') return sorted.filter((f) => noWidth.includes(f));
+    return sorted;
+  }, [sorted, gapFilter, noSupplier, noWidth]);
+  const pageCount = Math.max(1, Math.ceil(gapped.length / PAGE_SIZE));
+  const pageRows = gapped.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   const toggleSort = (k: typeof sortKey) => {
     if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortKey(k); setSortDir(k === 'name' ? 'asc' : 'desc'); }
@@ -275,7 +305,7 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
   };
   const sortIcon = (k: typeof sortKey) =>
     sortKey !== k ? null : sortDir === 'asc' ? <UilAngleUp size={14} /> : <UilAngleDown size={14} />;
-  React.useEffect(() => { setPage(0); }, [search, activeFilter, lowOnly]);
+  React.useEffect(() => { setPage(0); }, [search, activeFilter, lowOnly, gapFilter]);
 
   return (
     <div className={base.page}>
@@ -356,6 +386,43 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
               </>
             )}
           </div>
+        </div>
+      )}
+
+      {/* [PRC-14-8 / PRC-14-10] Missing procurement data is an EXCEPTION, not an absence.
+          For a console whose job is reordering cloth, a fabric with no supplier is not a
+          shorter card — it is a fabric nobody can reorder. And a fabric with no usable
+          width is not "unspecified": `widthAdjustedMeters` treats an unknown width as
+          exactly the 112cm reference, so a 150cm roll silently over-reserves by a third
+          and a 90cm handloom under-reserves — a short cut on the table. Both were quiet
+          "—"s in a column. */}
+      {!loading && (noSupplier.length > 0 || noWidth.length > 0) && (
+        <div className={s.gapStrip}>
+          {noSupplier.length > 0 && (
+            <button
+              type="button"
+              className={`${s.gapChip} ${gapFilter === 'supplier' ? s.gapChipActive : ''}`}
+              onClick={() => setGapFilter(gapFilter === 'supplier' ? '' : 'supplier')}
+            >
+              <strong>{noSupplier.length}</strong> of {fabrics.length} have no supplier
+              <span className={s.gapWhy}>— nobody can reorder these</span>
+            </button>
+          )}
+          {noWidth.length > 0 && (
+            <button
+              type="button"
+              className={`${s.gapChip} ${gapFilter === 'width' ? s.gapChipActive : ''}`}
+              onClick={() => setGapFilter(gapFilter === 'width' ? '' : 'width')}
+            >
+              <strong>{noWidth.length}</strong> of {fabrics.length} have no width
+              <span className={s.gapWhy}>— reserved as if {REFERENCE_WIDTH_CM}cm</span>
+            </button>
+          )}
+          {gapFilter && (
+            <button type="button" className={s.gapClear} onClick={() => setGapFilter('')}>
+              Show all
+            </button>
+          )}
         </div>
       )}
 
