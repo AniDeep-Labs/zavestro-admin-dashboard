@@ -5164,6 +5164,78 @@ export const customerLookupApi = {
     ),
 };
 
+/**
+ * [SUP-33-5 / SUP-33-3] A support phone call as a record, not React state.
+ *
+ * The console kept "this call" in memory, so a refresh emptied it and the wrap-up note read
+ * "Actions this call: none" about work already done. The six dispositions were concatenated
+ * into a prose sentence in a customer note, "Callback needed" scheduled nothing, and the
+ * identity check was audited with nothing linking it to the actions it authorised.
+ */
+export const CALL_DISPOSITIONS = [
+  { key: 'resolved_on_call', label: 'Resolved on call' },
+  { key: 'ticket_logged', label: 'Ticket logged for follow-up' },
+  { key: 'remeasure_scheduled', label: 'Re-measure scheduled' },
+  { key: 'credit_issued', label: 'Credit issued' },
+  { key: 'callback_needed', label: 'Callback needed' },
+  { key: 'escalated_to_ops', label: 'Escalated to ops' },
+] as const;
+export type CallDisposition = (typeof CALL_DISPOSITIONS)[number]['key'];
+
+export interface SupportCall {
+  id: string;
+  admin_user_id: string;
+  customer_user_id: string | null;
+  started_at: string;
+  ended_at: string | null;
+  verified_at: string | null;
+  disposition: CallDisposition | null;
+  summary: string | null;
+  actions: { title: string; at: string; tone?: string }[];
+  callback_due_at: string | null;
+  callback_done_at: string | null;
+}
+
+export interface CallbackRow extends SupportCall {
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_ref: string | null;
+  agent_name: string | null;
+  overdue: boolean;
+}
+
+export const supportCallsApi = {
+  start: (customerUserId?: string | null): Promise<SupportCall> =>
+    req<SupportCall>(`/api/admin/support/calls`, {
+      method: 'POST',
+      body: JSON.stringify({ customer_user_id: customerUserId ?? null }),
+    }),
+  attachCustomer: (callId: string, customerUserId: string, verified: boolean): Promise<SupportCall> =>
+    req<SupportCall>(`/api/admin/support/calls/${callId}/customer`, {
+      method: 'POST',
+      body: JSON.stringify({ customer_user_id: customerUserId, verified }),
+    }),
+  action: (callId: string, title: string, tone?: string): Promise<SupportCall> =>
+    req<SupportCall>(`/api/admin/support/calls/${callId}/actions`, {
+      method: 'POST',
+      body: JSON.stringify({ title, tone }),
+    }),
+  end: (
+    callId: string,
+    body: { disposition: CallDisposition; summary?: string; callback_due_at?: string | null },
+  ): Promise<SupportCall> =>
+    req<SupportCall>(`/api/admin/support/calls/${callId}/end`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  callbacks: (mine = false): Promise<CallbackRow[]> =>
+    req<{ callbacks: CallbackRow[] }>(
+      `/api/admin/support/callbacks${mine ? '?mine=1' : ''}`,
+    ).then((r) => r.callbacks ?? []),
+  completeCallback: (callId: string): Promise<SupportCall> =>
+    req<SupportCall>(`/api/admin/support/callbacks/${callId}/done`, { method: 'POST' }),
+};
+
 export interface ProductCategory {
   id: string;
   name: string;

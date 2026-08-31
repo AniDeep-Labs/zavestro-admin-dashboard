@@ -9,8 +9,11 @@ import {
   alterationsApi,
   returnsApi,
   customerLookupApi,
+  supportCallsApi,
+  CALL_DISPOSITIONS,
 } from "../../api/adminApi";
 import type {
+  CallDisposition,
   CustomerLookupResult,
   AdminUser,
   AdminOrder,
@@ -132,7 +135,16 @@ export const CallConsolePage: React.FC = () => {
 
   // "This call" running log + wrap-up
   const [callLog, setCallLog] = React.useState<ActivityEntry[]>([]);
-  const [disposition, setDisposition] = React.useState("");
+  // [SUP-33-5] The server-side call this console is writing into. Held in a ref as well as
+  // state because `logActivity` is called from handlers that closed over an older render —
+  // an action logged against a stale null id would be silently dropped, which is the exact
+  // "Actions this call: none" failure being fixed.
+  const callIdRef = React.useRef<string | null>(null);
+  const setCall = (id: string | null) => {
+    callIdRef.current = id;
+  };
+  const [callbackDue, setCallbackDue] = React.useState('');
+  const [disposition, setDisposition] = React.useState<CallDisposition | "">("");
   const [wrapSummary, setWrapSummary] = React.useState("");
   const [wrapping, setWrapping] = React.useState(false);
 
@@ -144,11 +156,26 @@ export const CallConsolePage: React.FC = () => {
   const logActivity = (
     title: string,
     tone: ActivityEntry["tone"] = "neutral",
-  ) =>
+  ) => {
     setCallLog((l) => [
       ...l,
       { id: `${Date.now()}-${l.length}`, at: nowTime(), title, tone },
     ]);
+    // [SUP-33-5] ...and to the record, so the wrap-up survives a refresh. Read through the
+    // REF, not state: this runs from handlers that closed over an earlier render, and an
+    // action logged against a stale null id would be silently dropped — the exact
+    // "Actions this call: none" failure being fixed.
+    //
+    // Best-effort: losing the log line must never block the support action the agent is in
+    // the middle of. Not swallowed silently either — a call log that quietly stops
+    // recording is worse than one that says it stopped.
+    const id = callIdRef.current;
+    if (id) {
+      supportCallsApi
+        .action(id, title, tone)
+        .catch((e) => console.warn("[call] could not record action on the call record", e));
+    }
+  };
 
   const resetCall = () => {
     setCustomer(null);
@@ -171,6 +198,8 @@ export const CallConsolePage: React.FC = () => {
     setCallLog([]);
     setDisposition("");
     setWrapSummary("");
+    setCallbackDue("");
+    setCall(null);
   };
 
   const onSelectCustomer = (c: CustomerLookupResult) => {
@@ -183,6 +212,23 @@ export const CallConsolePage: React.FC = () => {
     setCallLog([]);
     setDisposition("");
     setWrapSummary("");
+    setCallbackDue("");
+    // [SUP-33-5] Open the record here, BEFORE the identity check — identifying the caller
+    // is part of the call, not a precondition for one having happened. A failed
+    // verification is itself something worth having a record of.
+    setCall(null);
+    supportCallsApi
+      .start(c.id)
+      .then((call) => setCall(call.id))
+      .catch(() => {
+        // The console still works; it just is not being recorded, and it says so rather
+        // than pretending at wrap-up time.
+        toast(
+          "error",
+          "This call is not being recorded",
+          "Actions will still work, but the wrap-up will not be saved. Reload to try again.",
+        );
+      });
   };
 
   // Need the name plus one factor that isn't the caller's own number (city or email).
@@ -201,6 +247,18 @@ export const CallConsolePage: React.FC = () => {
         email: claimEmail.trim() || undefined,
       });
       if (!res.verified || !res.customer) {
+        // [SUP-33-3] Record the failure on the call too. A call where the caller could not
+        // be verified is precisely the one a reviewer wants to find later.
+        if (callIdRef.current) {
+          supportCallsApi
+            .attachCustomer(callIdRef.current, customer.id, false)
+            .catch((err) =>
+              // Not discarded: if the failed check does not reach the record, the call
+              // looks unverified-because-nobody-tried rather than unverified-because-they
+              // failed, and those are very different facts about an agent's call.
+              console.warn("[call] could not record the failed identity check", err),
+            );
+        }
         logActivity(
           "Identity verification failed — details did not match",
           "neutral",
@@ -215,6 +273,19 @@ export const CallConsolePage: React.FC = () => {
       const full = res.customer;
       setCustomer(full); // full PII, released by the server on a verified match
       setVerified(true);
+      // [SUP-33-3] Stamp the verification ON the call, so the actions taken after it carry
+      // a link back to it. The finding's "at minimum": it is not an access control (support
+      // can still read these customers directly), but "had this agent verified who they
+      // were talking to before they did that?" now has an answer.
+      if (callIdRef.current) {
+        supportCallsApi
+          .attachCustomer(callIdRef.current, full.id, true)
+          .catch((err) =>
+            // Not discarded either: an unrecorded PASS makes the call look unverified
+            // while the agent proceeds as though it was — the worst of the three states.
+            console.warn("[call] could not record the identity verification", err),
+          );
+      }
       logActivity("Identity verified (server-checked)", "done");
       setLoadingDetail(true);
       const [user, ordersRes, ticketsRes, remeasures, credits] =
@@ -478,14 +549,39 @@ export const CallConsolePage: React.FC = () => {
       return;
     }
     setWrapping(true);
+    const label =
+      CALL_DISPOSITIONS.find((d) => d.key === disposition)?.label ?? disposition;
     const actions = callLog.map((e) => e.title).join("; ") || "none";
+    // The customer-facing note stays — an agent reading the 360 wants the prose. What
+    // changed is that it is no longer the ONLY place the outcome exists.
     const note =
-      `[Call] Outcome: ${disposition}.` +
+      `[Call] Outcome: ${label}.` +
       (wrapSummary.trim() ? ` ${wrapSummary.trim()}` : "") +
       ` Actions this call: ${actions}.`;
     try {
+      // [SUP-33-5] Close the RECORD first. Its disposition is a column, so "how many calls
+      // this week and how did they end?" is a GROUP BY rather than a text search, and a
+      // "Callback needed" lands in a queue instead of evaporating. If this fails the call
+      // is not wrapped up and the agent is told — better than a note that claims an
+      // outcome the reporting will never see.
+      if (callIdRef.current) {
+        await supportCallsApi.end(callIdRef.current, {
+          disposition,
+          summary: wrapSummary.trim() || undefined,
+          callback_due_at:
+            disposition === "callback_needed" && callbackDue
+              ? new Date(callbackDue).toISOString()
+              : null,
+        });
+      }
       await usersApi.addNote(customer.id, note);
-      toast("success", "Call logged", "Outcome saved to the customer record.");
+      toast(
+        "success",
+        "Call logged",
+        disposition === "callback_needed"
+          ? "Outcome saved, and the callback is in the queue."
+          : "Outcome saved to the customer record.",
+      );
       resetCall();
     } catch (e) {
       toast(
@@ -498,14 +594,10 @@ export const CallConsolePage: React.FC = () => {
     }
   };
 
-  const DISPOSITIONS = [
-    "Resolved on call",
-    "Ticket logged for follow-up",
-    "Re-measure scheduled",
-    "Credit issued",
-    "Callback needed",
-    "Escalated to ops",
-  ];
+  // [SUP-33-5] The same six, but keyed — they are a stored column now, not a sentence
+  // fragment. The list lives in adminApi beside the type so the console and the API cannot
+  // drift into a seventh spelling.
+  const DISPOSITIONS = CALL_DISPOSITIONS;
 
   // ─────────────────────────────────────────────────────────────────────────
   const header = (
@@ -978,15 +1070,29 @@ export const CallConsolePage: React.FC = () => {
         <select
           className={styles.select}
           value={disposition}
-          onChange={(e) => setDisposition(e.target.value)}
+          onChange={(e) => setDisposition(e.target.value as CallDisposition | "")}
         >
           <option value="">Select an outcome…</option>
           {DISPOSITIONS.map((d) => (
-            <option key={d} value={d}>
-              {d}
+            <option key={d.key} value={d.key}>
+              {d.label}
             </option>
           ))}
         </select>
+        {/* [SUP-33-5] "Callback needed" scheduled nothing — the outcome that most needs a
+            follow-up was the one with no mechanism behind it. It now takes a time and lands
+            in a queue, and the server refuses the outcome without one. */}
+        {disposition === "callback_needed" && (
+          <label className={styles.callbackRow}>
+            <span className={styles.callbackLabel}>Call them back by</span>
+            <input
+              type="datetime-local"
+              className={styles.select}
+              value={callbackDue}
+              onChange={(e) => setCallbackDue(e.target.value)}
+            />
+          </label>
+        )}
         <Textarea
           value={wrapSummary}
           onChange={setWrapSummary}
@@ -997,7 +1103,11 @@ export const CallConsolePage: React.FC = () => {
           <Button
             variant="secondary"
             onClick={endCall}
-            disabled={!disposition || wrapping}
+            disabled={
+              !disposition ||
+              wrapping ||
+              (disposition === "callback_needed" && !callbackDue)
+            }
             state={wrapping ? "loading" : "default"}
           >
             End &amp; log call
