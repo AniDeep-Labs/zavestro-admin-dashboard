@@ -1,3 +1,4 @@
+import { useUrlParam, useUrlEditor } from '../../hooks/useOverviewFilters';
 import React from 'react';
 import { collectionsApi } from '../../api/adminApi';
 import type { Collection } from '../../api/adminApi';
@@ -26,8 +27,10 @@ const TYPE_CLASS: Record<string, string> = {
 };
 
 export const CollectionsListPage: React.FC = () => {
-  const [search, setSearch] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState('All');
+  // [CM-21-10] Search + status filter live in the URL, so refresh and back keep them and
+  // a filtered list can be sent to a colleague.
+  const [search, setSearch] = useUrlParam('q');
+  const [statusFilter, setStatusFilter] = useUrlParam('status', 'All');
   const debouncedSearch = useDebounce(search, 300);
 
   const [collections, setCollections] = React.useState<Collection[]>([]);
@@ -43,7 +46,11 @@ export const CollectionsListPage: React.FC = () => {
   const [archiveTarget, setArchiveTarget] = React.useState<Collection | null>(null);
   const [archiving, setArchiving] = React.useState(false);
   // Create/Edit open in a popup modal (like banners): 'new' | collectionId | null.
-  const [editorId, setEditorId] = React.useState<string | null>(null);
+  // [CM-21-10] ...and so does the open editor. The route /catalog/collections/:id already
+  // renders this same component as a full page, while the list opened it in a modal with
+  // no address at all — so "the collection I'm editing" could not be linked, and Back left
+  // the list instead of closing the modal.
+  const [editorId, setEditorId] = useUrlEditor();
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, message?: string) =>

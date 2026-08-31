@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- this page also exports the
    reusable BannerHero renderer + layout helpers, shared by the collection studio. */
+import { useUrlParam, useUrlEditor } from '../../hooks/useOverviewFilters';
 import React from 'react';
 import { bannersApi, collectionsApi, categoriesAdminApi, hubsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { Hub } from '../../api/adminApi';
@@ -1045,7 +1046,40 @@ function BannerForm({
 export const BannersPage: React.FC = () => {
   const [banners, setBanners]     = React.useState<Banner[]>([]);
   const [loading, setLoading]     = React.useState(true);
-  const [modal, setModal]         = React.useState<Banner | 'new' | null>(null);
+  // [CM-22-10] The editor was a modal with no address: "the banner I'm editing" could not
+  // be linked, and Back left the page instead of closing the modal. The URL holds the id
+  // (or 'new'); the banner itself is resolved from the loaded list, so a link opens the
+  // right record after a reload instead of an empty form.
+  const [editId, setEditId] = useUrlEditor();
+  const modal: Banner | 'new' | null =
+    editId === null ? null : editId === 'new' ? 'new' : (banners.find((x) => x.id === editId) ?? null);
+  const setModal = (next: Banner | 'new' | null) =>
+    setEditId(next === null ? null : next === 'new' ? 'new' : next.id);
+  // [CM-22-10] ...and the list had no filters at all. Fine at one banner, thin for the
+  // seasonal calendar this page is for.
+  const [search, setSearch] = useUrlParam('q');
+  const [statusFilter, setStatusFilter] = useUrlParam('status', 'All');
+  const now = Date.now();
+  // "Scheduled" and "Expired" are derived from the dates, not stored — a banner can be
+  // is_active and still not be on screen, which is exactly the state a seasonal calendar
+  // needs to see. The two live columns already show it; this makes it filterable.
+  const visible = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return banners.filter((bn) => {
+      if (q) {
+        const hay = `${bn.title ?? ''} ${bn.subtitle ?? ''} ${bn.tag ?? ''} ${bn.cta_text ?? ''}`;
+        if (!hay.toLowerCase().includes(q)) return false;
+      }
+      if (statusFilter === 'All') return true;
+      const starts = bn.starts_at ? new Date(bn.starts_at).getTime() : null;
+      const ends = bn.ends_at ? new Date(bn.ends_at).getTime() : null;
+      if (statusFilter === 'Hidden') return !bn.is_active;
+      if (statusFilter === 'Scheduled') return bn.is_active && starts !== null && starts > now;
+      if (statusFilter === 'Expired') return bn.is_active && ends !== null && ends < now;
+      // "Live" means on a customer's screen right now: active AND inside its window.
+      return bn.is_active && (starts === null || starts <= now) && (ends === null || ends >= now);
+    });
+  }, [banners, search, statusFilter, now]);
 
   // [CM-22-3] Hub names for the Audience column. GET /hubs is an `operating` read, so every
   // role that can reach this page can resolve them; if it ever fails the column still says
@@ -1147,11 +1181,54 @@ export const BannersPage: React.FC = () => {
         web storefront — the editor authors a creative for each. Ordered by sort order (lowest first).
       </p>
 
+      {/* [CM-22-10] Search + status, URL-synced with the open editor. */}
+      <div className={b.filterRow}>
+        <input
+          className={b.filterInput}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search title, subtitle, tag or CTA"
+          aria-label="Search banners"
+        />
+        <select
+          className={b.filterSelect}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter by status"
+        >
+          {['All', 'Live', 'Scheduled', 'Expired', 'Hidden'].map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+        {(search || statusFilter !== 'All') && (
+          <button
+            type="button"
+            className={b.filterClear}
+            onClick={() => { setSearch(''); setStatusFilter('All'); }}
+          >
+            Clear
+          </button>
+        )}
+        <span className={b.filterCount}>
+          {visible.length} of {banners.length}
+        </span>
+      </div>
+
       <div className={styles.card}>
         {loading ? (
           <p className={b.placeholder}>Loading…</p>
         ) : banners.length === 0 ? (
           <p className={b.placeholder}>No banners yet. Add one to get started.</p>
+        ) : visible.length === 0 ? (
+          /* A filtered-to-nothing list is not an empty list — say which it is, or the CM
+             reads "no banners" and thinks they lost their seasonal calendar. */
+          <p className={b.placeholder}>
+            No banner matches these filters. {banners.length} exist —{' '}
+            <button type="button" className={b.linkBtn} onClick={() => { setSearch(''); setStatusFilter('All'); }}>
+              clear the filters
+            </button>
+            .
+          </p>
         ) : (
           <table className={styles.table}>
             <thead>
@@ -1171,7 +1248,7 @@ export const BannersPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {banners.map((bn) => (
+              {visible.map((bn) => (
                 <tr key={bn.id}>
                   <td className={b.orderCell}>
                     <span className={b.orderNum}>{bn.sort_order}</span>
@@ -1234,7 +1311,7 @@ export const BannersPage: React.FC = () => {
       </div>
 
       <Modal
-        open={modal !== null}
+        open={editId !== null && (modal !== null || loading)}
         onClose={() => setModal(null)}
         title={modal === 'new' ? 'Add Banner' : 'Edit Banner'}
         size="lg"

@@ -117,3 +117,62 @@ export function useUrlTab(valid: string[], param = 'tab'): [string | undefined, 
   );
   return [active, setActive];
 }
+
+/**
+ * [CM-21-10 / CM-22-10] One URL-backed string of page state, with the same semantics as
+ * `React.useState('')` so a page can adopt it by changing one line.
+ *
+ * The CMS list pages held search, status filter and *which record is open in the editor*
+ * in component state. The editor is a MODAL, so "the collection I'm editing" had no
+ * address: a CM could not link a colleague to it, and browser-back from the modal left the
+ * list entirely rather than closing the modal — the [DSG-10-3] pattern.
+ *
+ * The empty string clears the parameter rather than writing `?q=`, so a default-state page
+ * has a clean URL and two identical views never produce two different links.
+ */
+export function useUrlParam(
+  key: string,
+  fallback = '',
+): [string, (next: string) => void] {
+  const [sp, setSp] = useSearchParams();
+  const set = React.useCallback(
+    (next: string) => {
+      setSp(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (next && next !== fallback) p.set(key, next);
+          else p.delete(key);
+          return p;
+        },
+        { replace: true },
+      );
+    },
+    [setSp, key, fallback],
+  );
+  return [sp.get(key) ?? fallback, set];
+}
+
+/**
+ * The record open in a modal editor, as a URL parameter. `null` = closed, `'new'` = the
+ * create form — the same shape the pages already keep in state.
+ *
+ * NOT `replace: true`: opening an editor is a place you can be, so Back should CLOSE it
+ * rather than leave the page. That is the actual complaint in both findings.
+ */
+export function useUrlEditor(
+  key = 'edit',
+): [string | null, (next: string | null) => void] {
+  const [sp, setSp] = useSearchParams();
+  const set = React.useCallback(
+    (next: string | null) => {
+      setSp((prev) => {
+        const p = new URLSearchParams(prev);
+        if (next) p.set(key, next);
+        else p.delete(key);
+        return p;
+      });
+    },
+    [setSp, key],
+  );
+  return [sp.get(key), set];
+}

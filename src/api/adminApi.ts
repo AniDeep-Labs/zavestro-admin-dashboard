@@ -1736,6 +1736,14 @@ export interface QcTemplate {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  /**
+   * [CM-20-9] Whether this checklist is doing anything: garments graded by the HOUSE layer
+   * for this category, how many of those failed, and when one was last recorded. Without
+   * it a CM cannot tell a working QC layer from a decorative one.
+   */
+  graded?: number;
+  failed?: number;
+  last_graded_at?: string | null;
 }
 // A check + the inspector's answer + computed pass flag, stored on a receipt (T1-13b Phase 2).
 export interface QcEvaluatedResult {

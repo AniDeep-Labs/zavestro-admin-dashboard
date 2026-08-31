@@ -5,6 +5,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Button } from '../../components/Button/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { fmtDate } from '../../utils/date';
 import s from './QcTemplatesPage.module.css';
 import { UilPlus, UilTrashAlt } from '@iconscout/react-unicons';
 
@@ -118,6 +119,10 @@ export const QcTemplatesPage: React.FC = () => {
   };
 
   const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? id;
+  // [CM-20-8] The stored template for the category being edited — the source of the reach
+  // figures the delete confirm quotes. `checks` in state is the DRAFT; deleting removes
+  // what is SAVED, so the confirm must speak from the saved row, not the unsaved edits.
+  const currentTemplate = templates.find((t) => t.garment_category_id === catId);
 
   return (
     <div className={s.page}>
@@ -138,6 +143,18 @@ export const QcTemplatesPage: React.FC = () => {
           fabric arrives, <strong>and</strong> as the house layer of the garment QC gate at
           dispatch. A check added here has to make sense for both — it decides whether cloth is
           accepted <em>and</em> whether a finished garment may ship.
+        </p>
+        {/* [CM-20-3] You author the standard; you do not record the verdict. That split was
+            invisible here, so a CM had no way to know why their checklist showed no results
+            — the usage column below now says "never used", and this says who would change
+            that. Recording moved off `orders:write` in SUP-27-1 precisely because it is a
+            FLOOR verb: for a third-party garment the verdict is what releases it for
+            dispatch, so it belongs to whoever inspected the garment, not to whoever wrote
+            the rule and not to the CX role that used to hold it. */}
+        <p className={s.subtitle}>
+          You author these checks; you do not grade against them. Verdicts are recorded by
+          the floor, or in the back office as a logged exception that must state why the
+          floor did not — so a checklist here can be correct and still show no results.
         </p>
       </div>
 
@@ -311,6 +328,16 @@ export const QcTemplatesPage: React.FC = () => {
                 <span className={s.badge}>
                   {t.checks.length} check{t.checks.length === 1 ? '' : 's'}
                 </span>
+                {/* [CM-20-9] Is this layer DOING anything? A checklist with checks and no
+                    verdicts is indistinguishable from a working one until you say so.
+                    "Never used" is a fact worth stating, not a blank to be read past. */}
+                <span className={(t.graded ?? 0) > 0 ? s.usage : s.usageIdle}>
+                  {(t.graded ?? 0) === 0
+                    ? 'never used'
+                    : `${t.graded} graded · ${t.failed ?? 0} failed${
+                        t.last_graded_at ? ` · last ${fmtDate(t.last_graded_at)}` : ''
+                      }`}
+                </span>
               </div>
             ))}
           </div>
@@ -322,8 +349,34 @@ export const QcTemplatesPage: React.FC = () => {
         title="Delete this QC template?"
         message={
           <>
-            Remove the inbound-QC checklist for <strong>{catName(catId)}</strong>. Receiving for
-            this category will fall back to the uniform accept/hold/reject gate.
+            {/* [CM-20-8] Name the category, the reach, and BOTH consequences. It named only
+                the category and the receiving fallback — not that the house layer of the
+                two-layer dispatch gate would then have no checks for this category, and
+                not how much grading history stands behind the thing being deleted. */}
+            <p>
+              Remove the inbound-QC checklist for <strong>{catName(catId)}</strong>, and its{' '}
+              <strong>
+                {currentTemplate?.checks.length ?? 0} check
+                {(currentTemplate?.checks.length ?? 0) === 1 ? '' : 's'}
+              </strong>
+              .
+            </p>
+            <p>
+              {(currentTemplate?.graded ?? 0) > 0 ? (
+                <>
+                  <strong>{currentTemplate?.graded}</strong> garment
+                  {currentTemplate?.graded === 1 ? ' has' : 's have'} been graded against it.
+                  Those records stay; nothing new will be graded.
+                </>
+              ) : (
+                <>No garment has been graded against it yet.</>
+              )}
+            </p>
+            <p>
+              Afterwards, receiving for this category falls back to the uniform
+              accept/hold/reject gate, and the <strong>house layer of the dispatch gate</strong>{' '}
+              will have no checks for it.
+            </p>
           </>
         }
         confirmLabel="Delete template"
