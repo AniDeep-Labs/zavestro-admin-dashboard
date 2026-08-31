@@ -3048,6 +3048,13 @@ export const invoicesApi = {
 // ─── COD Finance Reconciliation ─────────────────────────────────────────────────
 
 export interface CodDeposit {
+  /**
+   * [FIN-35-3] What the ORDERS linked to this deposit actually owe, summed from their
+   * COD payments. `total_amount` is what the depositor DECLARED; comparing the two is
+   * the only thing that catches an under-declaration, which declared-vs-counted
+   * cannot see by construction.
+   */
+  expected_amount?: string | number | null;
   id: string;
   hub_id: string;
   hub_name: string;
