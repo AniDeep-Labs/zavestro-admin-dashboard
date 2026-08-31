@@ -53,7 +53,14 @@ export const CreditApprovalsPage: React.FC = () => {
         await creditApprovalsApi.approve(review.req.id, note.trim() || undefined);
         toast("success", "Credit approved", `${fmtINR(review.req.amount)} posted to ${review.req.customer_name}'s wallet.`);
       } else {
-        await creditApprovalsApi.reject(review.req.id, note.trim() || undefined);
+        // [FIN-36-4] Never `undefined` here — a rejection without a reason is the thing
+        // being prevented, so the call site refuses it too rather than relying on the
+        // button's disabled state.
+        if (!note.trim()) {
+          toast("error", "A reason is required", "Say why this is rejected — the agent has to relay it.");
+          return;
+        }
+        await creditApprovalsApi.reject(review.req.id, note.trim());
         toast("success", "Request rejected", "No credit was posted.");
       }
       setReview(null);
@@ -187,9 +194,22 @@ export const CreditApprovalsPage: React.FC = () => {
             <Textarea
               value={note}
               onChange={setNote}
-              placeholder={review.action === "approve" ? "Approval note (optional)" : "Why is this rejected? (optional)"}
+              placeholder={
+                review.action === "approve"
+                  ? "Approval note (optional)"
+                  : "Why is this rejected? The agent has to tell the customer."
+              }
               rows={2}
             />
+            {/* [FIN-36-4] A rejection needs a reason. Finance can decline goodwill a
+                customer was already promised, and the agent who made that promise is the
+                one who has to explain it — with nothing to explain it from. The same
+                product already refuses a COD variance and a review rejection without a
+                reason; this was the outlier. Approval stays optional: approving grants
+                what was asked for, and needs no defence. */}
+            {review.action === "reject" && !note.trim() && (
+              <p className={d.reasonRequired}>A reason is required to reject.</p>
+            )}
             <div className={d.modalActions}>
               <Button variant="ghost" size="sm" onClick={() => setReview(null)}>Cancel</Button>
               <Button
@@ -197,7 +217,7 @@ export const CreditApprovalsPage: React.FC = () => {
                 variant={review.action === "reject" ? "danger" : "primary"}
                 onClick={submit}
                 state={busy ? "loading" : "default"}
-                disabled={busy}
+                disabled={busy || (review.action === "reject" && !note.trim())}
               >
                 {review.action === "approve" ? "Approve & post credit" : "Reject request"}
               </Button>
