@@ -185,10 +185,18 @@ export const AdminUsersManagePage: React.FC = () => {
           u.id === user.id ? { ...u, ...updated, role, hub_id: hubId } : u,
         ),
       );
+      // [SHL-7-5] Say what actually happened to the PERSON, not just to the row.
+      //
+      // The table updates optimistically, so the console asserted the new role as a
+      // present fact while the target still held the old one. [SHL-1-9] has since made
+      // that true — `changeAdminRole` revokes their sessions, so the old token is refused
+      // immediately (verified live: 401 on the next request, correct role on re-login).
+      // But "is now X" still hides the part the operator has to relay: the person has been
+      // signed out and will not see the change until they sign back in.
       showToast(
         "success",
         "Approved",
-        `${user.email} is now ${ROLE_LABELS[role] ?? role}`,
+        `${user.email} is now ${ROLE_LABELS[role] ?? role}. They have been signed out — the new role applies when they sign back in.`,
       );
     } catch (err) {
       showToast(

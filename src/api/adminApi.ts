@@ -1353,6 +1353,8 @@ export interface AuditLogResponse {
 }
 
 export interface AuditFilters {
+  /** [SHL-7-13] Comma-separated actions to exclude (e.g. the noisy `update_config`). */
+  exclude_action?: string;
   search?: string;
   action?: string;
   // T2-22: actor / entity / date filters
@@ -1370,6 +1372,9 @@ export const auditApi = {
     const qs = new URLSearchParams();
     if (params.search) qs.set("search", params.search);
     if (params.action) qs.set("action", params.action);
+    // [SHL-7-13] Comma-separated actions to leave OUT — used to keep config churn from
+    // burying the rows an auditor opened the page for.
+    if (params.exclude_action) qs.set("exclude_action", params.exclude_action);
     if (params.actor) qs.set("actor", params.actor);
     if (params.entity_type) qs.set("entity_type", params.entity_type);
     if (params.entity_id) qs.set("entity_id", params.entity_id);

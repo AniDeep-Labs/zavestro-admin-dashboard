@@ -52,9 +52,25 @@ function useDebounce<T>(value: T, delay: number): T {
   return dv;
 }
 
+// [SHL-7-13] The one action that floods this log. A constant, not a literal in three
+// places, so the day a second chatty action appears there is one line to change.
+const NOISY_ACTION = 'update_config';
+
 export const AuditLogPage: React.FC = () => {
   const [search, setSearch] = React.useState('');
   const [actionFilter, setActionFilter] = React.useState('All');
+  // [SHL-7-13] Config churn hidden BY DEFAULT.
+  //
+  // 69 of this log's 74 rows were `update_config` — three saves, one row per key, all with
+  // the same timestamp — so the first page was entirely config and the five rows an
+  // auditor came for (a credit approval, a PII export, a stage advance) were pushed off it
+  // by their own noise. [SHL-7-7] fixed the source; the rows already written stay written,
+  // so the symptom outlives the cause and the default has to carry it.
+  //
+  // Default-on rather than a filter someone must discover, because the page's job is to
+  // surface the consequential act — but always switchable, since a log that CANNOT show
+  // everything is not an audit log.
+  const [hideConfigNoise, setHideConfigNoise] = React.useState(true);
   const [actor, setActor] = React.useState('');
   const [entityType, setEntityType] = React.useState('');
   const [entityId, setEntityId] = React.useState('');
@@ -78,15 +94,30 @@ export const AuditLogPage: React.FC = () => {
     auditApi.facets().then(setFacets).catch(() => {});
   }, []);
 
+  // [SHL-7-13] How many rows the default is holding back. Fetched once with limit 1 — only
+  // the `total` is wanted — so the label can name the number instead of leaving the reader
+  // to wonder whether the log is complete.
+  const [configRowCount, setConfigRowCount] = React.useState(0);
+  React.useEffect(() => {
+    auditApi
+      .list({ action: NOISY_ACTION, page: 1, limit: 1 })
+      .then((r) => setConfigRowCount(r.total ?? 0))
+      .catch((err) => console.warn('[audit] could not count config rows', err));
+  }, []);
+
   const filters = React.useMemo(() => ({
     search: debouncedSearch || undefined,
     action: actionFilter !== 'All' ? actionFilter : undefined,
+    // Never both: asking FOR update_config and excluding it would return nothing, which
+    // reads as "no config changes" rather than "you asked for two opposite things".
+    exclude_action:
+      hideConfigNoise && actionFilter !== NOISY_ACTION ? NOISY_ACTION : undefined,
     actor: actor || undefined,
     entity_type: entityType || undefined,
     entity_id: debouncedEntityId || undefined,
     from: from || undefined,
     to: to || undefined,
-  }), [debouncedSearch, actionFilter, actor, entityType, debouncedEntityId, from, to]);
+  }), [debouncedSearch, actionFilter, hideConfigNoise, actor, entityType, debouncedEntityId, from, to]);
 
   React.useEffect(() => {
     setLoading(true);
@@ -189,6 +220,21 @@ export const AuditLogPage: React.FC = () => {
         >
           🔓 Break-glass overrides
         </button>
+        {/* [SHL-7-13] The default is ON, so the toggle has to be visible — a page that
+            silently withholds rows from an AUDIT log would be a worse fault than the one
+            being fixed. It says how many it is hiding, so "is this everything?" is
+            answerable without flipping it. */}
+        <label className={styles.noiseToggle}>
+          <input
+            type="checkbox"
+            checked={hideConfigNoise}
+            onChange={(e) => { setHideConfigNoise(e.target.checked); setPage(1); }}
+          />
+          <span>
+            Hide config saves
+            {hideConfigNoise && configRowCount > 0 ? ` (${configRowCount} hidden)` : ''}
+          </span>
+        </label>
       </div>
 
       <div className={styles.filterBar}>

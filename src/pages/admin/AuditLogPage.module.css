@@ -114,3 +114,16 @@
 }
 .viewChip:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .viewChipActive { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-accent); }
+
+/* [SHL-7-13] The config-noise toggle. Visible by design: the default hides rows, and an
+   audit log that withholds silently is a worse fault than the flooding it fixes. */
+.noiseToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
