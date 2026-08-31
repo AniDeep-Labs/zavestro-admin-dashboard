@@ -272,3 +272,58 @@
   line-height: 1.5;
   border-radius: var(--radius-sm);
 }
+
+/* [DSG-13-5] Which block these anchors belong to. */
+.blockChip {
+  margin-left: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+}
+
+/* [DSG-13-6] Inseam vs height — the toggle that makes the length bands testable. */
+.lengthSource {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+  margin-bottom: var(--spacing-md);
+}
+
+.lengthSourceLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.lengthSourceHint,
+.fieldHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.lengthSourceHint {
+  flex-basis: 100%;
+}
+
+/* [DSG-13-10] Inline route out of a footnote to where QC thresholds really live. */
+.inlineLink {
+  color: var(--color-primary);
+  text-decoration: underline;
+}

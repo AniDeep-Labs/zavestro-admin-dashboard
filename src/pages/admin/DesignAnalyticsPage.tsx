@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { designAnalyticsApi, hubsApi, designsApi } from '../../api/adminApi';
 import type {
   FitAccuracyTotals,
@@ -163,7 +163,26 @@ export const DesignAnalyticsPage: React.FC = () => {
             ) : (
               worstFirst.map((d) => (
                 <tr key={d.design_id} className={styles.row} {...rowActivation(() => navigate(`/admin/design/library/${d.design_id}`))}>
-                  <td className={`${styles.customerName} ${local.cellName}`}>{d.design_name}</td>
+                  <td className={`${styles.customerName} ${local.cellName}`}>
+                    {d.design_name}
+                    {/* [DSG-13-14] The row opened the DESIGN and nothing else, but a
+                        systematic fit failure is almost always fixed in the garment-type
+                        recipe — the chart, the ease, the capture set. Every design of that
+                        type inherits the fault, so fixing one design leaves the rest wrong.
+                        The link stops the loop ending one click short of the thing it
+                        exists to correct. stopPropagation so it does not also fire the
+                        row's own navigation to the design. */}
+                    {d.garment_category_id && (
+                      <Link
+                        to={`/admin/design/templates/${d.garment_category_id}`}
+                        className={local.recipeLink}
+                        onClick={(e) => e.stopPropagation()}
+                        title={`Open the ${d.garment_name ?? 'garment type'} fit recipe — the chart and ease every design of this type inherits`}
+                      >
+                        {d.garment_name ?? 'recipe'} recipe →
+                      </Link>
+                    )}
+                  </td>
                   <td className={`${styles.total} ${local.cellUnits}`}>{d.units}</td>
                   <td>{d.orders}</td>
                   <td className={d.fit_issue_orders > 0 ? local.fitIssueBad : local.fitIssueOk}>{d.fit_issue_orders}</td>

@@ -33,3 +33,28 @@ export function orderedMeasurementKeys(
   };
   return present.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 }
+
+/**
+ * [DSG-13-13] A measurement key as a person says it.
+ *
+ * The engine's finished spec is keyed by snake_case (`leg_opening`, `bust_dart`), and the
+ * Engine Tester rendered those keys raw while every other surface humanises them. The few
+ * that do not survive a mechanical title-case get an explicit entry; everything else falls
+ * through, so a new engine field shows up readable rather than not at all.
+ */
+const MEASUREMENT_LABELS: Record<string, string> = {
+  leg_opening: 'Leg opening',
+  bust_dart: 'Bust dart',
+  shirt_length: 'Garment length',
+  height_cm: 'Height (cm)',
+  usual_size: 'Usual size',
+  hip: 'Hip',
+  rise: 'Rise',
+};
+
+export function measurementLabel(key: string): string {
+  return (
+    MEASUREMENT_LABELS[key] ??
+    key.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
+  );
+}

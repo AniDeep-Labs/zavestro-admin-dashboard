@@ -3573,6 +3573,9 @@ export interface FitAccuracy {
 export interface DesignPerformanceRow {
   design_id: string;
   design_name: string;
+  /** [DSG-13-14] The recipe behind the design — where a systematic fit failure is fixed. */
+  garment_category_id: string | null;
+  garment_name: string | null;
   orders: number;
   units: number;
   fit_issue_orders: number;

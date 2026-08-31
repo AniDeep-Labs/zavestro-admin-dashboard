@@ -50,3 +50,11 @@
 .lowValue {
   opacity: 0.55;
 }
+
+/* [DSG-13-15] "No hub recorded" is a fact about the data, not a hub — muted so it does not
+   read as a hub named that, but present so it does not read as a missing name. */
+.noHub {
+  color: var(--color-text-muted);
+  font-style: italic;
+  font-weight: var(--font-weight-regular);
+}

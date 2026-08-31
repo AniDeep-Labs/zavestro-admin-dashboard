@@ -171,7 +171,21 @@ export const FitOutcomesPage: React.FC = () => {
                         className={canDrill ? styles.row : undefined}
 
                         title={canDrill ? 'Open fit feedback' : undefined} {...(canDrill ? rowActivation(() => navigate('/admin/fit-feedback')) : {})}>
-                        <td className={styles.customerName}>{h.hub_name ?? '—'}</td>
+                        {/* [DSG-13-15] A row with no hub rendered as a bare em-dash beside
+                            a confident FTR — indistinguishable from a hub whose NAME is
+                            missing, when it is actually orders with `hub_id IS NULL`
+                            (pre-hub-assignment, or data that predates hub scoping). Naming
+                            it stops the reader attributing that FTR to a real hub. */}
+                        <td className={styles.customerName}>
+                          {h.hub_name ?? (
+                            <span
+                              className={styles.noHub}
+                              title="Delivered orders with no hub recorded — not a hub's score. Counted in the company total above."
+                            >
+                              No hub recorded
+                            </span>
+                          )}
+                        </td>
                         <td className={styles.total}>{h.delivered}</td>
                         <td><StatusBadge status={ftrTone(h.ftr_pct, hubLow)} label={h.ftr_pct != null ? `${h.ftr_pct}%` : '—'} size="sm" /></td>
                         <td>{h.alteration_pct != null ? `${h.alteration_pct}%` : '—'}</td>
