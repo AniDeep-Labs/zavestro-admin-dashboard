@@ -267,6 +267,24 @@ export const CategoriesPage: React.FC = () => {
               <span className={catCss.name}>{cat.name}</span>
               <span className={catCss.slug}>{cat.slug}</span>
               {!cat.is_active && <span className={catCss.inactiveChip}>Archived</span>}
+              {/* [CM-23-8] Which of a near-duplicate pair is the real one.
+                  "Kurta" and "Kurtas" sat four rows apart with identical affordances, and
+                  the only hint — "0 listings" vs the 📐 chip — pointed the WRONG way: the
+                  mapped, canonical row is the EMPTY one, because it is the new taxonomy
+                  nothing has been migrated into yet. So "has listings" reads as "this is
+                  the good one" when it means the opposite.
+                  Being mapped to a garment type is the thing that actually decides it: an
+                  unmapped category cannot drive a fit, so it can never be more than a
+                  storefront label. Say that on the row instead of leaving it to be
+                  inferred from a count that misleads. */}
+              {!garmentName(cat.garment_category_id) && (
+                <span
+                  className={catCss.legacyChip}
+                  title="Not mapped to a garment type, so it cannot drive a fit. Use the mapped category for new work."
+                >
+                  Legacy
+                </span>
+              )}
             </div>
             <span className={catCss.count}>
               {cat.product_count ?? 0} listing{(cat.product_count ?? 0) === 1 ? "" : "s"}
