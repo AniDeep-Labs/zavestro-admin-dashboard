@@ -176,3 +176,28 @@ export function useUrlEditor(
   );
   return [sp.get(key), set];
 }
+
+/**
+ * [DSG-9-3] A boolean filter in the URL. Present (`?dead=1`) = on, absent = off.
+ *
+ * Absent rather than `=0` for the off state, so the default view has a clean address and
+ * two identical screens cannot produce two different links.
+ */
+export function useUrlFlag(key: string): [boolean, (next: boolean) => void] {
+  const [sp, setSp] = useSearchParams();
+  const set = React.useCallback(
+    (next: boolean) => {
+      setSp(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (next) p.set(key, '1');
+          else p.delete(key);
+          return p;
+        },
+        { replace: true },
+      );
+    },
+    [setSp, key],
+  );
+  return [sp.get(key) === '1', set];
+}

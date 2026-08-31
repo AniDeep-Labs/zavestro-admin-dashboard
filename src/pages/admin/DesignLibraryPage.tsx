@@ -1,3 +1,4 @@
+import { useUrlParam, useUrlFlag } from '../../hooks/useOverviewFilters';
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { designsApi, R2_PUBLIC_URL } from '../../api/adminApi';
@@ -52,13 +53,19 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
     // `replace` so closing doesn't leave /new in history for back to re-open.
     if (location.pathname.endsWith('/new')) navigate('/admin/design/library', { replace: true });
   };
-  const [status, setStatus] = React.useState('');
-  const [gender, setGender] = React.useState('');
-  const [search, setSearch] = React.useState('');
-  const [sort, setSort] = React.useState<'newest' | 'best_fit'>('newest');
-  const [deadOnly, setDeadOnly] = React.useState(false); // G-34: published, never listed
-  const [samplePending, setSamplePending] = React.useState(false); // §4C: not yet sample-reviewed
-  const [tag, setTag] = React.useState(''); // T3-5 (W-D3): active tag/drop filter
+  // [DSG-9-3] The THIRD console with this gap (after SHL-5-2 oversight and the CMS lists),
+  // against the repo's own convention: "deep-links carry context; back must preserve list
+  // filters". Selecting "Published, never listed" left the URL bare, so refresh, back and
+  // sharing all lost the view — and that view is an exception queue someone is meant to
+  // hand to a colleague. One shared helper, as the finding asked, not a third bespoke fix.
+  const [status, setStatus] = useUrlParam('status');
+  const [gender, setGender] = useUrlParam('gender');
+  const [search, setSearch] = useUrlParam('q');
+  const [sortParam, setSort] = useUrlParam('sort', 'newest');
+  const sort = (sortParam === 'best_fit' ? 'best_fit' : 'newest') as 'newest' | 'best_fit';
+  const [deadOnly, setDeadOnly] = useUrlFlag('dead'); // G-34: published, never listed
+  const [samplePending, setSamplePending] = useUrlFlag('sample_pending'); // §4C: not yet sample-reviewed
+  const [tag, setTag] = useUrlParam('tag'); // T3-5 (W-D3): active tag/drop filter
   const [tagOptions, setTagOptions] = React.useState<{ tag: string; count: number }[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -152,14 +159,14 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
         <span className={styles.toolbarDivider} aria-hidden="true" />
         <button
           className={`${base.viewChip} ${deadOnly ? base.viewChipActive : ''}`}
-          onClick={() => setDeadOnly((v) => !v)}
+          onClick={() => setDeadOnly(!deadOnly)}
           title="Published designs that aren't listed at any hub"
         >
           Published, never listed
         </button>
         <button
           className={`${base.viewChip} ${samplePending ? base.viewChipActive : ''}`}
-          onClick={() => setSamplePending((v) => !v)}
+          onClick={() => setSamplePending(!samplePending)}
           title="Designs that haven't passed sample review yet"
         >
           Sample pending
