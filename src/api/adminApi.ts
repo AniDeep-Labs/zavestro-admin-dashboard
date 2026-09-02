@@ -425,6 +425,12 @@ export const ordersApi = {
           | undefined,
       })),
       payments: data.payments ?? [],
+      // [SUP-28-7] The endpoint sends `o.*`, so payment_method has always been in the
+      // payload — but this mapper is an allow-list and dropped it, leaving
+      // `order.payment_method` undefined on the detail page. Both branches of the
+      // Payment panel test it, so a COD order was told "Nothing has been captured
+      // against this order yet" instead of that cash is collected on delivery.
+      payment_method: (o.payment_method ?? null) as string | null,
       craftsperson_id: (o.craftsperson_id ?? null) as string | null,
       craftsperson_name: (o.craftsperson_name ?? null) as string | null,
       craftsperson_role: (o.craftsperson_role ?? null) as string | null,

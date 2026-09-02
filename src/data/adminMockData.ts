@@ -38,13 +38,30 @@ export interface OrderTimelineEntry {
   created_at: string;
 }
 
+/**
+ * [SUP-28-7] Mirrors the `payments` row the order-detail endpoint actually sends.
+ *
+ * This type used to declare `payment_method` and `payment_gateway_id`. Neither
+ * column exists on `payments` (checked against the live schema): the method lives
+ * on the ORDER (`orders.payment_method`) and the gateway reference is
+ * `razorpay_payment_id`. So the panel rendered Method as a permanent "—" and its
+ * `payment_gateway_id &&` guard was never once true — the Payment ID block did not
+ * exist at runtime, on the screen where a refund conversation starts and where that
+ * id is the thing support has to quote.
+ */
 export interface OrderPayment {
   id: string;
-  payment_method: string | null;
-  payment_gateway_id: string | null;
   amount: number;
   status: string;
+  /** Gateway payment reference (`pay_…`). Null until the gateway confirms; always
+   *  null for COD, which never touches Razorpay. */
+  razorpay_payment_id: string | null;
+  razorpay_order_id: string | null;
+  /** When the money actually moved — the question a refund conversation opens with. */
+  captured_at: string | null;
+  cod_collected_at: string | null;
   created_at: string;
+  updated_at?: string | null;
 }
 
 export interface AdminOrder {

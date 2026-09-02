@@ -14,6 +14,7 @@ import type {
   OrderTimelineEntry,
   CustomerMeasurementsData,
 } from "../../api/adminApi";
+import { CopyId } from "../../components/DataCells";
 import { StaffAssignmentDropdown } from "../../components/StaffAssignmentDropdown/StaffAssignmentDropdown";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
@@ -1828,12 +1829,22 @@ export const OrderDetailPage: React.FC = () => {
                 </div>
               </div>
             ) : (
+              /* [SUP-28-7] Method reads the ORDER, not the payment row — `payments`
+                 has no method column, so `p.payment_method` was undefined and this
+                 rendered "—" on every captured payment. The gateway reference is
+                 `razorpay_payment_id`; the old `p.payment_gateway_id &&` guard named
+                 a field that does not exist, so the Payment ID block never rendered
+                 at all — and that id is what support has to quote to trace a refund. */
               (order.payments ?? []).map((p, i) => (
                 <div key={p.id ?? i} className={styles.paymentGrid}>
                   <div>
                     <div className={styles.metaLabel}>Method</div>
                     <div className={styles.metaValue}>
-                      {p.payment_method ?? "—"}
+                      {order.payment_method
+                        ? order.payment_method === "cod"
+                          ? "COD"
+                          : order.payment_method
+                        : "—"}
                     </div>
                   </div>
                   <div>
@@ -1842,11 +1853,22 @@ export const OrderDetailPage: React.FC = () => {
                       {money(p.amount)}
                     </div>
                   </div>
-                  {p.payment_gateway_id && (
+                  {p.razorpay_payment_id ? (
                     <div>
                       <div className={styles.metaLabel}>Payment ID</div>
                       <div className={styles.metaValue}>
-                        {p.payment_gateway_id}
+                        <CopyId value={p.razorpay_payment_id} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className={styles.metaLabel}>Payment ID</div>
+                      <div className={styles.metaValue}>
+                        <span className={styles.paymentNote}>
+                          {order.payment_method === "cod"
+                            ? "COD — no gateway reference"
+                            : "Not yet issued by the gateway"}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -1854,6 +1876,14 @@ export const OrderDetailPage: React.FC = () => {
                     <div className={styles.metaLabel}>Status</div>
                     <div className={styles.metaValue}>
                       <span className={styles.captured}>{p.status}</span>
+                      {(p.captured_at ?? p.cod_collected_at) && (
+                        <div className={styles.paymentNote}>
+                          {p.cod_collected_at ? "Collected " : "Captured "}
+                          {new Date(
+                            (p.cod_collected_at ?? p.captured_at) as string,
+                          ).toLocaleString("en-IN")}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

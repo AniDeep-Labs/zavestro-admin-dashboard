@@ -335,7 +335,12 @@ export const OrdersListPage: React.FC = () => {
                 />
               </td></tr>
             ) : orders.map(o => (
-              <tr key={o.id} className={`${styles.row} ${o.overdue ? styles.rowOverdue : ''}`}
+              /* Key on the uuid, not `id`. `id` is the order_number, which is nullable —
+                 every order without one collided on the same `null` key, and React's
+                 duplicate-key warning says outright that rows may be "duplicated and/or
+                 omitted". Caught rendering the stuck view, where 8 of 10 rows shared it.
+                 The uuid is the primary key and is always present. */
+              <tr key={o.uuid ?? o.id} className={`${styles.row} ${o.overdue ? styles.rowOverdue : ''}`}
                  {...rowActivation(() => setPeek(o))}>
                 <td>{o.reference_id ? <CopyId value={o.reference_id} /> : '—'}</td>
                 <td className={styles.orderId}>{o.id}</td>
