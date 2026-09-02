@@ -2106,6 +2106,23 @@ export interface ReturnRequest {
   // T2-31: worklist bucket + policy verdict (present from list + detail endpoints).
   section?: ReturnSection;
   policy_verdict?: PolicyVerdict;
+  // [SUP-31-6] The alteration this return produced, when the policy verdict was
+  // "free alteration". Null until one is raised — which, before this, could not be
+  // done from here at all.
+  linked_alteration?: LinkedAlteration | null;
+}
+
+/** [SUP-31-6] The alteration a fit return was settled with. */
+export interface LinkedAlteration {
+  id: string;
+  status: string;
+  description: string;
+  fee_amount: number | string | null;
+  fee_status: string | null;
+  agent_visit_date: string | null;
+  garment_picked_up_at: string | null;
+  redelivered_at: string | null;
+  created_at: string;
 }
 
 export interface ReturnsResponse {
@@ -2140,6 +2157,20 @@ export const returnsApi = {
 
   get: async (id: string): Promise<ReturnRequest> =>
     req<ReturnRequest>(`/api/admin/returns/${id}`),
+
+  /**
+   * [SUP-31-6] Settle a fit return the way the policy says: raise the free alteration
+   * and close the return, in one server-side transaction. The page used to render the
+   * policy chip promising this and offer no verb at all behind it.
+   */
+  resolveWithAlteration: async (
+    id: string,
+    data: { description: string; areas?: string[]; note?: string },
+  ): Promise<{ return_id: string; alteration_id: string; fee_status: string }> =>
+    req<{ return_id: string; alteration_id: string; fee_status: string }>(
+      `/api/admin/returns/${id}/resolve-with-alteration`,
+      { method: "POST", body: JSON.stringify(data) },
+    ),
 
   review: async (
     id: string,
