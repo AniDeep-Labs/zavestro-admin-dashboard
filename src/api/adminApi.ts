@@ -1206,6 +1206,34 @@ export const supportApi = {
     return mapTicket(raw);
   },
 
+  /**
+   * [SUP-32-7] The SHARED canned-reply library.
+   *
+   * It lived in localStorage, so it was per agent and per browser: lost on a cache
+   * clear, invisible to teammates, and impossible to review. This is the text the
+   * company says to customers in its own voice — "nobody can see it and nobody can
+   * correct it" was a quality problem, not just an inconvenience.
+   */
+  templates: {
+    list: async (): Promise<ReplyTemplate[]> => {
+      const r = await req<{ templates: ReplyTemplate[] }>("/api/admin/support/templates");
+      return r?.templates ?? [];
+    },
+    create: (title: string, body: string, category?: string | null) =>
+      req<ReplyTemplate>("/api/admin/support/templates", {
+        method: "POST",
+        body: JSON.stringify({ title, body, category: category ?? null }),
+      }),
+    update: (id: string, title: string, body: string, category?: string | null) =>
+      req<ReplyTemplate>(`/api/admin/support/templates/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title, body, category: category ?? null }),
+      }),
+    // Retire, not delete — one agent tidying up must not destroy the team's library.
+    retire: (id: string) =>
+      req<{ retired: boolean }>(`/api/admin/support/templates/${id}`, { method: "DELETE" }),
+  },
+
   // T3-3 (W-S3): set a follow-up time (ISO) or clear it (null). Snoozed tickets
   // drop out of "Needs reply" until the time passes.
   setSnooze: async (
@@ -5169,6 +5197,16 @@ export const fitProfilesAdminApi = {
 };
 
 // ─── Customer Lookup ──────────────────────────────────────────────────────────
+
+/** [SUP-32-7] A shared canned reply. Mirrors `support_reply_templates`. */
+export interface ReplyTemplate {
+  id: string;
+  title: string;
+  body: string;
+  category: string | null;
+  created_by_name?: string | null;
+  updated_at?: string;
+}
 
 export interface CustomerLookupResult {
   id: string;

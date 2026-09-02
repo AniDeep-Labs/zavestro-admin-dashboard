@@ -14,6 +14,7 @@ import type {
   TicketMessage,
   AdminOrder,
   RescueSummary,
+  ReplyTemplate,
 } from "../../api/adminApi";
 import type { AdminUser } from "../../api/catalogApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
@@ -38,24 +39,13 @@ import {
 } from "@iconscout/react-unicons";
 import { ticketCategoryLabel } from '../../constants/ticketCategories';
 
-// T3-3 (W-S4): canned responses are now the agent's OWN, editable + persisted (localStorage),
-// seeded with these defaults. No more four hardcoded strings you can't change.
-const DEFAULT_TEMPLATES = [
-  "Thank you for reaching out to Zavestro support.",
-  "We've reviewed your order and are looking into this.",
-  "Your refund has been processed and will reflect in 3–5 days.",
-  "I'll escalate this to our operations team right away.",
-];
-const TEMPLATES_KEY = "zavestro_support_templates";
-const loadTemplates = (): string[] => {
-  try {
-    const saved = JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "null");
-    return Array.isArray(saved) ? saved : DEFAULT_TEMPLATES;
-  } catch {
-    return DEFAULT_TEMPLATES;
-  }
-};
-const saveTemplates = (t: string[]) => localStorage.setItem(TEMPLATES_KEY, JSON.stringify(t));
+// [SUP-32-7] The library used to live here: four hardcoded DEFAULT_TEMPLATES persisted
+// into `localStorage` under `zavestro_support_templates` (T3-3 / W-S4).
+// That made it per agent and per browser: lost on a cache clear, invisible to teammates,
+// ungovernable. A new hire started with four while the veteran's twenty lived on one
+// laptop. It is now `support_reply_templates`, shared and reviewable — see
+// supportApi.templates. The four defaults were seeded by migration 264, so nobody's
+// library got shorter on the way in.
 
 export const TicketDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -65,19 +55,63 @@ export const TicketDetailPage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [reply, setReply] = React.useState("");
   const [showTemplates, setShowTemplates] = React.useState(false);
-  // T3-3 (W-S4): the agent's own editable canned responses.
-  const [templates, setTemplates] = React.useState<string[]>(loadTemplates);
-  const addTemplate = () => {
+  // T3-3 (W-S4) / [SUP-32-7]: the TEAM's canned responses, loaded from the server.
+  const [templates, setTemplates] = React.useState<ReplyTemplate[]>([]);
+  const [templateBusy, setTemplateBusy] = React.useState(false);
+
+  const refreshTemplates = React.useCallback(async () => {
+    try {
+      setTemplates(await supportApi.templates.list());
+    } catch (e) {
+      // Reported, not swallowed: an agent whose library silently came back empty would
+      // assume the team has no templates and start writing their own again.
+      showToast(
+        'error',
+        'Could not load reply templates',
+        e instanceof Error ? e.message : undefined,
+      );
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void refreshTemplates();
+  }, [refreshTemplates]);
+
+  // A shared library needs a name an agent can scan, so saving asks for one inline —
+  // a window.prompt would have been quicker to write and the only one in the console.
+  const [newTemplateTitle, setNewTemplateTitle] = React.useState('');
+  const [namingTemplate, setNamingTemplate] = React.useState(false);
+
+  const addTemplate = async () => {
     const v = reply.trim();
-    if (!v || templates.includes(v)) return;
-    const next = [...templates, v];
-    setTemplates(next);
-    saveTemplates(next);
+    const title = newTemplateTitle.trim();
+    if (!v || !title || templateBusy) return;
+    setTemplateBusy(true);
+    try {
+      await supportApi.templates.create(title, v, ticket?.category ?? null);
+      await refreshTemplates();
+      setNewTemplateTitle('');
+      setNamingTemplate(false);
+      showToast('success', 'Template saved for the team');
+    } catch (e) {
+      showToast('error', 'Could not save template', e instanceof Error ? e.message : undefined);
+    } finally {
+      setTemplateBusy(false);
+    }
   };
-  const removeTemplate = (i: number) => {
-    const next = templates.filter((_, j) => j !== i);
-    setTemplates(next);
-    saveTemplates(next);
+
+  const removeTemplate = async (t: ReplyTemplate) => {
+    if (templateBusy) return;
+    setTemplateBusy(true);
+    try {
+      await supportApi.templates.retire(t.id);
+      await refreshTemplates();
+      showToast('success', `"${t.title}" retired for everyone`);
+    } catch (e) {
+      showToast('error', 'Could not retire template', e instanceof Error ? e.message : undefined);
+    } finally {
+      setTemplateBusy(false);
+    }
   };
   const [resolveOnReply, setResolveOnReply] = React.useState(false);
   // [SUP-32-5]
@@ -1106,34 +1140,75 @@ export const TicketDetailPage: React.FC = () => {
                   </button>
                   {showTemplates && (
                     <div className={styles.templateDropdown}>
-                      {templates.map((t, i) => (
-                        <div key={i} className={styles.templateRow}>
+                      {/* [SUP-32-7] Titles, not the full body: the library is shared and
+                          long enough now that an agent scans names, not paragraphs. */}
+                      {templates.length === 0 && (
+                        <div className={styles.templateRow}>
+                          <span className={styles.fieldLabel}>
+                            No shared templates yet — save a reply below to start the library.
+                          </span>
+                        </div>
+                      )}
+                      {templates.map((t) => (
+                        <div key={t.id} className={styles.templateRow}>
                           <button
                             className={styles.templateItem}
+                            title={t.body}
                             onClick={() => {
-                              setReply(t);
+                              setReply(t.body);
                               setShowTemplates(false);
                             }}
                           >
-                            {t}
+                            {t.title}
                           </button>
                           <button
                             className={styles.templateDelete}
-                            title="Remove this canned response"
-                            onClick={(e) => { e.stopPropagation(); removeTemplate(i); }}
+                            title="Retire this reply for the whole team"
+                            disabled={templateBusy}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void removeTemplate(t);
+                            }}
                           >
                             <UilTimes size={13} />
                           </button>
                         </div>
                       ))}
-                      {/* T3-3 (W-S4): save the current reply as a reusable canned response. */}
-                      <button
-                        className={styles.templateAdd}
-                        disabled={!reply.trim()}
-                        onClick={() => addTemplate()}
-                      >
-                        + Save current reply as a template
-                      </button>
+                      {/* T3-3 (W-S4) / [SUP-32-7]: save the current reply for the TEAM. */}
+                      {namingTemplate ? (
+                        <div className={styles.templateRow}>
+                          <input
+                            className={styles.templateItem}
+                            autoFocus
+                            maxLength={80}
+                            value={newTemplateTitle}
+                            placeholder="Name it so the team can find it"
+                            onChange={(e) => setNewTemplateTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') void addTemplate();
+                              if (e.key === 'Escape') setNamingTemplate(false);
+                            }}
+                          />
+                          <button
+                            className={styles.templateAdd}
+                            disabled={!newTemplateTitle.trim() || templateBusy}
+                            onClick={() => void addTemplate()}
+                          >
+                            Save
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className={styles.templateAdd}
+                          disabled={!reply.trim() || templateBusy}
+                          onClick={() => {
+                            setNewTemplateTitle(reply.trim().slice(0, 60));
+                            setNamingTemplate(true);
+                          }}
+                        >
+                          + Save current reply as a team template
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
