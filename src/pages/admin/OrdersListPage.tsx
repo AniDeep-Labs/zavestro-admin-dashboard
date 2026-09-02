@@ -304,9 +304,12 @@ export const OrdersListPage: React.FC = () => {
             {/* [KA7-1] "Age" measured NOW − updated_at while DATE showed created_at,
                 so the table read "4h" beside an order created 28/7 and "8d" beside
                 one created 30/7 — two different clocks under one unlabelled word.
-                Idle time is the right number for a worklist (how long since anything
-                happened); it just has to say that it is idle time. */}
-            <th title="Time since the last update — not the order's age">Idle</th>
+                KA7-1 renamed it "Idle", which was honest about updated_at.
+                [SUP-27-5] The number itself is now honest: entered_stage_at, the same
+                clock "Stuck > 48h" selects on, advanced by a DB trigger only when the
+                stage actually changes. So the label moves with it — this is time in the
+                current stage, not time since someone last touched the record. */}
+            <th title="How long this order has been in its current stage — the clock behind “Stuck > 48h”. Not the order's total age (see Placed) and not time since the last edit.">In stage</th>
             <th>Hub</th><th>Total</th><th>Placed</th>
             {isStuck && <th>Owner</th>}
           </tr></thead>
@@ -345,7 +348,7 @@ export const OrdersListPage: React.FC = () => {
                   {(o.products?.length ?? 0) > 2 ? ` +${o.products.length - 2}` : ''}
                 </td>
                 <td><StatusBadge status={o.stage} /></td>
-                <td><AgeCell since={o.updated_at} /></td>
+                <td><AgeCell since={o.entered_stage_at ?? o.updated_at} /></td>
                 <td className={styles.hub}>{o.hub}</td>
                 <td><MoneyCell amount={o.total} /></td>
                 <td className={styles.date}>{o.created}</td>
@@ -414,7 +417,7 @@ export const OrdersListPage: React.FC = () => {
             </div>
             <div className={styles.peekRow}>
               <dt>Age in stage</dt>
-              <dd><AgeCell since={peek.updated_at} /></dd>
+              <dd><AgeCell since={peek.entered_stage_at ?? peek.updated_at} /></dd>
             </div>
             <div className={styles.peekRow}>
               <dt>Hub</dt>

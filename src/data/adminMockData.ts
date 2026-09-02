@@ -62,8 +62,12 @@ export interface AdminOrder {
   hub: string;
   hub_id?: string;
   created: string;
-  /** ISO timestamp of the last update — drives the age-in-stage column */
+  /** ISO timestamp of the last write to the ORDER ROW. Any write bumps it (a note, a
+   *  claim, an unrelated webhook), so it is NOT age-in-stage — use `entered_stage_at`. */
   updated_at?: string | null;
+  /** [SUP-27-5] ISO timestamp of the last actual STAGE CHANGE — the clock behind the AGE
+   *  column and behind "Stuck > 48h". Advanced by a DB trigger, so every path moves it. */
+  entered_stage_at?: string | null;
   payment_method?: string | null;
   total: number;
   status: LifecycleStatus;
