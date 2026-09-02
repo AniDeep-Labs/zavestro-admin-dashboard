@@ -1,18 +1,84 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ordersApi, orderExceptionsApi } from '../../api/adminApi';
+import { ordersApi, orderExceptionsApi, customerLookupApi } from '../../api/adminApi';
 import type { OrdersExportRow } from '../../api/adminApi';
 import type { AdminOrder, AssignableAdmin } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { StatusBadge, statusLabel } from '../../components/StatusBadge';
 import { EmptyState } from '../../components/EmptyState';
-import { CopyId, AgeCell, MoneyCell , PhoneCell } from '../../components/DataCells';
+import { CopyId, AgeCell, MoneyCell } from '../../components/DataCells';
 import { PeekDrawer } from '../../components/PeekDrawer';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './OrdersListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilImport, UilSearch, UilTimes } from "@iconscout/react-unicons";
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
+
+/**
+ * [SUP-27-4] A per-row contact reveal that leaves a record.
+ *
+ * The list now arrives masked from the server (maskName / maskPhone), so this is not
+ * a display toggle over data the page already holds — the full value genuinely is not
+ * here. Revealing goes back to `/customers/lookup?full=1`, which is the call console's
+ * audited path (SUP-33-1) and writes a `lookup_customer_pii` row naming the admin, the
+ * query and the count. One customer at a time, on purpose: the bulk door is the export,
+ * which asks for `contact=1` and is audited separately.
+ */
+const ContactCell: React.FC<{ order: AdminOrder }> = ({ order }) => {
+  const [full, setFull] = React.useState<{ name: string; phone: string } | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [failed, setFailed] = React.useState(false);
+  const ref = order.customer_ref;
+
+  const reveal = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // rows are clickable — don't navigate
+    if (!ref || busy) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      const hits = await customerLookupApi.search(ref, false);
+      // Exact reference only — no `?? hits[0]` fallback. A near-match here would put
+      // one customer's name and number on another customer's row, which is a worse
+      // failure than showing nothing.
+      const hit = hits.find((c) => c.reference_id === ref);
+      if (hit) setFull({ name: hit.name, phone: hit.phone });
+      else setFailed(true);
+    } catch {
+      // Surfaced in the row rather than swallowed — an agent who clicked "show" and
+      // saw nothing change would otherwise assume the customer has no number on file.
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className={styles.customerName}>{full ? full.name : order.customer}</div>
+      <div className={styles.customerPhone}>
+        {full ? (
+          full.phone
+        ) : (
+          <>
+            {order.phone}
+            {ref && (
+              <button
+                type="button"
+                className={styles.revealBtn}
+                title="Show this customer's full name and number. Recorded against your account."
+                aria-label="Reveal full contact details for this customer"
+                onClick={reveal}
+                disabled={busy}
+              >
+                {busy ? '…' : failed ? 'retry' : 'show'}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </>
+  );
+};
 
 const LIMIT = 25;
 
@@ -344,10 +410,7 @@ export const OrdersListPage: React.FC = () => {
                  {...rowActivation(() => setPeek(o))}>
                 <td>{o.reference_id ? <CopyId value={o.reference_id} /> : '—'}</td>
                 <td className={styles.orderId}>{o.id}</td>
-                <td>
-                  <div className={styles.customerName}>{o.customer}</div>
-                  <div className={styles.customerPhone}><PhoneCell phone={o.phone} /></div>
-                </td>
+                <td><ContactCell order={o} /></td>
                 <td className={styles.products}>
                   {o.products?.slice(0,2).join(', ')}
                   {(o.products?.length ?? 0) > 2 ? ` +${o.products.length - 2}` : ''}
