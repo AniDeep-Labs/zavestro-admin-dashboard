@@ -220,6 +220,13 @@ export interface SupportTicket {
   waitingHours?: number; // hours since the last customer message (drives the SLA chip)
   lastSender?: "customer" | "staff" | null;
   snoozeUntil?: string | null; // T3-3 (W-S3): follow-up / snooze time
+  // [SUP-32-5] What actually fixed it. Null on every ticket resolved before this
+  // existed — deliberately not backfilled, because inventing outcomes for closed
+  // conversations would poison the first report anyone runs off them.
+  resolution?: string | null;
+  resolutionNote?: string | null;
+  resolvedAt?: string | null;
+  resolvedByName?: string | null;
 }
 
 export interface AuditEntry {

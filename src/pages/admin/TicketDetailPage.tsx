@@ -20,6 +20,7 @@ import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { StatusBadge, PageHeader, DetailShell, PolicyCard } from "../../components";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
+import { TICKET_RESOLUTIONS, ticketResolutionLabel } from "../../constants/ticketResolutions";
 import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
 import styles from "./TicketDetailPage.module.css";
 import {
@@ -79,6 +80,11 @@ export const TicketDetailPage: React.FC = () => {
     saveTemplates(next);
   };
   const [resolveOnReply, setResolveOnReply] = React.useState(false);
+  // [SUP-32-5]
+  const [showResolve, setShowResolve] = React.useState(false);
+  const [resolution, setResolution] = React.useState('');
+  const [resolutionNote, setResolutionNote] = React.useState('');
+  const [resolving, setResolving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"reply" | "notes">("reply");
   const [internalNote, setInternalNote] = React.useState("");
   const [sending, setSending] = React.useState(false);
@@ -402,14 +408,12 @@ export const TicketDetailPage: React.FC = () => {
     setSending(true);
     try {
       await supportApi.addReply(ticket.id, reply.trim(), false);
-      if (resolveOnReply) {
-        const updated = await supportApi.update(ticket.id, {
-          status: "Resolved",
-        });
-        setTicket(updated);
-      }
       setReply("");
       showToast("success", "Reply sent");
+      // [SUP-32-5] This used to resolve silently on send. Resolving now requires an
+      // outcome, so the reply lands first and the question is asked straight after —
+      // rather than the send failing on a 400 the agent did not ask for.
+      if (resolveOnReply) setShowResolve(true);
     } catch (e) {
       showToast(
         "error",
@@ -446,6 +450,28 @@ export const TicketDetailPage: React.FC = () => {
     }
   };
 
+  // [SUP-32-5] Resolve WITH the outcome that fixed it.
+  const submitResolve = async () => {
+    if (!ticket || !resolution) return;
+    setResolving(true);
+    try {
+      await supportApi.resolve(ticket.id, resolution, resolutionNote);
+      // Re-read rather than trust the PATCH response: `resolved_by_name` comes from a
+      // join the UPDATE's RETURNING cannot do, so using the response directly left the
+      // Outcome block saying what fixed it but not who — visible only after a reload.
+      setTicket(await supportApi.get(ticket.id));
+      setShowResolve(false);
+      setResolution('');
+      setResolutionNote('');
+      setResolveOnReply(false);
+      showToast('success', 'Ticket resolved');
+    } catch (e) {
+      showToast('error', 'Failed to resolve', e instanceof Error ? e.message : undefined);
+    } finally {
+      setResolving(false);
+    }
+  };
+
   // T3-3 (W-S3): snooze the ticket to a follow-up time (or clear it). Snoozed
   // tickets leave "Needs reply" until the time passes.
   const [savingSnooze, setSavingSnooze] = React.useState(false);
@@ -460,6 +486,9 @@ export const TicketDetailPage: React.FC = () => {
     'Request re-measure',
   );
   const creditDialog = useDialog(showCredit, () => setShowCredit(false), 'Issue goodwill credit');
+  // [SUP-32-5] Resolving now asks what fixed it. The server refuses a resolve without an
+  // outcome, so this is the only path to Resolved rather than an optional extra step.
+  const resolveDialog = useDialog(showResolve, () => setShowResolve(false), 'Resolve ticket');
   const escalateDialog = useDialog(
     showEscalate,
     () => setShowEscalate(false),
@@ -562,6 +591,34 @@ export const TicketDetailPage: React.FC = () => {
             <div className={styles.metaLabel}>Last Activity</div>
             <div className={styles.metaValue}>{ticket.lastActivity}</div>
           </div>
+          {/* [SUP-32-5] The outcome, shown beside the category. A ticket resolved before
+              this existed reads "Not recorded" rather than borrowing a plausible one —
+              the gap is real and saying so is what keeps the first report honest. */}
+          {(ticket.status === "Resolved" || ticket.status === "Closed") && (
+            <div>
+              <div className={styles.metaLabel}>Outcome</div>
+              <div className={styles.metaValue}>
+                {ticket.resolution ? (
+                  <>
+                    {ticketResolutionLabel(ticket.resolution)}
+                    {ticket.resolvedByName && (
+                      <div className={styles.fieldLabel}>
+                        by {ticket.resolvedByName}
+                        {ticket.resolvedAt
+                          ? ` · ${new Date(ticket.resolvedAt).toLocaleDateString("en-IN")}`
+                          : ""}
+                      </div>
+                    )}
+                    {ticket.resolutionNote && (
+                      <div className={styles.fieldLabel}>{ticket.resolutionNote}</div>
+                    )}
+                  </>
+                ) : (
+                  <span className={styles.fieldLabel}>Not recorded</span>
+                )}
+              </div>
+            </div>
+          )}
           <div>
             <div className={styles.metaLabel}>Assigned to</div>
             <div
@@ -796,7 +853,7 @@ export const TicketDetailPage: React.FC = () => {
           {ticket.status !== "Resolved" && (
             <button
               className={styles.resolveBtn}
-              onClick={() => handleStatusChange("Resolved")}
+              onClick={() => setShowResolve(true)}
             >
               Resolve Ticket
             </button>
@@ -1166,6 +1223,61 @@ export const TicketDetailPage: React.FC = () => {
                 onClick={submitRemeasure}
               >
                 {requestingRemeasure ? "Requesting…" : "Request re-measure"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* [SUP-32-5] What fixed it — asked at the resolve, because an outcome asked for
+          later is an outcome nobody fills in. */}
+      {showResolve && (
+        <div className={styles.modalOverlay} onClick={() => setShowResolve(false)}>
+          <div
+            className={styles.modal}
+            {...resolveDialog.dialogProps}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className={styles.modalTitle}>Resolve {ticket.reference_id ?? 'ticket'}</h3>
+            <p className={styles.fieldLabel}>
+              What actually fixed this? The category says why they got in touch; this says
+              what it cost us to put right. Both are needed to tell ten answered questions
+              apart from ten remakes.
+            </p>
+            <select
+              className={styles.fieldTextarea}
+              value={resolution}
+              onChange={(e) => setResolution(e.target.value)}
+            >
+              <option value="">Choose an outcome…</option>
+              {TICKET_RESOLUTIONS.map((r) => (
+                <option key={r.slug} value={r.slug}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            {resolution && (
+              <p className={styles.fieldLabel}>
+                {TICKET_RESOLUTIONS.find((r) => r.slug === resolution)?.hint}
+              </p>
+            )}
+            <textarea
+              className={styles.fieldTextarea}
+              rows={2}
+              value={resolutionNote}
+              onChange={(e) => setResolutionNote(e.target.value)}
+              placeholder="Anything the outcome alone doesn't capture (optional)"
+            />
+            <div className={styles.modalActions}>
+              <button className={styles.cancelModalBtn} onClick={() => setShowResolve(false)}>
+                Cancel
+              </button>
+              <button
+                className={styles.assignSelfBtn}
+                disabled={!resolution || resolving}
+                onClick={submitResolve}
+              >
+                {resolving ? 'Resolving…' : 'Resolve ticket'}
               </button>
             </div>
           </div>

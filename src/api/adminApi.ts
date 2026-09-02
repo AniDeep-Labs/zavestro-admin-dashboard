@@ -1042,6 +1042,12 @@ function mapTicket(t: Record<string, unknown>): SupportTicket {
     phone: (t.customer_phone ?? t.phone ?? "") as string,
     subject: (t.subject ?? "") as string,
     category: (t.category ?? "General") as string,
+    // [SUP-32-5] Resolution fields ride through the same allow-list mapper as everything
+    // else — a column added to the query is dropped here unless it is named.
+    resolution: (t.resolution ?? null) as string | null,
+    resolutionNote: (t.resolution_note ?? null) as string | null,
+    resolvedAt: (t.resolved_at ?? null) as string | null,
+    resolvedByName: (t.resolved_by_name ?? null) as string | null,
     priority:
       PRIORITY_MAP[t.priority as string] ??
       (t.priority as SupportTicket["priority"]) ??
@@ -1172,6 +1178,30 @@ export const supportApi = {
     const raw = await req<Record<string, unknown>>(`/api/admin/support/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
+    });
+    return mapTicket(raw);
+  },
+
+  /**
+   * [SUP-32-5] Resolve a ticket WITH the outcome that fixed it.
+   *
+   * A separate method rather than `update({ status: "Resolved" })` because the two are
+   * no longer the same act: the server refuses a resolve that does not say what fixed
+   * it, so a caller that only knows how to set a status would just get a 400. Naming it
+   * `resolve` makes the requirement visible at the call site instead of at runtime.
+   */
+  resolve: async (
+    id: string,
+    resolution: string,
+    resolutionNote?: string,
+  ): Promise<SupportTicket> => {
+    const raw = await req<Record<string, unknown>>(`/api/admin/support/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: "resolved",
+        resolution,
+        resolution_note: resolutionNote?.trim() || null,
+      }),
     });
     return mapTicket(raw);
   },
