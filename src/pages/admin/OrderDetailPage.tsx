@@ -663,6 +663,12 @@ export const OrderDetailPage: React.FC = () => {
       setCancellingItem(false);
     }
   };
+  // [SUP-29-6] This list is a MIRROR of the server's `ITEM_CANCEL_BLOCKED_STAGES`, which
+  // is the thing that actually decides. It used to be the only copy, and it was STRICTER
+  // than the server: it blocked `rto` and `delivery_failed` and the API did not, so the
+  // UI forbade something a refunds:approve holder could still do through the API. The
+  // policy was right and now lives where it is enforced; this copy only greys the button
+  // out early, so an agent is not offered a verb that will 400.
   const ITEM_CANCEL_LOCKED = ["delivered", "shipped", "cancelled", "refunded", "rto", "delivery_failed"];
   const activeItemCount = (order?.items ?? []).filter((it) => !it.cancelled_at).length;
   const canCancelItems = !!order && !ITEM_CANCEL_LOCKED.includes(order.stage) && activeItemCount >= 2;
