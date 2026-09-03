@@ -2064,10 +2064,19 @@ export interface PendingReviewsResponse {
   limit: number;
 }
 
+/** [SUP-34-6] Which bucket of the moderation queue to show. */
+export type ReviewModerationStatus = "pending" | "approved" | "rejected" | "all";
+
 export const reviewsApi = {
-  listPending: (page = 1, limit = 25): Promise<PendingReviewsResponse> =>
+  // [SUP-34-6] The path is historical — it now serves the decided buckets too, so a
+  // wrong rejection is findable and (by moderating it again) reversible.
+  listPending: (
+    page = 1,
+    limit = 25,
+    status: ReviewModerationStatus = "pending",
+  ): Promise<PendingReviewsResponse> =>
     req<PendingReviewsResponse>(
-      `/api/reviews/pending?page=${page}&limit=${limit}`,
+      `/api/reviews/pending?page=${page}&limit=${limit}&status=${status}`,
     ),
 
   // T2-36 (SP-5): a rejection carries a reason (required server-side).
@@ -2075,6 +2084,22 @@ export const reviewsApi = {
     req<void>(`/api/reviews/${id}/moderate`, {
       method: "POST",
       body: JSON.stringify({ approve, ...(reason ? { reason } : {}) }),
+    }),
+
+  /**
+   * [SUP-34-7] One request, one transaction. The console used to loop `moderate` per id,
+   * so a fifty-review sweep was fifty requests and fifty aggregate recomputations with
+   * nothing holding them together. All-or-nothing server-side: a partial sweep is worse
+   * than a failed one, because the moderator cannot see which half landed.
+   */
+  moderateBulk: (
+    ids: string[],
+    approve: boolean,
+    reason?: string,
+  ): Promise<{ moderated: number; ids: string[] }> =>
+    req<{ moderated: number; ids: string[] }>(`/api/reviews/moderate-bulk`, {
+      method: "POST",
+      body: JSON.stringify({ ids, approve, ...(reason ? { reason } : {}) }),
     }),
 };
 
