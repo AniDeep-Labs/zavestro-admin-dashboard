@@ -280,3 +280,20 @@
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
+
+/* [SUP-28-3] The freshness chip: quiet until you look for it, and clickable, because
+   an agent who suspects the screen is stale wants to act on that, not just read it. */
+.freshness {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.freshness:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+.freshness:disabled { opacity: 0.6; cursor: default; }

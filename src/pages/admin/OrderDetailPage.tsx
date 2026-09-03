@@ -19,6 +19,7 @@ import { StaffAssignmentDropdown } from "../../components/StaffAssignmentDropdow
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
+import { useLiveRefresh, freshnessLabel } from "../../hooks/useLiveRefresh";
 import { Can } from "../../components/Can/Can";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DispositionPanel } from "../../components/DispositionPanel/DispositionPanel";
@@ -686,6 +687,27 @@ export const OrderDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // [SUP-28-3] The page used to load once and re-fetch only after its OWN actions, so
+  // while an agent was on a call the ops floor could advance the stage, QC could fail
+  // the garment and a payment could settle with nothing on screen to say so. Re-reads
+  // the record on a timer while the tab is visible, and the header says how old what
+  // you are looking at actually is. Deliberately does NOT overwrite the two editable
+  // fields — clobbering a half-typed delivery date or hold reason mid-refresh would
+  // trade one silent lie for another.
+  const refetchOrder = React.useCallback(async () => {
+    if (!id) return;
+    setOrder(await ordersApi.get(id));
+  }, [id]);
+  const { lastUpdatedAt, refreshing, lastError, refreshNow } = useLiveRefresh(refetchOrder, {
+    enabled: !!id,
+  });
+  // Re-render the "as of" label as it ages, so it cannot itself go stale on screen.
+  const [nowTick, setNowTick] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 5_000);
+    return () => clearInterval(t);
+  }, []);
+
   // Load customer fit profiles at payment_confirmed (for the "use saved measurements" path)
   React.useEffect(() => {
     if (!order?.user_id || order.stage !== "payment_confirmed") return;
@@ -1154,6 +1176,26 @@ export const OrderDetailPage: React.FC = () => {
             {order.customer_ref && (
               <span className={styles.refChip}>{order.customer_ref}</span>
             )}
+            {/* [SUP-28-3] How old the story on this screen is. An agent reading a stage
+                out loud on a call needs to know whether it is current — the page has no
+                other way of admitting that the floor moved while they were talking. */}
+            <button
+              type="button"
+              className={styles.freshness}
+              onClick={refreshNow}
+              disabled={refreshing}
+              title={
+                lastError
+                  ? "The last refresh failed, so this may be out of date by more than the time shown. Click to try again."
+                  : "This page re-reads itself every 15 seconds while the tab is open. Click to refresh now."
+              }
+            >
+              {refreshing
+                ? "Refreshing…"
+                : lastError
+                  ? `Updated ${freshnessLabel(lastUpdatedAt, nowTick)} · not refreshing`
+                  : `Updated ${freshnessLabel(lastUpdatedAt, nowTick)} · refresh`}
+            </button>
           </>
         }
       />
