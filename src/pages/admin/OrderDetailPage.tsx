@@ -876,7 +876,14 @@ export const OrderDetailPage: React.FC = () => {
         order_id: order.uuid ?? order.id,
         ...(order.fit_profile_id ? { fit_profile_id: order.fit_profile_id } : {}),
       });
-      showToast("success", "Re-measure requested", "Ops will schedule a free agent visit.");
+      // [SUP-29-5] Says where it went. This posts to /users/:id/request-remeasure — a
+      // USER-scoped record — so an agent who raised it from an order and then looked for
+      // it on the order would never find it.
+      showToast(
+        "success",
+        "Re-measure requested",
+        "Ops will schedule a free agent visit. It is tracked on the CUSTOMER, not this order — find it on their profile.",
+      );
       setShowRemeasure(false);
       setRemeasureReason("");
     } catch (e) {
@@ -907,7 +914,12 @@ export const OrderDetailPage: React.FC = () => {
         order_id: order.uuid ?? order.id,
         description: alterationDesc.trim(),
       });
-      showToast("success", "Alteration requested", "First alteration on the order is free.");
+      // [SUP-29-5] Named destination: Support → Alterations.
+      showToast(
+        "success",
+        "Alteration requested",
+        "First alteration on the order is free. Track it under Support → Alterations.",
+      );
       setShowAlteration(false);
       setAlterationDesc("");
     } catch (e) {
@@ -947,7 +959,12 @@ export const OrderDetailPage: React.FC = () => {
         reason: returnReason,
         description: returnDesc.trim() || undefined,
       });
-      showToast("success", "Return started", "Ops will inspect; finance approves any refund.");
+      // [SUP-29-5] Named destination: Support → Returns.
+      showToast(
+        "success",
+        "Return started",
+        "Ops will inspect; finance approves any refund. Track it under Support → Returns.",
+      );
       setShowReturn(false);
       setReturnDesc("");
     } catch (e) {
@@ -2048,6 +2065,16 @@ export const OrderDetailPage: React.FC = () => {
         <div className={styles.modalOverlay} onClick={() => setShowRemeasure(false)}>
           <div className={styles.modal} {...remeasureDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Request re-measure</h3>
+            {/* [SUP-29-5] Said before submitting, not after. This verb is raised from an
+                ORDER but posts to /users/:id/request-remeasure, so what it creates is
+                tracked against the CUSTOMER — an agent who came looking for it on this
+                order would never find it. The order is context for the reason, nothing
+                more. */}
+            <p className={styles.fieldLabel}>
+              Raised against <strong>{order.customer}</strong>, not this order — a
+              re-measure covers the customer's saved measurements. Find it afterwards on
+              their profile.
+            </p>
             <div className={styles.field}>
               <label className={styles.fieldLabel}>
                 Reason (free agent visit; ops schedules it)
