@@ -1354,6 +1354,7 @@ export const configApi = {
         min?: number | null;
         max?: number | null;
         dangerous?: boolean;
+        enforced?: boolean;
         updated_by_email?: string | null;
         updated_at?: string | null;
       }[]
@@ -1368,6 +1369,9 @@ export const configApi = {
       min: r.min ?? null,
       max: r.max ?? null,
       dangerous: r.dangerous ?? false,
+      // [SHL-7-9] Default TRUE: the common case stays quiet and only an explicitly
+      // unwired key announces itself.
+      enforced: r.enforced ?? true,
       updatedByEmail: r.updated_by_email ?? null,
       updatedAt: r.updated_at ?? null,
     }));

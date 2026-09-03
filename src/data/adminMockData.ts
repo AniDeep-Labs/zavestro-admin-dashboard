@@ -303,6 +303,12 @@ export interface ConfigItem {
   dangerous?: boolean;
   updatedByEmail?: string | null;
   updatedAt?: string | null;
+  /**
+   * [SHL-7-9] False when NOTHING READS the key. `/config` returns every app_config row,
+   * so an unwired setting is otherwise indistinguishable from a live one — an operator
+   * edits it, saves, and nothing happens.
+   */
+  enforced?: boolean;
 }
 
 export interface ConfigGroup {
