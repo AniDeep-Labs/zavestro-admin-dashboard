@@ -2110,6 +2110,12 @@ export interface ReturnRequest {
   // "free alteration". Null until one is raised — which, before this, could not be
   // done from here at all.
   linked_alteration?: LinkedAlteration | null;
+  // [SUP-31-9] The date finance sees, computed by the same function, so support can
+  // answer "when will the money arrive?" without a finance seat they cannot have.
+  refund_status?: string | null;
+  refund_initiated_at?: string | null;
+  expected_settlement_at?: string | null;
+  settlement_business_days?: number;
 }
 
 /** [SUP-31-6] The alteration a fit return was settled with. */

@@ -267,9 +267,26 @@ export const ReturnDetailPage: React.FC = () => {
             <h3 className={styles.sectionTitle}>Refund</h3>
 
             {refundDone ? (
+              /* [SUP-31-9] This stopped at "It settles via the payment provider" — no
+                 date, and no owner. Support cannot look either up: GET /admin/refunds is
+                 finance-only (403 for support AND super_admin). So the date finance sees
+                 travels here, and the copy names who holds the next step, because
+                 "refund in progress" with nobody's name on it is not a status a customer
+                 can be given. */
               <p className={d.refundDone}>
-                <StatusBadge status={ret.status} /> &nbsp;Refund has been initiated to the original
-                payment method. It settles via the payment provider.
+                <StatusBadge status={ret.status} /> &nbsp;Refund initiated to the original
+                payment method
+                {ret.refund_initiated_at
+                  ? ` on ${new Date(ret.refund_initiated_at).toLocaleDateString('en-IN')}`
+                  : ''}
+                .{' '}
+                {ret.expected_settlement_at
+                  ? `It should reach the customer by ${new Date(
+                      ret.expected_settlement_at,
+                    ).toLocaleDateString('en-IN')} (${ret.settlement_business_days} business days).`
+                  : 'It settles via the payment provider.'}{' '}
+                Finance owns the disbursement from here — if it has not landed by then,
+                raise it with them rather than re-approving.
               </p>
             ) : rejected ? (
               <p className={d.refundNote}>This return was rejected — no refund is due.</p>
