@@ -199,7 +199,11 @@ export const ReturnDetailPage: React.FC = () => {
                   </div>
                   <button
                     className={`${styles.addBtn} ${d.cardAction}`}
-                    onClick={() => navigate(`/admin/alterations/${ret.linked_alteration!.id}`)}
+                    // [SUP-31-8] The list's peek drawer, deep-linked. There is no
+                    // /admin/alterations/:id route — a plain link there is a dead one.
+                    onClick={() =>
+                      navigate(`/admin/alterations?peek=${ret.linked_alteration!.id}`)
+                    }
                   >
                     Open the alteration
                   </button>

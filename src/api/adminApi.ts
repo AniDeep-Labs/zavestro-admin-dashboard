@@ -2227,6 +2227,27 @@ export interface AlterationRequest {
   description: string;
   created_at: string;
   updated_at: string;
+  /**
+   * [SUP-31-8] The logistics story. All of it has always been on the row and returned
+   * by `GET /alterations/:id` — which no page called — so the two questions a customer
+   * actually asks ("when is someone coming for the garment?" and "will I be charged?")
+   * were in the API and on no screen. Present only from `alterationsApi.get()`.
+   */
+  assigned_agent_name?: string | null;
+  agent_visit_date?: string | null;
+  pickup_failure_reason?: string | null;
+  pickup_failed_at?: string | null;
+  garment_picked_up_at?: string | null;
+  garment_received_at_hub?: string | null;
+  assigned_tailor_name?: string | null;
+  alteration_completed_at?: string | null;
+  alteration_qc_at?: string | null;
+  alteration_qc_note?: string | null;
+  redelivered_at?: string | null;
+  staff_note?: string | null;
+  /** [SUP-31-6] Set when this alteration was raised to settle a fit return. */
+  return_id?: string | null;
+  return_reason?: string | null;
 }
 
 export interface AlterationsResponse {
