@@ -28,3 +28,33 @@
   color: var(--color-warning, var(--color-text-secondary));
   margin: 0 0 var(--spacing-md);
 }
+
+/* [DSG-13-8] The rating band behind a bucket name. Quiet — it qualifies the word next to
+   it rather than competing with the number. */
+.threshold {
+  color: var(--color-text-tertiary);
+  font-size: 0.9em;
+}
+
+/* [DSG-13-9] The denominator under every rate. A percentage over two orders and one over
+   two thousand are the same pixels without it. */
+.kpiDenominator {
+  margin-top: 3px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+}
+
+/* Same neutral treatment the FTR card already got, applied to the other three rather than
+   leaving them bold and apparently more trustworthy than the caveated one. */
+.lowValue {
+  opacity: 0.55;
+}
+
+/* [DSG-13-15] "No hub recorded" is a fact about the data, not a hub — muted so it does not
+   read as a hub named that, but present so it does not read as a missing name. */
+.noHub {
+  color: var(--color-text-muted);
+  font-style: italic;
+  font-weight: var(--font-weight-regular);
+}

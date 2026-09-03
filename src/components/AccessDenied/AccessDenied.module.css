@@ -44,3 +44,15 @@
   border-radius: 8px;
 }
 .action:hover { background: var(--color-bg-secondary); }
+
+/* [SHL-3-7] "Who can grant this?" — the half of a denial that tells you what to do next. */
+.whoGrants {
+  margin: var(--spacing-sm) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.link {
+  color: var(--color-primary);
+  text-decoration: underline;
+}

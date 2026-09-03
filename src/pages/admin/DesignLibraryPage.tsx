@@ -1,3 +1,4 @@
+import { useUrlParam, useUrlFlag } from '../../hooks/useOverviewFilters';
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { designsApi, R2_PUBLIC_URL } from '../../api/adminApi';
@@ -36,19 +37,35 @@ function useDebounce<T>(v: T, d: number) {
 export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [editing, setEditing] = React.useState<{ open: boolean; id?: string }>({ open: Boolean(autoNew) });
-  // Closing the editor restores the clean /library URL when it was opened via the /new deep-link.
+  // [DSG-10-3] The wizard's open state IS the URL. It used to be local state that the
+  // "New design" button set directly, so the button pushed no history entry: a designer
+  // five steps in who pressed browser-back — the reflexive "close this" gesture — left the
+  // page entirely and lost the work, with the ● Unsaved badge on screen and no prompt
+  // (`beforeunload` does not fire for an in-app route change). The /new route already
+  // existed and already behaved; the button just wasn't using it.
+  //
+  // Deriving from the URL rather than syncing to it matters: navigating /library → /new
+  // renders the same component with a different prop, so React does not remount and an
+  // initial-state read of `autoNew` would never fire.
+  const editorOpen = Boolean(autoNew);
+  const openEditor = () => navigate('/admin/design/library/new');
   const closeEditor = () => {
-    setEditing({ open: false });
+    // `replace` so closing doesn't leave /new in history for back to re-open.
     if (location.pathname.endsWith('/new')) navigate('/admin/design/library', { replace: true });
   };
-  const [status, setStatus] = React.useState('');
-  const [gender, setGender] = React.useState('');
-  const [search, setSearch] = React.useState('');
-  const [sort, setSort] = React.useState<'newest' | 'best_fit'>('newest');
-  const [deadOnly, setDeadOnly] = React.useState(false); // G-34: published, never listed
-  const [samplePending, setSamplePending] = React.useState(false); // §4C: not yet sample-reviewed
-  const [tag, setTag] = React.useState(''); // T3-5 (W-D3): active tag/drop filter
+  // [DSG-9-3] The THIRD console with this gap (after SHL-5-2 oversight and the CMS lists),
+  // against the repo's own convention: "deep-links carry context; back must preserve list
+  // filters". Selecting "Published, never listed" left the URL bare, so refresh, back and
+  // sharing all lost the view — and that view is an exception queue someone is meant to
+  // hand to a colleague. One shared helper, as the finding asked, not a third bespoke fix.
+  const [status, setStatus] = useUrlParam('status');
+  const [gender, setGender] = useUrlParam('gender');
+  const [search, setSearch] = useUrlParam('q');
+  const [sortParam, setSort] = useUrlParam('sort', 'newest');
+  const sort = (sortParam === 'best_fit' ? 'best_fit' : 'newest') as 'newest' | 'best_fit';
+  const [deadOnly, setDeadOnly] = useUrlFlag('dead'); // G-34: published, never listed
+  const [samplePending, setSamplePending] = useUrlFlag('sample_pending'); // §4C: not yet sample-reviewed
+  const [tag, setTag] = useUrlParam('tag'); // T3-5 (W-D3): active tag/drop filter
   const [tagOptions, setTagOptions] = React.useState<{ tag: string; count: number }[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -88,9 +105,9 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
   // T3-5 (W-D3): the tag/drop options for the filter — refreshed when the editor closes
   // (a save may add a new tag).
   React.useEffect(() => {
-    if (editing.open) return;
+    if (editorOpen) return;
     designsApi.tags().then(setTagOptions).catch(() => {});
-  }, [editing.open]);
+  }, [editorOpen]);
 
   return (
     <div className={base.page}>
@@ -102,7 +119,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
             Every design you've created. Author it here, pair it with fabric, request a sample — then catalog lists it for customers to buy.
           </p>
         </div>
-        <Button variant="primary" onClick={() => setEditing({ open: true })}>
+        <Button variant="primary" onClick={openEditor}>
           <UilPlus size={16} /> New design
         </Button>
       </div>
@@ -142,14 +159,14 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
         <span className={styles.toolbarDivider} aria-hidden="true" />
         <button
           className={`${base.viewChip} ${deadOnly ? base.viewChipActive : ''}`}
-          onClick={() => setDeadOnly((v) => !v)}
+          onClick={() => setDeadOnly(!deadOnly)}
           title="Published designs that aren't listed at any hub"
         >
           Published, never listed
         </button>
         <button
           className={`${base.viewChip} ${samplePending ? base.viewChipActive : ''}`}
-          onClick={() => setSamplePending((v) => !v)}
+          onClick={() => setSamplePending(!samplePending)}
           title="Designs that haven't passed sample review yet"
         >
           Sample pending
@@ -185,7 +202,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
               icon={<UilImage size={30} />}
               title="No designs yet"
               body="Create your first design — pair it with fabric, sample it, then list it."
-              action={{ label: 'New design', onClick: () => setEditing({ open: true }) }}
+              action={{ label: 'New design', onClick: openEditor }}
             />
           );
         return (
@@ -287,8 +304,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
       )}
 
       <DesignEditorModal
-        open={editing.open}
-        designId={editing.id}
+        open={editorOpen}
         onClose={closeEditor}
         onSaved={() => { closeEditor(); load(true, 0); }}
       />

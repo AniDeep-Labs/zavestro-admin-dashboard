@@ -254,6 +254,19 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
           {sampleChip(r)}
           {r.note && <div className={s.cardNote}>“{r.note}”</div>}
           {r.status === 'rejected' && r.decision_note && <div className={s.decisionNote}>Rejected: {r.decision_note}</div>}
+          {/* [PRC-16-11] Who committed the cloth. `approved_by` has been stored on every
+              decided row all along and shown on no screen, so "who approved sending 200m
+              to that hub, and when" was unanswerable from the admin. */}
+          {r.status !== 'requested' && (
+            <div className={s.decisionNote}>
+              {r.approved_by_name
+                ? `Decided by ${r.approved_by_name}`
+                : 'Decided by — not recorded'}
+              {r.updated_at
+                ? ` · ${new Date(r.updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                : ''}
+            </div>
+          )}
           {isProc && r.status === 'requested' && (
             <div className={s.cardFoot} onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setRejectTarget(r); setRejectReason(''); }}>Reject</Button>

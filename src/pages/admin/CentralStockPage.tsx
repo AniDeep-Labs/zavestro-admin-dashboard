@@ -156,9 +156,36 @@ export const CentralStockPage: React.FC = () => {
 
   const exportCsv = () => {
     const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const header = ["Code", "Fabric", "Received (m)", "Allocated (m)", "Available (m)", "Value (avail ₹)"];
+    // [PRC-15-12] The exported value column carried no basis, so a ₹ figure valued at
+    // weighted-average cost-at-receipt and one falling back to today's list price landed in
+    // the same spreadsheet column looking identical. On this screen the distinction is at
+    // least implied by the page; in a CSV it is gone entirely, and whoever opens it has no
+    // way to recover it. Ship the rate used and which rate it is.
+    const header = [
+      "Code",
+      "Fabric",
+      "Received (m)",
+      "Allocated (m)",
+      "Available (m)",
+      "Cost basis (₹/m)",
+      "Basis",
+      "Value (avail ₹)",
+    ];
     const lines = rows.map((r) =>
-      [r.fabric_code, r.fabric_name, num(r.received_meters), num(r.allocated_meters), num(r.available_meters), valueOf(r) ?? ""].map(cell).join(","),
+      [
+        r.fabric_code,
+        r.fabric_name,
+        num(r.received_meters),
+        num(r.allocated_meters),
+        num(r.available_meters),
+        costBasis(r) ?? "",
+        costBasis(r) == null
+          ? "no cost on file"
+          : r.unit_cost_wac != null
+            ? "weighted-average cost at receipt"
+            : "list price (no costed receipts)",
+        valueOf(r) ?? "",
+      ].map(cell).join(","),
     );
     const csv = [header.map(cell).join(","), ...lines].join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));

@@ -638,10 +638,16 @@ export const ListingsManagePage: React.FC = () => {
                     <span className={s.price}>
                       ₹{Number(l.price).toLocaleString("en-IN")}
                     </span>
+                    {/* [CM-18-10] The two facts an operator needs before clicking a copy
+                        icon next to a LIVE price: it opens a DRAFT (nothing goes live, and
+                        nothing is written until you save), and the fabric is the field you
+                        are meant to change — a duplicate that keeps the same design AND
+                        fabric is just a second listing of the same thing. "Duplicate as a
+                        new listing (variation)" said neither. */}
                     <button
                       className={s.dupBtn}
-                      title="Duplicate as a new listing (variation)"
-                      aria-label="Duplicate listing"
+                      title="Duplicate as draft — change the fabric to make a variation. Nothing is saved until you do."
+                      aria-label="Duplicate this listing as a draft"
                       onClick={(e) => { e.stopPropagation(); openDuplicate(l); }}
                     >
                       <UilCopy size={14} />

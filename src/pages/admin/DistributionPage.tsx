@@ -280,7 +280,7 @@ export const DistributionPage: React.FC = () => {
     if (overPush) { toast('error', 'Not enough central stock', `Central has ${centralAvail}m; you're pushing ${shipTotal}m.`); return; }
     setPushing(true);
     try {
-      await distributionApi.push({
+      const pushed = await distributionApi.push({
         design_id: restockMode ? null : designId,
         fabric_id: fabricId || null,
         hub_id: hubId,
@@ -288,7 +288,20 @@ export const DistributionPage: React.FC = () => {
         sellable_qty: Number(sellableQty) || 0,
         lot_code: lotCode.trim() || undefined,
       });
-      toast('success', restockMode ? 'Restock pushed to hub' : 'Pushed to hub', 'The hub will receive and stock it.');
+      // [PRC-15-5] The server converts a design push into a fabric-less one when the hub
+      // already stocks the SKU. Saying "the hub will receive and stock it" for that shipment
+      // was wrong: no fabric ships and nothing is drawn from central. The list discloses it
+      // afterwards ("hub stocks SKU" in the Fabric column) — this says it at the moment the
+      // operator is still looking at what they just did.
+      if (pushed.fabric_skipped) {
+        toast(
+          'info',
+          'Pushed — no fabric shipped',
+          'The hub already stocks this SKU, so no metres were dispatched or drawn from central.',
+        );
+      } else {
+        toast('success', restockMode ? 'Restock pushed to hub' : 'Pushed to hub', 'The hub will receive and stock it.');
+      }
       setOpen(false);
       load();
     } catch (e) {
@@ -327,19 +340,54 @@ export const DistributionPage: React.FC = () => {
       <td className={styles.total}>{Number(r.sellable_qty)}</td>
       <td>
         <div className={styles.rowActions} onClick={(e) => e.stopPropagation()}>
-          <StatusBadge
-            status={r.status}
-            title={r.variance_reason ?? undefined}
-            label={r.status === 'received' && r.received_meters != null && Number(r.received_meters) !== Number(r.sellable_qty)
-              ? `Received ${Number(r.received_meters)}m of ${Number(r.sellable_qty)}m`
-              : undefined}
-          />
+          {/* [PRC-15-6] "Received 50m of 10m" and "Received 80m of 100m" both wore the
+              standard green Received badge — no percentage, no grading, and the mandatory
+              variance reason visible nowhere but a hover title. A buyer scanning this
+              section could not see which receipts were short or over without opening each
+              one. The badge now carries the variance and turns on the same 5% threshold
+              the server gates on, so what the receipt had to justify is what the row shows. */}
+          {(() => {
+            const pct = r.variance_pct == null ? null : Number(r.variance_pct);
+            const off = pct != null && Math.abs(pct) > 5;
+            return (
+              <StatusBadge
+                status={r.status}
+                tone={r.status === 'received' && off ? 'blocked' : undefined}
+                title={r.variance_reason ?? r.cancel_reason ?? undefined}
+                label={
+                  r.status === 'received' && r.received_meters != null && Number(r.received_meters) !== Number(r.sellable_qty)
+                    ? `Received ${Number(r.received_meters)}m of ${Number(r.sellable_qty)}m${pct == null ? '' : ` · ${pct > 0 ? '+' : ''}${pct}%`}`
+                    : undefined
+                }
+              />
+            );
+          })()}
           {r.status === 'pushed' && <AgeCell since={r.created_at} warnAfterH={120} alertAfterH={240} />}
           {r.status === 'pushed' && (
             <>
               <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => openReceive(r)}>Receive…</Button>
               <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => { setCancelTarget(r); setCancelReason(''); }}>Cancel</Button>
             </>
+          )}
+          {/* [PRC-15-13] Who counted it. The page's own banner says procurement records
+              receipts on the hub's behalf, which is exactly why the stand-in has to be
+              named. Older receipts have nobody recorded and say so rather than guess. */}
+          {r.status === 'received' && (
+            <span className={styles.varianceReason}>
+              {r.received_by_name ? `counted by ${r.received_by_name}` : 'counter not recorded'}
+            </span>
+          )}
+          {/* The reason is mandatory to record and was rendered nowhere. A tooltip is not
+              a rendering — nothing about the row invites the hover that reveals it. */}
+          {r.status === 'received' && r.variance_reason && (
+            <span className={styles.varianceReason} title={r.variance_reason}>
+              {r.variance_reason}
+            </span>
+          )}
+          {r.status === 'cancelled' && r.cancel_reason && (
+            <span className={styles.varianceReason} title={r.cancel_reason}>
+              {r.cancel_reason}
+            </span>
           )}
           {r.status === 'received' && Number(r.held_meters ?? 0) > 0 && (
             <Button variant="ghost" size="sm" onClick={() => openInspect(r)}>Re-inspect {Number(r.held_meters)}m held…</Button>

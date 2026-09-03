@@ -44,7 +44,11 @@ export const FabricStockPage: React.FC = () => {
   const imgOf = (keys: string[] | null) =>
     keys && keys[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : "";
   const reorderOf = (r: FabricStockRow) => num(r.reorder_meters);
-  const isLow = (r: FabricStockRow) => reorderOf(r) > 0 && num(r.available_meters) <= reorderOf(r);
+  // [CM-19-4] The server decides "low" now. This page used `<=` and the procurement grid
+  // used `<`, so a fabric exactly at its reorder point was low here and healthy there.
+  // The local derivation is kept only as a fallback for a server that hasn't sent the flag.
+  const isLow = (r: FabricStockRow) =>
+    r.is_low ?? (reorderOf(r) > 0 && num(r.available_meters) <= reorderOf(r));
   const valueOf = (r: FabricStockRow) =>
     r.price_per_meter != null ? num(r.available_meters) * num(r.price_per_meter) : null;
 

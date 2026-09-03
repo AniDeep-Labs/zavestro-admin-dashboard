@@ -96,3 +96,10 @@
   font-weight: 400;
   color: var(--color-text-tertiary);
 }
+
+/* [PRC-17-6] Held-by-QC metres. Warning-toned rather than alarming: the cloth is not lost,
+   it is arrived-and-not-available, which is a state somebody has to act on. */
+.heldMeters {
+  color: var(--color-warning);
+  font-variant-numeric: tabular-nums;
+}

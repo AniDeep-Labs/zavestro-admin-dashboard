@@ -1,5 +1,6 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { getAdminUser } from '../../api/adminApi';
 import styles from './AccessDenied.module.css';
 
 /**
@@ -49,6 +50,7 @@ export const AccessDenied: React.FC<AccessDeniedProps> = ({
   reason = 'no-capability',
 }) => {
   const navigate = useNavigate();
+  const isSuper = getAdminUser()?.role === 'super_admin';
 
   const heading =
     reason === 'no-role'
@@ -93,6 +95,31 @@ export const AccessDenied: React.FC<AccessDeniedProps> = ({
               {c}
             </code>
           ))}
+        </p>
+      )}
+
+      {/* [SHL-3-7] ...and say WHO can grant it. Naming the capability answers "what am I
+          missing"; a denial also has to answer "what do I do about it", or the operator's
+          only move is to message the founder — which is the exact dependency this audit
+          keeps finding (F-44 / F-47 / F-51 stayed invisible for months for this reason).
+
+          A super admin gets a LINK, because they can grant it themselves. Everyone else
+          gets the destination as text: sending a non-super to /admin/system/admin-users
+          would land them on a second refusal, and a corridor of locked doors is what
+          [KA9-7] exists to stop. */}
+      {reason !== 'oversight-only' && (
+        <p className={styles.whoGrants}>
+          {isSuper ? (
+            <>
+              You can grant this yourself in{' '}
+              <Link to="/admin/system/admin-users" className={styles.link}>
+                Admin → Admin Users
+              </Link>
+              .
+            </>
+          ) : (
+            <>Ask a super admin to grant it in Admin → Admin Users.</>
+          )}
         </p>
       )}
 

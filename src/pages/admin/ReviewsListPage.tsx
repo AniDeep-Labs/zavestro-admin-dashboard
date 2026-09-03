@@ -1,6 +1,7 @@
 import React from 'react';
 import { reviewsApi, R2_PUBLIC_URL } from '../../api/adminApi';
-import type { AdminReview } from '../../api/adminApi';
+import type { AdminReview, ReviewModerationStatus } from '../../api/adminApi';
+import { useUrlTab } from '../../hooks/useOverviewFilters';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
@@ -35,6 +36,12 @@ export const ReviewsListPage: React.FC = () => {
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [bulkRunning, setBulkRunning] = React.useState(false);
   // T2-36 (SP-5): reject-with-reason modal — holds the target review ids (single or bulk).
+  // [SUP-34-6] The queue was pending-only, so a wrong rejection was unfindable and
+  // unreversible from the console even though the row and its reason were right there.
+  const MODERATION_TABS: ReviewModerationStatus[] = ['pending', 'rejected', 'approved', 'all'];
+  const [statusRaw, setStatus] = useUrlTab(MODERATION_TABS, 'status');
+  const status = (statusRaw ?? 'pending') as ReviewModerationStatus;
+  const [refreshTick, setRefreshTick] = React.useState(0);
   const [rejectIds, setRejectIds] = React.useState<string[] | null>(null);
   const [rejectReason, setRejectReason] = React.useState('');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -51,11 +58,12 @@ export const ReviewsListPage: React.FC = () => {
 
   React.useEffect(() => {
     setLoading(true);
-    reviewsApi.listPending(page, LIMIT)
+    setSelected(new Set()); // a selection made in one bucket must not act on another
+    reviewsApi.listPending(page, LIMIT, status)
       .then(r => { setReviews(r.reviews); setTotal(r.total); })
       .catch(e => showToast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, status, refreshTick]);
 
   const filtered = search
     ? reviews.filter(r =>
@@ -69,22 +77,38 @@ export const ReviewsListPage: React.FC = () => {
   const runModerate = async (ids: string[], approve: boolean, reason?: string) => {
     if (ids.length === 0) return;
     if (ids.length === 1) setActionId(ids[0]); else setBulkRunning(true);
-    const done = new Set<string>();
-    for (const id of ids) {
-      try {
-        await reviewsApi.moderate(id, approve, reason);
-        done.add(id);
-      } catch { /* keep going; failed rows remain visible */ }
-    }
-    setReviews(prev => prev.filter(r => !done.has(r.id)));
-    setTotal(prev => Math.max(0, prev - done.size));
-    setSelected(prev => { const n = new Set(prev); done.forEach(id => n.delete(id)); return n; });
-    setActionId(null);
-    setBulkRunning(false);
-    const failed = ids.length - done.size;
+    // [SUP-34-7] One request, one transaction. This used to loop the single endpoint, so
+    // a fifty-review sweep was fifty round trips and fifty `products` aggregate
+    // recomputations with nothing holding them together. The server is all-or-nothing,
+    // so there is no partial state left to report — either every row moved or none did.
     const verb = approve ? 'approved' : 'rejected';
-    if (failed === 0) showToast('success', `${done.size} ${verb}`);
-    else showToast('info', `${done.size}/${ids.length} ${verb}`, `${failed} failed and remain in the list.`);
+    try {
+      if (ids.length === 1) await reviewsApi.moderate(ids[0], approve, reason);
+      else await reviewsApi.moderateBulk(ids, approve, reason);
+
+      // Rows leave the list only when the CURRENT bucket no longer contains them —
+      // moderating from "all" or reversing inside "rejected" should leave the row on
+      // screen with its new state, not make it silently vanish.
+      if (status === 'pending' || (status === 'rejected' && approve) || (status === 'approved' && !approve)) {
+        setReviews(prev => prev.filter(r => !ids.includes(r.id)));
+        setTotal(prev => Math.max(0, prev - ids.length));
+      } else {
+        setRefreshTick(t => t + 1);
+      }
+      setSelected(new Set());
+      showToast('success', `${ids.length} ${verb}`);
+    } catch (e) {
+      // Nothing changed server-side, so nothing is removed here either. Saying so beats
+      // the old "42/50 — 8 failed", which never said WHICH eight.
+      showToast(
+        'error',
+        `Could not ${approve ? 'approve' : 'reject'} ${ids.length === 1 ? 'this review' : 'these reviews'}`,
+        e instanceof Error ? `${e.message} Nothing was changed.` : 'Nothing was changed.',
+      );
+    } finally {
+      setActionId(null);
+      setBulkRunning(false);
+    }
   };
 
   const toggle = (id: string) =>
@@ -111,11 +135,32 @@ export const ReviewsListPage: React.FC = () => {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Reviews</h1>
         <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginLeft: 10 }}>
-          Pending moderation
+          {/* [SUP-34-6] Says which bucket you are in. It read "Pending moderation" on
+              every tab, which is the same class of quiet lie the tabs exist to fix. */}
+          {status === 'pending'
+            ? 'Pending moderation'
+            : status === 'rejected'
+              ? 'Rejected — approve one to publish it after all'
+              : status === 'approved'
+                ? 'Approved and published'
+                : 'All reviews'}
         </span>
       </div>
 
+      {/* [SUP-34-6] The console was pending-only, so a wrong rejection was unfindable and
+          unreversible even though the row and its reason were sitting right there. */}
       <div className={styles.filterBar}>
+        <div className={rs.tabs}>
+          {MODERATION_TABS.map(t => (
+            <button
+              key={t}
+              className={`${rs.tab} ${status === t ? rs.tabActive : ''}`}
+              onClick={() => { setStatus(t); setPage(1); }}
+            >
+              {t === 'pending' ? 'Pending' : t === 'rejected' ? 'Rejected' : t === 'approved' ? 'Approved' : 'All'}
+            </button>
+          ))}
+        </div>
         <div className={styles.searchWrap}>
           <UilSearch size={15} className={styles.searchIcon} />
           <input
@@ -198,8 +243,19 @@ export const ReviewsListPage: React.FC = () => {
                     )}
                   </td>
                   <td><StarRating rating={r.rating} /></td>
-                  <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {r.comment ?? <span style={{ opacity: 0.4 }}>—</span>}
+                  <td className={rs.commentCell}>
+                    <div className={rs.commentText}>
+                      {r.comment ?? <span className={rs.muted}>—</span>}
+                    </div>
+                    {/* [SUP-34-6] WHY it was rejected. The reason was always stored on the
+                        row and shown nowhere, so an agent looking at a rejection could see
+                        that a decision happened but not what it was for — which is most of
+                        what they need to judge whether to reverse it. */}
+                    {status !== 'pending' && r.rejection_reason && (
+                      <div className={rs.rejectionReason} title={r.rejection_reason}>
+                        Rejected: {r.rejection_reason}
+                      </div>
+                    )}
                   </td>
                   <td>
                     {r.photo_keys.length > 0 ? (

@@ -2,16 +2,28 @@ import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { designsApi } from '../../api/adminApi';
 import type { ChartRow, GarmentTemplate, SizePreviewResult, FitPresetDef, LengthBand } from '../../api/adminApi';
+import { isValidSizeLabel, sizeLabelError } from '../../constants/sizeLabel';
+import {
+  DRAFTING_BLOCK_HINTS,
+  DRAFTING_BLOCK_LABELS,
+  HEM_MODES,
+  WAIST_MODES,
+  blockOf,
+  isModeParam,
+} from '../../constants/draftingBlock';
 import { Button } from '../../components/Button/Button';
+import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { Spinner } from '../../components/Spinner';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useDirtyGuard } from '../../hooks/useDirtyGuard';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 import base from './OrdersListPage.module.css';
 import s from './GarmentTemplateEditorPage.module.css';
 import { Modal } from '../../components/Modal/Modal';
-import { UilArrowLeft, UilTimes, UilPlus, UilCalculatorAlt, UilImport } from '@iconscout/react-unicons';
+import { TemplateHistory } from '../../components/TemplateHistory/TemplateHistory';
+import { UilArrowLeft, UilTimes, UilPlus, UilCalculatorAlt, UilImport, UilHistory } from '@iconscout/react-unicons';
 
 const BASE = '__base__';
 // Body anchors the engine preview asks for, per body region (G-81).
@@ -21,8 +33,25 @@ const ANCHOR_FIELDS: Record<string, string[]> = {
 };
 // Standard measurement fields per body region — the "Fill standard" helper for blank /
 // under-configured templates (mirrors the backend pre-seed for new types).
+// The cut-sheet spec fields, in the order they are authored. Labels and hints name the
+// downstream consumer, because the point of this section is that these numbers LEAVE the
+// design plane — the previous version claimed that and was wrong. [DSG-11-8]
+const CUTTING_SPEC_FIELDS = [
+  { key: 'seam_allowance_cm', label: 'Seam (cm)', hint: 'added to each finished edge', step: '0.25' },
+  { key: 'hem_allowance_cm', label: 'Hem (cm)', hint: 'added at the hem', step: '0.25' },
+  { key: 'fabric_width_cm', label: 'Fabric width (cm)', hint: 'usable width the marker is laid on', step: '1' },
+  { key: 'wastage_factor', label: 'Wastage factor', hint: 'multiplier, e.g. 1.12 = 12% waste', step: '0.01' },
+  { key: 'min_fabric_meters', label: 'Min fabric (m)', hint: 'floor on the estimate', step: '0.1' },
+  { key: 'max_fabric_meters', label: 'Max fabric (m)', hint: 'ceiling on the estimate', step: '0.1' },
+] as const;
+type CuttingSpecField = (typeof CUTTING_SPEC_FIELDS)[number]['key'];
+const BLANK_SPEC = Object.fromEntries(CUTTING_SPEC_FIELDS.map((f) => [f.key, ''])) as Record<CuttingSpecField, string>;
+
+// Keyed by DRAFTING BLOCK, not body_region — the women's block measures a bust and an
+// underbust (the two the bust dart is computed from), never a chest. [DSG-11-7]
 const STANDARD_FIELDS: Record<string, string[]> = {
-  upper: ['chest', 'shoulder', 'sleeve', 'neck', 'bicep', 'waist'],
+  mens_upper: ['chest', 'shoulder', 'sleeve', 'neck', 'bicep', 'waist'],
+  womens_upper: ['bust', 'underbust', 'shoulder', 'waist', 'hip', 'length'],
   lower: ['waist', 'hip', 'thigh', 'knee', 'calf', 'inseam'],
 };
 // Clean labels for the preview anchors (auto-humanising gives ugly "Height Cm").
@@ -45,11 +74,29 @@ const ANCHOR_LABELS: Record<string, string> = {
 // cannot be buttoned, a sleeve at the exact bicep girth cannot be bent into. The engine applies
 // these regardless of what is typed, so the editor says so rather than letting a designer
 // believe a number that will not be used.
-const PRESET_PARAM_FIELDS: Record<string, { key: string; label: string; hint: string; floor?: number }[]> = {
-  upper: [
+const PRESET_PARAM_FIELDS: Record<
+  string,
+  { key: string; label: string; hint: string; floor?: number; options?: readonly string[] }[]
+> = {
+  mens_upper: [
     { key: 'chest_ease', label: 'Chest ease', hint: 'roominess added across the chest' },
     { key: 'waist_supp', label: 'Waist suppression', hint: 'how much to take IN at the waist (more = more fitted)' },
     { key: 'hem_supp', label: 'Hem suppression', hint: 'how much to taper the bottom hem' },
+    { key: 'shoulder_ease', label: 'Shoulder ease', hint: 'extra across the shoulders' },
+    { key: 'sleeve_ease', label: 'Sleeve ease', hint: 'extra sleeve length' },
+    { key: 'neck_ease', label: 'Neck ease', hint: 'extra room at the neck', floor: 0.5 },
+    { key: 'bicep_ease', label: 'Bicep ease', hint: 'extra sleeve width at the bicep', floor: 1 },
+  ],
+  // [DSG-11-7] The women's block (buildWomensUpper). These fields existed in the engine and
+  // had no authoring surface at all, so Saree Blouse and Salwar Kameez were calibrated with
+  // men's-top parameters that their block never reads. Two of them are MODES, not
+  // measurements — which is why the params validator had to stop being numbers-only.
+  womens_upper: [
+    { key: 'bust_ease', label: 'Bust ease', hint: 'roominess added across the bust' },
+    { key: 'waist_mode', label: 'Waist', hint: 'suppress = nipped in · straight = boxy · flare = nipped then flared', options: WAIST_MODES },
+    { key: 'waist_ease', label: 'Waist ease', hint: 'only read when Waist is "suppress"' },
+    { key: 'hem_mode', label: 'Hem', hint: 'hip = sits at the hip · chest = falls straight from the bust · flare = fixed width', options: HEM_MODES },
+    { key: 'hem_value', label: 'Hem value', hint: 'ease over the hip, or the flare width — not read when Hem is "chest"' },
     { key: 'shoulder_ease', label: 'Shoulder ease', hint: 'extra across the shoulders' },
     { key: 'sleeve_ease', label: 'Sleeve ease', hint: 'extra sleeve length' },
     { key: 'neck_ease', label: 'Neck ease', hint: 'extra room at the neck', floor: 0.5 },
@@ -134,8 +181,8 @@ const DEFAULT_LENGTH_BANDS: LengthBand[] = [
 
 // Snapshot of the editable state — drives the dirty indicator (compare to load).
 const snap = (
-  captureSet: string[], presetDefs: FitPresetDef[], chart: ChartRow[], pains: PainRow[], types: string[], bands: LengthBand[], shapes: ShapeRow[], tol: Record<string, string>, seam: { seam: string; hem: string },
-) => JSON.stringify({ captureSet, presetDefs, chart, pains, types, bands, shapes, tol, seam });
+  captureSet: string[], presetDefs: FitPresetDef[], chart: ChartRow[], pains: PainRow[], types: string[], bands: LengthBand[], shapes: ShapeRow[], tol: Record<string, string>, spec: Record<string, string>,
+) => JSON.stringify({ captureSet, presetDefs, chart, pains, types, bands, shapes, tol, spec });
 
 export const GarmentTemplateEditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -153,7 +200,13 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const [pains, setPains] = React.useState<PainRow[]>([]);
   const [shapes, setShapes] = React.useState<ShapeRow[]>([]);
   const [tolerances, setTolerances] = React.useState<Record<string, string>>({}); // field → ±
-  const [seamAllow, setSeamAllow] = React.useState<{ seam: string; hem: string }>({ seam: '', hem: '' });
+  // The cut-sheet spec (garment_cutting_specs) — the numbers the tailor actually gets.
+  // This used to edit garment_categories.seam_allowance_cm, which no consumer read, so a
+  // designer could set 1 cm and the floor would keep cutting 1.5. [DSG-11-8]
+  const [cuttingSpec, setCuttingSpec] = React.useState<Record<CuttingSpecField, string>>(BLANK_SPEC);
+  // Whether the server had a spec row at all. Null means this type cannot be cut yet.
+  const [hasSpec, setHasSpec] = React.useState(true);
+  const [qcReality, setQcReality] = React.useState<{ has_template: boolean; check_count: number }>({ has_template: false, check_count: 0 });
   const [chart, setChart] = React.useState<ChartRow[]>([]);
   // [FIT-76] What the chart's numbers ARE. Properties of the whole chart, not of a row.
   //
@@ -186,62 +239,115 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const [pvBusy, setPvBusy] = React.useState(false);
   // Dirty tracking via a load-time snapshot (no per-setter instrumentation).
   const [baseline, setBaseline] = React.useState('');
-  const dirty = !loading && baseline !== '' && baseline !== snap(captureSet, presetDefs, chart, pains, garmentTypes, lengthBands, shapes, tolerances, seamAllow);
+  // [DSG-11-9] The revision spine. `conflict` is a banner rather than a toast: a toast
+  // fades and the author just presses Save again, which is exactly the wrong move.
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [conflict, setConflict] = React.useState<string | null>(null);
+  // [DSG-11-16] The dirty guard covers beforeunload and in-app logout, but NOT an in-app
+  // route change — react-router's useBlocker isn't available under <Routes>. This page puts
+  // its two likeliest exits exactly where the guard doesn't reach: "Back to templates" is
+  // the first link on the page, and Cancel sits in the sticky bottom bar next to Save,
+  // while the ● Unsaved badge is at the top of a ~4,200px document the author has scrolled
+  // away from. Verified before the fix: dirty, click Back, gone with no prompt.
+  //
+  // So the page confirms in its OWN handlers. No router upgrade, and it covers the exits
+  // that actually get used.
+  const [leaveTo, setLeaveTo] = React.useState<string | null>(null);
+  const dirty = !loading && baseline !== '' && baseline !== snap(captureSet, presetDefs, chart, pains, garmentTypes, lengthBands, shapes, tolerances, cuttingSpec);
   useDirtyGuard(dirty);
+  /** Leave, or ask first when there is unsaved work. */
+  const leave = (to: string) => (dirty ? setLeaveTo(to) : navigate(to));
 
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
   const dismiss = (t: string) => setToasts((x) => x.filter((y) => y.id !== t));
 
-  React.useEffect(() => {
+  // [DSG-11-10] ONE hydrate, used on load AND after save.
+  //
+  // `save()` drops incomplete rows before sending, and the server drops more (bands with
+  // height_min_cm ≤ 0 or length_value ≤ 0 are skipped; heights are rounded). The page then
+  // recomputed its baseline from LOCAL state and never re-read the response, so a row the
+  // server had refused stayed on screen under "no unsaved changes" — and vanished on
+  // reload. `addBand` creates exactly such a row: 0 / 0.
+  //
+  // Re-hydrating from `saved` makes the screen show what was actually persisted. The
+  // dropped row disappearing IS the feedback; a save that silently keeps your work only in
+  // the browser is worse than one that visibly discards it.
+  const hydrate = React.useCallback((t: GarmentTemplate) => {
+      setTpl(t);
+      const cs = t.capture_set ?? [];
+      const fromChart = Array.from(new Set(t.chart.flatMap((r) => Object.keys(r.measurements))));
+      setFields(Array.from(new Set([...fromChart, ...cs])));
+      // Preset DEFINITIONS (name + ease constants). Backend returns one per name —
+      // legacy names with no params come back with empty params for the designer to fill.
+      const defs: FitPresetDef[] =
+        t.fit_presets ?? (t.available_fit_presets ?? []).map((fp) => ({ fit_preset: fp, params: {} }));
+      setPresetDefs(defs);
+      setCaptureSet(cs);
+      setChart(t.chart);
+      setChartUnit(t.chart[0]?.unit === 'cm' ? 'cm' : 'in');
+      setChartBasis(t.chart[0]?.measurement_basis === 'finished' ? 'finished' : 'body');
+      const types = t.garment_types ?? [];
+      setGarmentTypes(types);
+      const bands = t.length_bands ?? [];
+      setLengthBands(bands);
+      const pm = t.pain_point_menu ?? {};
+      const loadedPains = Object.entries(pm).flatMap(([tag, fd]) =>
+        Object.entries(fd).map(([field, delta]) => ({ tag, field, delta: String(delta) })),
+      );
+      setPains(loadedPains);
+      const bsm = t.body_shape_menu ?? {};
+      const loadedShapes = Object.entries(bsm).flatMap(([shape, fd]) =>
+        Object.entries(fd).map(([field, delta]) => ({ shape, field, delta: String(delta) })),
+      );
+      setShapes(loadedShapes);
+      const tol: Record<string, string> = {};
+      for (const [field, v] of Object.entries(t.tolerances ?? {})) tol[field] = String(v);
+      setTolerances(tol);
+      const spec = { ...BLANK_SPEC };
+      for (const f of CUTTING_SPEC_FIELDS) {
+        const v = t.cutting_spec?.[f.key];
+        spec[f.key] = v != null ? String(v) : '';
+      }
+      setCuttingSpec(spec);
+      setHasSpec(t.cutting_spec != null);
+      setQcReality(t.qc_reality ?? { has_template: false, check_count: 0 });
+      setBaseline(snap(cs, defs, t.chart, loadedPains, types, bands, loadedShapes, tol, spec));
+    },
+    [],
+  );
+
+  // [DSG-11-12] A 500 is not a 404.
+  //
+  // Any failure left `tpl` null and the page rendered "Garment type not found." — the third
+  // disguise from the wallet sweep (NEW-18..30): "it's gone, stop looking", when the server
+  // merely erred. The designer walks away from a template that exists.
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [notFound, setNotFound] = React.useState(false);
+  const loadTemplate = React.useCallback(() => {
     if (!id) return;
+    setLoading(true);
+    setLoadError(null);
+    setNotFound(false);
     designsApi
       .getTemplate(id)
-      .then((t) => {
-        setTpl(t);
-        const cs = t.capture_set ?? [];
-        const fromChart = Array.from(new Set(t.chart.flatMap((r) => Object.keys(r.measurements))));
-        setFields(Array.from(new Set([...fromChart, ...cs])));
-        // Preset DEFINITIONS (name + ease constants). Backend returns one per name —
-        // legacy names with no params come back with empty params for the designer to fill.
-        const defs: FitPresetDef[] =
-          t.fit_presets ?? (t.available_fit_presets ?? []).map((fp) => ({ fit_preset: fp, params: {} }));
-        setPresetDefs(defs);
-        setCaptureSet(cs);
-        setChart(t.chart);
-        setChartUnit(t.chart[0]?.unit === 'cm' ? 'cm' : 'in');
-        setChartBasis(t.chart[0]?.measurement_basis === 'finished' ? 'finished' : 'body');
-        const types = t.garment_types ?? [];
-        setGarmentTypes(types);
-        const bands = t.length_bands ?? [];
-        setLengthBands(bands);
-        const pm = t.pain_point_menu ?? {};
-        const loadedPains = Object.entries(pm).flatMap(([tag, fd]) =>
-          Object.entries(fd).map(([field, delta]) => ({ tag, field, delta: String(delta) })),
-        );
-        setPains(loadedPains);
-        const bsm = t.body_shape_menu ?? {};
-        const loadedShapes = Object.entries(bsm).flatMap(([shape, fd]) =>
-          Object.entries(fd).map(([field, delta]) => ({ shape, field, delta: String(delta) })),
-        );
-        setShapes(loadedShapes);
-        const tol: Record<string, string> = {};
-        for (const [field, v] of Object.entries(t.tolerances ?? {})) tol[field] = String(v);
-        setTolerances(tol);
-        const seam = {
-          seam: t.seam_allowance_cm != null ? String(t.seam_allowance_cm) : '',
-          hem: t.hem_allowance_cm != null ? String(t.hem_allowance_cm) : '',
-        };
-        setSeamAllow(seam);
-        setBaseline(snap(cs, defs, t.chart, loadedPains, types, bands, loadedShapes, tol, seam));
+      .then(hydrate)
+      .catch((e: unknown) => {
+        const status = (e as { status?: number }).status;
+        // Only a real 404 means "gone". Everything else is a failure and says so.
+        if (status === 404) setNotFound(true);
+        else setLoadError(e instanceof Error ? e.message : 'Could not load this garment type.');
       })
-      .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, hydrate]);
+
+  React.useEffect(() => {
+    loadTemplate();
+  }, [loadTemplate]);
 
   // ── field + preset chips ──
   const fillStandardFields = () => {
-    const std = STANDARD_FIELDS[tpl?.body_region ?? ''] ?? [];
+    const std = STANDARD_FIELDS[blockOf(tpl)] ?? [];
     if (std.length === 0) return;
     setFields((prev) => Array.from(new Set([...prev, ...std])));
     setCaptureSet((prev) => Array.from(new Set([...prev, ...std])));
@@ -281,10 +387,17 @@ export const GarmentTemplateEditorPage: React.FC = () => {
     }
     setPresetDraft('');
   };
+  // [DSG-11-11] Removing a preset also removes EVERY chart row authored under it, and
+  // becomes permanent on the next save — the server deletes all garment_fit_preset rows
+  // and re-inserts only what was sent. That was one unconfirmed click on a small ×, with
+  // no count of what went with it and no undo. Ask first, and say what it costs.
+  const [presetToRemove, setPresetToRemove] = React.useState<string | null>(null);
+  const rowsUnderPreset = (p: string) => chart.filter((r) => r.fit_preset === p).length;
   const removePreset = (p: string) => {
     setPresetDefs(presetDefs.filter((x) => x.fit_preset !== p));
     setChart(chart.filter((r) => r.fit_preset !== p));
     if (activePreset === p) setActivePreset(BASE);
+    setPresetToRemove(null);
   };
   const setPresetParam = (name: string, key: string, value: string) => {
     setPresetDefs(
@@ -292,6 +405,9 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         if (d.fit_preset !== name) return d;
         const params = { ...d.params };
         if (value.trim() === '') delete params[key];
+        // A silhouette MODE is an enum, not a measurement — Number('suppress') is NaN, which
+        // would reach the engine as a broken param. [DSG-11-7]
+        else if (isModeParam(key)) params[key] = value;
         else params[key] = Number(value);
         return { ...d, params };
       }),
@@ -351,25 +467,45 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   const removeBand = (i: number) => setLengthBands(lengthBands.filter((_, j) => j !== i));
   const setBand = (i: number, k: 'height_min_cm' | 'length_value', v: string) =>
     setLengthBands(lengthBands.map((b, j) => (j === i ? { ...b, [k]: v === '' ? 0 : Number(v) } : b)));
-  const fillDefaultBands = () => setLengthBands(DEFAULT_LENGTH_BANDS.map((b) => ({ ...b })));
+  // [DSG-11-15] Fill the gaps, do not replace the work.
+  //
+  // These three built a FRESH structure and threw away whatever the designer had authored —
+  // no confirm, no undo. `fillStandardFields` right above is the odd one out: it unions with
+  // what is already there, which is what "Fill" means everywhere else on this page. Only
+  // the two chart builders (Generate / Import) say they replace, and they say so.
+  //
+  // Keyed on what makes a row the same row, so a hand-tuned value survives a second click.
+  const fillDefaultBands = () =>
+    setLengthBands((prev) => {
+      const seen = new Set(prev.map((b) => `${b.length_field}@${b.height_min_cm}`));
+      const additions = DEFAULT_LENGTH_BANDS.filter(
+        (b) => !seen.has(`${b.length_field}@${b.height_min_cm}`),
+      ).map((b) => ({ ...b }));
+      return [...prev, ...additions];
+    });
 
   // ── body-shape menu (§5.4) ──
   const setShape = (i: number, patch: Partial<ShapeRow>) =>
     setShapes(shapes.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const fillStandardShapes = () =>
-    setShapes(
-      (STANDARD_SHAPES[tpl?.body_region ?? 'upper'] ?? STANDARD_SHAPES.upper).map((sh) => ({
-        shape: sh.shape, field: sh.field, delta: String(sh.delta),
-      })),
-    );
+    setShapes((prev) => {
+      const seen = new Set(prev.map((r) => `${r.shape}@${r.field}`));
+      const additions = (STANDARD_SHAPES[tpl?.body_region ?? 'upper'] ?? STANDARD_SHAPES.upper)
+        .filter((sh) => !seen.has(`${sh.shape}@${sh.field}`))
+        .map((sh) => ({ shape: sh.shape, field: sh.field, delta: String(sh.delta) }));
+      return [...prev, ...additions];
+    });
 
   // ── tolerances (§3) — ± allowed deviation per field (QC band) ──
   const setTol = (field: string, v: string) => setTolerances((t) => ({ ...t, [field]: v }));
-  const fillStandardTol = () => {
-    const t: Record<string, string> = {};
-    for (const f of fields) t[f] = '0.5';
-    setTolerances(t);
-  };
+  const fillStandardTol = () =>
+    setTolerances((prev) => {
+      const next = { ...prev };
+      // Only where nothing has been authored. A tolerance somebody set to 0.3 on purpose
+      // is exactly the value this used to overwrite with 0.5.
+      for (const f of fields) if (!next[f]?.toString().trim()) next[f] = '0.5';
+      return next;
+    });
 
   // ── chart grid for the active preset ──
   const presetKey = activePreset === BASE ? null : activePreset;
@@ -502,10 +638,21 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       //
       // So the save makes every field explicit. What is stored is now what the designer can
       // see, and "I meant zero" and "I did not fill this in" can no longer produce the same row.
-      const presetFields = (PRESET_PARAM_FIELDS[tpl?.body_region ?? 'upper'] ?? []).map((f) => f.key);
+      // [DSG-11-7] "Explicit" means the field's own default, not 0. Zero is a meaningful ease
+      // but not a legal silhouette MODE, and writing 0 into waist_mode made the save 422 on
+      // every preset the author hadn't touched. The defaults below are what buildWomensUpper
+      // already does when the mode is absent (it falls through to the straight/chest branch),
+      // so making them explicit states existing behaviour rather than changing it.
       const explicitPresetDefs = presetDefs.map((d) => {
         const params = { ...d.params };
-        for (const key of presetFields) if (params[key] === undefined) params[key] = 0;
+        for (const f of PRESET_PARAM_FIELDS[blockOf(tpl)] ?? []) {
+          if (params[f.key] !== undefined) continue;
+          // A mode gets the engine's implicit default; a FLOORED ease gets its floor, not 0.
+          // The engine applies the floor regardless of what is stored (the note beside the
+          // field says so), so writing 0 stored a number that was never used AND made the
+          // save 400 on every newly created garment type, whose presets start empty.
+          params[f.key] = f.options ? f.options[0] : (f.floor ?? 0);
+        }
         return { ...d, params };
       });
       const saved = await designsApi.saveTemplate(id, {
@@ -513,22 +660,43 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         pain_point_menu,
         body_shape_menu,
         tolerances: tolerancesOut,
-        seam_allowance_cm: seamAllow.seam.trim() !== '' ? Number(seamAllow.seam) : undefined,
-        hem_allowance_cm: seamAllow.hem.trim() !== '' ? Number(seamAllow.hem) : undefined,
+        // Only the fields actually filled in. A blank leaves the stored value alone
+        // rather than resetting a number the floor is cutting to.
+        cutting_spec: Object.fromEntries(
+          CUTTING_SPEC_FIELDS.filter((f) => cuttingSpec[f.key].trim() !== '').map((f) => [
+            f.key,
+            Number(cuttingSpec[f.key]),
+          ]),
+        ),
         available_fit_presets: presets,
         fit_presets: explicitPresetDefs,
         garment_types: garmentTypes,
         length_bands: lengthBands,
         chart: cleanChart,
         note: note.trim() || undefined,
+        // [DSG-11-9] The version this page loaded. The save rewrites the WHOLE recipe —
+        // chart, presets, bands — so a second author saving over the first did not lose a
+        // field, they lost everything the first author did. Sending the token turns that
+        // into a 409 the page can explain.
+        expected_version: tpl?.version,
       });
-      setTpl(saved);
-      setPresetDefs(explicitPresetDefs);
-      setBaseline(snap(captureSet, explicitPresetDefs, cleanChart, pains, garmentTypes, lengthBands, shapes, tolerances, seamAllow)); // clears dirty
+      // [DSG-11-10] Re-hydrate from what came BACK, not from what we sent. The old code
+      // set the baseline from local state, so any row the server dropped stayed on screen
+      // marked as saved. `hydrate` also clears dirty, from the persisted values.
+      hydrate(saved);
       setNote('');
+      setConflict(null);
       toast('success', 'Template saved');
     } catch (e) {
-      toast('error', 'Save failed', e instanceof Error ? e.message : undefined);
+      // [DSG-11-9] A conflict is not a generic failure and must not be a toast: a toast
+      // fades, and the author would try again and again. It is a persistent banner,
+      // because the only way forward is to look at what the other person did.
+      if ((e as { status?: number }).status === 409) {
+        setConflict(e instanceof Error ? e.message : 'Someone else saved this template while you were editing.');
+        toast('error', 'Not saved — someone else got there first');
+      } else {
+        toast('error', 'Save failed', e instanceof Error ? e.message : undefined);
+      }
     } finally {
       setSaving(false);
     }
@@ -571,16 +739,31 @@ export const GarmentTemplateEditorPage: React.FC = () => {
 
   if (loading)
     return <div className={base.page}><div className={s.center}><Spinner /></div></div>;
+  if (loadError)
+    return (
+      <div className={base.page}>
+        <Link to="/admin/design/templates" className={s.back}><UilArrowLeft size={16} /> Back</Link>
+        <EmptyState
+          title="Couldn't load this garment type"
+          body={loadError}
+          action={{ label: 'Retry', onClick: loadTemplate }}
+        />
+      </div>
+    );
   if (!tpl)
     return (
       <div className={base.page}>
         <Link to="/admin/design/templates" className={s.back}><UilArrowLeft size={16} /> Back</Link>
-        <div className={s.center}>Garment type not found.</div>
+        <div className={s.center}>
+          {notFound
+            ? 'Garment type not found.'
+            : 'Garment type not loaded — try again from the list.'}
+        </div>
       </div>
     );
 
   const presetTabs = [BASE, ...presets];
-  const paramFields = PRESET_PARAM_FIELDS[tpl.body_region ?? 'upper'] ?? PRESET_PARAM_FIELDS.upper;
+  const paramFields = PRESET_PARAM_FIELDS[blockOf(tpl)] ?? PRESET_PARAM_FIELDS.mens_upper;
 
   // Completeness (W-10): an incomplete chart starves the fit engine (G-35 note).
   // Ready = fields defined + ≥1 BASE chart row with measurements.
@@ -615,10 +798,17 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       return;
     }
     const newRows: ChartRow[] = [];
+    const badSizes: string[] = [];
     for (let li = 1; li < lines.length; li++) {
       const cells = lines[li].split(delim).map((c) => c.trim());
       const size = cells[0];
       if (!size) continue;
+      // The engine keys the chart by number. A letter row would import cleanly, save
+      // cleanly and then vanish from every preview. [DSG-11-14]
+      if (!isValidSizeLabel(size)) {
+        badSizes.push(size);
+        continue;
+      }
       const measurements: Record<string, number> = {};
       fieldForCol.forEach((field, ci) => {
         if (!field) return;
@@ -630,8 +820,22 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       newRows.push({ fit_preset: presetKey, size_label: size, measurements });
     }
     if (newRows.length === 0) {
-      toast('error', 'No size rows found', 'Each row needs a size label in the first column.');
+      toast(
+        'error',
+        badSizes.length ? 'No usable size rows' : 'No size rows found',
+        badSizes.length
+          ? sizeLabelError(badSizes[0])
+          : 'Each row needs a size label in the first column.',
+      );
       return;
+    }
+    if (badSizes.length) {
+      // Imported what was usable and said what was left out, rather than dropping it quietly.
+      toast(
+        'warning',
+        `Skipped ${badSizes.length} row${badSizes.length === 1 ? '' : 's'}`,
+        `${badSizes.join(', ')} — sizes must be numeric (32, 32.5). The rest were imported.`,
+      );
     }
     // Replace only the active preset's rows (other presets untouched) — like Generate.
     setChart([...chart.filter((r) => (r.fit_preset ?? BASE) !== activePreset), ...newRows]);
@@ -644,14 +848,108 @@ export const GarmentTemplateEditorPage: React.FC = () => {
   return (
     <div className={base.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
-      <Link to="/admin/design/templates" className={s.back}><UilArrowLeft size={16} /> Back to templates</Link>
+      <ConfirmDialog
+        open={leaveTo !== null}
+        variant="danger"
+        title="Leave without saving?"
+        message="This fit recipe has changes that haven't been saved. Leaving now discards them — the chart, ease values and cutting spec go back to what they were."
+        confirmLabel="Discard changes"
+        cancelLabel="Keep editing"
+        onConfirm={() => {
+          const to = leaveTo;
+          setLeaveTo(null);
+          if (to) navigate(to);
+        }}
+        onCancel={() => setLeaveTo(null)}
+      />
+      <ConfirmDialog
+        open={presetToRemove !== null}
+        variant="danger"
+        title={`Remove the “${presetToRemove}” fit preset?`}
+        message={
+          <>
+            This also removes{' '}
+            <strong>
+              {presetToRemove ? rowsUnderPreset(presetToRemove) : 0} chart row
+              {presetToRemove && rowsUnderPreset(presetToRemove) === 1 ? '' : 's'}
+            </strong>{' '}
+            authored under it. Nothing is lost until you save — but the save deletes them for
+            good, and there is no undo afterwards.
+          </>
+        }
+        confirmLabel="Remove preset"
+        onConfirm={() => presetToRemove && removePreset(presetToRemove)}
+        onCancel={() => setPresetToRemove(null)}
+      />
+      {/* [DSG-11-9] The revision spine, and the only part of it a person sees. */}
+      <TemplateHistory
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        categoryId={id!}
+        templateName={tpl.name}
+        currentVersion={tpl.version ?? 0}
+        dirty={dirty}
+        onRestored={(restored) => {
+          // The restore returns the full template, so the page shows the restored recipe
+          // without a round trip — and `hydrate` resets the dirty baseline from it, so the
+          // discarded edits do not linger as "unsaved changes" over work that is gone.
+          hydrate(restored);
+          setConflict(null);
+          toast('success', 'Version restored', 'Recorded as a new version — the previous recipe is still in the history.');
+        }}
+        onError={(m) => toast('error', 'History', m)}
+      />
+      <button
+        type="button"
+        className={s.back}
+        onClick={() => leave('/admin/design/templates')}
+      >
+        <UilArrowLeft size={16} /> Back to templates
+      </button>
       <div className={s.titleRow}>
         <h1 className={s.title}>
           {tpl.name} <span className={s.sub}>· fit recipe</span>
-          {tpl.body_region && <span className={s.regionChip}>{tpl.body_region} body · locked</span>}
+          {/* Name the BLOCK, not just the region: "upper body" is true of both the men's and
+              the women's block, and they draft differently. [DSG-11-7] */}
+          {tpl.body_region && (
+            <span className={s.regionChip} title={DRAFTING_BLOCK_HINTS[blockOf(tpl)]}>
+              {DRAFTING_BLOCK_LABELS[blockOf(tpl)]} · locked
+            </span>
+          )}
         </h1>
         {dirty && <span className={s.dirtyBadge}>● Unsaved changes</span>}
+        {/* [DSG-11-9] Reachable from the header, beside the name of the thing it is the
+            history OF. The version number is on the button because "am I looking at what
+            I think I am?" is answerable without opening anything. */}
+        <button type="button" className={s.historyBtn} onClick={() => setHistoryOpen(true)}>
+          <UilHistory size={15} /> History
+          {typeof tpl.version === 'number' && tpl.version > 0 && (
+            <span className={s.versionChip}>v{tpl.version}</span>
+          )}
+        </button>
       </div>
+      {/* [DSG-11-9] Someone else saved while this page was open. The save rewrites the
+          WHOLE recipe, so pressing Save again would not merge — it would take everything
+          they did. The only honest next step is to look at what changed. */}
+      {conflict && (
+        <div className={s.conflict} role="alert">
+          <p>{conflict}</p>
+          <div className={s.conflictActions}>
+            <Button variant="secondary" onClick={() => setHistoryOpen(true)}>
+              See what changed
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConflict(null);
+                loadTemplate();
+              }}
+            >
+              Reload and lose my edits
+            </Button>
+          </div>
+        </div>
+      )}
       <p className={s.intro}>
         This is the <strong>fit recipe</strong> for {tpl.name}. The engine builds every customer's garment as{' '}
         <strong>finished&nbsp;=&nbsp;their body measurement&nbsp;+&nbsp;the fit's ease</strong>. Here you set the{' '}
@@ -821,11 +1119,22 @@ export const GarmentTemplateEditorPage: React.FC = () => {
                 ) : rows.map((r, i) => (
                   <tr key={i}>
                     <td><input
-                      className={`${s.sizeInput} ${duplicateLabels.has(r.size_label.trim()) ? s.cellErr : ''}`}
-                      value={r.size_label} placeholder="e.g. M / 32"
-                      title={duplicateLabels.has(r.size_label.trim())
-                        ? `Another row in this fit is also "${r.size_label.trim()}" — sizes must be unique`
-                        : undefined}
+                      className={`${s.sizeInput} ${
+                        duplicateLabels.has(r.size_label.trim()) ||
+                        (r.size_label.trim() !== '' && !isValidSizeLabel(r.size_label))
+                          ? s.cellErr
+                          : ''
+                      }`}
+                      value={r.size_label} placeholder="e.g. 32 or 32.5"
+                      // Flag a label the engine would drop while it is being typed, not on
+                      // save — this cell used to suggest "M". [DSG-11-14]
+                      title={
+                        duplicateLabels.has(r.size_label.trim())
+                          ? `Another row in this fit is also "${r.size_label.trim()}" — sizes must be unique`
+                          : r.size_label.trim() !== '' && !isValidSizeLabel(r.size_label)
+                            ? sizeLabelError(r.size_label)
+                            : undefined
+                      }
                       onChange={(e) => renameSize(i, e.target.value)} /></td>
                     {chartFields.map((f) => {
                       const st = cellState(i, f);
@@ -899,7 +1208,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
               <div key={d.fit_preset} className={s.presetRow}>
                 <div className={s.presetHead}>
                   <span className={s.presetName}>{d.fit_preset}</span>
-                  <button type="button" className={s.presetRemove} onClick={() => removePreset(d.fit_preset)} aria-label={`Remove ${d.fit_preset}`}>
+                  <button type="button" className={s.presetRemove} onClick={() => setPresetToRemove(d.fit_preset)} aria-label={`Remove ${d.fit_preset}`}>
                     <UilTimes size={14} />
                   </button>
                 </div>
@@ -908,18 +1217,33 @@ export const GarmentTemplateEditorPage: React.FC = () => {
                     <label key={f.key} className={s.presetParam}>
                       <span className={s.presetParamLabel}>{f.label}</span>
                       <span className={s.easeHint}>{f.hint}</span>
-                      <span className={s.easeInputWrap}>
-                      <input
-                        className={s.presetParamInput}
-                        type="number"
-                        step="0.5"
-                        value={d.params[f.key] ?? ''}
-                        placeholder="0"
-                        onChange={(e) => setPresetParam(d.fit_preset, f.key, e.target.value)}
-                      />
-                      <span className={s.easeUnit}>in</span>
-                      </span>
-                      {f.floor !== undefined && Number(d.params[f.key] ?? 0) < f.floor && (
+                      {/* Two of the women's-block params are MODES, not measurements — a
+                          number input would be meaningless for them. [DSG-11-7] */}
+                      {f.options ? (
+                        <select
+                          className={s.presetParamInput}
+                          value={String(d.params[f.key] ?? '')}
+                          onChange={(e) => setPresetParam(d.fit_preset, f.key, e.target.value)}
+                        >
+                          <option value="">—</option>
+                          {f.options.map((o) => (
+                            <option key={o} value={o}>{o}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={s.easeInputWrap}>
+                          <input
+                            className={s.presetParamInput}
+                            type="number"
+                            step="0.5"
+                            value={d.params[f.key] ?? ''}
+                            placeholder="0"
+                            onChange={(e) => setPresetParam(d.fit_preset, f.key, e.target.value)}
+                          />
+                          <span className={s.easeUnit}>in</span>
+                        </span>
+                      )}
+                      {!f.options && f.floor !== undefined && Number(d.params[f.key] ?? 0) < f.floor && (
                         <span className={s.easeFloorNote}>
                           the engine applies a {f.floor}in minimum here — a garment cut to the
                           exact body girth at this point cannot be put on
@@ -941,7 +1265,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
 
       <h2 className={s.groupHeader}>5 · Advanced — optional fine-tuning</h2>
       <details className={s.advanced}>
-      <summary>Customer tweaks · body shapes · QC tolerance · seam allowance — most garments don’t need these</summary>
+      <summary>Customer tweaks · body shapes · expected variance · cutting spec — most garments don’t need these</summary>
 
       {/* Pain-point menu */}
       <section className={s.section}>
@@ -989,10 +1313,17 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       {/* Tolerances (§3) — ± allowed deviation per measurement; QC checks the band */}
       <section className={s.section}>
         <div className={s.sectionHead}>
-          <h3 className={s.sectionTitle}>QC tolerance <span className={s.req}>· how much a finished garment may differ from target, ± inches</span></h3>
+          <h3 className={s.sectionTitle}>Expected variance <span className={s.req}>· the ± band the Engine Tester draws, ± inches</span></h3>
           <Button variant="ghost" onClick={fillStandardTol} disabled={fields.length === 0}><UilCalculatorAlt size={15} /> Fill standard (±0.5)</Button>
         </div>
-        <p className={s.hint}>The ± a finished garment may vary by at each measurement. QC fails a garment outside the band; the Engine Tester shows it as e.g. chest 45.0 (44.5–45.5).</p>
+        <p className={s.hint}>
+          The ± you expect at each measurement, shown in the Engine Tester as e.g. chest 45.0 (44.5–45.5).
+          <strong> This does not fail a garment.</strong> QC judges against the checks in{' '}
+          <Link to="/admin/catalog/qc-templates">Catalog → QC templates</Link>
+          {qcReality.has_template
+            ? ` — ${qcReality.check_count} check${qcReality.check_count === 1 ? '' : 's'} for this garment type.`
+            : ' — and this garment type has no QC template, so nothing is checked at all.'}
+        </p>
         {fields.length === 0 ? (
           <p className={s.hint}>Add measurement fields first.</p>
         ) : (
@@ -1010,19 +1341,35 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         )}
       </section>
 
-      {/* Seam allowance — added to the net pattern; printed on the cut sheet */}
+      {/* The cut-sheet spec. Writes garment_cutting_specs — the table the cut sheet, the
+          fabric calculator and checkout consumption actually read. [DSG-11-8] */}
       <section className={s.section}>
-        <h3 className={s.sectionTitle}>Seam allowance <span className={s.req}>· added to the net pattern (cm)</span></h3>
-        <p className={s.hint}>What the patternmaker adds to each finished edge. Printed on the cut sheet. Defaults: 1 cm seams · 4 cm hems.</p>
+        <h3 className={s.sectionTitle}>Cutting spec <span className={s.req}>· what the tailor is given</span></h3>
+        <p className={s.hint}>
+          These are the numbers the cut sheet prints and the fabric calculator bills against — change one and
+          the next order is cut differently. Blank means “leave as it is”.
+        </p>
+        {!hasSpec && (
+          <p className={s.warnNote} role="status">
+            This garment type has no cutting spec yet, so it cannot produce a cut sheet — an order would stop
+            with “No cutting spec configured”. Saving any value below creates one.
+          </p>
+        )}
         <div className={s.presetParams}>
-          <label className={s.presetParam}>
-            <span className={s.presetParamLabel}>Seam (cm)</span>
-            <input className={s.presetParamInput} type="number" step="0.25" min="0" value={seamAllow.seam} placeholder="1" onChange={(e) => setSeamAllow((x) => ({ ...x, seam: e.target.value }))} />
-          </label>
-          <label className={s.presetParam}>
-            <span className={s.presetParamLabel}>Hem (cm)</span>
-            <input className={s.presetParamInput} type="number" step="0.25" min="0" value={seamAllow.hem} placeholder="4" onChange={(e) => setSeamAllow((x) => ({ ...x, hem: e.target.value }))} />
-          </label>
+          {CUTTING_SPEC_FIELDS.map((f) => (
+            <label key={f.key} className={s.presetParam} title={f.hint}>
+              <span className={s.presetParamLabel}>{f.label}</span>
+              <input
+                className={s.presetParamInput}
+                type="number"
+                step={f.step}
+                min="0"
+                value={cuttingSpec[f.key]}
+                onChange={(e) => setCuttingSpec((x) => ({ ...x, [f.key]: e.target.value }))}
+              />
+              <span className={s.hint}>{f.hint}</span>
+            </label>
+          ))}
         </div>
       </section>
       </details>
@@ -1134,7 +1481,10 @@ export const GarmentTemplateEditorPage: React.FC = () => {
           placeholder="What changed? (optional — recorded in the audit log)"
           onChange={(e) => setNote(e.target.value)}
         />
-        <Button variant="ghost" onClick={() => navigate('/admin/design/templates')}>Cancel</Button>
+        {/* The badge also lives at the top of the document; repeat it here, beside the
+            exits, because that is where the decision to leave is actually made. */}
+        {dirty && <span className={s.dirtyBadge}>● Unsaved changes</span>}
+        <Button variant="ghost" onClick={() => leave('/admin/design/templates')}>Cancel</Button>
         <Button variant="primary" state={saving ? 'loading' : 'default'} onClick={save}>Save template</Button>
       </div>
 
@@ -1149,7 +1499,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
           className={s.importArea}
           rows={10}
           value={importText}
-          placeholder={`Size\t${chartFields.slice(0, 3).join('\t') || 'chest\twaist\thip'}\nS\t36\t30\t38\nM\t38\t32\t40\nL\t40\t34\t42`}
+          placeholder={`Size\t${chartFields.slice(0, 3).join('\t') || 'chest\twaist\thip'}\n36\t36\t30\t38\n38\t38\t32\t40\n40\t40\t34\t42`}
           onChange={(e) => setImportText(e.target.value)}
         />
         <div className={s.gradeActions}>

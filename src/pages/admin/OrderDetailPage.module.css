@@ -242,3 +242,58 @@
 
 /* T1-20: computed promised-date estimate hint */
 .estHint { font-size: 0.72rem; color: var(--color-text-tertiary); font-weight: 400; }
+
+/* [SUP-28-4] What the garment was actually cut to, beside the "measurements on file" tick.
+   Quiet by default — it is reference, not an alarm — but readable at a glance, because the
+   agent reaches for it mid-conversation with the customer on the line. */
+.cutToBlock {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cutToItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cutToLabel {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.cutToValues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cutToChip {
+  padding: 2px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* [SUP-28-3] The freshness chip: quiet until you look for it, and clickable, because
+   an agent who suspects the screen is stale wants to act on that, not just read it. */
+.freshness {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.freshness:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+.freshness:disabled { opacity: 0.6; cursor: default; }

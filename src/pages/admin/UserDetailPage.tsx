@@ -316,7 +316,12 @@ export const UserDetailPage: React.FC = () => {
     if (!user) return;
     setSaving(true);
     try {
-      const updated = await usersApi.update(user.id, { status: "Deactivated" });
+      // [SUP-30-7] The reason this modal insists on now reaches the audit row.
+      const updated = await usersApi.update(
+        user.id,
+        { status: "Deactivated" },
+        { reason: deactivateReason },
+      );
       setUser(updated);
       setShowDeactivateModal(false);
       setDeactivateReason("");

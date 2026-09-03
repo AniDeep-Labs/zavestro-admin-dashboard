@@ -59,11 +59,26 @@ export const FitOutcomesPage: React.FC = () => {
   const overallResponded = o ? responded(o) : 0;
   const lowSample = !!o && overallResponded < MIN_RESPONSES;
 
+  // [DSG-13-9] Every rate carries its own denominator, and its own low-confidence mark.
+  //
+  // MIN_RESPONSES greyed out FTR alone. On a two-order sample the neighbouring cards
+  // rendered "Alteration rate 0% · Refund rate 50% · Feedback response 100%" as bold,
+  // full-confidence numbers, and the amber note underneath spoke only about FTR — so the
+  // reader was invited to trust the three uncaveated numbers MORE than the caveated one,
+  // which is precisely backwards.
+  //
+  // They are not even the same fraction: FTR is over orders that RESPONDED, the other
+  // three are over orders DELIVERED. A single blanket caveat could never have been right
+  // for all four, so each says what it is out of.
+  const deliveredN = o?.delivered ?? 0;
   const kpis = [
-    { label: 'First-time-right (FTR)', value: o?.ftr_pct != null ? `${o.ftr_pct}%` : '—', tone: ftrTone(o?.ftr_pct ?? null, lowSample), accent: true },
-    { label: 'Alteration rate', value: o?.alteration_pct != null ? `${o.alteration_pct}%` : '—' },
-    { label: 'Refund rate', value: o?.refund_pct != null ? `${o.refund_pct}%` : '—' },
-    { label: 'Feedback response', value: o?.response_pct != null ? `${o.response_pct}%` : '—' },
+    // [DSG-13-8] The label carries the threshold. "First-time-right" reads as "needed no
+    // alteration" — a different, stricter thing (alterations are their own bucket and
+    // outrank feedback). What it actually measures is a 4-or-5 rating out of 5.
+    { label: 'First-time-right (rated 4–5 of 5)', value: o?.ftr_pct != null ? `${o.ftr_pct}%` : '—', tone: ftrTone(o?.ftr_pct ?? null, lowSample), accent: true, n: overallResponded, unit: 'responded' },
+    { label: 'Alteration rate', value: o?.alteration_pct != null ? `${o.alteration_pct}%` : '—', n: deliveredN, unit: 'delivered' },
+    { label: 'Refund rate', value: o?.refund_pct != null ? `${o.refund_pct}%` : '—', n: deliveredN, unit: 'delivered' },
+    { label: 'Feedback response', value: o?.response_pct != null ? `${o.response_pct}%` : '—', n: deliveredN, unit: 'delivered' },
   ];
 
   return (
@@ -71,7 +86,11 @@ export const FitOutcomesPage: React.FC = () => {
       <PageHeader
         eyebrow="Insights · Fit"
         title="Fit Outcomes"
-        subtitle="The made-to-fit master metric (FTR) across all delivered orders, broken down by hub so fit problems surface where they happen."
+        /* [DSG-13-4] Say which population. Design Analytics scopes its fit accuracy to
+           orders containing a DESIGN item, deliberately, so legacy off-the-rack orders
+           don't inflate the design team's metric — and it reported "0 delivered" in the
+           same session this page graded at 50%. Both were true; neither said over what. */
+        subtitle="The made-to-fit master metric (FTR) across EVERY delivered order, including legacy off-the-rack ones, broken down by hub so fit problems surface where they happen. Design Analytics counts only orders with a design item, so its figures are narrower and will not match this page."
       />
 
       <div className={local.toolbar}>
@@ -94,7 +113,17 @@ export const FitOutcomesPage: React.FC = () => {
                     {loading ? '—' : <StatusBadge status={k.tone as string} label={k.value} />}
                   </div>
                 ) : (
-                  <div className={s.summaryValue}>{loading ? '—' : k.value}</div>
+                  <div className={`${s.summaryValue} ${!loading && k.n < MIN_RESPONSES ? local.lowValue : ''}`}>
+                    {loading ? '—' : k.value}
+                  </div>
+                )}
+                {/* [DSG-13-9] What the percentage is out of. A rate over two orders and a
+                    rate over two thousand look identical without it. */}
+                {!loading && (
+                  <div className={local.kpiDenominator}>
+                    n = {k.n} {k.unit}
+                    {k.n < MIN_RESPONSES ? ' · low confidence' : ''}
+                  </div>
                 )}
               </div>
             ))}
@@ -102,16 +131,23 @@ export const FitOutcomesPage: React.FC = () => {
 
           {!loading && lowSample && (
             <p className={local.lowNote}>
-              ⚠ FTR is based on only {overallResponded} responded order{overallResponded === 1 ? '' : 's'} —
-              treat as low-confidence until more fit feedback lands.
+              ⚠ Small sample: FTR is based on {overallResponded} responded order
+              {overallResponded === 1 ? '' : 's'}, and the other rates on {deliveredN} delivered
+              order{deliveredN === 1 ? '' : 's'} — every card above shows its own denominator.
+              Treat all four as low-confidence until more fit feedback lands.
             </p>
           )}
           {data?.note && <p className={s.summarySub}>{data.note}</p>}
 
           {o && o.delivered > 0 && (
             <p className={s.summarySub}>
-              {o.delivered} delivered · {o.perfect} perfect · {o.ok} acceptable · {o.altered} altered ·{' '}
-              {o.refunded} refunded · {o.poor} poor · {o.no_response} no response
+              {/* [DSG-13-8] Bare "perfect" and "poor" are the words the view uses; the
+                  numbers behind them are thresholds, and a legend that hides its cut-offs
+                  invites everyone to assume a different one. */}
+              {o.delivered} delivered · {o.perfect} perfect <span className={local.threshold}>(4–5 of 5)</span> ·{' '}
+              {o.ok} acceptable <span className={local.threshold}>(3)</span> · {o.altered} altered ·{' '}
+              {o.refunded} refunded · {o.poor} poor <span className={local.threshold}>(1–2)</span> ·{' '}
+              {o.no_response} no response
             </p>
           )}
 
@@ -135,7 +171,21 @@ export const FitOutcomesPage: React.FC = () => {
                         className={canDrill ? styles.row : undefined}
 
                         title={canDrill ? 'Open fit feedback' : undefined} {...(canDrill ? rowActivation(() => navigate('/admin/fit-feedback')) : {})}>
-                        <td className={styles.customerName}>{h.hub_name ?? '—'}</td>
+                        {/* [DSG-13-15] A row with no hub rendered as a bare em-dash beside
+                            a confident FTR — indistinguishable from a hub whose NAME is
+                            missing, when it is actually orders with `hub_id IS NULL`
+                            (pre-hub-assignment, or data that predates hub scoping). Naming
+                            it stops the reader attributing that FTR to a real hub. */}
+                        <td className={styles.customerName}>
+                          {h.hub_name ?? (
+                            <span
+                              className={styles.noHub}
+                              title="Delivered orders with no hub recorded — not a hub's score. Counted in the company total above."
+                            >
+                              No hub recorded
+                            </span>
+                          )}
+                        </td>
                         <td className={styles.total}>{h.delivered}</td>
                         <td><StatusBadge status={ftrTone(h.ftr_pct, hubLow)} label={h.ftr_pct != null ? `${h.ftr_pct}%` : '—'} size="sm" /></td>
                         <td>{h.alteration_pct != null ? `${h.alteration_pct}%` : '—'}</td>

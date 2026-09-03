@@ -1,3 +1,4 @@
+import { useUrlParam, useUrlEditor } from '../../hooks/useOverviewFilters';
 import React from 'react';
 import { collectionsApi } from '../../api/adminApi';
 import type { Collection } from '../../api/adminApi';
@@ -26,8 +27,10 @@ const TYPE_CLASS: Record<string, string> = {
 };
 
 export const CollectionsListPage: React.FC = () => {
-  const [search, setSearch] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState('All');
+  // [CM-21-10] Search + status filter live in the URL, so refresh and back keep them and
+  // a filtered list can be sent to a colleague.
+  const [search, setSearch] = useUrlParam('q');
+  const [statusFilter, setStatusFilter] = useUrlParam('status', 'All');
   const debouncedSearch = useDebounce(search, 300);
 
   const [collections, setCollections] = React.useState<Collection[]>([]);
@@ -43,7 +46,11 @@ export const CollectionsListPage: React.FC = () => {
   const [archiveTarget, setArchiveTarget] = React.useState<Collection | null>(null);
   const [archiving, setArchiving] = React.useState(false);
   // Create/Edit open in a popup modal (like banners): 'new' | collectionId | null.
-  const [editorId, setEditorId] = React.useState<string | null>(null);
+  // [CM-21-10] ...and so does the open editor. The route /catalog/collections/:id already
+  // renders this same component as a full page, while the list opened it in a modal with
+  // no address at all — so "the collection I'm editing" could not be linked, and Back left
+  // the list instead of closing the modal.
+  const [editorId, setEditorId] = useUrlEditor();
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, message?: string) =>
@@ -133,7 +140,14 @@ export const CollectionsListPage: React.FC = () => {
               <th>Products</th>
               <th>Status</th>
               <th>Sort</th>
-              <th>Banner</th>
+              {/* [CM-21-8] Was "Banner", which is a DIFFERENT product surface — the Hero
+                  Banners page authors the home carousel, and a CM reading this column
+                  reasonably assumed the two were connected. The value is `!!cover_image`:
+                  the collection's own artwork. Naming it "Cover" removes the collision;
+                  the title says what it is for anyone who still wonders. */}
+              <th title="The collection's own cover artwork, set in its editor. Not related to Hero Banners, which author the home carousel.">
+                Cover
+              </th>
               <th>Updated</th>
               <th>Actions</th>
             </tr>
@@ -176,9 +190,17 @@ export const CollectionsListPage: React.FC = () => {
                   </td>
                   <td className={styles.sortOrder}>#{col.sortOrder}</td>
                   <td>
-                    {col.hasBanner
-                      ? <div className={styles.bannerThumb}><UilImage size={14}/></div>
-                      : <span className={styles.noBanner}>—</span>}
+                    {col.hasBanner ? (
+                      <div className={styles.bannerThumb} title="Has a cover image">
+                        <UilImage size={14} />
+                      </div>
+                    ) : (
+                      // An em-dash on every row says nothing. "None" is the same width and
+                      // is an answer.
+                      <span className={styles.noBanner} title="No cover image — add one in the collection editor">
+                        None
+                      </span>
+                    )}
                   </td>
                   <td className={styles.date}>{col.updated}</td>
                   <td onClick={e => e.stopPropagation()}>

@@ -250,3 +250,80 @@
   padding-top: var(--spacing-lg);
   line-height: 1.5;
 }
+
+/* [DSG-11-19] Per-field provenance. A guessed number and a calibrated one must not read
+   the same — the whole point of showing the source is that they are different claims. */
+.provSolid {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+.provProvisional {
+  font-size: var(--font-size-xs);
+  color: var(--color-warning);
+  font-weight: 600;
+  cursor: help;
+}
+.provNote {
+  margin: var(--spacing-sm) 0 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-left: 3px solid var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  border-radius: var(--radius-sm);
+}
+
+/* [DSG-13-5] Which block these anchors belong to. */
+.blockChip {
+  margin-left: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+}
+
+/* [DSG-13-6] Inseam vs height — the toggle that makes the length bands testable. */
+.lengthSource {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+  margin-bottom: var(--spacing-md);
+}
+
+.lengthSourceLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.lengthSourceHint,
+.fieldHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.lengthSourceHint {
+  flex-basis: 100%;
+}
+
+/* [DSG-13-10] Inline route out of a footnote to where QC thresholds really live. */
+.inlineLink {
+  color: var(--color-primary);
+  text-decoration: underline;
+}

@@ -69,3 +69,8 @@
   background: rgba(168, 162, 158, 0.14);
   color: var(--color-text-secondary);
 }
+
+/* [SUP-31-6] The card's primary action sits bottom-right, like the refund button
+   above it. A class rather than style={{ alignSelf }} — the style-debt guard counts
+   inline styles, and copying the older button's would have added two more. */
+.cardAction { align-self: flex-end; }

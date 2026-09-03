@@ -42,3 +42,18 @@
   margin: 8px 0 0;
   max-width: 68ch;
 }
+
+/* [CM-20-9] Whether a QC layer is doing anything. "never used" is deliberately muted but
+   present — a blank cell reads as a rendering gap, not as a fact about the checklist. */
+.usage {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-left: auto;
+}
+
+.usageIdle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-left: auto;
+}

@@ -126,3 +126,18 @@
   color: var(--color-text);
   background: var(--color-bg-card);
 }
+
+/* [SHL-7-9] A setting nothing reads. Styled as a warning, not a neutral tag: the operator
+   is about to change something that will not do anything. Mirrors .dangerBadge's shape so
+   the two read as the same class of label, in the warning colour rather than the error one. */
+.inertBadge {
+  background: var(--color-warning);
+  color: var(--color-on-accent);
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-left: 6px;
+}

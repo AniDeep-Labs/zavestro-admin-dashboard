@@ -62,7 +62,11 @@ export function hasCapability(cap: string): boolean {
 
 // ─── Core fetch ───────────────────────────────────────────────────────────────
 
-async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
+// [PRC-14-4] The whole response envelope, error handling included. `req` below is this
+// plus the `data` unwrap — which is what nearly every caller wants, but it also throws away
+// any `meta` the server sent, so a page that needs (say) a count's denominator had no way to
+// see it without a second round trip.
+async function reqEnvelope<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getAdminToken();
   const isForm = init.body instanceof FormData;
   const headers: Record<string, string> = {
@@ -102,9 +106,15 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw err;
   }
   if (res.status === 204) return undefined as T;
-  const json = await res.json();
+  return (await res.json()) as T;
+}
+
+async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const json = await reqEnvelope<unknown>(path, init);
   return (
-    json && typeof json === "object" && "data" in json ? json.data : json
+    json && typeof json === "object" && "data" in json
+      ? (json as { data: T }).data
+      : json
   ) as T;
 }
 
@@ -303,6 +313,29 @@ export const tagsApi = {
     }),
 };
 
+export interface OrdersExportRow {
+  id: string;
+  reference_id: string | null;
+  customer: string | null;
+  /** Present only when the export was explicitly a contact export. */
+  phone?: string | null;
+  email?: string | null;
+  stage: string;
+  status: string;
+  payment_method: string | null;
+  hub: string;
+  total: string | number;
+  created_at: string;
+}
+
+export interface OrdersExport {
+  orders: OrdersExportRow[];
+  with_contact: boolean;
+  /** True when the export hit the server's row ceiling and is incomplete. */
+  truncated: boolean;
+  max_rows: number;
+}
+
 export const ordersApi = {
   list: async (params: OrdersParams = {}): Promise<OrdersResponse> => {
     const qs = new URLSearchParams();
@@ -319,6 +352,36 @@ export const ordersApi = {
     if (params.page) qs.set("page", String(params.page));
     if (params.limit) qs.set("limit", String(params.limit));
     return req<OrdersResponse>(`/api/admin/orders?${qs}`);
+  },
+
+  // [SUP-27-3 / SUP-27-7] One audited request instead of up to 500 unaudited ones.
+  //
+  // The CSV used to be assembled client-side by paging this same endpoint 500 times, so
+  // the server saw an ordinary list and the largest PII egress in the admin left no trace
+  // at all. The export is a mode of the same handler now — same filters, no chance of the
+  // two drifting — and it writes an `export_orders` audit row with the count, the filters
+  // and whether contact details were included.
+  //
+  // `contact` is opt-in: most exports are a work list and do not need every customer's
+  // phone number and email address in a file on somebody's laptop.
+  exportAll: async (
+    params: OrdersParams = {},
+    opts: { contact?: boolean } = {},
+  ): Promise<OrdersExport> => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set("search", params.search);
+    if (params.stage) qs.set("stage", params.stage);
+    if (params.mode) qs.set("mode", params.mode);
+    if (params.userId) qs.set("user_id", params.userId);
+    if (params.paymentMethod) qs.set("payment_method", params.paymentMethod);
+    if (params.stuck) qs.set("stuck", "1");
+    if (params.owner && params.owner !== "all") qs.set("owner", params.owner);
+    if (params.hub_id) qs.set("hub_id", params.hub_id);
+    if (params.from) qs.set("from", params.from);
+    if (params.to) qs.set("to", params.to);
+    qs.set("export", "1");
+    if (opts.contact) qs.set("contact", "1");
+    return req<OrdersExport>(`/api/admin/orders?${qs}`);
   },
 
   get: async (id: string): Promise<AdminOrder> => {
@@ -362,6 +425,12 @@ export const ordersApi = {
           | undefined,
       })),
       payments: data.payments ?? [],
+      // [SUP-28-7] The endpoint sends `o.*`, so payment_method has always been in the
+      // payload — but this mapper is an allow-list and dropped it, leaving
+      // `order.payment_method` undefined on the detail page. Both branches of the
+      // Payment panel test it, so a COD order was told "Nothing has been captured
+      // against this order yet" instead of that cash is collected on delivery.
+      payment_method: (o.payment_method ?? null) as string | null,
       craftsperson_id: (o.craftsperson_id ?? null) as string | null,
       craftsperson_name: (o.craftsperson_name ?? null) as string | null,
       craftsperson_role: (o.craftsperson_role ?? null) as string | null,
@@ -615,9 +684,18 @@ export const usersApi = {
     return mapUser(u);
   },
 
-  update: async (id: string, data: Partial<AdminUser>): Promise<AdminUser> => {
+  // [SUP-30-7] `reason` travels with the status change. The deactivation modal demands one
+  // before it will enable its button, and this builder used to emit `is_active` alone — so
+  // the reason the agent typed was discarded in this function, and the audit row recorded
+  // the click without the cause.
+  update: async (
+    id: string,
+    data: Partial<AdminUser>,
+    opts: { reason?: string } = {},
+  ): Promise<AdminUser> => {
     const body: Record<string, unknown> = {};
     if (data.status !== undefined) body.is_active = data.status === "Active";
+    if (opts.reason?.trim()) body.reason = opts.reason.trim();
     const u = await req<Record<string, unknown>>(`/api/admin/users/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -824,6 +902,20 @@ export const hubPincodesApi = {
     }),
 };
 
+export interface HubBlastRadius {
+  active_orders: number;
+  fabric_meters: number;
+  /** Ops LOGIN accounts (`staff`). */
+  active_staff: number;
+  /**
+   * [SHL-6-7] The floor roster (`hub_staff`) — a different table, which measurement
+   * provenance points at and which no admin page has ever shown.
+   */
+  roster_staff: number;
+  live_listings: number;
+  service_pincodes: number;
+}
+
 export const hubsApi = {
   list: async (params: HubsParams = {}): Promise<HubsResponse> => {
     const qs = new URLSearchParams();
@@ -854,13 +946,26 @@ export const hubsApi = {
     return mapHub(raw);
   },
 
-  update: async (id: string, data: Partial<Hub>): Promise<Hub> => {
+  // [SHL-6-2] What deactivating this hub would strand. The server measures it; the dialog
+  // states it. Previously the confirm asserted "existing orders are unaffected" with
+  // nothing behind that claim.
+  blastRadius: async (id: string): Promise<HubBlastRadius> =>
+    req<HubBlastRadius>(`/api/admin/hubs/${id}/blast-radius`),
+
+  update: async (
+    id: string,
+    data: Partial<Hub>,
+    opts: { force?: boolean } = {},
+  ): Promise<Hub> => {
     const { status, managerName, managerPhone, managerStaffId, ...rest } = data;
     const body: Record<string, unknown> = { ...rest };
     if (status !== undefined) body.is_active = status === "Active";
     if (managerName !== undefined) body.manager_name = managerName;
     if (managerPhone !== undefined) body.manager_phone = managerPhone;
     if (managerStaffId !== undefined) body.manager_staff_id = managerStaffId;
+    // The server refuses a deactivation that strands work unless this is set — so the
+    // operator confirms against measured counts rather than being stopped outright.
+    if (opts.force) body.force = true;
     const raw = await req<Record<string, unknown>>(`/api/admin/hubs/${id}`, {
       method: "PUT",
       body: JSON.stringify(body),
@@ -937,6 +1042,12 @@ function mapTicket(t: Record<string, unknown>): SupportTicket {
     phone: (t.customer_phone ?? t.phone ?? "") as string,
     subject: (t.subject ?? "") as string,
     category: (t.category ?? "General") as string,
+    // [SUP-32-5] Resolution fields ride through the same allow-list mapper as everything
+    // else — a column added to the query is dropped here unless it is named.
+    resolution: (t.resolution ?? null) as string | null,
+    resolutionNote: (t.resolution_note ?? null) as string | null,
+    resolvedAt: (t.resolved_at ?? null) as string | null,
+    resolvedByName: (t.resolved_by_name ?? null) as string | null,
     priority:
       PRIORITY_MAP[t.priority as string] ??
       (t.priority as SupportTicket["priority"]) ??
@@ -1071,6 +1182,58 @@ export const supportApi = {
     return mapTicket(raw);
   },
 
+  /**
+   * [SUP-32-5] Resolve a ticket WITH the outcome that fixed it.
+   *
+   * A separate method rather than `update({ status: "Resolved" })` because the two are
+   * no longer the same act: the server refuses a resolve that does not say what fixed
+   * it, so a caller that only knows how to set a status would just get a 400. Naming it
+   * `resolve` makes the requirement visible at the call site instead of at runtime.
+   */
+  resolve: async (
+    id: string,
+    resolution: string,
+    resolutionNote?: string,
+  ): Promise<SupportTicket> => {
+    const raw = await req<Record<string, unknown>>(`/api/admin/support/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: "resolved",
+        resolution,
+        resolution_note: resolutionNote?.trim() || null,
+      }),
+    });
+    return mapTicket(raw);
+  },
+
+  /**
+   * [SUP-32-7] The SHARED canned-reply library.
+   *
+   * It lived in localStorage, so it was per agent and per browser: lost on a cache
+   * clear, invisible to teammates, and impossible to review. This is the text the
+   * company says to customers in its own voice — "nobody can see it and nobody can
+   * correct it" was a quality problem, not just an inconvenience.
+   */
+  templates: {
+    list: async (): Promise<ReplyTemplate[]> => {
+      const r = await req<{ templates: ReplyTemplate[] }>("/api/admin/support/templates");
+      return r?.templates ?? [];
+    },
+    create: (title: string, body: string, category?: string | null) =>
+      req<ReplyTemplate>("/api/admin/support/templates", {
+        method: "POST",
+        body: JSON.stringify({ title, body, category: category ?? null }),
+      }),
+    update: (id: string, title: string, body: string, category?: string | null) =>
+      req<ReplyTemplate>(`/api/admin/support/templates/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title, body, category: category ?? null }),
+      }),
+    // Retire, not delete — one agent tidying up must not destroy the team's library.
+    retire: (id: string) =>
+      req<{ retired: boolean }>(`/api/admin/support/templates/${id}`, { method: "DELETE" }),
+  },
+
   // T3-3 (W-S3): set a follow-up time (ISO) or clear it (null). Snoozed tickets
   // drop out of "Needs reply" until the time passes.
   setSnooze: async (
@@ -1191,6 +1354,7 @@ export const configApi = {
         min?: number | null;
         max?: number | null;
         dangerous?: boolean;
+        enforced?: boolean;
         updated_by_email?: string | null;
         updated_at?: string | null;
       }[]
@@ -1205,6 +1369,9 @@ export const configApi = {
       min: r.min ?? null,
       max: r.max ?? null,
       dangerous: r.dangerous ?? false,
+      // [SHL-7-9] Default TRUE: the common case stays quiet and only an explicitly
+      // unwired key announces itself.
+      enforced: r.enforced ?? true,
       updatedByEmail: r.updated_by_email ?? null,
       updatedAt: r.updated_at ?? null,
     }));
@@ -1254,6 +1421,8 @@ export interface AuditLogResponse {
 }
 
 export interface AuditFilters {
+  /** [SHL-7-13] Comma-separated actions to exclude (e.g. the noisy `update_config`). */
+  exclude_action?: string;
   search?: string;
   action?: string;
   // T2-22: actor / entity / date filters
@@ -1271,6 +1440,9 @@ export const auditApi = {
     const qs = new URLSearchParams();
     if (params.search) qs.set("search", params.search);
     if (params.action) qs.set("action", params.action);
+    // [SHL-7-13] Comma-separated actions to leave OUT — used to keep config churn from
+    // burying the rows an auditor opened the page for.
+    if (params.exclude_action) qs.set("exclude_action", params.exclude_action);
     if (params.actor) qs.set("actor", params.actor);
     if (params.entity_type) qs.set("entity_type", params.entity_type);
     if (params.entity_id) qs.set("entity_id", params.entity_id);
@@ -1637,6 +1809,14 @@ export interface QcTemplate {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  /**
+   * [CM-20-9] Whether this checklist is doing anything: garments graded by the HOUSE layer
+   * for this category, how many of those failed, and when one was last recorded. Without
+   * it a CM cannot tell a working QC layer from a decorative one.
+   */
+  graded?: number;
+  failed?: number;
+  last_graded_at?: string | null;
 }
 // A check + the inspector's answer + computed pass flag, stored on a receipt (T1-13b Phase 2).
 export interface QcEvaluatedResult {
@@ -1888,10 +2068,19 @@ export interface PendingReviewsResponse {
   limit: number;
 }
 
+/** [SUP-34-6] Which bucket of the moderation queue to show. */
+export type ReviewModerationStatus = "pending" | "approved" | "rejected" | "all";
+
 export const reviewsApi = {
-  listPending: (page = 1, limit = 25): Promise<PendingReviewsResponse> =>
+  // [SUP-34-6] The path is historical — it now serves the decided buckets too, so a
+  // wrong rejection is findable and (by moderating it again) reversible.
+  listPending: (
+    page = 1,
+    limit = 25,
+    status: ReviewModerationStatus = "pending",
+  ): Promise<PendingReviewsResponse> =>
     req<PendingReviewsResponse>(
-      `/api/reviews/pending?page=${page}&limit=${limit}`,
+      `/api/reviews/pending?page=${page}&limit=${limit}&status=${status}`,
     ),
 
   // T2-36 (SP-5): a rejection carries a reason (required server-side).
@@ -1899,6 +2088,22 @@ export const reviewsApi = {
     req<void>(`/api/reviews/${id}/moderate`, {
       method: "POST",
       body: JSON.stringify({ approve, ...(reason ? { reason } : {}) }),
+    }),
+
+  /**
+   * [SUP-34-7] One request, one transaction. The console used to loop `moderate` per id,
+   * so a fifty-review sweep was fifty requests and fifty aggregate recomputations with
+   * nothing holding them together. All-or-nothing server-side: a partial sweep is worse
+   * than a failed one, because the moderator cannot see which half landed.
+   */
+  moderateBulk: (
+    ids: string[],
+    approve: boolean,
+    reason?: string,
+  ): Promise<{ moderated: number; ids: string[] }> =>
+    req<{ moderated: number; ids: string[] }>(`/api/reviews/moderate-bulk`, {
+      method: "POST",
+      body: JSON.stringify({ ids, approve, ...(reason ? { reason } : {}) }),
     }),
 };
 
@@ -1930,6 +2135,29 @@ export interface ReturnRequest {
   // T2-31: worklist bucket + policy verdict (present from list + detail endpoints).
   section?: ReturnSection;
   policy_verdict?: PolicyVerdict;
+  // [SUP-31-6] The alteration this return produced, when the policy verdict was
+  // "free alteration". Null until one is raised — which, before this, could not be
+  // done from here at all.
+  linked_alteration?: LinkedAlteration | null;
+  // [SUP-31-9] The date finance sees, computed by the same function, so support can
+  // answer "when will the money arrive?" without a finance seat they cannot have.
+  refund_status?: string | null;
+  refund_initiated_at?: string | null;
+  expected_settlement_at?: string | null;
+  settlement_business_days?: number;
+}
+
+/** [SUP-31-6] The alteration a fit return was settled with. */
+export interface LinkedAlteration {
+  id: string;
+  status: string;
+  description: string;
+  fee_amount: number | string | null;
+  fee_status: string | null;
+  agent_visit_date: string | null;
+  garment_picked_up_at: string | null;
+  redelivered_at: string | null;
+  created_at: string;
 }
 
 export interface ReturnsResponse {
@@ -1964,6 +2192,20 @@ export const returnsApi = {
 
   get: async (id: string): Promise<ReturnRequest> =>
     req<ReturnRequest>(`/api/admin/returns/${id}`),
+
+  /**
+   * [SUP-31-6] Settle a fit return the way the policy says: raise the free alteration
+   * and close the return, in one server-side transaction. The page used to render the
+   * policy chip promising this and offer no verb at all behind it.
+   */
+  resolveWithAlteration: async (
+    id: string,
+    data: { description: string; areas?: string[]; note?: string },
+  ): Promise<{ return_id: string; alteration_id: string; fee_status: string }> =>
+    req<{ return_id: string; alteration_id: string; fee_status: string }>(
+      `/api/admin/returns/${id}/resolve-with-alteration`,
+      { method: "POST", body: JSON.stringify(data) },
+    ),
 
   review: async (
     id: string,
@@ -2005,6 +2247,12 @@ export const returnsApi = {
 // ─── Alterations ──────────────────────────────────────────────────────────────
 
 export interface AlterationRequest {
+  // [SUP-31-7] The fee the SERVER computed for this request, from the hub's own
+  // `alteration_fee` + `alteration_first_free`. It has always been on the created row
+  // (`RETURNING *`) and the client discarded it, then told the customer the alteration was
+  // free regardless of what the hub charges.
+  fee_amount?: string | number | null;
+  fee_status?: 'free' | 'waived' | 'pending' | null;
   id: string;
   order_id: string;
   order_number: string;
@@ -2014,6 +2262,27 @@ export interface AlterationRequest {
   description: string;
   created_at: string;
   updated_at: string;
+  /**
+   * [SUP-31-8] The logistics story. All of it has always been on the row and returned
+   * by `GET /alterations/:id` — which no page called — so the two questions a customer
+   * actually asks ("when is someone coming for the garment?" and "will I be charged?")
+   * were in the API and on no screen. Present only from `alterationsApi.get()`.
+   */
+  assigned_agent_name?: string | null;
+  agent_visit_date?: string | null;
+  pickup_failure_reason?: string | null;
+  pickup_failed_at?: string | null;
+  garment_picked_up_at?: string | null;
+  garment_received_at_hub?: string | null;
+  assigned_tailor_name?: string | null;
+  alteration_completed_at?: string | null;
+  alteration_qc_at?: string | null;
+  alteration_qc_note?: string | null;
+  redelivered_at?: string | null;
+  staff_note?: string | null;
+  /** [SUP-31-6] Set when this alteration was raised to settle a fit return. */
+  return_id?: string | null;
+  return_reason?: string | null;
 }
 
 export interface AlterationsResponse {
@@ -2327,6 +2596,8 @@ export interface GarmentCategoryOption {
   name: string;
   slug: string;
   body_region: string | null;
+  /** Which block the fit engine drafts this on: mens_upper | womens_upper | lower. [DSG-11-7] */
+  drafting_block?: string | null;
   capture_set: unknown;
   pain_point_menu: Record<string, unknown> | null;
   body_shape_menu?: Record<string, Record<string, number>> | null;
@@ -2337,11 +2608,19 @@ export interface GarmentCategoryOption {
   calibrated_fit_presets?: string[] | null;
   garment_types?: string[] | null;
   used_by_designs?: number;
+  /** [DSG-11-13] The other two conditions the server blocks a delete on. */
+  used_by_fit_profiles?: number;
+  used_by_storefront_categories?: number;
 }
 
 export interface CreateGarmentCategoryInput {
   name: string;
   body_region: "upper" | "lower";
+  /**
+   * Which block the engine drafts this on. Optional for back-compat; an upper garment
+   * without it defaults to the men's block, exactly as before. [DSG-11-7]
+   */
+  drafting_block?: "mens_upper" | "womens_upper" | "lower";
   garment_types?: string[];
   description?: string | null;
 }
@@ -2362,6 +2641,21 @@ export interface ChartRow {
   unit?: 'in' | 'cm';
   measurement_basis?: 'body' | 'finished';
 }
+/**
+ * The cut-sheet spec (garment_cutting_specs) — the allowances and fabric geometry a
+ * garment is actually cut to. Replaces the two design-plane allowance fields, which no
+ * downstream consumer ever read. [DSG-11-8]
+ */
+export interface CuttingSpec {
+  fabric_width_cm: number;
+  seam_allowance_cm: number;
+  hem_allowance_cm: number;
+  wastage_factor: number;
+  min_fabric_meters: number;
+  max_fabric_meters: number;
+  cutting_notes: string | null;
+}
+
 export interface GarmentTemplate {
   id: string;
   name: string;
@@ -2371,19 +2665,75 @@ export interface GarmentTemplate {
   pain_point_menu: Record<string, Record<string, number>> | null;
   body_shape_menu?: Record<string, Record<string, number>> | null;
   tolerances?: Record<string, number> | null;
-  seam_allowance_cm?: number | null;
-  hem_allowance_cm?: number | null;
+  /** Which block the fit engine drafts this on: mens_upper | womens_upper | lower. */
+  drafting_block?: string | null;
+  /** null when this garment type has no spec row — it cannot be cut yet. */
+  cutting_spec?: CuttingSpec | null;
+  /** Where QC thresholds really live, so the editor can stop implying it owns them. */
+  qc_reality?: { has_template: boolean; check_count: number };
   available_fit_presets: string[] | null;
   garment_types?: string[] | null;
   fit_presets?: FitPresetDef[] | null;
   length_bands?: LengthBand[] | null;
   chart: ChartRow[];
   used_by_designs?: number;
+  /** [DSG-11-13] The other two conditions the server blocks a delete on. */
+  used_by_fit_profiles?: number;
+  used_by_storefront_categories?: number;
   used_by_orders?: number;
+  /**
+   * [DSG-11-9] The newest revision of this recipe. Echo it back on save: if someone else
+   * saved while this page was open the numbers no longer match and the save is refused
+   * (409) instead of silently winning the whole recipe. 0 = never saved since versioning.
+   */
+  version?: number;
+  version_saved_at?: string | null;
 }
+
+/** [DSG-11-9] One named field change between two revisions of a recipe. */
+export interface TemplateChange {
+  /** e.g. `chart · slim · 32 · chest`. */
+  path: string;
+  from: unknown;
+  to: unknown;
+}
+export interface TemplateDiff {
+  changes: TemplateChange[];
+  total: number;
+  truncated: boolean;
+}
+/** A row in the revision history. Carries the diff summary, not the whole snapshot. */
+export interface TemplateVersionRow {
+  version: number;
+  note: string | null;
+  /** `baseline` is the automatic record of the state before this type was ever versioned. */
+  source: 'save' | 'baseline' | 'restore';
+  created_at: string;
+  /** null for the baseline row, and for an author whose account was deleted. */
+  created_by: { id: string; name: string } | null;
+  changed: number;
+  changes: TemplateChange[];
+  truncated: boolean;
+}
+export interface TemplateVersionDetail {
+  version: number;
+  note: string | null;
+  source: string;
+  created_at: string;
+  snapshot: Record<string, unknown>;
+  /** What this save changed at the time. */
+  diff: TemplateDiff;
+  /** What restoring it would change now — the current state moves, this is computed live. */
+  diff_vs_current: TemplateDiff;
+}
+
 export interface FitPresetDef {
   fit_preset: string;
-  params: Record<string, number>;
+  /**
+   * Ease values, EXCEPT the women's-block silhouette modes (`waist_mode`, `hem_mode`),
+   * which are enums. The backend validator accepts exactly those two as strings. [DSG-11-7]
+   */
+  params: Record<string, number | string>;
 }
 export interface LengthBand {
   length_field?: string;
@@ -2395,14 +2745,15 @@ export interface GarmentTemplateInput {
   pain_point_menu: Record<string, Record<string, number>>;
   body_shape_menu?: Record<string, Record<string, number>>;
   tolerances?: Record<string, number>;
-  seam_allowance_cm?: number;
-  hem_allowance_cm?: number;
+  cutting_spec?: Partial<Omit<CuttingSpec, 'cutting_notes'>> & { cutting_notes?: string | null };
   available_fit_presets: string[];
   garment_types?: string[];
   fit_presets?: FitPresetDef[];
   length_bands?: LengthBand[];
   chart: ChartRow[];
   note?: string; // "what changed" one-liner → audit trail
+  /** [DSG-11-9] The version this editor loaded. Stale → 409, not a silent overwrite. */
+  expected_version?: number;
 }
 
 export interface DesignOverviewRow {
@@ -2555,6 +2906,30 @@ export const designsApi = {
         method: "PUT",
         body: JSON.stringify(input),
       },
+    ),
+
+  // [DSG-11-9] The revision spine of a garment type's fit recipe.
+  listTemplateVersions: async (categoryId: string): Promise<TemplateVersionRow[]> =>
+    req<TemplateVersionRow[]>(
+      `/api/admin/designs/garment-categories/${categoryId}/template/versions`,
+    ),
+
+  getTemplateVersion: async (
+    categoryId: string,
+    version: number,
+  ): Promise<TemplateVersionDetail> =>
+    req<TemplateVersionDetail>(
+      `/api/admin/designs/garment-categories/${categoryId}/template/versions/${version}`,
+    ),
+
+  restoreTemplateVersion: async (
+    categoryId: string,
+    version: number,
+    note?: string,
+  ): Promise<GarmentTemplate> =>
+    req<GarmentTemplate>(
+      `/api/admin/designs/garment-categories/${categoryId}/template/versions/${version}/restore`,
+      { method: "POST", body: JSON.stringify({ note }) },
     ),
 
   create: async (input: DesignInput): Promise<DesignDetail> =>
@@ -2717,6 +3092,8 @@ export interface SizePreviewResult {
   fit_preset: string;
   type: string;
   spec: Record<string, number>;
+  /** Per-field authority: where each number came from. Null when the engine did not tag. [DSG-11-19] */
+  provenance?: Record<string, string> | null;
   /**
    * [DSG-9-5] Whether the engine is allowed to drive a real cut (`ENGINE_DRIVES_CUTS`).
    *
@@ -2822,6 +3199,13 @@ export const invoicesApi = {
 // ─── COD Finance Reconciliation ─────────────────────────────────────────────────
 
 export interface CodDeposit {
+  /**
+   * [FIN-35-3] What the ORDERS linked to this deposit actually owe, summed from their
+   * COD payments. `total_amount` is what the depositor DECLARED; comparing the two is
+   * the only thing that catches an under-declaration, which declared-vs-counted
+   * cannot see by construction.
+   */
+  expected_amount?: string | number | null;
   id: string;
   hub_id: string;
   hub_name: string;
@@ -3352,6 +3736,9 @@ export interface FitAccuracy {
 export interface DesignPerformanceRow {
   design_id: string;
   design_name: string;
+  /** [DSG-13-14] The recipe behind the design — where a systematic fit failure is fixed. */
+  garment_category_id: string | null;
+  garment_name: string | null;
   orders: number;
   units: number;
   fit_issue_orders: number;
@@ -3471,17 +3858,38 @@ export interface Fabric {
   total_available?: number;
   total_reserved?: number;
   low_somewhere?: boolean;
+  // [PRC-14-4] Whether ANY hub holding this fabric has a reorder point. A false
+  // low_somewhere means "not below threshold"; with this false it means "no threshold",
+  // which is a different fact and the far more common one.
+  watched_somewhere?: boolean;
   stock_value?: number | null;
-  stock?: { hub_id: string; hub_name: string; available_meters: number; reserved_meters: number; reorder_meters?: number | null }[];
+  // [PRC-15-9] quarantine_meters is written by the QC hold path and was rendered nowhere.
+  stock?: { hub_id: string; hub_name: string; available_meters: number; reserved_meters: number; quarantine_meters?: number; reorder_meters?: number | null }[];
+  // [PRC-14-5] The other half of the fabric's position. Its page used to show hub stock
+  // only, so a fabric reading "Demo Hub 60m" could have several hundred metres in the
+  // warehouse and more in transit, and the page that decides whether to buy more said
+  // nothing about either.
+  central?: {
+    received_meters: number;
+    allocated_meters: number;
+    /** received − allocated: what procurement can still promise. */
+    available_meters: number;
+    /** Pushed, not yet received at a hub. Out of the warehouse, still ours. */
+    in_transit_meters: number;
+  };
 }
 // T2-28 (PR-1) fabric cockpit — one movement-ledger row (distinct from the request-event
 // FabricMovement + the shared FabricStockMovement; this one carries id + hub_name).
 export interface FabricLedgerEntry {
   id: string;
   kind: string;
-  hub_name: string;
+  // [PRC-14-5] null for a central-warehouse event: it happened before any hub had it.
+  hub_name: string | null;
+  is_central?: boolean;
   delta_meters: number;
-  balance_after: number;
+  // [PRC-14-5] null for a central event — a per-hub running balance is not a fact about
+  // the warehouse, and rendering one as 0 would be an invented number.
+  balance_after: number | null;
   note: string | null;
   lot_code: string | null;
   created_at: string;
@@ -3557,6 +3965,21 @@ export interface DeadStock {
   total_capital: number;
   min_days: number;
 }
+// [PRC-14-6] Which commercial fields the server actually sent. Masked fields are ABSENT,
+// not null — so without this a hub merchant cannot tell "this mill has no GSTIN on file"
+// from "you may not see this mill's GSTIN", and the mask would just move the lie.
+export interface FabricFieldVisibility {
+  supplier: boolean;
+  price: boolean;
+}
+
+export interface ReorderCoverage {
+  /** Shelf positions (hub × fabric) with a reorder point set. */
+  with_reorder_point: number;
+  /** Shelf positions in total, whether or not they have one. */
+  total_positions: number;
+}
+
 export const fabricsApi = {
   list: async (
     params: { q?: string; active?: boolean; low?: boolean } = {},
@@ -3567,6 +3990,31 @@ export const fabricsApi = {
     if (params.low) qs.set("low", "true");
     const s = qs.toString();
     return req<Fabric[]>(`/api/admin/fabrics${s ? `?${s}` : ""}`);
+  },
+  // [PRC-14-4] Same call, but keeps `meta.reorder_coverage` — how many shelf positions have
+  // a reorder point at all. Without it "Below reorder: 0" is unreadable: it says the same
+  // thing whether nothing is low or nothing is watched.
+  listWithCoverage: async (
+    params: { q?: string; active?: boolean; low?: boolean } = {},
+  ): Promise<{
+    data: Fabric[];
+    meta?: {
+      reorder_coverage?: ReorderCoverage;
+      fabric_fields_visible?: FabricFieldVisibility;
+    };
+  }> => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set("q", params.q);
+    if (params.active !== undefined) qs.set("active", String(params.active));
+    if (params.low) qs.set("low", "true");
+    const s = qs.toString();
+    return reqEnvelope<{
+      data: Fabric[];
+      meta?: {
+        reorder_coverage?: ReorderCoverage;
+        fabric_fields_visible?: FabricFieldVisibility;
+      };
+    }>(`/api/admin/fabrics${s ? `?${s}` : ""}`);
   },
   get: async (id: string): Promise<Fabric> =>
     req<Fabric>(`/api/admin/fabrics/${id}`),
@@ -3752,6 +4200,14 @@ export interface StaleReservation {
 export interface FabricStockRow {
   hub_id: string;
   hub_name: string;
+  // [PRC-17-6] Held by QC — arrived, paid for, on the shelf, not available. The query did
+  // not select it, so no cross-hub surface could show it.
+  quarantine_meters?: string | number | null;
+  // [CM-19-4] Whether this shelf position has reached its reorder point, decided ONCE on
+  // the server. Three surfaces used to derive it independently — the CM's page with `<=`,
+  // the procurement grid with `<`, the fabrics master via low_somewhere — so a fabric
+  // sitting exactly AT its reorder point was low on one screen and healthy on another.
+  is_low?: boolean;
   fabric_id: string;
   fabric_code: string;
   fabric_name: string;
@@ -3789,6 +4245,15 @@ export interface Distribution {
   status: "pushed" | "received" | "cancelled";
   received_meters?: string | number | null;
   variance_reason?: string | null;
+  // [PRC-15-6] Why an in-transit push was CANCELLED. Until migration 252 this note was
+  // written into variance_reason, so one column answered two unrelated questions.
+  cancel_reason?: string | null;
+  /** (received − pushed) / pushed, as a percentage. null when there is no denominator. */
+  variance_pct?: number | string | null;
+  // [PRC-15-13] Who recorded the receipt. Procurement records them on the hub's behalf, so
+  // without this a 400% variance is signed by nobody. null on pre-migration-253 receipts.
+  received_by?: string | null;
+  received_by_name?: string | null;
   // T1-13 inbound QC
   accepted_meters?: string | number | null;
   rejected_meters?: string | number | null;
@@ -3828,8 +4293,13 @@ export const distributionApi = {
     const s = qs.toString();
     return req<Distribution[]>(`/api/admin/distribution${s ? `?${s}` : ""}`);
   },
-  push: async (input: PushDistributionInput): Promise<Distribution> =>
-    req<Distribution>(`/api/admin/distribution`, {
+  // [PRC-15-5] The server returns fabric_skipped when it converted a design push into a
+  // fabric-less one because the hub already stocks the SKU. The page threw that away and
+  // toasted "The hub will receive and stock it." either way.
+  push: async (
+    input: PushDistributionInput,
+  ): Promise<Distribution & { fabric_skipped?: boolean }> =>
+    req<Distribution & { fabric_skipped?: boolean }>(`/api/admin/distribution`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
@@ -3926,6 +4396,10 @@ export type ListingRequestStatus =
   | "rejected"
   | "cancelled";
 export interface ListingRequest {
+  // [PRC-16-11] Who approved committing this cloth to a hub. Stored on every decided row
+  // since the feature shipped and displayed by no screen until now.
+  approved_by?: string | null;
+  approved_by_name?: string | null;
   id: string;
   design_id: string;
   fabric_id: string;
@@ -4811,6 +5285,16 @@ export const fitProfilesAdminApi = {
 
 // ─── Customer Lookup ──────────────────────────────────────────────────────────
 
+/** [SUP-32-7] A shared canned reply. Mirrors `support_reply_templates`. */
+export interface ReplyTemplate {
+  id: string;
+  title: string;
+  body: string;
+  category: string | null;
+  created_by_name?: string | null;
+  updated_at?: string;
+}
+
 export interface CustomerLookupResult {
   id: string;
   reference_id: string | null;
@@ -4851,6 +5335,78 @@ export const customerLookupApi = {
       `/api/admin/customers/${id}/verify`,
       { method: "POST", body: JSON.stringify(claim) },
     ),
+};
+
+/**
+ * [SUP-33-5 / SUP-33-3] A support phone call as a record, not React state.
+ *
+ * The console kept "this call" in memory, so a refresh emptied it and the wrap-up note read
+ * "Actions this call: none" about work already done. The six dispositions were concatenated
+ * into a prose sentence in a customer note, "Callback needed" scheduled nothing, and the
+ * identity check was audited with nothing linking it to the actions it authorised.
+ */
+export const CALL_DISPOSITIONS = [
+  { key: 'resolved_on_call', label: 'Resolved on call' },
+  { key: 'ticket_logged', label: 'Ticket logged for follow-up' },
+  { key: 'remeasure_scheduled', label: 'Re-measure scheduled' },
+  { key: 'credit_issued', label: 'Credit issued' },
+  { key: 'callback_needed', label: 'Callback needed' },
+  { key: 'escalated_to_ops', label: 'Escalated to ops' },
+] as const;
+export type CallDisposition = (typeof CALL_DISPOSITIONS)[number]['key'];
+
+export interface SupportCall {
+  id: string;
+  admin_user_id: string;
+  customer_user_id: string | null;
+  started_at: string;
+  ended_at: string | null;
+  verified_at: string | null;
+  disposition: CallDisposition | null;
+  summary: string | null;
+  actions: { title: string; at: string; tone?: string }[];
+  callback_due_at: string | null;
+  callback_done_at: string | null;
+}
+
+export interface CallbackRow extends SupportCall {
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_ref: string | null;
+  agent_name: string | null;
+  overdue: boolean;
+}
+
+export const supportCallsApi = {
+  start: (customerUserId?: string | null): Promise<SupportCall> =>
+    req<SupportCall>(`/api/admin/support/calls`, {
+      method: 'POST',
+      body: JSON.stringify({ customer_user_id: customerUserId ?? null }),
+    }),
+  attachCustomer: (callId: string, customerUserId: string, verified: boolean): Promise<SupportCall> =>
+    req<SupportCall>(`/api/admin/support/calls/${callId}/customer`, {
+      method: 'POST',
+      body: JSON.stringify({ customer_user_id: customerUserId, verified }),
+    }),
+  action: (callId: string, title: string, tone?: string): Promise<SupportCall> =>
+    req<SupportCall>(`/api/admin/support/calls/${callId}/actions`, {
+      method: 'POST',
+      body: JSON.stringify({ title, tone }),
+    }),
+  end: (
+    callId: string,
+    body: { disposition: CallDisposition; summary?: string; callback_due_at?: string | null },
+  ): Promise<SupportCall> =>
+    req<SupportCall>(`/api/admin/support/calls/${callId}/end`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  callbacks: (mine = false): Promise<CallbackRow[]> =>
+    req<{ callbacks: CallbackRow[] }>(
+      `/api/admin/support/callbacks${mine ? '?mine=1' : ''}`,
+    ).then((r) => r.callbacks ?? []),
+  completeCallback: (callId: string): Promise<SupportCall> =>
+    req<SupportCall>(`/api/admin/support/callbacks/${callId}/done`, { method: 'POST' }),
 };
 
 export interface ProductCategory {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fabricsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
+import type { ReorderCoverage, FabricFieldVisibility } from '../../api/adminApi';
 import type { Fabric, FabricInput } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
@@ -16,6 +17,33 @@ import { StatusBadge, Select, CopyId, MoneyCell } from '../../components';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const swatchUrl = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
+
+// [PRC-14-11] "No swatch on file" and "the stored key doesn't resolve" produced the exact
+// same placeholder tile. A swatch is REQUIRED at create (`min(1)`), so an empty tile on a
+// fabric master almost always means the key is broken, not that nobody uploaded one — and
+// for a fabric, the swatch is half the identity. The two states are different problems with
+// different owners: one is a missing upload, the other is a storage or CDN fault.
+type SwatchState = 'ok' | 'none-on-file' | 'unreachable';
+const swatchState = (
+  keys: string[] | null | undefined,
+  url: string,
+  isBroken: boolean,
+): SwatchState => {
+  if (!keys?.length) return 'none-on-file';
+  // A key exists but no public base URL is configured, or the image failed to load.
+  if (!url || isBroken) return 'unreachable';
+  return 'ok';
+};
+const SWATCH_TITLE: Record<SwatchState, string> = {
+  ok: '',
+  'none-on-file': 'No swatch uploaded for this fabric',
+  unreachable: 'A swatch is on file but its image could not be loaded — the key may be broken or storage unreachable',
+};
+
+// [PRC-14-10] The width design metres are authored against, mirrored from the backend's
+// REFERENCE_FABRIC_WIDTH_CM. A fabric with no width is reserved as if it were exactly this.
+const REFERENCE_WIDTH_CM = 112;
+
 const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', width_cm: '', origin: '', supplier: '', supplier_city: '', supplier_lead_time: '', supplier_moq: '', supplier_phone: '', supplier_email: '', supplier_gstin: '', price_per_meter: '', care: '', fabric_type: 'woven', stretch_pct: '', shrinkage_pct: '' };
 type Form = typeof EMPTY;
 
@@ -28,6 +56,14 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
   const [search, setSearch] = React.useState('');
   const [activeFilter, setActiveFilter] = React.useState('');
   const [lowOnly, setLowOnly] = React.useState(false); // "Low somewhere" (procurement)
+  // [PRC-14-8 / PRC-14-10] '' | 'supplier' | 'width' — which gap the grid is narrowed to.
+  const [gapFilter, setGapFilter] = React.useState<'' | 'supplier' | 'width'>('');
+  // [PRC-14-4] How many shelf positions have a reorder point at all — the denominator
+  // the "Below reorder" count needs before it means anything.
+  const [coverage, setCoverage] = React.useState<ReorderCoverage | null>(null);
+  // [PRC-14-6] Which commercial columns the server sent. A masked supplier must not read
+  // as an absent one — this page's whole job is knowing who to call to buy more cloth.
+  const [fieldVis, setFieldVis] = React.useState<FabricFieldVisibility | null>(null);
   // sort (procurement table) + client-side pagination
   const [sortKey, setSortKey] = React.useState<'name' | 'total_available' | 'stock_value' | 'price_per_meter'>('name');
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('asc');
@@ -56,8 +92,12 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
   const load = React.useCallback(() => {
     setLoading(true);
     fabricsApi
-      .list({ q: search || undefined, active: activeFilter === '' ? undefined : activeFilter === 'true', low: lowOnly || undefined })
-      .then(setFabrics)
+      .listWithCoverage({ q: search || undefined, active: activeFilter === '' ? undefined : activeFilter === 'true', low: lowOnly || undefined })
+      .then((r) => {
+        setFabrics(r.data);
+        setCoverage(r.meta?.reorder_coverage ?? null);
+        setFieldVis(r.meta?.fabric_fields_visible ?? null);
+      })
       .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [search, activeFilter, lowOnly]);
@@ -228,12 +268,36 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
     });
     return arr;
   }, [fabrics, sortKey, sortDir]);
+  // [PRC-14-8 / PRC-14-10] The two gaps that stop this console doing its job.
+  //
+  // `noSupplier`: a fabric nobody can reorder. `noWidth`: a fabric whose consumption maths
+  // is running on an ASSUMPTION — `widthAdjustedMeters` treats an unknown width as exactly
+  // the 112cm reference, so the reservation is silently wrong in proportion to how far the
+  // real roll is from that.
+  //
+  // Counted over ALL fabrics, not the filtered page: "how much of the master is
+  // unusable?" is a question about the master.
+  const noSupplier = React.useMemo(
+    () => fabrics.filter((f) => !String(f.supplier ?? '').trim()),
+    [fabrics],
+  );
+  const noWidth = React.useMemo(
+    () => fabrics.filter((f) => f.width_cm == null || String(f.width_cm).trim() === ''),
+    [fabrics],
+  );
   // Summary rollup (reflects the current filter set, matching the row count).
   const totalStock = fabrics.reduce((sum, f) => sum + (f.total_available ?? 0), 0);
   const capital = fabrics.reduce((sum, f) => sum + (f.stock_value ?? 0), 0);
   const lowCount = fabrics.filter((f) => f.low_somewhere).length;
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const pageRows = sorted.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  // Clicking a gap chip narrows the grid to exactly those rows, so the count is not just a
+  // statistic — it is a way in to fixing them.
+  const gapped = React.useMemo(() => {
+    if (gapFilter === 'supplier') return sorted.filter((f) => noSupplier.includes(f));
+    if (gapFilter === 'width') return sorted.filter((f) => noWidth.includes(f));
+    return sorted;
+  }, [sorted, gapFilter, noSupplier, noWidth]);
+  const pageCount = Math.max(1, Math.ceil(gapped.length / PAGE_SIZE));
+  const pageRows = gapped.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   const toggleSort = (k: typeof sortKey) => {
     if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortKey(k); setSortDir(k === 'name' ? 'asc' : 'desc'); }
@@ -241,7 +305,7 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
   };
   const sortIcon = (k: typeof sortKey) =>
     sortKey !== k ? null : sortDir === 'asc' ? <UilAngleUp size={14} /> : <UilAngleDown size={14} />;
-  React.useEffect(() => { setPage(0); }, [search, activeFilter, lowOnly]);
+  React.useEffect(() => { setPage(0); }, [search, activeFilter, lowOnly, gapFilter]);
 
   return (
     <div className={base.page}>
@@ -270,7 +334,12 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
             type="button"
             className={`${s.lowChip} ${lowOnly ? s.lowChipActive : ''}`}
             onClick={() => setLowOnly((v) => !v)}
-            title="Fabrics below their reorder point at some hub"
+            title={
+              coverage && coverage.with_reorder_point === 0
+                ? 'No hub has a reorder point set, so this filter can only return nothing'
+                : 'Fabrics below their reorder point at some hub'
+            }
+            disabled={!!coverage && coverage.with_reorder_point === 0}
           >
             Low somewhere
           </button>
@@ -292,10 +361,68 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
             <div className={kpi.summaryLabel}>Capital in stock</div>
             <div className={kpi.summaryValue}>₹{capital.toLocaleString('en-IN')}</div>
           </div>
+          {/* [PRC-14-4] A reorder point is optional and almost nobody sets one, so this card
+              used to render a calm green 0 whether nothing was low or nothing was watched.
+              With no thresholds set anywhere the count cannot mean anything, and says so. */}
           <div className={kpi.summaryCard}>
             <div className={kpi.summaryLabel}>Below reorder</div>
-            <div className={`${kpi.summaryValue} ${lowCount ? s.stockLow : ''}`}>{lowCount}</div>
+            {coverage && coverage.with_reorder_point === 0 ? (
+              <>
+                <div className={kpi.summaryValue}>—</div>
+                <div className={s.kpiNote}>
+                  no reorder point set on any of {coverage.total_positions} shelf position
+                  {coverage.total_positions === 1 ? '' : 's'}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={`${kpi.summaryValue} ${lowCount ? s.stockLow : ''}`}>{lowCount}</div>
+                {coverage && coverage.with_reorder_point < coverage.total_positions && (
+                  <div className={s.kpiNote}>
+                    watching {coverage.with_reorder_point} of {coverage.total_positions} shelf
+                    positions
+                  </div>
+                )}
+              </>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* [PRC-14-8 / PRC-14-10] Missing procurement data is an EXCEPTION, not an absence.
+          For a console whose job is reordering cloth, a fabric with no supplier is not a
+          shorter card — it is a fabric nobody can reorder. And a fabric with no usable
+          width is not "unspecified": `widthAdjustedMeters` treats an unknown width as
+          exactly the 112cm reference, so a 150cm roll silently over-reserves by a third
+          and a 90cm handloom under-reserves — a short cut on the table. Both were quiet
+          "—"s in a column. */}
+      {!loading && (noSupplier.length > 0 || noWidth.length > 0) && (
+        <div className={s.gapStrip}>
+          {noSupplier.length > 0 && (
+            <button
+              type="button"
+              className={`${s.gapChip} ${gapFilter === 'supplier' ? s.gapChipActive : ''}`}
+              onClick={() => setGapFilter(gapFilter === 'supplier' ? '' : 'supplier')}
+            >
+              <strong>{noSupplier.length}</strong> of {fabrics.length} have no supplier
+              <span className={s.gapWhy}>— nobody can reorder these</span>
+            </button>
+          )}
+          {noWidth.length > 0 && (
+            <button
+              type="button"
+              className={`${s.gapChip} ${gapFilter === 'width' ? s.gapChipActive : ''}`}
+              onClick={() => setGapFilter(gapFilter === 'width' ? '' : 'width')}
+            >
+              <strong>{noWidth.length}</strong> of {fabrics.length} have no width
+              <span className={s.gapWhy}>— reserved as if {REFERENCE_WIDTH_CM}cm</span>
+            </button>
+          )}
+          {gapFilter && (
+            <button type="button" className={s.gapClear} onClick={() => setGapFilter('')}>
+              Show all
+            </button>
+          )}
         </div>
       )}
 
@@ -315,16 +442,39 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
             return (
               <div key={f.id} className={s.card} onClick={() => navigate(`${basePath}/${f.id}`)}>
                 <div className={s.swatch}>
-                  {url && !broken.has(f.id)
-                    ? <img src={url} alt={f.name} onError={() => markBroken(f.id)} />
-                    : <span className={s.swatchEmpty}><UilImage size={20} /></span>}
+                  {(() => {
+                    const st = swatchState(f.image_keys, url, broken.has(f.id));
+                    return st === 'ok' ? (
+                      <img src={url} alt={f.name} onError={() => markBroken(f.id)} />
+                    ) : (
+                      <span
+                        className={`${s.swatchEmpty} ${st === 'unreachable' ? s.swatchBroken : ''}`}
+                        title={SWATCH_TITLE[st]}
+                      >
+                        <UilImage size={20} />
+                        <span className={s.swatchNote}>
+                          {st === 'unreachable' ? 'image unreachable' : 'no swatch'}
+                        </span>
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className={s.body}>
                   <div className={s.name}>{f.name}</div>
                   <div className={s.code}>{f.code}{f.color_name ? ` · ${f.color_name}` : ''}</div>
                   <div className={s.meta}>{f.composition}{f.weave ? ` · ${f.weave}` : ''}</div>
                   <div className={s.foot}>
-                    <span className={s.price}>{f.price_per_meter ? `₹${Number(f.price_per_meter).toLocaleString('en-IN')}/m` : '—'}</span>
+                    {/* [PRC-14-6] Design holds neither distribution:write nor catalog:write,
+                        so the server does not send ₹/m here. A bare "—" would say the fabric
+                        has no price; it has one, and this role is not the one that sets or
+                        spends against it. */}
+                    <span className={s.price}>
+                      {fieldVis && !fieldVis.price
+                        ? 'cost restricted'
+                        : f.price_per_meter
+                          ? `₹${Number(f.price_per_meter).toLocaleString('en-IN')}/m`
+                          : '—'}
+                    </span>
                     <StatusBadge status={f.is_active ? 'active' : 'inactive'} />
                   </div>
                 </div>
@@ -359,24 +509,66 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
                     <tr key={f.id} className={base.row} {...rowActivation(() => navigate(`${basePath}/${f.id}`))}>
                       <td>
                         <div className={base.fabricCell}>
-                          {url && !broken.has(f.id)
-                            ? <img className={base.swatchThumb} src={url} alt="" onError={() => markBroken(f.id)} />
-                            : <span className={base.swatchThumb}><UilImage size={16} /></span>}
+                          {(() => {
+                            const st = swatchState(f.image_keys, url, broken.has(f.id));
+                            return st === 'ok' ? (
+                              <img className={base.swatchThumb} src={url} alt="" onError={() => markBroken(f.id)} />
+                            ) : (
+                              <span
+                                className={`${base.swatchThumb} ${st === 'unreachable' ? s.swatchBroken : ''}`}
+                                title={SWATCH_TITLE[st]}
+                              >
+                                <UilImage size={16} />
+                              </span>
+                            );
+                          })()}
                           <span>{f.name}{f.color_name ? ` · ${f.color_name}` : ''}</span>
                         </div>
                       </td>
                       <td onClick={(e) => e.stopPropagation()}><CopyId value={f.code} /></td>
                       <td>{f.composition}</td>
                       <td>
-                        <div>{f.supplier ?? '—'}{f.supplier_city ? ` · ${f.supplier_city}` : ''}</div>
-                        {f.supplier_lead_time_days != null && (
-                          <div className={s.subtle}>{f.supplier_lead_time_days}d lead</div>
+                        {/* [PRC-14-6] Restricted ≠ missing. The server omits these fields for
+                            roles that may not see them, and a bare "—" would claim the mill
+                            has no name on file. */}
+                        {fieldVis && !fieldVis.supplier ? (
+                          <div className={s.subtle} title="Supplier identity is visible to procurement and finance">
+                            restricted
+                          </div>
+                        ) : (
+                          <>
+                            <div>{f.supplier ?? '—'}{f.supplier_city ? ` · ${f.supplier_city}` : ''}</div>
+                            {f.supplier_lead_time_days != null && (
+                              <div className={s.subtle}>{f.supplier_lead_time_days}d lead</div>
+                            )}
+                          </>
                         )}
                       </td>
-                      <td>{f.price_per_meter ? `₹${Number(f.price_per_meter).toLocaleString('en-IN')}` : '—'}</td>
+                      <td>
+                        {fieldVis && !fieldVis.price ? (
+                          <span className={s.subtle} title="Cost is visible to procurement, finance and catalog">
+                            restricted
+                          </span>
+                        ) : f.price_per_meter ? (
+                          `₹${Number(f.price_per_meter).toLocaleString('en-IN')}`
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td className={f.low_somewhere ? s.stockLow : undefined}>
                         {(f.total_available ?? 0).toLocaleString('en-IN')}m
                         {f.low_somewhere && <span className={s.lowTag}>low</span>}
+                        {/* [PRC-14-4] Stock on the shelf and no threshold anywhere: this row
+                            can never show "low", so its silence means nothing. Say so, and
+                            point at the page that fixes it (the row already opens the PDP). */}
+                        {!f.low_somewhere && !f.watched_somewhere && (f.total_available ?? 0) > 0 && (
+                          <span
+                            className={s.unwatchedTag}
+                            title="No hub has a reorder point for this fabric, so it can never be flagged low. Open the fabric to set one."
+                          >
+                            unwatched
+                          </span>
+                        )}
                       </td>
                       <td><MoneyCell amount={f.stock_value ?? null} /></td>
                       <td><StatusBadge status={f.is_active ? 'active' : 'inactive'} /></td>

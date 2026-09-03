@@ -22,6 +22,10 @@ export interface OrderItem {
   unit_price: number;
   cancelled_at?: string | null; // T2-8: item-level cancel
   cancel_reason?: string | null;
+  // [SUP-28-4] What this garment was actually cut to. The server has always sent it and
+  // the type never declared it, so the one fact that settles "it doesn't fit" was a field
+  // away and invisible — the agent saw only "✓ Measurements on file".
+  measurement_snapshot?: Record<string, number | string | null> | null;
 }
 
 export interface OrderTimelineEntry {
@@ -34,13 +38,30 @@ export interface OrderTimelineEntry {
   created_at: string;
 }
 
+/**
+ * [SUP-28-7] Mirrors the `payments` row the order-detail endpoint actually sends.
+ *
+ * This type used to declare `payment_method` and `payment_gateway_id`. Neither
+ * column exists on `payments` (checked against the live schema): the method lives
+ * on the ORDER (`orders.payment_method`) and the gateway reference is
+ * `razorpay_payment_id`. So the panel rendered Method as a permanent "—" and its
+ * `payment_gateway_id &&` guard was never once true — the Payment ID block did not
+ * exist at runtime, on the screen where a refund conversation starts and where that
+ * id is the thing support has to quote.
+ */
 export interface OrderPayment {
   id: string;
-  payment_method: string | null;
-  payment_gateway_id: string | null;
   amount: number;
   status: string;
+  /** Gateway payment reference (`pay_…`). Null until the gateway confirms; always
+   *  null for COD, which never touches Razorpay. */
+  razorpay_payment_id: string | null;
+  razorpay_order_id: string | null;
+  /** When the money actually moved — the question a refund conversation opens with. */
+  captured_at: string | null;
+  cod_collected_at: string | null;
   created_at: string;
+  updated_at?: string | null;
 }
 
 export interface AdminOrder {
@@ -58,8 +79,12 @@ export interface AdminOrder {
   hub: string;
   hub_id?: string;
   created: string;
-  /** ISO timestamp of the last update — drives the age-in-stage column */
+  /** ISO timestamp of the last write to the ORDER ROW. Any write bumps it (a note, a
+   *  claim, an unrelated webhook), so it is NOT age-in-stage — use `entered_stage_at`. */
   updated_at?: string | null;
+  /** [SUP-27-5] ISO timestamp of the last actual STAGE CHANGE — the clock behind the AGE
+   *  column and behind "Stuck > 48h". Advanced by a DB trigger, so every path moves it. */
+  entered_stage_at?: string | null;
   payment_method?: string | null;
   total: number;
   status: LifecycleStatus;
@@ -195,6 +220,13 @@ export interface SupportTicket {
   waitingHours?: number; // hours since the last customer message (drives the SLA chip)
   lastSender?: "customer" | "staff" | null;
   snoozeUntil?: string | null; // T3-3 (W-S3): follow-up / snooze time
+  // [SUP-32-5] What actually fixed it. Null on every ticket resolved before this
+  // existed — deliberately not backfilled, because inventing outcomes for closed
+  // conversations would poison the first report anyone runs off them.
+  resolution?: string | null;
+  resolutionNote?: string | null;
+  resolvedAt?: string | null;
+  resolvedByName?: string | null;
 }
 
 export interface AuditEntry {
@@ -271,6 +303,12 @@ export interface ConfigItem {
   dangerous?: boolean;
   updatedByEmail?: string | null;
   updatedAt?: string | null;
+  /**
+   * [SHL-7-9] False when NOTHING READS the key. `/config` returns every app_config row,
+   * so an unwired setting is otherwise indistinguishable from a live one — an operator
+   * edits it, saves, and nothing happens.
+   */
+  enforced?: boolean;
 }
 
 export interface ConfigGroup {

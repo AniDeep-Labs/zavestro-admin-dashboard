@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { catalogApi } from '../../api/catalogApi';
+import { UilEye, UilEyeSlash } from '@iconscout/react-unicons';
 import styles from './AdminLoginPage.module.css';
-import regStyles from './AdminRegisterPage.module.css';
+import regStyles from './AuthCard.module.css';
 
 export const AdminResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
@@ -111,7 +112,11 @@ export const AdminResetPasswordPage: React.FC = () => {
                 onClick={() => setShowPassword(s => !s)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? '🙈' : '👁️'}
+                {/* [SHL-2-9] Was 🙈 / 👁️. The login page — same visual slot, same card,
+                    same stylesheet, one screen away — used these icon components all
+                    along. Emoji render differently per OS, cannot be themed, ignore the
+                    icon set, and read as placeholder work. */}
+                {showPassword ? <UilEyeSlash size={16} /> : <UilEye size={16} />}
               </button>
             </div>
           </div>

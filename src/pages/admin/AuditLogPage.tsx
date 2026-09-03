@@ -22,8 +22,18 @@ const LIMIT = 50;
 // and a filter list maintained by hand drifts the moment anyone adds an action. Derived
 // from `SELECT DISTINCT action`, options can only be actions that actually happened.
 
-// Break-glass = manual stage overrides (the Wave-2 reason-required action).
-const BREAK_GLASS_ACTION = 'update_order_stage';
+// [SHL-7-11] Break-glass is BOTH ways an order's stage moves by hand.
+//
+// The chip filtered `update_order_stage` alone. P1-e established that the actual
+// break-glass path is `POST /orders/:id/advance` — gated `system:manage` — which logs
+// `advance_order_stage`. Both rows existed in the log; the pinned view rendered one, and
+// it was the wrong one. A view whose entire job is "show me the overrides" that silently
+// omits the override is worse than no view: it answers the question, incorrectly, and
+// invites you to stop looking.
+//
+// Sent as a comma-separated list; the endpoint matches with `= ANY(...)`.
+const BREAK_GLASS_ACTIONS = ['advance_order_stage', 'update_order_stage'] as const;
+const BREAK_GLASS_ACTION = BREAK_GLASS_ACTIONS.join(',');
 
 // T2-22: entity types with a real detail page — their IDs deep-link to the record.
 const ENTITY_ROUTE: Record<string, ((id: string) => string) | undefined> = {
@@ -42,9 +52,25 @@ function useDebounce<T>(value: T, delay: number): T {
   return dv;
 }
 
+// [SHL-7-13] The one action that floods this log. A constant, not a literal in three
+// places, so the day a second chatty action appears there is one line to change.
+const NOISY_ACTION = 'update_config';
+
 export const AuditLogPage: React.FC = () => {
   const [search, setSearch] = React.useState('');
   const [actionFilter, setActionFilter] = React.useState('All');
+  // [SHL-7-13] Config churn hidden BY DEFAULT.
+  //
+  // 69 of this log's 74 rows were `update_config` — three saves, one row per key, all with
+  // the same timestamp — so the first page was entirely config and the five rows an
+  // auditor came for (a credit approval, a PII export, a stage advance) were pushed off it
+  // by their own noise. [SHL-7-7] fixed the source; the rows already written stay written,
+  // so the symptom outlives the cause and the default has to carry it.
+  //
+  // Default-on rather than a filter someone must discover, because the page's job is to
+  // surface the consequential act — but always switchable, since a log that CANNOT show
+  // everything is not an audit log.
+  const [hideConfigNoise, setHideConfigNoise] = React.useState(true);
   const [actor, setActor] = React.useState('');
   const [entityType, setEntityType] = React.useState('');
   const [entityId, setEntityId] = React.useState('');
@@ -68,15 +94,30 @@ export const AuditLogPage: React.FC = () => {
     auditApi.facets().then(setFacets).catch(() => {});
   }, []);
 
+  // [SHL-7-13] How many rows the default is holding back. Fetched once with limit 1 — only
+  // the `total` is wanted — so the label can name the number instead of leaving the reader
+  // to wonder whether the log is complete.
+  const [configRowCount, setConfigRowCount] = React.useState(0);
+  React.useEffect(() => {
+    auditApi
+      .list({ action: NOISY_ACTION, page: 1, limit: 1 })
+      .then((r) => setConfigRowCount(r.total ?? 0))
+      .catch((err) => console.warn('[audit] could not count config rows', err));
+  }, []);
+
   const filters = React.useMemo(() => ({
     search: debouncedSearch || undefined,
     action: actionFilter !== 'All' ? actionFilter : undefined,
+    // Never both: asking FOR update_config and excluding it would return nothing, which
+    // reads as "no config changes" rather than "you asked for two opposite things".
+    exclude_action:
+      hideConfigNoise && actionFilter !== NOISY_ACTION ? NOISY_ACTION : undefined,
     actor: actor || undefined,
     entity_type: entityType || undefined,
     entity_id: debouncedEntityId || undefined,
     from: from || undefined,
     to: to || undefined,
-  }), [debouncedSearch, actionFilter, actor, entityType, debouncedEntityId, from, to]);
+  }), [debouncedSearch, actionFilter, hideConfigNoise, actor, entityType, debouncedEntityId, from, to]);
 
   React.useEffect(() => {
     setLoading(true);
@@ -146,7 +187,24 @@ export const AuditLogPage: React.FC = () => {
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Audit Log</h1>
-      <div className={styles.subtitle}>Read-only. Every admin write action is automatically logged with the admin's identity.</div>
+      {/* [SHL-7-12] The old line read "Every admin write action is automatically logged
+          with the admin's identity." It was disproved by experiment — role change,
+          deactivate/reactivate and set-temp-password all returned 200 and wrote nothing —
+          and it is the strongest possible claim, printed on the surface an auditor
+          consults to check it. Someone verifying coverage reads that sentence and stops.
+
+          Those three are audited now (recordGovernance), as are staff activate/deactivate
+          [SHL-6-6], service-pincode writes [SHL-6-11] and garment-type create/delete
+          [DSG-11-13]. But the claim is absolute over ~369 write routes in 56 files, and
+          no page can honestly guarantee that. So it says what it can stand behind, and
+          names the one inference an auditor must not draw. */}
+      <div className={styles.subtitle}>
+        Read-only. Actions are logged where the code records them — with the actor, the
+        time, and (increasingly) the before/after values. Coverage is per-action, not
+        automatic: <strong>the absence of a row is not proof an action did not happen.</strong>{' '}
+        If you are auditing a specific verb, confirm it writes here before relying on this
+        page.
+      </div>
 
       {/* Pinned views: break-glass overrides lead — the highest-trust action */}
       <div className={styles.pinnedViews}>
@@ -162,6 +220,21 @@ export const AuditLogPage: React.FC = () => {
         >
           🔓 Break-glass overrides
         </button>
+        {/* [SHL-7-13] The default is ON, so the toggle has to be visible — a page that
+            silently withholds rows from an AUDIT log would be a worse fault than the one
+            being fixed. It says how many it is hiding, so "is this everything?" is
+            answerable without flipping it. */}
+        <label className={styles.noiseToggle}>
+          <input
+            type="checkbox"
+            checked={hideConfigNoise}
+            onChange={(e) => { setHideConfigNoise(e.target.checked); setPage(1); }}
+          />
+          <span>
+            Hide config saves
+            {hideConfigNoise && configRowCount > 0 ? ` (${configRowCount} hidden)` : ''}
+          </span>
+        </label>
       </div>
 
       <div className={styles.filterBar}>

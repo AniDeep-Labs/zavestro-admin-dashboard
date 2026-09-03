@@ -7,11 +7,15 @@ import type { ToastData } from '../../components/Toast/Toast';
 import { Can } from '../../components/Can/Can';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
+import { fmtDuration } from '../../utils/date';
+import { statusLabel } from '../../components/StatusBadge/vocab';
 import s from './HubConstraintsPage.module.css';
 
 // T2-7 (O-11): where is each hub backed up (WIP × stage + SLA breach), read alongside the
 // festival demand-spike / staff-leave calendar.
-const fmtH = (n: number | null) => (n == null ? '—' : `${n}h`);
+// [SHL-5-8] Was `${n}h`, which rendered 494.6h / 564.8h / 582.3h next to "SLA 24h" — the
+// comparison the column exists for, in the one form nobody can do in their head.
+const fmtH = (n: number | null) => fmtDuration(n);
 
 const blankEvent = (): HubCalendarInput => ({
   event_type: 'demand_spike',
@@ -167,7 +171,11 @@ export const HubConstraintsPage: React.FC = () => {
               {rows.map((r, i) => (
                 <tr key={`${r.hub_id}-${r.stage}-${i}`}>
                   <td>{r.hub_name ?? '—'}</td>
-                  <td className={s.stageTag}>{r.stage}</td>
+                  {/* [SHL-5-9] Rendered the raw slug — `cutting`, `fabric_sourced`,
+                      `ready_for_dispatch`. The canonical vocabulary already existed and
+                      this page simply wasn't reading it, so oversight saw database
+                      identifiers where every other surface says "Ready for dispatch". */}
+                  <td className={s.stageTag}>{statusLabel(r.stage)}</td>
                   <td className={s.num}>{r.wip_count}</td>
                   <td className={`${s.num} ${r.over_sla_count > 0 ? s.overSla : ''}`}>
                     {r.over_sla_count}
@@ -175,7 +183,7 @@ export const HubConstraintsPage: React.FC = () => {
                   <td className={s.num}>
                     {fmtH(r.p50_stage_hours)} / {fmtH(r.p90_stage_hours)} / {fmtH(r.max_stage_hours)}
                   </td>
-                  <td className={s.num}>{r.threshold_hours == null ? '—' : `${r.threshold_hours}h`}</td>
+                  <td className={s.num}>{fmtH(r.threshold_hours)}</td>
                   <td className={s.num}>{fmtH(r.p50_order_age_hours)}</td>
                 </tr>
               ))}
