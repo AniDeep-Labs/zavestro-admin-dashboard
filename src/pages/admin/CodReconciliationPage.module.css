@@ -115,3 +115,12 @@
 /* A note under the summary block. Replaces the `style={{ marginTop: N }}` that was
    repeated inline on every one of them — the FinanceReport page borrows this sheet. */
 .summaryNote { margin-top: var(--spacing-sm); }
+
+/* [FIN-35-3] The gap between what the orders owe and what was declared — the shortfall the
+   declared-vs-counted variance is structurally blind to. */
+.underDeclared {
+  font-size: var(--font-size-xs);
+  color: var(--color-warning);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}

@@ -72,3 +72,31 @@ export function toDateInput(value?: string | number | Date | null): string {
   // en-CA gives ISO-ordered y-m-d, which is exactly the input's required format.
   return d.toLocaleDateString('en-CA', { timeZone: IST });
 }
+
+/**
+ * [SHL-5-8] An elapsed duration, in units a person can hold in their head.
+ *
+ * The hub-constraints table rendered raw hours: `494.6h`, `564.8h`, `582.3h`, in a column
+ * sat next to `SLA 24h`. Nobody reads 582.3h as "twenty-four days" at a glance, which is
+ * the one comparison the column exists to support — so the page's most alarming number was
+ * also its least legible.
+ *
+ * Rules, in the order they matter for this table:
+ *  - under a day, hours with one decimal (`6.4h`) — the precision is meaningful at SLA scale
+ *  - a day or more, whole days and hours (`24d 6h`) — the decimal is noise at that size
+ *  - under an hour, minutes (`18m`) — "0.3h" is not how anyone says it
+ *
+ * Returns the fallback for null/undefined/NaN, so a missing measurement never renders as
+ * "0m", which would read as "instant" rather than "not known".
+ */
+export function fmtDuration(hours?: number | null, fallback = '—'): string {
+  if (hours == null || !Number.isFinite(hours)) return fallback;
+  if (hours < 0) return fallback;
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 24) return `${Number(hours.toFixed(1))}h`;
+  const d = Math.floor(hours / 24);
+  const h = Math.round(hours % 24);
+  // 47.7h would otherwise render "1d 24h".
+  if (h === 24) return `${d + 1}d`;
+  return h ? `${d}d ${h}h` : `${d}d`;
+}

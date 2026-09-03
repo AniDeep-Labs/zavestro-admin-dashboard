@@ -104,3 +104,28 @@
   display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--color-text-tertiary);
 }
 .imgPreview img { width: 100%; height: 100%; object-fit: cover; }
+
+/* [CM-23-4] Active categories with no listings. Amber, not red: the category isn't
+   broken, it just has nothing to show a customer who taps it. */
+.emptyActiveWarn {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-warning-border, var(--color-border));
+  background: var(--color-warning-bg, var(--color-bg-secondary));
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* [CM-23-8] Marks the half of the taxonomy that cannot drive a fit. Warning-toned rather
+   than error-toned: a legacy row is not broken, it is superseded. */
+.legacyChip {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+  white-space: nowrap;
+}

@@ -1,6 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { designsApi, fabricsApi } from '../../api/adminApi';
+import { ENTERED, provenanceFor } from '../../constants/provenance';
+import { blockOf, DRAFTING_BLOCK_LABELS } from '../../constants/draftingBlock';
+import { measurementLabel } from '../../utils/measurements';
 import type { GarmentCategoryOption, SizePreviewResult, Fabric } from '../../api/adminApi';
 import { PageHeader } from '../../components';
 import { Button } from '../../components/Button/Button';
@@ -15,26 +18,86 @@ import { UilBolt, UilSave, UilTrashAlt, UilRulerCombined } from '@iconscout/reac
 // so a design teammate (not an engineer) knows what to type. Keys MUST match
 // SizePreviewInput fields. `required` mirrors what the engine hard-requires, so we
 // can validate client-side instead of relying on its 400.
-type FieldDef = { key: string; label: string; required?: boolean };
-const FIELDS_BY_REGION: Record<string, FieldDef[]> = {
-  upper: [
+type FieldDef = { key: string; label: string; required?: boolean; hint?: string };
+
+/**
+ * [DSG-13-5 / DSG-13-6] The inputs each DRAFTING BLOCK actually reads.
+ *
+ * Keyed by block, not by `body_region`, for the same reason [DSG-11-7] gave: the engine
+ * routes on the block (three values) while `body_region` has two, so a women's-block
+ * garment was being offered the men's anchors. That was worse than the audit recorded — it
+ * did not just include fields the engine ignores, it OMITTED every field
+ * `buildWomensUpper` requires (bust, waist, hip, length).
+ *
+ * Every key below is one the corresponding build function reads. Verified against
+ * size-engine.ts:
+ *   buildTop          — req chest, shoulder; opt neck, sleeve, bicep, shirt_length
+ *   buildWomensUpper  — req bust, waist, hip, length; opt underbust
+ *   buildBottom       — req usual_size; then inseam OR height_cm; opt waist, hip, thigh,
+ *                       knee, calf, ankle
+ *
+ * What was removed and why it matters: the men's list offered **Waist** and **Height**, and
+ * `buildTop` reads neither — waist is computed as `finishedChest − waist_supp`, and height
+ * is not a top anchor at all. The audit proved it by running the engine four times and
+ * getting an identical finished spec with waist 30 vs 44 and height 150 vs 195. On a
+ * CALIBRATION instrument that is the worst possible lie: it invites you to vary a number
+ * and shows you that varying it changed nothing, which reads as "the engine ignores your
+ * chart" rather than "this box was never wired".
+ */
+const FIELDS_BY_BLOCK: Record<string, FieldDef[]> = {
+  mens_upper: [
     { key: 'chest', label: 'Chest (in)', required: true },
     { key: 'shoulder', label: 'Shoulder (in)', required: true },
     { key: 'sleeve', label: 'Sleeve length (in)' },
     { key: 'bicep', label: 'Bicep / sleeve width (in)' },
     { key: 'neck', label: 'Neck (in)' },
-    { key: 'waist', label: 'Waist (in)' },
-    { key: 'height_cm', label: 'Height (cm)' },
+    { key: 'shirt_length', label: 'Garment length (in)' },
+  ],
+  womens_upper: [
+    { key: 'bust', label: 'Bust (in)', required: true },
+    { key: 'waist', label: 'Waist (in)', required: true },
+    { key: 'hip', label: 'Hip (in)', required: true },
+    { key: 'length', label: 'Garment length (in)', required: true },
+    {
+      key: 'underbust',
+      label: 'Underbust (in)',
+      hint: 'Drives the bust dart. Without it the dart is 0 and a shaped preset drafts flat.',
+    },
   ],
   lower: [
     { key: 'usual_size', label: 'Usual size (e.g. 32)', required: true },
-    { key: 'inseam', label: 'Length / inseam (in)', required: true },
     { key: 'waist', label: 'Waist (in)' },
     { key: 'hip', label: 'Hip (in)' },
     { key: 'thigh', label: 'Thigh (in)' },
     { key: 'knee', label: 'Knee (in)' },
+    { key: 'calf', label: 'Calf (in)' },
   ],
 };
+
+/**
+ * [DSG-13-6] Lower length: a DESIRED inseam, or a body height the engine interpolates the
+ * length-by-height bands from.
+ *
+ * The tester marked `inseam` required and never offered `height_cm`, so the one calibration
+ * surface it could not exercise was the length-by-height bands — whose only other test is
+ * the template editor's preview. The engine takes either (`buildBottom`: inseam if given,
+ * else height_cm), so the tester offers the same choice rather than picking for you.
+ */
+const LENGTH_SOURCES = [
+  {
+    key: 'inseam',
+    label: 'Measured inseam',
+    field: { key: 'inseam', label: 'Length / inseam (in)', required: true } as FieldDef,
+    hint: 'The length the customer asked for. Used as given; the bands are not consulted.',
+  },
+  {
+    key: 'height_cm',
+    label: 'From body height',
+    field: { key: 'height_cm', label: 'Height (cm)', required: true } as FieldDef,
+    hint: 'Interpolates the Length-by-height bands authored on this garment type.',
+  },
+] as const;
+type LengthSource = (typeof LENGTH_SOURCES)[number]['key'];
 
 type SavedBody = { name: string; body: Record<string, string> };
 const BODIES_KEY = 'zav-engine-test-bodies';
@@ -60,6 +123,7 @@ export const EngineTesterPage: React.FC = () => {
   const [result, setResult] = React.useState<SizePreviewResult | null>(null);
   // What fabric (if any) was actually folded into the LAST run — so the result meta
   // can say so, rather than the user wondering if the dropdown mattered.
+  const [enteredFields, setEnteredFields] = React.useState<Set<string>>(new Set());
   const [appliedFabric, setAppliedFabric] = React.useState<{ name: string; stretch: number; shrink: number } | null>(null);
   const [running, setRunning] = React.useState(false);
   const [triedRun, setTriedRun] = React.useState(false);
@@ -81,7 +145,21 @@ export const EngineTesterPage: React.FC = () => {
 
   const cat = cats.find((c) => c.id === catId) ?? null;
   const region = cat?.body_region ?? null;
-  const fields = region ? FIELDS_BY_REGION[region] ?? FIELDS_BY_REGION.upper : [];
+  // [DSG-13-5] The BLOCK decides the anchors, not the region — `blockOf` is the same
+  // resolver the template editor uses, so the two consoles cannot disagree about which
+  // path a garment drafts on.
+  const block = cat ? blockOf(cat) : null;
+  // [DSG-13-6] Lower garments choose how the length is arrived at; the engine accepts
+  // either, and the bands are only exercised by the height path.
+  const [lengthSource, setLengthSource] = React.useState<LengthSource>('inseam');
+  const fields = React.useMemo(() => {
+    if (!block) return [];
+    const base = FIELDS_BY_BLOCK[block] ?? FIELDS_BY_BLOCK.mens_upper;
+    if (block !== 'lower') return base;
+    const chosen = LENGTH_SOURCES.find((l) => l.key === lengthSource) ?? LENGTH_SOURCES[0];
+    // Length sits directly under `usual_size`, where the old required inseam was.
+    return [base[0], chosen.field, ...base.slice(1)];
+  }, [block, lengthSource]);
   // Presets the engine can actually RUN (garment_fit_preset rows), not the authored
   // column — the two drift (G-83). Fall back to the column only if the field is absent.
   const presets = cat?.calibrated_fit_presets ?? cat?.available_fit_presets ?? [];
@@ -93,6 +171,7 @@ export const EngineTesterPage: React.FC = () => {
     setPreset(presets[0] ?? '');
     setShapeIntensity({});
     setTriedRun(false);
+    setLengthSource('inseam');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catId]);
 
@@ -143,6 +222,16 @@ export const EngineTesterPage: React.FC = () => {
         ...(shrink > 0 ? { shrinkage_pct: shrink } : {}),
       });
       setResult(r);
+      // [DSG-11-19] The engine doesn't tag a field the caller supplied — it just echoes it.
+      // Labelling an echoed input "not stated" would be its own small lie, so remember what
+      // this run actually sent and render those as entered.
+      setEnteredFields(
+        new Set(
+          Object.entries(anchors)
+            .filter(([, v]) => v !== undefined && v !== null && Number.isFinite(Number(v)))
+            .map(([k]) => k),
+        ),
+      );
       setAppliedFabric(fabric ? { name: fabric.name, stretch, shrink } : null);
     } catch (e) {
       // The engine fails loudly with a plain message ("needs chest and shoulder",
@@ -250,7 +339,44 @@ export const EngineTesterPage: React.FC = () => {
 
           {region && (
             <>
-              <h3 className={s.panelTitle}>2 · Enter body measurements</h3>
+              <h3 className={s.panelTitle}>
+                2 · Enter body measurements
+                {/* [DSG-13-5] Name the block being drafted. The anchors below differ by
+                    block, and an operator who does not know which one they are testing
+                    cannot tell a missing field from an inapplicable one. */}
+                {block && <span className={s.blockChip}>{DRAFTING_BLOCK_LABELS[block]}</span>}
+              </h3>
+              {/* [DSG-13-6] Which way the length is arrived at. Choosing "from height" is
+                  the ONLY way to exercise the length-by-height bands — the tester could not
+                  reach them at all before, which left the template editor's preview as
+                  their only test. */}
+              {block === 'lower' && (
+                <div className={s.lengthSource} role="group" aria-label="Length source">
+                  <span className={s.lengthSourceLabel}>Length from</span>
+                  {LENGTH_SOURCES.map((o) => (
+                    <label key={o.key} className={s.radio}>
+                      <input
+                        type="radio"
+                        name="length-source"
+                        checked={lengthSource === o.key}
+                        onChange={() => {
+                          // Clear the OTHER length input. `buildBottom` prefers inseam
+                          // whenever it is present, so leaving a stale inseam behind would
+                          // make "from height" silently not use height — the same
+                          // varying-a-number-changes-nothing lie [DSG-13-5] is about.
+                          const other = LENGTH_SOURCES.find((x) => x.key !== o.key);
+                          if (other) setField(other.field.key, '');
+                          setLengthSource(o.key);
+                        }}
+                      />
+                      <span>{o.label}</span>
+                    </label>
+                  ))}
+                  <span className={s.lengthSourceHint}>
+                    {LENGTH_SOURCES.find((o) => o.key === lengthSource)?.hint}
+                  </span>
+                </div>
+              )}
               <div className={s.fieldsGrid}>
                 {fields.map((f) => {
                   const isMissing = triedRun && !!f.required && (body[f.key] ?? '').trim() === '';
@@ -267,6 +393,7 @@ export const EngineTesterPage: React.FC = () => {
                         onChange={(e) => setField(f.key, e.target.value)}
                         placeholder={f.required ? 'required' : '—'}
                       />
+                      {f.hint && <span className={s.fieldHint}>{f.hint}</span>}
                     </label>
                   );
                 })}
@@ -353,16 +480,34 @@ export const EngineTesterPage: React.FC = () => {
                       <tr>
                         <th>Measurement</th>
                         <th className={s.num}>Finished (in)</th>
-                        {hasTolerances && <th className={s.num}>QC band (±)</th>}
+                        {/* [DSG-11-19] Where each number came from. A trouser chart has two
+                            columns and this table shows seven fields — without this the five
+                            the engine invented looked exactly like the two you calibrated. */}
+                        <th>Source</th>
+                        {hasTolerances && <th className={s.num}>Expected ± </th>}
                       </tr>
                     </thead>
                     <tbody>
                       {Object.entries(result.spec).map(([k, v]) => {
                         const tol = Number(tols[k] ?? 0);
+                        const prov = enteredFields.has(k)
+                          ? ENTERED
+                          : provenanceFor(result.provenance?.[k]);
                         return (
                           <tr key={k}>
-                            <td>{k}</td>
+                            {/* [DSG-13-13] Raw engine keys (`leg_opening`) leaked into
+                                the one table a designer reads most, while every other
+                                surface humanises them. */}
+                            <td>{measurementLabel(k)}</td>
                             <td className={`${s.num} ${s.finished}`}>{v}</td>
+                            <td>
+                              <span
+                                className={prov.provisional ? s.provProvisional : s.provSolid}
+                                title={prov.detail}
+                              >
+                                {prov.label}
+                              </span>
+                            </td>
                             {hasTolerances && (
                               <td className={s.num}>{tol > 0 ? `${round(v - tol)} – ${round(v + tol)}` : '—'}</td>
                             )}
@@ -371,11 +516,39 @@ export const EngineTesterPage: React.FC = () => {
                       })}
                     </tbody>
                   </table>
+                  {(() => {
+                    const guessed = Object.keys(result.spec).filter(
+                      (k) => !enteredFields.has(k) && provenanceFor(result.provenance?.[k]).provisional,
+                    );
+                    return guessed.length ? (
+                      <p className={s.provNote}>
+                        <strong>{guessed.length} of {Object.keys(result.spec).length} numbers are not calibrated</strong>{' '}
+                        ({guessed.map(measurementLabel).join(', ')}). They come from national-average relations with a ±4cm
+                        residual, held as provisional until the sew-test run. Adding those columns to
+                        this garment type’s size chart replaces them.
+                      </p>
+                    ) : null;
+                  })()}
                   <p className={s.resultHint}>
                     {hasTolerances ? (
-                      <>Target measurements after the "{result.fit_preset}" ease (plus any fabric / body-shape). The QC band is the ± tolerance a finished garment may vary by.</>
+                      /* [DSG-13-10] The band is `garment_categories.tolerances`, which has
+                         no reader outside the design plane — QC scores against the QC
+                         checklist. The sentence already said so; the bare "[CM-20-4]" at
+                         the end of it was an internal finding ID rendered to an operator,
+                         the only one in the admin. Replaced with the thing they would
+                         actually want: where the real thresholds live. */
+                      <>
+                        Target measurements after the “{result.fit_preset}” ease (plus any fabric /
+                        body-shape). The band is the expected variance authored on this garment type
+                        — <strong>it is not what QC judges against</strong>; QC scores a finished
+                        garment against the{' '}
+                        <Link to="/admin/catalog/qc-templates" className={s.inlineLink}>
+                          QC checklist
+                        </Link>{' '}
+                        for its category.
+                      </>
                     ) : (
-                      <>Target measurements after the "{result.fit_preset}" ease (plus any fabric / body-shape). No QC tolerances are set for this garment — add them in Garment Types to see acceptance bands.</>
+                      <>Target measurements after the "{result.fit_preset}" ease (plus any fabric / body-shape). No expected-variance band is set for this garment — add one in Garment Types to see it here.</>
                     )}
                   </p>
                 </>

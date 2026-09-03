@@ -43,6 +43,11 @@ type EditState = {
 
 export const CategoriesPage: React.FC = () => {
   const [categories, setCategories] = React.useState<ProductCategory[]>([]);
+  // [CM-23-4] Active, and with nothing behind it. Same computation the row already does.
+  const emptyActive = React.useMemo(
+    () => categories.filter((c) => c.is_active !== false && (c.product_count ?? 0) === 0),
+    [categories],
+  );
   const [garmentCats, setGarmentCats] = React.useState<GarmentCategoryOption[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -262,6 +267,24 @@ export const CategoriesPage: React.FC = () => {
               <span className={catCss.name}>{cat.name}</span>
               <span className={catCss.slug}>{cat.slug}</span>
               {!cat.is_active && <span className={catCss.inactiveChip}>Archived</span>}
+              {/* [CM-23-8] Which of a near-duplicate pair is the real one.
+                  "Kurta" and "Kurtas" sat four rows apart with identical affordances, and
+                  the only hint — "0 listings" vs the 📐 chip — pointed the WRONG way: the
+                  mapped, canonical row is the EMPTY one, because it is the new taxonomy
+                  nothing has been migrated into yet. So "has listings" reads as "this is
+                  the good one" when it means the opposite.
+                  Being mapped to a garment type is the thing that actually decides it: an
+                  unmapped category cannot drive a fit, so it can never be more than a
+                  storefront label. Say that on the row instead of leaving it to be
+                  inferred from a count that misleads. */}
+              {!garmentName(cat.garment_category_id) && (
+                <span
+                  className={catCss.legacyChip}
+                  title="Not mapped to a garment type, so it cannot drive a fit. Use the mapped category for new work."
+                >
+                  Legacy
+                </span>
+              )}
             </div>
             <span className={catCss.count}>
               {cat.product_count ?? 0} listing{(cat.product_count ?? 0) === 1 ? "" : "s"}
@@ -315,6 +338,21 @@ export const CategoriesPage: React.FC = () => {
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* [CM-23-4] An active category with nothing in it is a tile in "Shop by Category"
+          that opens an empty grid. Each row already reads "0 listings" honestly — and a
+          zero per row is exactly what nobody adds up. Thirteen of sixteen are in this
+          state here, which is not a fact any per-row zero was ever going to convey. */}
+      {emptyActive.length > 0 && (
+        <div className={catCss.emptyActiveWarn} role="status">
+          <strong>
+            {emptyActive.length} active {emptyActive.length === 1 ? 'category has' : 'categories have'} no listings.
+          </strong>{' '}
+          Each is a tile in “Shop by Category” that opens an empty grid:{' '}
+          {emptyActive.slice(0, 8).map((c) => c.name).join(' · ')}
+          {emptyActive.length > 8 ? ` and ${emptyActive.length - 8} more` : ''}
+        </div>
+      )}
 
       <div className={catCss.topBar}>
         <div>

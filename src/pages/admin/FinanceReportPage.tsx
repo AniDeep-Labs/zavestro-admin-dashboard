@@ -51,15 +51,22 @@ const SummaryCard: React.FC<{
   loading: boolean;
   accent?: boolean;
   est?: boolean;
+  /** [FIN-37-4] The figure is derived from cost lines that are estimated or missing. */
+  provisional?: boolean;
   /** Shown under the value when `value` is zero — why this is zero, not "it is zero". */
   zeroNote?: string;
   /** Shown always, e.g. on a figure derived from an unmeasured input. */
   note?: string;
-}> = ({ label, value, loading, accent, est, zeroNote, note }) => (
+}> = ({ label, value, loading, accent, est, provisional, zeroNote, note }) => (
   <div className={s.summaryCard}>
     <div className={s.summaryLabel}>{label}{est && <span className={s.estTag}>est.</span>}</div>
-    <div className={`${s.summaryValue}${accent ? ` ${s.pendingAccent}` : ""}`}>
-      {loading || value === undefined ? "—" : fmtINR(value)}
+    {/* [FIN-37-4] `provisional` marks the VALUE, not the label. A derived figure inherits
+        the incompleteness of everything under it, and Profit is the number that leaves the
+        room — a margin, a hub ranking or a board slide built on it inherits a COGS of zero
+        as though it had been measured. Two decimals of precision on top of an unmeasured
+        cost line is the part that misleads. */}
+    <div className={`${s.summaryValue}${accent ? ` ${s.pendingAccent}` : ""}${provisional ? ` ${s.provisionalValue}` : ""}`}>
+      {loading || value === undefined ? "—" : provisional ? `≈ ${fmtINR(value)}` : fmtINR(value)}
     </div>
     {!loading && note && <div className={s.summarySub}>{note}</div>}
     {!loading && zeroNote && value === 0 && <div className={s.summarySub}>{zeroNote}</div>}
@@ -319,17 +326,33 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
             <SummaryCard label="Delivery" value={pnl?.totals.delivery_cost} loading={loading} est />
             <SummaryCard label="Payment fees" value={pnl?.totals.payment_fees} loading={loading} />
             <SummaryCard label="Refunds" value={pnl?.totals.refunds} loading={loading} accent />
-            {/* [KA8-2] Profit is only as good as the costs under it. */}
-            <SummaryCard
-              label="Profit"
-              value={pnl?.totals.profit}
-              loading={loading}
-              note={
-                pnl && pnl.totals.fabric_cost === 0
-                  ? "Overstated — computed with fabric cost at ₹0."
-                  : undefined
-              }
-            />
+            {/* [KA8-2] Profit is only as good as the costs under it.
+                [FIN-37-4] …and it carried no marker of its own. The page labelled the
+                estimated lines honestly and then printed Profit to the paisa, so the one
+                number a reader takes away was the only one that did not admit what it was
+                built from. It is now marked provisional whenever ANY cost line is
+                estimated or missing, and it names which. */}
+            {(() => {
+              const missing: string[] = [];
+              if (pnl && pnl.totals.fabric_cost === 0) missing.push("fabric cost is ₹0 (no receipts ingested)");
+              // Guarantee and delivery are rendered `est` above — an estimate under a
+              // derived figure makes the derived figure an estimate too.
+              if (pnl && pnl.totals.guarantee_cost != null) missing.push("guarantee is estimated");
+              if (pnl && pnl.totals.delivery_cost != null) missing.push("delivery is estimated");
+              return (
+                <SummaryCard
+                  label="Profit"
+                  value={pnl?.totals.profit}
+                  loading={loading}
+                  provisional={missing.length > 0}
+                  note={
+                    missing.length > 0
+                      ? `Provisional — ${missing.join("; ")}. Anything derived from this (a margin, a hub ranking) inherits the same gap.`
+                      : undefined
+                  }
+                />
+              );
+            })()}
             {/* [CHN-39-1] Revenue is now recognised at capture (prepaid) / delivery (COD),
                 not at order creation. This card is where the difference GOES — without
                 it, moving the trigger just makes revenue fall off a cliff with nothing

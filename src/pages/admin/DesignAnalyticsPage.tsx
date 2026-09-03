@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { designAnalyticsApi, hubsApi, designsApi } from '../../api/adminApi';
 import type {
   FitAccuracyTotals,
@@ -69,12 +69,13 @@ export const DesignAnalyticsPage: React.FC = () => {
   const fitPct = totals?.fit_accuracy_pct;
   const kpis = [
     {
-      label: 'Fit accuracy',
+      label: 'Fit accuracy (design orders only)',
       value: fitPct != null ? `${fitPct}%` : '—',
       tone: fitPct != null ? toneClass(fitTone(fitPct)) : undefined,
     },
-    { label: 'Delivered orders', value: totals ? totals.delivered.toLocaleString('en-IN') : '—' },
-    { label: 'Fit-issue orders', value: totals ? totals.fit_issues.toLocaleString('en-IN') : '—' },
+    { label: 'Delivered orders (with a design item)', value: totals ? totals.delivered.toLocaleString('en-IN') : '—' },
+    // [DSG-13-7] Order-level, not garment-level — see the table header below.
+    { label: 'Orders w/ a fit issue (any item)', value: totals ? totals.fit_issues.toLocaleString('en-IN') : '—' },
   ];
 
   // Exceptions-first: worst fit accuracy leads (then most fit-issue orders).
@@ -88,7 +89,13 @@ export const DesignAnalyticsPage: React.FC = () => {
       <PageHeader
         eyebrow="Design · Analytics"
         title="Design Analytics"
-        subtitle="How your designs perform on fit & demand — worst fitters first, so chart/construction fixes surface."
+        /* [DSG-13-4] Name the population. These figures count only orders containing a
+           DESIGN item — deliberately, so legacy off-the-rack orders don't inflate the
+           design team's own metric — and there are currently very few. In one session this
+           page read "Delivered orders 0" while Fit Outcomes, one click away, graded the
+           same period at 50% FTR. Both were correct under their own scope; neither stated
+           it, so the pair read as a contradiction rather than as two questions. */
+        subtitle="How your designs perform on fit & demand — worst fitters first, so chart/construction fixes surface. Counts ONLY orders containing a design item, so legacy off-the-rack orders are excluded; Fit Outcomes counts every delivered order and will show higher numbers. Fit issues are recorded per ORDER, not per garment, so a multi-item order counts against every design in it — read the ranking as a shortlist to investigate, not a verdict."
       />
 
       <div className={local.toolbar}>
@@ -129,7 +136,22 @@ export const DesignAnalyticsPage: React.FC = () => {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Design</th><th>Units</th><th>Orders</th><th>Fit-issue orders</th><th>Fit accuracy</th></tr>
+            {/* [DSG-13-7] "Fit-issue orders" implied this design caused them. Both fit-issue
+                predicates are ORDER-level, and `alteration_requests` carries no
+                `order_item_id` and no `design_id` — the attribution does not exist at
+                source. In a two-garment order where only the trousers needed altering,
+                BOTH designs are counted, and the table that decides which chart to re-cut
+                would rank an innocent design as a worst fitter. The column says what it
+                actually measures until the schema can say more. */}
+            <tr>
+              <th>Design</th>
+              <th>Units</th>
+              <th>Orders</th>
+              <th title="Orders containing this design where SOME item had a fit issue — alterations are recorded per order, not per garment, so a multi-item order counts against every design in it.">
+                Orders w/ a fit issue (any item)
+              </th>
+              <th>Fit accuracy</th>
+            </tr>
           </thead>
           <tbody>
             {loading ? (
@@ -141,7 +163,26 @@ export const DesignAnalyticsPage: React.FC = () => {
             ) : (
               worstFirst.map((d) => (
                 <tr key={d.design_id} className={styles.row} {...rowActivation(() => navigate(`/admin/design/library/${d.design_id}`))}>
-                  <td className={`${styles.customerName} ${local.cellName}`}>{d.design_name}</td>
+                  <td className={`${styles.customerName} ${local.cellName}`}>
+                    {d.design_name}
+                    {/* [DSG-13-14] The row opened the DESIGN and nothing else, but a
+                        systematic fit failure is almost always fixed in the garment-type
+                        recipe — the chart, the ease, the capture set. Every design of that
+                        type inherits the fault, so fixing one design leaves the rest wrong.
+                        The link stops the loop ending one click short of the thing it
+                        exists to correct. stopPropagation so it does not also fire the
+                        row's own navigation to the design. */}
+                    {d.garment_category_id && (
+                      <Link
+                        to={`/admin/design/templates/${d.garment_category_id}`}
+                        className={local.recipeLink}
+                        onClick={(e) => e.stopPropagation()}
+                        title={`Open the ${d.garment_name ?? 'garment type'} fit recipe — the chart and ease every design of this type inherits`}
+                      >
+                        {d.garment_name ?? 'recipe'} recipe →
+                      </Link>
+                    )}
+                  </td>
                   <td className={`${styles.total} ${local.cellUnits}`}>{d.units}</td>
                   <td>{d.orders}</td>
                   <td className={d.fit_issue_orders > 0 ? local.fitIssueBad : local.fitIssueOk}>{d.fit_issue_orders}</td>

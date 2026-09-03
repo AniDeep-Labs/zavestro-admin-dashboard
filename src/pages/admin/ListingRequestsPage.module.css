@@ -97,3 +97,14 @@
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-lg);
 }
+
+/* [CM-19-5] Requesting a fabric with no central stock is accepted and only fails at
+   fulfil, so the CM has to be told before they ask — amber because procurement can
+   still receive stock in between. */
+.fabricWarn {
+  display: block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-warning);
+}

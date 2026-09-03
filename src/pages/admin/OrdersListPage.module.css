@@ -354,3 +354,15 @@
 .peekRow { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: baseline; }
 .peekRow dt { font-size: 12px; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
 .peekRow dd { margin: 0; font-size: var(--font-size-sm); color: var(--color-text-primary); }
+
+/* [SUP-27-4] Per-row contact reveal. Mirrors DataCells' .revealBtn so the affordance
+   reads the same wherever masked PII appears, and carries a disabled state because
+   this one makes a network call (the value is not already on the page). */
+.revealBtn {
+  padding: 0 4px; font-size: 10px; line-height: 1.6; cursor: pointer;
+  color: var(--color-text-tertiary); background: none;
+  border: 1px solid var(--color-border-light); border-radius: 3px;
+  margin-left: 6px;
+}
+.revealBtn:hover:not(:disabled) { color: var(--color-text-primary); background: var(--color-bg-secondary); }
+.revealBtn:disabled { opacity: 0.6; cursor: default; }

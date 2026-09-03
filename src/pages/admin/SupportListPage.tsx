@@ -15,6 +15,7 @@ import {
   UilSearch,
   UilTimes,
 } from "@iconscout/react-unicons";
+import { TICKET_CATEGORIES, ticketCategoryLabel } from '../../constants/ticketCategories';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const LIMIT = 25;
@@ -29,6 +30,9 @@ function useDebounce<T>(v: T, d: number) {
 }
 
 const priorityCss: Record<string, string> = {
+  // [SUP-32-6] Urgent needs its own weight — collapsed into High it was indistinguishable
+  // from the tickets it is supposed to outrank.
+  Urgent: "priorityUrgent",
   High: "priorityHigh",
   Medium: "priorityMedium",
   Low: "priorityLow",
@@ -71,7 +75,7 @@ export const SupportListPage: React.FC = () => {
     customerName: "",
     customerPhone: "",
     subject: "",
-    category: "General",
+    category: "general", // [SUP-33-7] the canonical slug, not the old label
     priority: "Medium",
     message: "",
   });
@@ -189,16 +193,23 @@ export const SupportListPage: React.FC = () => {
         customerName: "",
         customerPhone: "",
         subject: "",
-        category: "General",
+        category: "general", // [SUP-33-7] the canonical slug, not the old label
         priority: "Medium",
         message: "",
       });
       setSelectedCustomer(null);
       setCustomerSearch("");
+      // [SUP-32-8] An unlinked ticket is allowed, but the agent should know what they have
+      // given up: every CX lever on the detail (re-measure, credit, alteration, return)
+      // acts on a customer record and is hidden without one. Better to say it here, while
+      // they still remember who they were talking to, than to leave them at an empty
+      // Ticket Actions card later wondering what is broken.
       showToast(
-        "success",
+        selectedCustomer ? "success" : "warning",
         "Ticket created",
-        `Ticket #${newTicket.id} created successfully.`,
+        selectedCustomer
+          ? `Ticket #${newTicket.id} created successfully.`
+          : `Ticket #${newTicket.id} created, but no customer record is linked — re-measure, credit, alteration and return won't be available on it. Search the customer and create it from their profile to get those.`,
       );
     } catch (e) {
       showToast(
@@ -426,7 +437,8 @@ export const SupportListPage: React.FC = () => {
                         <div className={styles.customerPhone}><PhoneCell phone={t.phone} /></div>
                       </td>
                       <td className={styles.subject}>{t.subject}</td>
-                      <td>{t.category}</td>
+                      {/* [SUP-32-5] The label, not the stored spelling. */}
+                      <td title={t.category ?? undefined}>{ticketCategoryLabel(t.category)}</td>
                       <td>
                         <span
                           className={`${styles.priorityPill} ${styles[priorityCss[t.priority]]}`}
@@ -714,10 +726,13 @@ export const SupportListPage: React.FC = () => {
                     value={form.category}
                     onChange={(e) => setF("category", e.target.value)}
                   >
-                    <option>General</option>
-                    <option>Order Issue</option>
-                    <option>Return/Refund</option>
-                    <option>Technical Support</option>
+                    {/* [SUP-33-7] The same list the Call Console offers. This one had no
+                        "Fit issue" at all, so a fit complaint logged here was uncountable. */}
+                    {TICKET_CATEGORIES.map((c) => (
+                      <option key={c.slug} value={c.slug} title={c.hint}>
+                        {c.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className={styles.field}>
@@ -730,6 +745,8 @@ export const SupportListPage: React.FC = () => {
                     <option>Low</option>
                     <option>Medium</option>
                     <option>High</option>
+                    {/* [SUP-32-6] The DB has always allowed this; the form never offered it. */}
+                    <option>Urgent</option>
                   </select>
                 </div>
               </div>

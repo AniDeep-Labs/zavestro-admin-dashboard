@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { qcResultsApi } from '../../api/adminApi';
 import type { QcCheck, QcResultContext, QcResultAnswer } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -17,6 +17,7 @@ type Layer = 'house' | 'brand';
 // QC-2 at 'pass' before it can dispatch; a house garment runs QC-1 only.
 export const QcResultPage: React.FC = () => {
   const { orderItemId = '' } = useParams();
+  const navigate = useNavigate();
   const [ctx, setCtx] = React.useState<QcResultContext | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -104,9 +105,35 @@ export const QcResultPage: React.FC = () => {
           </h2>
         </div>
         {checks.length === 0 ? (
-          <p className={s.empty}>
-            No checks configured for this layer / category — nothing to grade.
-          </p>
+          /* [SUP-27-6] Honest, and then a dead end: it named no owner and offered no way
+             out, so the garment simply could not be graded and the page did not say who
+             to ask. QC Templates is catalog:write — the catalog manager's.
+
+             In practice the FALLBACK is the operative branch: this page needs qc:write
+             (super_admin's break-glass) and the templates page needs catalog:write (the
+             CM's), and no designed role holds both — only the legacy `admin`. So naming
+             the role to chase is the answer for almost everyone who lands here. The
+             gated link stays for the `admin` account and for whenever those capabilities
+             are reconciled; it is correctly gated either way. */
+          <div className={s.empty}>
+            <p>No checks configured for this layer / category — nothing to grade.</p>
+            <Can
+              cap="catalog:write"
+              fallback={
+                <p>
+                  Until a checklist exists for this category, this garment cannot be graded.
+                  Ask a catalog manager to add one in Catalog → QC Templates.
+                </p>
+              }
+            >
+              <p>
+                Until a checklist exists for this category, this garment cannot be graded.
+              </p>
+              <Button variant="secondary" onClick={() => navigate('/admin/catalog/qc-templates')}>
+                Configure QC Templates →
+              </Button>
+            </Can>
+          </div>
         ) : (
           <>
             <table className={s.table}>

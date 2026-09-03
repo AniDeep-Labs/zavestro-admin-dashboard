@@ -93,3 +93,17 @@
 .cellUnits { font-weight: 600; }
 .fitIssueBad { color: var(--color-error); }
 .fitIssueOk { color: var(--color-text-secondary); }
+
+/* [DSG-13-14] Route from a bad-fitting design to the recipe every design of its type
+   inherits — the level a systematic fit failure is actually fixed at. */
+.recipeLink {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.recipeLink:hover {
+  text-decoration: underline;
+}

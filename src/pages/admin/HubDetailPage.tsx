@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import type { HubBlastRadius } from '../../api/adminApi';
 import { hubsApi, staffApi, fabricsApi } from '../../api/adminApi';
 import type { Hub, StaffMember, FabricStockRow, HubRecentOrder, HubActivityItem } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -58,12 +59,55 @@ export const HubDetailPage: React.FC = () => {
     hubsApi.activity(id).then(setActivity).catch(() => setActivity([]));
   }, [id, isNew]);
 
+  // [SHL-6-4] "What is this hub's situation?" answered on the hub's own page.
+  //
+  // The one object that ties the dark-store together was the one page that did not connect
+  // to its parts: the roster lived in Staff Management, the pincodes in Service Areas and
+  // the stock in the procurement console, so the question took three navigations and a
+  // mental join. These are the same counts [SHL-6-2] measures for the deactivate confirm —
+  // read once on load, so the page can answer before anyone clicks anything.
+  React.useEffect(() => {
+    if (!id || id === 'new') return;
+    hubsApi
+      .blastRadius(id)
+      .then(setSituation)
+      .catch((e) => setSituationErr(e instanceof Error ? e.message : 'could not be loaded'));
+  }, [id]);
+  const [situation, setSituation] = React.useState<HubBlastRadius | null>(null);
+  const [situationErr, setSituationErr] = React.useState<string | null>(null);
+
+  // [SHL-6-2] What this hub is holding, measured before the operator is asked to confirm.
+  const [blast, setBlast] = React.useState<HubBlastRadius | null>(null);
+  const [blastErr, setBlastErr] = React.useState<string | null>(null);
+  const [blastLoading, setBlastLoading] = React.useState(false);
+  const askDeactivate = async () => {
+    if (!hub) return;
+    setBlast(null);
+    setBlastErr(null);
+    setBlastLoading(true);
+    setConfirmDeactivate(true);
+    try {
+      setBlast(await hubsApi.blastRadius(hub.id));
+    } catch (e) {
+      // Keep the reason. The dialog says the counts could not be read AND why, rather
+      // than showing a reassuring zero — which is the failure this whole fix is about.
+      setBlastErr(e instanceof Error ? e.message : 'the counts could not be loaded');
+    } finally {
+      setBlastLoading(false);
+    }
+  };
+
   // T2-24: flip active/inactive (used by the deactivate confirm + the activate button).
   const setHubStatus = async (next: 'Active' | 'Inactive') => {
     if (!hub) return;
     setStatusSaving(true);
     try {
-      const updated = await hubsApi.update(hub.id, { status: next });
+      // Deactivation is force-confirmed: the operator has just read the counts above.
+      const updated = await hubsApi.update(
+        hub.id,
+        { status: next },
+        { force: next === 'Inactive' },
+      );
       setHub(updated); setForm(updated);
       showToast('success', `Hub ${updated.status.toLowerCase()}`);
       hubsApi.activity(hub.id).then(setActivity).catch(() => {});
@@ -350,7 +394,7 @@ export const HubDetailPage: React.FC = () => {
           <>
             <button className={styles.editBtn} disabled={saving} onClick={handleSave}><UilSave size={14}/> {saving ? 'Saving…' : 'Save Changes'}</button>
             <button className={styles.deactivateBtn} disabled={statusSaving}
-              onClick={() => hub.status === 'Active' ? setConfirmDeactivate(true) : setHubStatus('Active')}>
+              onClick={() => hub.status === 'Active' ? askDeactivate() : setHubStatus('Active')}>
               {hub.status === 'Active' ? <><UilPower size={14}/> Deactivate Hub</> : <><UilPower size={14}/> Activate Hub</>}
             </button>
           </>
@@ -358,6 +402,54 @@ export const HubDetailPage: React.FC = () => {
       />
 
       {hub.status === 'Inactive' && <div className={styles.inactiveBanner}>This hub is inactive. It is not accepting new orders.</div>}
+
+      {/* [SHL-6-4] The hub's situation, with a way into each part of it. */}
+      <div className={styles.situationStrip}>
+        {situationErr && !situation ? (
+          <span className={styles.situationErr}>
+            Couldn't load this hub's situation ({situationErr}).
+          </span>
+        ) : !situation ? (
+          <span className={styles.situationErr}>Loading this hub's situation…</span>
+        ) : (
+          <>
+            <button className={styles.situationItem} onClick={() => navigate(`/admin/orders?hub_id=${id}`)}>
+              <strong>{situation.active_orders}</strong> active order{situation.active_orders === 1 ? '' : 's'}
+            </button>
+            <button className={styles.situationItem} onClick={() => navigate('/admin/procurement/stock')}>
+              <strong>{situation.fabric_meters}m</strong> fabric
+            </button>
+            {/* [SHL-6-7] Say WHICH staff. The count has always come from `staff` (ops login
+                accounts) while `hub_staff` — the floor roster that measurement provenance
+                points at — is surfaced on no admin page at all. A hub reading "5 staff"
+                was silently excluding it. Both are shown; which of the two tables is the
+                real roster is a data-model question this page cannot settle. */}
+            <button
+              className={styles.situationItem}
+              onClick={() => navigate('/admin/system/staff')}
+              title="Ops login accounts (the `staff` table) — the ones this console manages"
+            >
+              <strong>{situation.active_staff}</strong> login account
+              {situation.active_staff === 1 ? '' : 's'}
+            </button>
+            {situation.roster_staff > 0 && (
+              <span
+                className={styles.situationItem}
+                title="Floor roster (the `hub_staff` table) — what measurement provenance points at. No admin page manages these yet."
+              >
+                <strong>{situation.roster_staff}</strong> roster entr
+                {situation.roster_staff === 1 ? 'y' : 'ies'} (unmanaged)
+              </span>
+            )}
+            <button className={styles.situationItem} onClick={() => navigate('/admin/catalog/listings')}>
+              <strong>{situation.live_listings}</strong> live listing{situation.live_listings === 1 ? '' : 's'}
+            </button>
+            <button className={styles.situationItem} onClick={() => navigate('/admin/system/service-areas')}>
+              <strong>{situation.service_pincodes}</strong> service pincode{situation.service_pincodes === 1 ? '' : 's'}
+            </button>
+          </>
+        )}
+      </div>
 
       <Tabs
         tabs={[
@@ -372,7 +464,21 @@ export const HubDetailPage: React.FC = () => {
       <ConfirmDialog
         open={confirmDeactivate}
         title="Deactivate this hub?"
-        message={`${hub.name} will stop accepting new orders. Existing orders are unaffected. You can reactivate it anytime.`}
+        /* [SHL-6-2] Say what is actually at stake. This read "Existing orders are
+           unaffected" — an assertion with nothing behind it, on a hub that might be
+           holding ten live orders, a hundred metres of fabric and five people's shifts. */
+        message={
+          blastLoading
+            ? `${hub.name} will stop accepting new orders. Checking what it is holding…`
+            : !blast
+              ? `${hub.name} will stop accepting new orders. We could NOT read what this hub is currently holding (${blastErr ?? 'unknown error'}) — check its orders, stock and roster before continuing.`
+              : `${hub.name} will stop accepting new orders and is currently holding ` +
+                `${blast.active_orders} active order${blast.active_orders === 1 ? '' : 's'}, ` +
+                `${blast.fabric_meters}m fabric, ${blast.active_staff} staff and ` +
+                `${blast.live_listings} live listing${blast.live_listings === 1 ? '' : 's'} ` +
+                `across ${blast.service_pincodes} service pincode${blast.service_pincodes === 1 ? '' : 's'}. ` +
+                `Those orders keep running — nobody new can be routed here. You can reactivate it anytime.`
+        }
         confirmLabel="Deactivate hub"
         variant="danger"
         loading={statusSaving}

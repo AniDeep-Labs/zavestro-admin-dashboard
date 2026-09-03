@@ -206,7 +206,30 @@ export const CodReconciliationPage: React.FC = () => {
                       <td>{d.hub_name}</td>
                       <td><div className={styles.customerName}>{d.staff_name}</div></td>
                       <td>{ordersCell(d)}</td>
-                      <td className={`moneyCell ${styles.total}`}>{fmtINR(Number(d.total_amount))}</td>
+                      {/* [FIN-35-3] Declared, with the shortfall against what the linked
+                          orders actually owe.
+                          The variance shown elsewhere is declared−counted, which cannot
+                          see an under-declaration: hand over less, declare less, and the
+                          count matches the declaration perfectly. Comparing the declaration
+                          to the ORDERS is the only thing that catches it. Shown only when
+                          orders are linked — with none, a number here would be a claim
+                          rather than a measurement. */}
+                      <td className={`moneyCell ${styles.total}`}>
+                        {fmtINR(Number(d.total_amount))}
+                        {(() => {
+                          if (!d.order_count || d.expected_amount == null) return null;
+                          const short = Number(d.total_amount) - Number(d.expected_amount);
+                          if (Math.abs(short) < 0.01) return null;
+                          return (
+                            <div
+                              className={s.underDeclared}
+                              title={`Orders in this deposit total ${fmtINR(Number(d.expected_amount))}. The depositor declared ${fmtINR(Number(d.total_amount))}.`}
+                            >
+                              {short < 0 ? `${fmtINR(Math.abs(short))} under orders` : `${fmtINR(short)} over orders`}
+                            </div>
+                          );
+                        })()}
+                      </td>
                       {kind === 'awaiting' ? (
                         <td><AgeCell since={d.created_at} warnAfterH={48} alertAfterH={96} /></td>
                       ) : kind === 'variance' ? (

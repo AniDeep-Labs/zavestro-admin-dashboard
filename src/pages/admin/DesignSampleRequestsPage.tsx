@@ -73,6 +73,27 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
     setReqDesign(designId); setReqFabric(''); setDesignFabrics([]);
     if (designId) designsApi.get(designId).then((d) => setDesignFabrics(d.fabrics)).catch(() => {});
   };
+  // [DSG-12-5] Check before the cloth is committed, not after.
+  //
+  // Requesting a sample cuts a garment's worth of fabric. The server now refuses an
+  // identical in-flight request (409) and refuses an unpaired design+fabric (400), but an
+  // error after the click is a worse place to learn this than a warning before it — and
+  // "already reviewed at this hub" is allowed, so only a warning can carry it.
+  const [pre, setPre] = React.useState<{
+    in_flight: { id: string; status: string } | null;
+    reviewed_at: string | null;
+    paired: boolean;
+  } | null>(null);
+  React.useEffect(() => {
+    if (!reqDesign || !reqFabric || !reqHub) { setPre(null); return; }
+    let live = true;
+    sampleJobsApi
+      .precondition({ design_id: reqDesign, fabric_id: reqFabric, hub_id: reqHub })
+      .then((r) => { if (live) setPre(r); })
+      .catch(() => { if (live) setPre(null); });
+    return () => { live = false; };
+  }, [reqDesign, reqFabric, reqHub]);
+
   const submitRequest = async () => {
     if (!reqDesign || !reqFabric || !reqHub) {
       toast('error', 'Pick a design, fabric and hub');
@@ -235,10 +256,35 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
                 ⚠ This hub has 0m of the selected fabric — the sample will stall at cutting until stock is distributed here. You can still request it.
               </div>
             )}
+            {/* [DSG-12-5] Two different facts, said differently on purpose. */}
+            {pre?.in_flight && (
+              <div className={s.stockWarn}>
+                ⛔ A sample of this design and fabric is already <strong>{pre.in_flight.status}</strong> at this hub. Requesting another would cut a second garment&rsquo;s worth of cloth for the same question.
+              </div>
+            )}
+            {!pre?.in_flight && pre?.reviewed_at && (
+              <div className={s.stockWarn}>
+                ⚠ This design and fabric was already reviewed at this hub on{' '}
+                {new Date(pre.reviewed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                . The listing gate is already satisfied — request another only if the design has changed since.
+              </div>
+            )}
+            {pre && !pre.paired && (
+              <div className={s.stockWarn}>
+                ⛔ This fabric isn&rsquo;t paired with this design, so the request will be refused. Pair them in the design first.
+              </div>
+            )}
           </div>
           <div className={s.reqActions}>
             <Button variant="ghost" onClick={resetRequest}>Cancel</Button>
-            <Button variant="primary" disabled={!reqDesign || !reqFabric || !reqHub || submitting} onClick={submitRequest}>
+            <Button
+              variant="primary"
+              // Blocked only on what the SERVER refuses. "Already reviewed" stays
+              // clickable — it is a judgement, and disabling it would just send people
+              // round the console looking for another way in.
+              disabled={!reqDesign || !reqFabric || !reqHub || submitting || Boolean(pre?.in_flight) || pre?.paired === false}
+              onClick={submitRequest}
+            >
               {submitting ? 'Requesting…' : 'Request sample'}
             </Button>
           </div>

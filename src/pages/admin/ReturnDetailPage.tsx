@@ -28,6 +28,10 @@ export const ReturnDetailPage: React.FC = () => {
   const [approveNote, setApproveNote] = React.useState('');
   const [refundAmt, setRefundAmt] = React.useState(''); // G-54(A): blank = full refund
   const [showApproveConfirm, setShowApproveConfirm] = React.useState(false); // T1-24
+  // [SUP-31-6] Raising the free alteration a fit return is owed.
+  const [altDescription, setAltDescription] = React.useState('');
+  const [altNote, setAltNote] = React.useState('');
+  const [raisingAlt, setRaisingAlt] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   const dismissToast = (tid: string) => setToasts(t => t.filter(x => x.id !== tid));
@@ -89,6 +93,40 @@ export const ReturnDetailPage: React.FC = () => {
     </div>
   );
 
+  // [SUP-31-6] A fit return is not a refund conversation at all. `returnOutcomeFor`
+  // routes `wrong_measurements` to a free alteration, and the whole Refund card used to
+  // fall through to "Awaiting ops inspection" — copy about money that is never coming.
+  const isAlterationPolicy = ret.policy_verdict?.outcome === 'alteration';
+  const alterationDone = !!ret.linked_alteration;
+  const returnClosed = ['completed', 'rejected', 'defect_rejected', 'refunded'].includes(
+    ret.status,
+  );
+
+  const raiseAlteration = async () => {
+    if (!id || !altDescription.trim() || raisingAlt) return;
+    setRaisingAlt(true);
+    try {
+      const r = await returnsApi.resolveWithAlteration(id, {
+        description: altDescription.trim(),
+        note: altNote.trim() || undefined,
+      });
+      setRet(await returnsApi.get(id));
+      setAltDescription('');
+      setAltNote('');
+      showToast(
+        'success',
+        'Free alteration raised',
+        r.fee_status === 'free' || r.fee_status === 'waived'
+          ? 'The return is closed and the garment pickup is queued. No fee to the customer.'
+          : `The return is closed and the pickup is queued. Fee status: ${r.fee_status}.`,
+      );
+    } catch (e) {
+      showToast('error', 'Could not raise the alteration', e instanceof Error ? e.message : undefined);
+    } finally {
+      setRaisingAlt(false);
+    }
+  };
+
   const refundDone = ret.status === 'refund_initiated' || ret.status === 'refunded';
   const rejected = ret.status === 'defect_rejected' || ret.status === 'rejected';
   const awaitingApproval = ret.status === 'defect_confirmed';
@@ -135,15 +173,120 @@ export const ReturnDetailPage: React.FC = () => {
             )}
           </div>
 
-          {/* Refund — status-driven. A return is approved (and the refund initiated)
-              only once ops has confirmed the defect; finance does the money action. */}
+          {/* [SUP-31-6] Fit returns are settled with a free alteration, not money, so
+              they get the card that matches their policy instead of refund copy. */}
+          {isAlterationPolicy ? (
+            <div className={styles.card}>
+              <h3 className={styles.sectionTitle}>Free alteration</h3>
+              {alterationDone ? (
+                <div className={styles.fields}>
+                  <p className={d.refundDone}>
+                    <StatusBadge status={ret.linked_alteration!.status} />
+                    &nbsp;This return was settled with a free alteration.
+                  </p>
+                  <div>
+                    <div className={styles.metaLabel}>What we are altering</div>
+                    <div className={d.refundNote}>{ret.linked_alteration!.description}</div>
+                  </div>
+                  <div>
+                    <div className={styles.metaLabel}>Charge to the customer</div>
+                    <div className={d.refundNote}>
+                      {ret.linked_alteration!.fee_status === 'free' ||
+                      ret.linked_alteration!.fee_status === 'waived'
+                        ? 'None — covered by the fit policy.'
+                        : `₹${ret.linked_alteration!.fee_amount ?? 0} (${ret.linked_alteration!.fee_status})`}
+                    </div>
+                  </div>
+                  <button
+                    className={`${styles.addBtn} ${d.cardAction}`}
+                    // [SUP-31-8] The list's peek drawer, deep-linked. There is no
+                    // /admin/alterations/:id route — a plain link there is a dead one.
+                    onClick={() =>
+                      navigate(`/admin/alterations?peek=${ret.linked_alteration!.id}`)
+                    }
+                  >
+                    Open the alteration
+                  </button>
+                </div>
+              ) : returnClosed ? (
+                <p className={d.refundNote}>
+                  This return is {ret.status} and no alteration is linked to it. If the customer
+                  is still owed one, raise it from the order.
+                </p>
+              ) : (
+                <Can
+                  cap="orders:write"
+                  fallback={
+                    <p className={d.refundNote}>
+                      The policy owes this customer a free alteration. A teammate with
+                      orders:write can raise it here.
+                    </p>
+                  }
+                >
+                  <div className={styles.fields}>
+                    <p className={d.refundNote}>
+                      {ret.policy_verdict?.detail}&nbsp;Raising it books the garment pickup and
+                      closes this return — the two used to be unconnected, so returns sat in
+                      Needs action with no way out.
+                    </p>
+                    <div className={styles.field}>
+                      <label className={styles.metaLabel}>What needs altering</label>
+                      <textarea
+                        className={styles.fieldTextarea}
+                        rows={2}
+                        value={altDescription}
+                        onChange={e => setAltDescription(e.target.value)}
+                        placeholder="e.g., Take in the waist by 2cm; shorten the sleeves by 1cm"
+                      />
+                    </div>
+                    <div className={styles.field}>
+                      <label className={styles.metaLabel}>Note on the return (optional)</label>
+                      <textarea
+                        className={styles.fieldTextarea}
+                        rows={2}
+                        value={altNote}
+                        onChange={e => setAltNote(e.target.value)}
+                        placeholder="e.g., Customer confirmed the chest is fine, only the waist"
+                      />
+                    </div>
+                    <button
+                      className={`${styles.addBtn} ${d.cardAction}`}
+                      disabled={raisingAlt || !altDescription.trim()}
+                      onClick={raiseAlteration}
+                    >
+                      {raisingAlt ? 'Raising…' : 'Raise the free alteration & close this return'}
+                    </button>
+                  </div>
+                </Can>
+              )}
+            </div>
+          ) : (
+          /* Refund — status-driven. A return is approved (and the refund initiated)
+              only once ops has confirmed the defect; finance does the money action. */
           <div className={styles.card}>
             <h3 className={styles.sectionTitle}>Refund</h3>
 
             {refundDone ? (
+              /* [SUP-31-9] This stopped at "It settles via the payment provider" — no
+                 date, and no owner. Support cannot look either up: GET /admin/refunds is
+                 finance-only (403 for support AND super_admin). So the date finance sees
+                 travels here, and the copy names who holds the next step, because
+                 "refund in progress" with nobody's name on it is not a status a customer
+                 can be given. */
               <p className={d.refundDone}>
-                <StatusBadge status={ret.status} /> &nbsp;Refund has been initiated to the original
-                payment method. It settles via the payment provider.
+                <StatusBadge status={ret.status} /> &nbsp;Refund initiated to the original
+                payment method
+                {ret.refund_initiated_at
+                  ? ` on ${new Date(ret.refund_initiated_at).toLocaleDateString('en-IN')}`
+                  : ''}
+                .{' '}
+                {ret.expected_settlement_at
+                  ? `It should reach the customer by ${new Date(
+                      ret.expected_settlement_at,
+                    ).toLocaleDateString('en-IN')} (${ret.settlement_business_days} business days).`
+                  : 'It settles via the payment provider.'}{' '}
+                Finance owns the disbursement from here — if it has not landed by then,
+                raise it with them rather than re-approving.
               </p>
             ) : rejected ? (
               <p className={d.refundNote}>This return was rejected — no refund is due.</p>
@@ -198,6 +341,7 @@ export const ReturnDetailPage: React.FC = () => {
               </p>
             )}
           </div>
+          )}
 
           {/* T2-12: what happens to the returned made-for-one garment + the ₹ write-off */}
           <div className={styles.card}>

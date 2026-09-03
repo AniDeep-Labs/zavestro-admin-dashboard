@@ -1,11 +1,16 @@
 import React from 'react';
-import { adminAuthExtApi, getAdminUser } from '../../api/adminApi';
+import { adminAuthExtApi, getAdminUser, setAdminUser } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AppConfigPage.module.css';
 import { UilEye, UilEyeSlash, UilKeySkeletonAlt, UilQuestionCircle, UilShield } from "@iconscout/react-unicons";
 import { StatusBadge } from '../../components';
 
+// [SHL-2-10] These five strings MUST stay character-identical to
+// DECOY_SECURITY_QUESTIONS in the backend's admin-auth.service.ts. That list is what an
+// unknown email is answered with, so any wording that appears in one list and not the
+// other tells an attacker which pool the response came from — i.e. whether the account
+// exists. Two of them had drifted apart by a paraphrase.
 const SECURITY_QUESTIONS = [
   "What was the name of your first pet?",
   "What city were you born in?",
@@ -16,6 +21,9 @@ const SECURITY_QUESTIONS = [
 
 type OwnProfile = {
   name: string | null;
+  // [SHL-2-11] The live values, so the page stops rendering a login-time snapshot.
+  role: string | null;
+  email: string | null;
   last_login_at: string | null;
   is_active: boolean | null;
   has_security_question: boolean | null;
@@ -24,6 +32,9 @@ type OwnProfile = {
 export const AdminProfilePage: React.FC = () => {
   const adminUser = getAdminUser();
   const [profile, setProfile] = React.useState<OwnProfile | null>(null);
+  // [SHL-2-11] A failed identity fetch must not silently fall back to the cache as if it
+  // were current — the page would then state a role it has no reason to believe.
+  const [profileErr, setProfileErr] = React.useState<unknown>(null);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   // Change password state
@@ -46,14 +57,31 @@ export const AdminProfilePage: React.FC = () => {
   React.useEffect(() => {
     // Own-profile via /auth/me (least-privilege) — previously this listed ALL
     // admin users and filtered by email, which only super could even do.
-    adminAuthExtApi.me()
-      .then(me => setProfile({
-        name: me.name ?? null,
-        last_login_at: me.lastLoginAt ?? null,
-        is_active: me.isActive ?? null,
-        has_security_question: me.hasSecurityQuestion ?? null,
-      }))
-      .catch(() => {});
+    //
+    // [SHL-2-11] Role and email come from this response too. They used to render from
+    // `getAdminUser()`, a localStorage blob written by exactly one line in the codebase —
+    // AdminLoginPage, at login — and never refreshed. So "My Profile → Role", the single
+    // place an operator goes to ask *what am I?*, showed whatever was true when they last
+    // signed in. A super_admin demoted this morning still read as super_admin, and this
+    // page was already fetching the live value and discarding it.
+    //
+    // The cache is refreshed at the same time, because the sidebar reads it too — leaving
+    // the profile page honest and the chrome beside it stale would be a worse kind of
+    // wrong than both being stale together.
+    adminAuthExtApi
+      .me()
+      .then(me => {
+        setProfile({
+          name: me.name ?? null,
+          role: me.role ?? null,
+          email: me.email ?? null,
+          last_login_at: me.lastLoginAt ?? null,
+          is_active: me.isActive ?? null,
+          has_security_question: me.hasSecurityQuestion ?? null,
+        });
+        if (me.email && me.role) setAdminUser({ email: me.email, role: me.role });
+      })
+      .catch(setProfileErr);
   }, []);
 
   const handleChangePassword = async () => {
@@ -214,11 +242,16 @@ export const AdminProfilePage: React.FC = () => {
               </div>
               <div>
                 <div className={styles.metaLabel}>Email</div>
-                <div className={styles.metaValue}>{adminUser?.email ?? '—'}</div>
+                <div className={styles.metaValue}>{profile?.email ?? adminUser?.email ?? '—'}</div>
               </div>
               <div>
                 <div className={styles.metaLabel}>Role</div>
-                <div className={styles.metaValue} style={{ textTransform: 'capitalize' }}>{(adminUser?.role ?? '').replace('_', ' ')}</div>
+                <div className={styles.metaValue} style={{ textTransform: 'capitalize' }}>
+                  {((profile?.role ?? adminUser?.role) ?? '').replace('_', ' ') || '—'}
+                  {profileErr != null && (
+                    <span className={styles.staleHint}> · couldn&rsquo;t refresh — may be out of date</span>
+                  )}
+                </div>
               </div>
               {profile?.last_login_at && (
                 <div>

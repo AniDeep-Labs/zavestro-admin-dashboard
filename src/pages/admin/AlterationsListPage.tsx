@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUrlParam } from '../../hooks/useOverviewFilters';
 import { alterationsApi, ordersApi } from '../../api/adminApi';
 import type { AlterationRequest, AdminOrder, CustomerLookupResult } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -76,7 +77,45 @@ export const AlterationsListPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [peek, setPeek] = React.useState<AlterationRequest | null>(null);
+  // [SUP-31-8] The peek showed order, customer, two timestamps and the description —
+  // and answered neither question a customer actually rings up to ask. The whole
+  // logistics story was already on the row and returned by `GET /alterations/:id`,
+  // which no page called. `detail` holds that fetch; `peek` stays the list row so the
+  // drawer opens instantly and fills in.
+  const [detail, setDetail] = React.useState<AlterationRequest | null>(null);
+  const [detailErr, setDetailErr] = React.useState(false);
+  // Deep-linkable, so the return that produced an alteration can point straight at it
+  // ([SUP-31-6] links here). There is no /admin/alterations/:id route to send them to.
+  const [peekId, setPeekId] = useUrlParam('peek');
   const debouncedSearch = useDebounce(search, 350);
+
+  // [SUP-31-8] Pull the full record for whatever is peeked — including a `?peek=<id>`
+  // arrived at from elsewhere, where the row may not be on the loaded page at all.
+  React.useEffect(() => {
+    if (!peekId) {
+      setDetail(null);
+      setDetailErr(false);
+      return;
+    }
+    let live = true;
+    setDetailErr(false);
+    alterationsApi
+      .get(peekId)
+      .then((full) => {
+        if (!live) return;
+        setDetail(full);
+        // Deep-linked: nothing opened the drawer, so open it on what we just fetched.
+        setPeek((cur) => cur ?? full);
+      })
+      .catch(() => {
+        // Surfaced in the drawer rather than swallowed — a blank logistics panel would
+        // read as "nothing has happened yet", which is a different and wrong answer.
+        if (live) setDetailErr(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, [peekId]);
 
   // Create-on-behalf flow (search customer → pick delivered order → describe)
   const [showCreate, setShowCreate] = React.useState(false);
@@ -135,12 +174,29 @@ export const AlterationsListPage: React.FC = () => {
     }
     setCreating(true);
     try {
-      await alterationsApi.create({
+      const created = await alterationsApi.create({
         user_id: selCustomer.id,
         order_id: selOrderId,
         description: createDesc.trim(),
       });
-      showToast('success', 'Alteration created', 'First alteration on the order is free.');
+      // [SUP-31-7] Report the fee the server computed; do not assert a policy.
+      //
+      // This said "First alteration on the order is free." flatly, while the fee is worked
+      // out PER HUB from `alteration_fee` + `alteration_first_free` and returned on the
+      // created row — which the client threw away. Every hub is ₹0/first-free today, so it
+      // was latent rather than live; the day a hub sets a fee, the agent tells the customer
+      // it is free and the customer is billed. That is the wrong way round to be wrong
+      // about money.
+      const fee = Number(created?.fee_amount ?? 0);
+      showToast(
+        'success',
+        'Alteration created',
+        created?.fee_status === 'waived'
+          ? 'First alteration on this order — no charge at this hub.'
+          : fee > 0
+            ? `This hub charges ₹${fee.toLocaleString('en-IN')} for this alteration (${created?.fee_status ?? 'pending'}). Tell the customer before you proceed.`
+            : 'No charge for this alteration at this hub.',
+      );
       resetCreate();
       setRefreshTick(t => t + 1);
     } catch (e) {
@@ -167,7 +223,7 @@ export const AlterationsListPage: React.FC = () => {
 
   const renderRows = (list: AlterationRequest[]) =>
     list.map(a => (
-      <tr key={a.id} className={styles.row} {...rowActivation(() => setPeek(a))}>
+      <tr key={a.id} className={styles.row} {...rowActivation(() => { setPeek(a); setPeekId(a.id); })}>
         <td className={styles.orderId}>{a.order_number}</td>
         <td><div className={styles.customerName}>{a.customer_name}</div></td>
         <td><div className={styles.customerPhone}><PhoneCell phone={a.customer_phone} /></div></td>
@@ -240,7 +296,11 @@ export const AlterationsListPage: React.FC = () => {
       </div>
 
       {/* PeekDrawer detail (G-38) — read-mostly; ops executes the alteration in Phase B */}
-      <Drawer open={peek !== null} onClose={() => setPeek(null)} title="Alteration request">
+      <Drawer
+        open={peek !== null}
+        onClose={() => { setPeek(null); setPeekId(''); }}
+        title="Alteration request"
+      >
         {peek && (
           <div className={d.peek}>
             <div className={d.peekHead}>
@@ -250,7 +310,9 @@ export const AlterationsListPage: React.FC = () => {
               <dt>Order</dt>
               <dd>
                 <button className={d.peekLink} onClick={() => navigate(`/admin/orders/${peek.order_id}`)}>
-                  {peek.order_number} →
+                  {/* order_number is nullable; without the fallback this button renders
+                      as a lone arrow with nothing to click on the word. */}
+                  {peek.order_number || 'Open order'} →
                 </button>
               </dd>
               <dt>Customer</dt>
@@ -261,7 +323,97 @@ export const AlterationsListPage: React.FC = () => {
               <dd>{new Date(peek.updated_at).toLocaleString('en-IN')}</dd>
               <dt>What needs altering</dt>
               <dd>{peek.description || '—'}</dd>
+              {/* [SUP-31-8] "Will I be charged?" — the second question every alteration
+                  call contains, answered from the fee the SERVER computed. */}
+              <dt>Charge</dt>
+              <dd>
+                {(detail ?? peek).fee_status === 'free' || (detail ?? peek).fee_status === 'waived'
+                  ? 'None — covered by policy'
+                  : (detail ?? peek).fee_status
+                    ? `₹${(detail ?? peek).fee_amount ?? 0} (${(detail ?? peek).fee_status})`
+                    : '—'}
+              </dd>
+              {detail?.return_id && (
+                <>
+                  <dt>Raised from</dt>
+                  <dd>
+                    <button
+                      className={d.peekLink}
+                      onClick={() => navigate(`/admin/returns/${detail.return_id}`)}
+                    >
+                      A {detail.return_reason?.replace(/_/g, ' ')} return →
+                    </button>
+                  </dd>
+                </>
+              )}
             </dl>
+
+            {/* [SUP-31-8] "When is someone coming for the garment?" — the question the
+                customer actually rings up with. Every field below was already on the row
+                and returned by GET /alterations/:id, which no page called. Rendered as a
+                progression so an agent can read the next step out loud, and each stage
+                says plainly when it has not happened rather than rendering nothing. */}
+            <div className={d.peekHead}>Where the garment is</div>
+            {detailErr ? (
+              <p className={d.peekNote}>
+                Could not load the collection details. Retry from the row, or open the order.
+              </p>
+            ) : !detail ? (
+              <p className={d.peekNote}>Loading the collection details…</p>
+            ) : (
+              <dl className={d.peekList}>
+                <dt>Collection</dt>
+                <dd>
+                  {detail.garment_picked_up_at
+                    ? `Collected ${new Date(detail.garment_picked_up_at).toLocaleString('en-IN')}`
+                    : detail.pickup_failure_reason
+                      ? `Attempt failed — ${detail.pickup_failure_reason}${
+                          detail.pickup_failed_at
+                            ? ` (${new Date(detail.pickup_failed_at).toLocaleDateString('en-IN')})`
+                            : ''
+                        }`
+                      : detail.agent_visit_date
+                        ? `${new Date(detail.agent_visit_date).toLocaleDateString('en-IN')}${
+                            detail.assigned_agent_name ? ` · ${detail.assigned_agent_name}` : ''
+                          }`
+                        : 'Not scheduled yet — no date to give the customer'}
+                </dd>
+                <dt>At the hub</dt>
+                <dd>
+                  {detail.garment_received_at_hub
+                    ? new Date(detail.garment_received_at_hub).toLocaleString('en-IN')
+                    : 'Not received'}
+                </dd>
+                <dt>Tailor</dt>
+                <dd>
+                  {detail.assigned_tailor_name ?? 'Not assigned'}
+                  {detail.alteration_completed_at
+                    ? ` · done ${new Date(detail.alteration_completed_at).toLocaleDateString('en-IN')}`
+                    : ''}
+                </dd>
+                <dt>QC</dt>
+                <dd>
+                  {detail.alteration_qc_at
+                    ? `Passed ${new Date(detail.alteration_qc_at).toLocaleDateString('en-IN')}${
+                        detail.alteration_qc_note ? ` — ${detail.alteration_qc_note}` : ''
+                      }`
+                    : 'Not checked yet'}
+                </dd>
+                <dt>Back with the customer</dt>
+                <dd>
+                  {detail.redelivered_at
+                    ? new Date(detail.redelivered_at).toLocaleString('en-IN')
+                    : 'Not yet'}
+                </dd>
+                {detail.staff_note && (
+                  <>
+                    <dt>Staff note</dt>
+                    <dd>{detail.staff_note}</dd>
+                  </>
+                )}
+              </dl>
+            )}
+
             <p className={d.peekNote}>
               The hub floor executes alterations from the ops app (Phase B). This
               view tracks status; deep-link to the order for the full history.

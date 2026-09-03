@@ -1,0 +1,6 @@
+
+/* [FIN-37-4] A provisional figure should not look as settled as a measured one. Muted
+   rather than alarming — it is not wrong, it is incomplete, and the note says how. */
+.provisionalValue {
+  color: var(--color-text-secondary);
+}

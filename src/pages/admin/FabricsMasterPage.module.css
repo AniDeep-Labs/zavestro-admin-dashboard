@@ -213,3 +213,88 @@
 .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md); }
 .formGrid > :nth-child(3) { grid-column: 1 / -1; }
 @media (max-width: 560px) { .formGrid { grid-template-columns: 1fr; } }
+
+/* [PRC-14-4] The line under a KPI that says what the number covers. A count with an
+   unstated denominator reads as reassurance; this is the denominator. */
+.kpiNote {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+}
+
+/* [PRC-14-4] Deliberately not styled like .lowTag — "unwatched" is not an alarm about the
+   stock, it is a statement that nobody is watching it. Neutral, but not invisible. */
+.unwatchedTag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* [PRC-14-11] A swatch that is on file but will not load is a fault, not an absence.
+   Dashed + warning-toned so it reads differently from the plain "nothing uploaded" tile. */
+.swatchBroken {
+  border: 1px dashed var(--color-warning);
+  color: var(--color-warning);
+}
+
+/* The word under the placeholder, on the card grid where there is room for one. */
+.swatchNote {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* [PRC-14-8 / PRC-14-10] Missing procurement data as an exception strip, not a quiet "—".
+   Clickable, so the count is a way in to fixing the rows rather than just a statistic. */
+.gapStrip {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-md);
+}
+
+.gapChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-full);
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.gapChipActive {
+  background: var(--color-bg-section);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* The consequence, not just the count — "no supplier" means nothing until you say that
+   nobody can reorder it. */
+.gapWhy {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.gapClear {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  text-decoration: underline;
+}

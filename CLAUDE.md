@@ -34,7 +34,12 @@ npm run preview   # Preview production build
 
 ### Pages (`src/pages/admin/` — ~77 pages, one `.tsx` + usually one `.module.css`)
 Role ownership and the per-page spec live in `FABLE-ADMIN-UIUX.md` §3–§8. Notable:
-- `OrderDetailPage.tsx` (~1,450 lines) — order story + CX verbs + break-glass; SSE live updates.
+- `OrderDetailPage.tsx` (~1,450 lines) — order story + CX verbs + break-glass; refreshes itself
+  every 15s while the tab is visible (`useLiveRefresh`), with an "Updated …" chip in the header.
+  **Not SSE** — this line used to claim SSE and there was no `EventSource` anywhere in the client
+  ([SUP-28-3]). The backend does serve a stream, but only for customers: `EventSource` cannot send
+  an Authorization header, so it takes `?token=`, and putting an ADMIN JWT in a URL is worse than
+  one request every 15s on one page.
 - `GarmentTemplateEditorPage.tsx` — the fit engine's size-chart/capture-set/pain-point authoring. Handle with care.
 - `ProductsListPage/ProductEditPage` — **LEGACY** catalog editor for the live legacy customer flow. Do not delete until the P5 cutover completes; do not invest in it either.
 - Deleted (do not recreate): MeasurementBooking* pages (System-2 retired), GarmentTypesPage (was unrouted), craftspeople content section + `craftspeopleApi` (artisan model retired), Luxe* (model scrapped).

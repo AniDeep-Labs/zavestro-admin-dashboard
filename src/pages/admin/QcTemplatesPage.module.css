@@ -29,3 +29,31 @@
 .summaryName { color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
 .badge { font-size: 12px; font-weight: var(--font-weight-semibold); color: var(--color-primary); background: var(--color-primary-surface, rgba(0,0,0,0.05)); padding: 2px 8px; border-radius: var(--radius-sm); }
 .empty { color: var(--color-text-tertiary); font-size: var(--font-size-base); padding: 8px 0; }
+
+/* [CM-20-5] The second use of this table is the one that surprises people — it gates a
+   finished garment at dispatch, not just a fabric receipt. Given weight, not a footnote. */
+.subtitleWarn {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border-left: 3px solid var(--color-warning);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 8px 0 0;
+  max-width: 68ch;
+}
+
+/* [CM-20-9] Whether a QC layer is doing anything. "never used" is deliberately muted but
+   present — a blank cell reads as a rendering gap, not as a fact about the checklist. */
+.usage {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-left: auto;
+}
+
+.usageIdle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-left: auto;
+}

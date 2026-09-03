@@ -130,12 +130,16 @@
 /* ── Timeline event types ────────────────────────────────────────────────────── */
 .timelineNote .timelineDot { background: rgba(59,130,246,0.08); color: var(--color-info); }
 .timelineAssign .timelineDot { background: rgba(31, 107, 79,0.08); color: var(--color-primary); }
-.timelineHold .timelineDot { background: rgba(212, 165, 116,0.12); color: #9E7340; }
-.timelineAdmin .timelineDot { background: rgba(212, 165, 116,0.12); color: #9E7340; }
+.timelineHold .timelineDot,
+.timelineAdmin .timelineDot,
+/* [SUP-29-4] A change to what the customer was PROMISED reads like the other
+   attention-worthy events, sharing their rule rather than copying the colours. */
+.timelinePromise .timelineDot { background: rgba(212, 165, 116,0.12); color: #9E7340; }
 [data-theme="dark"] .timelineNote .timelineDot { background: rgba(59,130,246,0.18); }
 [data-theme="dark"] .timelineAssign .timelineDot { background: rgba(31, 107, 79,0.2); }
-[data-theme="dark"] .timelineHold .timelineDot { background: rgba(212, 165, 116,0.2); color: #EAC06A; }
-[data-theme="dark"] .timelineAdmin .timelineDot { background: rgba(212, 165, 116,0.2); color: #EAC06A; }
+[data-theme="dark"] .timelineHold .timelineDot,
+[data-theme="dark"] .timelineAdmin .timelineDot,
+[data-theme="dark"] .timelinePromise .timelineDot { background: rgba(212, 165, 116,0.2); color: #EAC06A; }
 .timelineBy { font-size: 11px; color: var(--color-text-tertiary); font-style: italic; margin-top: 1px; }
 /* ── Note entry ─────────────────────────────────────────────────────────────── */
 .noteForm { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--color-border-light); }
@@ -238,3 +242,58 @@
 
 /* T1-20: computed promised-date estimate hint */
 .estHint { font-size: 0.72rem; color: var(--color-text-tertiary); font-weight: 400; }
+
+/* [SUP-28-4] What the garment was actually cut to, beside the "measurements on file" tick.
+   Quiet by default — it is reference, not an alarm — but readable at a glance, because the
+   agent reaches for it mid-conversation with the customer on the line. */
+.cutToBlock {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cutToItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cutToLabel {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.cutToValues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cutToChip {
+  padding: 2px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* [SUP-28-3] The freshness chip: quiet until you look for it, and clickable, because
+   an agent who suspects the screen is stale wants to act on that, not just read it. */
+.freshness {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.freshness:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+.freshness:disabled { opacity: 0.6; cursor: default; }

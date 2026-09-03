@@ -14,10 +14,12 @@ import type {
   OrderTimelineEntry,
   CustomerMeasurementsData,
 } from "../../api/adminApi";
+import { CopyId } from "../../components/DataCells";
 import { StaffAssignmentDropdown } from "../../components/StaffAssignmentDropdown/StaffAssignmentDropdown";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
+import { useLiveRefresh, freshnessLabel } from "../../hooks/useLiveRefresh";
 import { Can } from "../../components/Can/Can";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DispositionPanel } from "../../components/DispositionPanel/DispositionPanel";
@@ -38,6 +40,7 @@ import {
   UilExclamationCircle,
   UilFileAlt,
   UilPauseCircle,
+  UilCalendarAlt,
   UilProcess,
   UilRuler,
   UilShieldCheck,
@@ -107,6 +110,10 @@ function timelineClass(eventType?: string): string {
       return styles.timelineAssign;
     case "hold":
       return styles.timelineHold;
+    // [SUP-29-4] The promised delivery date moving is a customer-facing change, not
+    // an ordinary step — it reads on the timeline as one.
+    case "promise_changed":
+      return styles.timelinePromise;
     case "admin_override":
       return styles.timelineAdmin;
     default:
@@ -126,6 +133,8 @@ function timelineIcon(eventType?: string) {
       return <UilRuler size={13} />;
     case "hold":
       return <UilPauseCircle size={13} />;
+    case "promise_changed":
+      return <UilCalendarAlt size={13} />;
     case "admin_override":
       return <UilFileAlt size={13} />;
     default:
@@ -654,6 +663,12 @@ export const OrderDetailPage: React.FC = () => {
       setCancellingItem(false);
     }
   };
+  // [SUP-29-6] This list is a MIRROR of the server's `ITEM_CANCEL_BLOCKED_STAGES`, which
+  // is the thing that actually decides. It used to be the only copy, and it was STRICTER
+  // than the server: it blocked `rto` and `delivery_failed` and the API did not, so the
+  // UI forbade something a refunds:approve holder could still do through the API. The
+  // policy was right and now lives where it is enforced; this copy only greys the button
+  // out early, so an agent is not offered a verb that will 400.
   const ITEM_CANCEL_LOCKED = ["delivered", "shipped", "cancelled", "refunded", "rto", "delivery_failed"];
   const activeItemCount = (order?.items ?? []).filter((it) => !it.cancelled_at).length;
   const canCancelItems = !!order && !ITEM_CANCEL_LOCKED.includes(order.stage) && activeItemCount >= 2;
@@ -677,6 +692,27 @@ export const OrderDetailPage: React.FC = () => {
       )
       .finally(() => setLoading(false));
   }, [id]);
+
+  // [SUP-28-3] The page used to load once and re-fetch only after its OWN actions, so
+  // while an agent was on a call the ops floor could advance the stage, QC could fail
+  // the garment and a payment could settle with nothing on screen to say so. Re-reads
+  // the record on a timer while the tab is visible, and the header says how old what
+  // you are looking at actually is. Deliberately does NOT overwrite the two editable
+  // fields — clobbering a half-typed delivery date or hold reason mid-refresh would
+  // trade one silent lie for another.
+  const refetchOrder = React.useCallback(async () => {
+    if (!id) return;
+    setOrder(await ordersApi.get(id));
+  }, [id]);
+  const { lastUpdatedAt, refreshing, lastError, refreshNow } = useLiveRefresh(refetchOrder, {
+    enabled: !!id,
+  });
+  // Re-render the "as of" label as it ages, so it cannot itself go stale on screen.
+  const [nowTick, setNowTick] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 5_000);
+    return () => clearInterval(t);
+  }, []);
 
   // Load customer fit profiles at payment_confirmed (for the "use saved measurements" path)
   React.useEffect(() => {
@@ -840,7 +876,14 @@ export const OrderDetailPage: React.FC = () => {
         order_id: order.uuid ?? order.id,
         ...(order.fit_profile_id ? { fit_profile_id: order.fit_profile_id } : {}),
       });
-      showToast("success", "Re-measure requested", "Ops will schedule a free agent visit.");
+      // [SUP-29-5] Says where it went. This posts to /users/:id/request-remeasure — a
+      // USER-scoped record — so an agent who raised it from an order and then looked for
+      // it on the order would never find it.
+      showToast(
+        "success",
+        "Re-measure requested",
+        "Ops will schedule a free agent visit. It is tracked on the CUSTOMER, not this order — find it on their profile.",
+      );
       setShowRemeasure(false);
       setRemeasureReason("");
     } catch (e) {
@@ -871,7 +914,12 @@ export const OrderDetailPage: React.FC = () => {
         order_id: order.uuid ?? order.id,
         description: alterationDesc.trim(),
       });
-      showToast("success", "Alteration requested", "First alteration on the order is free.");
+      // [SUP-29-5] Named destination: Support → Alterations.
+      showToast(
+        "success",
+        "Alteration requested",
+        "First alteration on the order is free. Track it under Support → Alterations.",
+      );
       setShowAlteration(false);
       setAlterationDesc("");
     } catch (e) {
@@ -911,7 +959,12 @@ export const OrderDetailPage: React.FC = () => {
         reason: returnReason,
         description: returnDesc.trim() || undefined,
       });
-      showToast("success", "Return started", "Ops will inspect; finance approves any refund.");
+      // [SUP-29-5] Named destination: Support → Returns.
+      showToast(
+        "success",
+        "Return started",
+        "Ops will inspect; finance approves any refund. Track it under Support → Returns.",
+      );
       setShowReturn(false);
       setReturnDesc("");
     } catch (e) {
@@ -1146,6 +1199,26 @@ export const OrderDetailPage: React.FC = () => {
             {order.customer_ref && (
               <span className={styles.refChip}>{order.customer_ref}</span>
             )}
+            {/* [SUP-28-3] How old the story on this screen is. An agent reading a stage
+                out loud on a call needs to know whether it is current — the page has no
+                other way of admitting that the floor moved while they were talking. */}
+            <button
+              type="button"
+              className={styles.freshness}
+              onClick={refreshNow}
+              disabled={refreshing}
+              title={
+                lastError
+                  ? "The last refresh failed, so this may be out of date by more than the time shown. Click to try again."
+                  : "This page re-reads itself every 15 seconds while the tab is open. Click to refresh now."
+              }
+            >
+              {refreshing
+                ? "Refreshing…"
+                : lastError
+                  ? `Updated ${freshnessLabel(lastUpdatedAt, nowTick)} · not refreshing`
+                  : `Updated ${freshnessLabel(lastUpdatedAt, nowTick)} · refresh`}
+            </button>
           </>
         }
       />
@@ -1162,6 +1235,21 @@ export const OrderDetailPage: React.FC = () => {
               onClick={() => navigate(`/admin/users/${order.user_id}`)}
             >
               View Profile →
+            </button>
+          )}
+          {/* [SUP-33-6] Into the phone seat with the caller already looked up. Carries
+              the REFERENCE ID, not the phone number: the console accepts either, and a
+              customer's number does not belong in a URL, browser history or an access
+              log. The reference is a stable non-PII identifier that /customers/lookup
+              already matches on. */}
+          {order.customer_ref && (
+            <button
+              className={styles.linkBtn}
+              onClick={() =>
+                navigate(`/admin/support/call?search=${encodeURIComponent(order.customer_ref!)}`)
+              }
+            >
+              Call console →
             </button>
           )}
           <span className={`${styles.customerLabel} ${styles.customerLabelGap}`}>
@@ -1600,9 +1688,39 @@ export const OrderDetailPage: React.FC = () => {
                 Measurement
               </div>
               {order.fit_profile_id ? (
-                <span className={styles.measureOnFile}>
-                  ✓ Measurements on file — used for production
-                </span>
+                <>
+                  <span className={styles.measureOnFile}>
+                    ✓ Measurements on file — used for production
+                  </span>
+                  {/* [SUP-28-4] What the garment was actually cut to.
+                      The server has always sent `items[].measurement_snapshot`; nothing
+                      rendered it, so the single most common conversation on a
+                      made-to-measure order — "it doesn't fit" — was answered with a tick.
+                      The one fact that settles it (what we cut to, versus what the
+                      customer says they are) was one field away and invisible, and an
+                      agent could not sanity-check a suspicious value before ordering a
+                      re-measure. */}
+                  {(order.items ?? []).some(it => it.measurement_snapshot && Object.keys(it.measurement_snapshot).length > 0) && (
+                    <div className={styles.cutToBlock}>
+                      {(order.items ?? []).map(it =>
+                        it.measurement_snapshot && Object.keys(it.measurement_snapshot).length > 0 ? (
+                          <div key={it.id} className={styles.cutToItem}>
+                            <div className={styles.cutToLabel}>
+                              Cut to{(order.items ?? []).length > 1 ? ` · ${it.product_name}` : ""}
+                            </div>
+                            <div className={styles.cutToValues}>
+                              {Object.entries(it.measurement_snapshot).map(([k, v]) => (
+                                <span key={k} className={styles.cutToChip}>
+                                  {k.replace(/_/g, " ")} <strong>{String(v)}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null,
+                      )}
+                    </div>
+                  )}
+                </>
               ) : order.linked_home_visit_id ? (
                 <span className={styles.measureVisit}>
                   Agent home visit
@@ -1791,12 +1909,22 @@ export const OrderDetailPage: React.FC = () => {
                 </div>
               </div>
             ) : (
+              /* [SUP-28-7] Method reads the ORDER, not the payment row — `payments`
+                 has no method column, so `p.payment_method` was undefined and this
+                 rendered "—" on every captured payment. The gateway reference is
+                 `razorpay_payment_id`; the old `p.payment_gateway_id &&` guard named
+                 a field that does not exist, so the Payment ID block never rendered
+                 at all — and that id is what support has to quote to trace a refund. */
               (order.payments ?? []).map((p, i) => (
                 <div key={p.id ?? i} className={styles.paymentGrid}>
                   <div>
                     <div className={styles.metaLabel}>Method</div>
                     <div className={styles.metaValue}>
-                      {p.payment_method ?? "—"}
+                      {order.payment_method
+                        ? order.payment_method === "cod"
+                          ? "COD"
+                          : order.payment_method
+                        : "—"}
                     </div>
                   </div>
                   <div>
@@ -1805,11 +1933,22 @@ export const OrderDetailPage: React.FC = () => {
                       {money(p.amount)}
                     </div>
                   </div>
-                  {p.payment_gateway_id && (
+                  {p.razorpay_payment_id ? (
                     <div>
                       <div className={styles.metaLabel}>Payment ID</div>
                       <div className={styles.metaValue}>
-                        {p.payment_gateway_id}
+                        <CopyId value={p.razorpay_payment_id} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className={styles.metaLabel}>Payment ID</div>
+                      <div className={styles.metaValue}>
+                        <span className={styles.paymentNote}>
+                          {order.payment_method === "cod"
+                            ? "COD — no gateway reference"
+                            : "Not yet issued by the gateway"}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -1817,6 +1956,14 @@ export const OrderDetailPage: React.FC = () => {
                     <div className={styles.metaLabel}>Status</div>
                     <div className={styles.metaValue}>
                       <span className={styles.captured}>{p.status}</span>
+                      {(p.captured_at ?? p.cod_collected_at) && (
+                        <div className={styles.paymentNote}>
+                          {p.cod_collected_at ? "Collected " : "Captured "}
+                          {new Date(
+                            (p.cod_collected_at ?? p.captured_at) as string,
+                          ).toLocaleString("en-IN")}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1918,6 +2065,16 @@ export const OrderDetailPage: React.FC = () => {
         <div className={styles.modalOverlay} onClick={() => setShowRemeasure(false)}>
           <div className={styles.modal} {...remeasureDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Request re-measure</h3>
+            {/* [SUP-29-5] Said before submitting, not after. This verb is raised from an
+                ORDER but posts to /users/:id/request-remeasure, so what it creates is
+                tracked against the CUSTOMER — an agent who came looking for it on this
+                order would never find it. The order is context for the reason, nothing
+                more. */}
+            <p className={styles.fieldLabel}>
+              Raised against <strong>{order.customer}</strong>, not this order — a
+              re-measure covers the customer's saved measurements. Find it afterwards on
+              their profile.
+            </p>
             <div className={styles.field}>
               <label className={styles.fieldLabel}>
                 Reason (free agent visit; ops schedules it)

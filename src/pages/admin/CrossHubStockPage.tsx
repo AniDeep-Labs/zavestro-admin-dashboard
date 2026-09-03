@@ -8,6 +8,7 @@ import type {
   Distribution,
   HubStockVariance,
   StaleReservation,
+  DeadStock,
 } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -66,6 +67,25 @@ export const CrossHubStockPage: React.FC = () => {
 
   React.useEffect(() => { load(); }, [load]);
   React.useEffect(() => { hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {}); }, []);
+  // [PRC-17-3] Dead stock comes from the server, keyed on the LEDGER.
+  //
+  // This page derived it as `now - hub_fabric_stock.updated_at > 60 days`. That column is
+  // bumped by every write to the row — a reorder-point edit, a reservation, a receipt, a
+  // count — so "no movement for 60+ days" actually meant "nobody has touched this row",
+  // and setting a reorder point on a dusty SKU reset its dead-stock clock.
+  //
+  // On this database the two answers were DISJOINT: the page showed a fabric whose cloth
+  // moved 11 days ago, and hid one idle for 111 days because an edit had touched its row.
+  // The false negative is the expensive half — that is the capital nobody is looking at.
+  //
+  // `GET /fabrics/dead-stock` already computes it from `fabric_stock_movements` and was
+  // built for exactly this; the page simply never called it. (Same figure the CM-side
+  // DeadStockPage shows, so the two surfaces now agree.)
+  const [deadFromLedger, setDeadFromLedger] = React.useState<DeadStock | null>(null);
+  React.useEffect(() => {
+    fabricsApi.deadStock().then(setDeadFromLedger).catch(() => setDeadFromLedger(null));
+  }, []);
+
   // T1-10: count-variance + monthly-count-due by hub.
   const [variance, setVariance] = React.useState<HubStockVariance[]>([]);
   React.useEffect(() => { fabricsApi.hubStockVariance().then(setVariance).catch(() => {}); }, []);
@@ -146,13 +166,39 @@ export const CrossHubStockPage: React.FC = () => {
   const visibleTransit = fabricFilter ? inTransit.filter((d) => d.fabric_id === fabricFilter) : inTransit;
 
   const belowReorder = visibleRows.filter(
-    (r) => r.reorder_meters != null && Number(r.available_meters) < Number(r.reorder_meters),
-  );
-  const deadStock = visibleRows.filter(
+    // [CM-19-4] Was `<`, while the CM's own Fabric Stock page used `<=` — one fabric,
+    // two verdicts. The server settles it; this stays only as a fallback.
     (r) =>
-      Number(r.available_meters) > 0 &&
-      Date.now() - new Date(r.updated_at).getTime() > DEAD_STOCK_DAYS * 24 * 3_600_000,
+      r.is_low ??
+      (r.reorder_meters != null && Number(r.available_meters) <= Number(r.reorder_meters)),
   );
+  // [PRC-17-3] Membership decided by the ledger, rendering kept local (swatch, links and
+  // the drill-in to the movement ledger all live on FabricStockRow).
+  const deadKeys = React.useMemo(() => {
+    const m = new Map<string, { last_movement: string | null; days_idle: number }>();
+    for (const i of deadFromLedger?.items ?? []) {
+      if (i.days_idle >= DEAD_STOCK_DAYS) {
+        m.set(`${i.hub_id}:${i.fabric_id}`, { last_movement: i.last_movement, days_idle: i.days_idle });
+      }
+    }
+    return m;
+  }, [deadFromLedger]);
+  const deadStock = visibleRows.filter((r) => deadKeys.has(`${r.hub_id}:${r.fabric_id}`));
+
+  // [PRC-17-4] Say what these numbers are counting.
+  //
+  // Every figure on this page — the KPIs, the exception counts, the per-hub footers — is
+  // computed over `visibleRows`, i.e. what is currently loaded AND filtered. The hub and
+  // fabric selectors change them silently, so "Below reorder 0" can mean "this hub is
+  // fine" or "the one fabric you filtered to is fine", and the card reads identically
+  // either way. The list is unpaginated today, so scope is the only gap; when it isn't,
+  // the same cards will confidently describe a page instead of the business.
+  const scopeNote = [
+    hubFilter ? (hubs.find((h) => h.id === hubFilter)?.name ?? 'one hub') : null,
+    fabricFilter ? 'one fabric' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const totalAvail = visibleRows.reduce((sum, r) => sum + Number(r.available_meters), 0);
   const totalValue = visibleRows.reduce((sum, r) => sum + (value(r) ?? 0), 0);
 
@@ -224,7 +270,11 @@ export const CrossHubStockPage: React.FC = () => {
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead><tr>
-          <th>Hub</th><th>Fabric</th><th>Available</th>
+          {/* [PRC-17-6] Held-by-QC metres. The server did not even SELECT the column for
+              this query, so however much cloth was quarantined the grid could not say —
+              the only surface that ever showed it was FabricAtHubPage, which has no nav
+              entry. Held cloth is owned, paid for, on the shelf, and not sellable. */}
+          <th>Hub</th><th>Fabric</th><th>Available</th><th>Held (QC)</th>
           {kind === 'reorder' ? <th>Reorder at</th> : <th>No movement since</th>}
           {/* T3-4 (W-P4): the raw draw behind the reorder point — makes it checkable, not trusted. */}
           {kind === 'reorder' && <th>Consumed (30d)</th>}
@@ -241,10 +291,25 @@ export const CrossHubStockPage: React.FC = () => {
                 </div>
               </td>
               <td className={styles.total}>{Number(r.available_meters)}m</td>
+              <td className={styles.total}>
+                {Number(r.quarantine_meters ?? 0) > 0 ? (
+                  <span className={styles.heldMeters}>{Number(r.quarantine_meters)}m</span>
+                ) : (
+                  '—'
+                )}
+              </td>
               <td className={styles.date}>
                 {kind === 'reorder'
                   ? `${Number(r.reorder_meters)}m`
-                  : new Date(r.updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  : (() => {
+                      // [PRC-17-3] The last ledger movement — the column is headed
+                      // "No movement since", and updated_at answers a different question.
+                      const d = deadKeys.get(`${r.hub_id}:${r.fabric_id}`);
+                      if (!d) return '—';
+                      return d.last_movement
+                        ? new Date(d.last_movement).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                        : 'never moved';
+                    })()}
               </td>
               {kind === 'reorder' && (
                 <td className={styles.total}>
@@ -374,11 +439,25 @@ export const CrossHubStockPage: React.FC = () => {
           <div className={s.summaryValue}>{loading ? '—' : `${totalAvail.toLocaleString('en-IN')}m`}</div>
         </div>
         <div className={s.summaryCard}>
-          <div className={s.summaryLabel}>Capital in stock</div>
+          {/* [PRC-17-2] "Capital in stock" is what a founder reads as the total, and this
+              figure is not the total — it is what sits on HUB SHELVES. The central pool,
+              quarantine and cloth in transit are all owned and none of them are here, so
+              the Fabrics Master KPI (which counts all five components at weighted-average
+              cost) is legitimately higher. Two different questions; they now have two
+              different labels instead of one shared one. */}
+          <div
+            className={s.summaryLabel}
+            title="Available + reserved metres on hub shelves × ₹/m. Excludes the central pool, quarantine and in-transit cloth — see Fabrics for the all-in figure."
+          >
+            Capital on hub shelves
+          </div>
           <div className={s.summaryValue}>{loading ? '—' : `₹${Math.round(totalValue).toLocaleString('en-IN')}`}</div>
         </div>
         <div className={s.summaryCard}>
-          <div className={s.summaryLabel}>Below reorder</div>
+          <div className={s.summaryLabel}>
+            Below reorder
+            {scopeNote && <span className={cs.scopeNote}> · {scopeNote} only</span>}
+          </div>
           <div className={`${s.summaryValue} ${belowReorder.length ? s.pendingAccent : ''}`}>
             {loading ? '—' : belowReorder.length}
           </div>
@@ -476,7 +555,9 @@ export const CrossHubStockPage: React.FC = () => {
                       const reserved = Number(r.reserved_meters);
                       const reorder = num(r.reorder_meters);
                       const sugg = num(r.reorder_suggestion);
-                      const low = reorder != null && avail < reorder;
+                      // [CM-19-4] A FOURTH derivation of "low", in the same file as the
+                      // one above and with a different boundary again. The server decides.
+                      const low = r.is_low ?? (reorder != null && avail <= reorder);
                       const key = rowKey(r);
                       return (
                         <td key={h.id} className={cs.hubCol}>

@@ -1,7 +1,9 @@
 /* eslint-disable react-refresh/only-export-components -- this page also exports the
    reusable BannerHero renderer + layout helpers, shared by the collection studio. */
+import { useUrlParam, useUrlEditor } from '../../hooks/useOverviewFilters';
 import React from 'react';
-import { bannersApi, collectionsApi, categoriesAdminApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
+import { bannersApi, collectionsApi, categoriesAdminApi, hubsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
+import type { Hub } from '../../api/adminApi';
 import { istDayStart, istDayEnd } from '../../utils/dateWindow';
 import type { Banner, BannerPayload, BannerLayout, BannerTextPosition, BannerTextColor, BannerImageFit, BannerMode, BannerCtaStyle, BannerComposeStyle } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -565,14 +567,24 @@ function BannerForm({
 
   // CM-5: real collection/category slugs so a CTA can't typo its way to a 404. The 'url' type
   // keeps a free-text input for arbitrary paths.
-  const [collOpts, setCollOpts] = React.useState<{ slug: string; name: string }[]>([]);
-  const [catOpts, setCatOpts] = React.useState<{ slug: string; name: string }[]>([]);
+  // [CM-22-6] Options carry their product count. The audit found the picker offering
+  // "Kurta · kurta" AND "Kurtas · kurtas" (and the same for Shirt/Trouser), leaving a CM to
+  // guess which of two near-identical categories the storefront actually populates. The
+  // count answers that from the option itself, and keeps answering it whatever the
+  // taxonomy does next — deduplicating the taxonomy is Pass 23's job, not this picker's.
+  //
+  // [CM-22-5] The same number is what lets a destination be checked at all: a banner
+  // pointing at an empty collection sends customers to an empty page.
+  const [collOpts, setCollOpts] = React.useState<{ slug: string; name: string; count: number }[]>([]);
+  const [catOpts, setCatOpts] = React.useState<{ slug: string; name: string; count: number }[]>([]);
   React.useEffect(() => {
     collectionsApi.list({ status: 'active' })
-      .then((r) => setCollOpts(r.collections.filter((c) => c.slug).map((c) => ({ slug: c.slug, name: c.name }))))
+      .then((r) => setCollOpts(r.collections.filter((c) => c.slug)
+        .map((c) => ({ slug: c.slug, name: c.name, count: c.products ?? 0 }))))
       .catch(() => {});
     categoriesAdminApi.list()
-      .then((cs) => setCatOpts(cs.filter((c) => c.is_active && c.slug).map((c) => ({ slug: c.slug, name: c.name }))))
+      .then((cs) => setCatOpts(cs.filter((c) => c.is_active && c.slug)
+        .map((c) => ({ slug: c.slug, name: c.name, count: c.product_count ?? 0 }))))
       .catch(() => {});
   }, []);
   // The CTA-destination control: a real-slug picker for collection/category, free text for url.
@@ -588,9 +600,50 @@ function BannerForm({
       <select className={b.input} value={linkValue} onChange={(e) => setLinkValue(e.target.value)}>
         <option value="">{linkType === 'category' ? 'All categories' : 'Select a collection…'}</option>
         {!known && linkValue && <option value={linkValue}>{linkValue} (current)</option>}
-        {opts.map((o) => <option key={o.slug} value={o.slug}>{o.name} · {o.slug}</option>)}
+        {opts.map((o) => (
+          <option key={o.slug} value={o.slug}>
+            {o.name} · {o.slug} · {o.count === 0 ? 'empty' : `${o.count} item${o.count === 1 ? '' : 's'}`}
+          </option>
+        ))}
       </select>
     );
+  })();
+
+  /**
+   * [CM-22-5] Where this banner actually sends someone.
+   *
+   * The picker resolved a preview path and validated spelling — nothing more. Every
+   * collection currently has zero products, so a "Collection" banner sends customers to an
+   * empty page; a Custom path is free text with no existence check at all.
+   *
+   * A warning, not a block: pointing a hero at a category you are about to fill is a
+   * legitimate thing to do the day before a drop. What is not legitimate is doing it
+   * without being told.
+   */
+  const destinationWarning = (() => {
+    if (linkType === 'url') {
+      const v = linkValue.trim();
+      if (!v) return null;
+      if (!v.startsWith('/')) {
+        return `“${v}” is not a path — a CTA link should start with “/”, e.g. /categories/kurta.`;
+      }
+      // The routes the storefront actually serves. Anything else is a guess.
+      const KNOWN = ['/categories', '/occasions', '/products', '/listings', '/cart', '/orders', '/account'];
+      if (!KNOWN.some((k) => v === k || v.startsWith(`${k}/`))) {
+        return `Nothing is known to serve “${v}”. Check it resolves before publishing.`;
+      }
+      return null;
+    }
+    if (!linkValue.trim()) return null;
+    const opts = linkType === 'collection' ? collOpts : catOpts;
+    const target = opts.find((o) => o.slug === linkValue);
+    if (!target) {
+      return `“${linkValue}” is not in the current ${linkType} list — it may have been archived or renamed.`;
+    }
+    if (target.count === 0) {
+      return `“${target.name}” has nothing in it, so this banner would open an empty page.`;
+    }
+    return null;
   })();
 
   // Active-device accessors
@@ -825,7 +878,8 @@ function BannerForm({
                     <select className={b.input} value={linkType} onChange={e => setLinkType(e.target.value as typeof linkType)}>
                       <option value="category">Category</option><option value="collection">Collection</option><option value="url">Custom path</option></select></div>
                   <div className={b.fieldRowS}><label className={b.label}>{linkType === 'collection' ? 'Collection' : linkType === 'category' ? 'Category' : 'Path'}</label>
-                    {linkValueControl}</div>
+                    {linkValueControl}
+                    {destinationWarning && <span className={b.warnHint}>{destinationWarning}</span>}</div>
                 </div>
               </div>
             </>)}
@@ -929,7 +983,8 @@ function BannerForm({
               </div>
               <div className={b.fieldRowS}><label className={b.label}>{linkType === 'collection' ? 'Collection' : linkType === 'category' ? 'Category (blank = all)' : 'Path'}</label>
                 {linkValueControl}
-                <span className={b.hint}>Resolves to <code>{ctaLink || '/categories'}</code></span></div>
+                <span className={b.hint}>Resolves to <code>{ctaLink || '/categories'}</code></span>
+                {destinationWarning && <span className={b.warnHint}>{destinationWarning}</span>}</div>
               <div className={b.grid3}>
                 <div className={b.fieldRowS}><label className={b.label}>Start date</label><input type="date" value={startsAt} onChange={e => setStartsAt(e.target.value)} className={b.input} /></div>
                 <div className={b.fieldRowS}><label className={b.label}>End date</label><input type="date" value={endsAt} onChange={e => setEndsAt(e.target.value)} className={b.input} /></div>
@@ -991,7 +1046,56 @@ function BannerForm({
 export const BannersPage: React.FC = () => {
   const [banners, setBanners]     = React.useState<Banner[]>([]);
   const [loading, setLoading]     = React.useState(true);
-  const [modal, setModal]         = React.useState<Banner | 'new' | null>(null);
+  // [CM-22-10] The editor was a modal with no address: "the banner I'm editing" could not
+  // be linked, and Back left the page instead of closing the modal. The URL holds the id
+  // (or 'new'); the banner itself is resolved from the loaded list, so a link opens the
+  // right record after a reload instead of an empty form.
+  const [editId, setEditId] = useUrlEditor();
+  const modal: Banner | 'new' | null =
+    editId === null ? null : editId === 'new' ? 'new' : (banners.find((x) => x.id === editId) ?? null);
+  const setModal = (next: Banner | 'new' | null) =>
+    setEditId(next === null ? null : next === 'new' ? 'new' : next.id);
+  // [CM-22-10] ...and the list had no filters at all. Fine at one banner, thin for the
+  // seasonal calendar this page is for.
+  const [search, setSearch] = useUrlParam('q');
+  const [statusFilter, setStatusFilter] = useUrlParam('status', 'All');
+  const now = Date.now();
+  // "Scheduled" and "Expired" are derived from the dates, not stored — a banner can be
+  // is_active and still not be on screen, which is exactly the state a seasonal calendar
+  // needs to see. The two live columns already show it; this makes it filterable.
+  const visible = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return banners.filter((bn) => {
+      if (q) {
+        const hay = `${bn.title ?? ''} ${bn.subtitle ?? ''} ${bn.tag ?? ''} ${bn.cta_text ?? ''}`;
+        if (!hay.toLowerCase().includes(q)) return false;
+      }
+      if (statusFilter === 'All') return true;
+      const starts = bn.starts_at ? new Date(bn.starts_at).getTime() : null;
+      const ends = bn.ends_at ? new Date(bn.ends_at).getTime() : null;
+      if (statusFilter === 'Hidden') return !bn.is_active;
+      if (statusFilter === 'Scheduled') return bn.is_active && starts !== null && starts > now;
+      if (statusFilter === 'Expired') return bn.is_active && ends !== null && ends < now;
+      // "Live" means on a customer's screen right now: active AND inside its window.
+      return bn.is_active && (starts === null || starts <= now) && (ends === null || ends >= now);
+    });
+  }, [banners, search, statusFilter, now]);
+
+  // [CM-22-3] Hub names for the Audience column. GET /hubs is an `operating` read, so every
+  // role that can reach this page can resolve them; if it ever fails the column still says
+  // "This hub" rather than rendering a raw UUID.
+  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  const [hubsUnavailable, setHubsUnavailable] = React.useState(false);
+  React.useEffect(() => {
+    hubsApi
+      .list()
+      .then((r) => setHubs(r.hubs))
+      // Not discarded: a banner whose audience cannot be named is still a banner with an
+      // audience, and the column should say which of the two it is showing.
+      .catch(() => setHubsUnavailable(true));
+  }, []);
+  const hubName = (id: string) =>
+    hubs.find((h) => h.id === id)?.name ?? (hubsUnavailable ? 'One hub (name unavailable)' : 'This hub');
   const [saving, setSaving]       = React.useState(false);
   const [deleting, setDeleting]   = React.useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<Banner | null>(null);
@@ -1068,14 +1172,63 @@ export const BannersPage: React.FC = () => {
       </div>
 
       <p className={b.intro}>
-        Banners appear as the auto-scrolling hero carousel on the app home screen. Ordered by sort order (lowest first).
+        {/* [CM-22-4] This said "on the app home screen" while the editor below authors a
+            WEB creative, ratio, layout and focal point, and the public payload serves
+            image_url_web + layout_web to the storefront. A CM who read it and skipped the
+            web half was publishing a half-designed web hero — or believed a live web
+            banner wasn't. */}
+        Banners are the auto-scrolling hero carousel on <strong>both</strong> the app home screen and the
+        web storefront — the editor authors a creative for each. Ordered by sort order (lowest first).
       </p>
+
+      {/* [CM-22-10] Search + status, URL-synced with the open editor. */}
+      <div className={b.filterRow}>
+        <input
+          className={b.filterInput}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search title, subtitle, tag or CTA"
+          aria-label="Search banners"
+        />
+        <select
+          className={b.filterSelect}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter by status"
+        >
+          {['All', 'Live', 'Scheduled', 'Expired', 'Hidden'].map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+        {(search || statusFilter !== 'All') && (
+          <button
+            type="button"
+            className={b.filterClear}
+            onClick={() => { setSearch(''); setStatusFilter('All'); }}
+          >
+            Clear
+          </button>
+        )}
+        <span className={b.filterCount}>
+          {visible.length} of {banners.length}
+        </span>
+      </div>
 
       <div className={styles.card}>
         {loading ? (
           <p className={b.placeholder}>Loading…</p>
         ) : banners.length === 0 ? (
           <p className={b.placeholder}>No banners yet. Add one to get started.</p>
+        ) : visible.length === 0 ? (
+          /* A filtered-to-nothing list is not an empty list — say which it is, or the CM
+             reads "no banners" and thinks they lost their seasonal calendar. */
+          <p className={b.placeholder}>
+            No banner matches these filters. {banners.length} exist —{' '}
+            <button type="button" className={b.linkBtn} onClick={() => { setSearch(''); setStatusFilter('All'); }}>
+              clear the filters
+            </button>
+            .
+          </p>
         ) : (
           <table className={styles.table}>
             <thead>
@@ -1085,12 +1238,17 @@ export const BannersPage: React.FC = () => {
                 <th>Headline</th>
                 <th>CTA</th>
                 <th>Schedule</th>
+                {/* [CM-22-3] There was no hub column, even though every banner carries a
+                    hub_id and this list mixes global and hub-scoped rows. Now that
+                    [CM-22-2] makes hub_id decide who actually SEES a banner, "who sees
+                    this?" has to be answerable from the page that manages it. */}
+                <th>Audience</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {banners.map((bn) => (
+              {visible.map((bn) => (
                 <tr key={bn.id}>
                   <td className={b.orderCell}>
                     <span className={b.orderNum}>{bn.sort_order}</span>
@@ -1120,6 +1278,15 @@ export const BannersPage: React.FC = () => {
                     {bn.starts_at ? new Date(bn.starts_at).toLocaleDateString('en-IN') : '—'} →{' '}
                     {bn.ends_at   ? new Date(bn.ends_at).toLocaleDateString('en-IN')   : 'always'}
                   </td>
+                  {/* [CM-22-3] Who sees this. Global rows reach every customer; a
+                      hub-scoped row reaches only customers that hub serves. */}
+                  <td>
+                    {bn.hub_id ? (
+                      <span className={b.audienceHub}>{hubName(bn.hub_id)}</span>
+                    ) : (
+                      <span className={b.audienceGlobal}>Everyone</span>
+                    )}
+                  </td>
                   <td>
                     <button onClick={() => handleToggle(bn)} aria-label={bn.is_active ? 'Hide banner' : 'Show banner'} className={`${b.statusBtn} ${bn.is_active ? b.statusActive : b.statusHidden}`}>
                       {bn.is_active ? <UilEye size={16} /> : <UilEyeSlash size={16} />}
@@ -1144,7 +1311,7 @@ export const BannersPage: React.FC = () => {
       </div>
 
       <Modal
-        open={modal !== null}
+        open={editId !== null && (modal !== null || loading)}
         onClose={() => setModal(null)}
         title={modal === 'new' ? 'Add Banner' : 'Edit Banner'}
         size="lg"

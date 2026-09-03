@@ -25,3 +25,34 @@
 .reasonInput { padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; resize: vertical; width: 100%; box-sizing: border-box; }
 .reasonInput:focus { border-color: var(--color-primary); }
 .modalActions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 4px; }
+
+/* [SUP-34-2] A review with no product and no brand — it still has to be moderatable,
+   so it still has to be visible. Muted, because there is genuinely nothing to name. */
+.noSubject {
+  opacity: 0.4;
+}
+
+/* [SUP-34-6] Moderation buckets — pending is the worklist, the others are the record. */
+.tabs { display: inline-flex; gap: 4px; }
+.tab {
+  padding: 5px 12px; font-size: 12px; cursor: pointer;
+  color: var(--color-text-secondary); background: none;
+  border: 1px solid var(--color-border-light); border-radius: 999px;
+}
+.tab:hover { color: var(--color-text-primary); background: var(--color-bg-secondary); }
+.tabActive {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border);
+}
+
+/* [SUP-34-6] The comment, with the rejection reason under it when there is one. */
+.commentCell { max-width: 280px; }
+.commentText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muted { opacity: 0.4; }
+.rejectionReason {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

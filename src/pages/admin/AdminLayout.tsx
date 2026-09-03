@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Navigate, Link } from "react-router-dom";
 import { toggleTheme, getCurrentTheme } from "../../utils/theme";
 import { hasAdminToken } from "../../api/catalogApi";
 import {
@@ -567,6 +567,13 @@ const NAV_LESS_CAP: { prefix: string; caps: string[] }[] = [
   // floor verb held as break-glass; without an entry here a role without `qc:write`
   // deep-links into a page whose only button is hidden.
   { prefix: "/admin/orders/qc", caps: ["qc:write"] },
+  // [LGC-24-2] The legacy product catalogue has no nav item at all — it was retired from
+  // the sidebar and left reachable by URL — so `currentNav` misses it and NAV_CAP cannot
+  // cover it. Rendered as `design` it gave the full page, filters and an "Add Product"
+  // button, with three "your admin role lacks permission" toasts. The API denies
+  // correctly; only the UI was wrong, which is the worse half: a role is shown a console
+  // it cannot use and told so three times by a toast instead of once by the page.
+  { prefix: "/admin/catalog/products", caps: ["catalog:write"] },
 ];
 
 // T3-1 (S-1 + S-3): cap-gated create verbs — the single source for both the palette actions
@@ -878,14 +885,15 @@ const AdminLayoutInner: React.FC = () => {
               {item.children
                 .filter((child) => !child.superOnly || adminRole === "super_admin")
                 .map((child) => (
-                <button
+                <Link
                   key={child.path}
+                  to={child.path}
                   className={`${styles.navChild} ${isActive(child.path) ? styles.navChildActive : ""}`}
-                  onClick={() => navigate(child.path)}
+                  aria-current={isActive(child.path) ? "page" : undefined}
                 >
                   <span className={styles.navChildDot} />
                   {child.label}
-                </button>
+                </Link>
               ))}
             </div>
           )}
@@ -893,12 +901,21 @@ const AdminLayoutInner: React.FC = () => {
       );
     }
     const badge = badgeFor(item.path);
+    // [SHL-3-3] A destination is a LINK. This was a <button onClick={navigate()}> with no
+    // href — a DOM probe of the sidebar found 0 anchors and 11 buttons — which removed the
+    // affordances a multi-tab desk seat uses reflexively: ⌘-click / middle-click to open a
+    // second tab (a support agent on a call cannot keep the order list open while opening a
+    // customer), right-click → Copy link address, the hover URL preview, dragging to the
+    // bookmarks bar. Assistive tech also announced "button", so the nav could not be
+    // enumerated as the list of links it is. <Link> keeps the SPA navigation and adds all
+    // of that back, and `aria-current` names the one you are on.
     return (
-      <button
+      <Link
         key={item.path}
+        to={item.path}
         className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}
-        onClick={() => navigate(item.path)}
         title={collapsed ? item.label : undefined}
+        aria-current={active ? "page" : undefined}
       >
         <span className={styles.navIcon}>{item.icon}</span>
         {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
@@ -908,7 +925,7 @@ const AdminLayoutInner: React.FC = () => {
           ) : (
             <span className={styles.navBadge}>{badge > 99 ? "99+" : badge}</span>
           ))}
-      </button>
+      </Link>
     );
   };
 

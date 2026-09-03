@@ -6,10 +6,17 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Button } from '../../components/Button/Button';
 import { Modal } from '../../components/Modal/Modal';
+import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import styles from './OrdersListPage.module.css';
 import { UilAngleRightB, UilPlus, UilTimes, UilTrashAlt } from '@iconscout/react-unicons';
 import { StatusBadge } from '../../components';
+import {
+  DRAFTING_BLOCKS,
+  DRAFTING_BLOCK_HINTS,
+  DRAFTING_BLOCK_LABELS,
+  type DraftingBlock,
+} from '../../constants/draftingBlock';
 
 export const GarmentTypeTemplatesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -41,13 +48,18 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
   // ── create-category form (design self-serve) ──
   const [showCreate, setShowCreate] = React.useState(false);
   const [cName, setCName] = React.useState('');
-  const [cRegion, setCRegion] = React.useState<'upper' | 'lower'>('upper');
+  // [DSG-11-7] The author picks the BLOCK, and the body region follows from it. Before this
+  // the choice was upper/lower only, so every womenswear garment was created "upper" and
+  // drafted through the men's block — the engine's women's path (bust, bust dart,
+  // silhouette) was unreachable from this console for the whole womenswear catalogue.
+  const [cBlock, setCBlock] = React.useState<DraftingBlock>('mens_upper');
+  const cRegion: 'upper' | 'lower' = cBlock === 'lower' ? 'lower' : 'upper';
   const [cTypes, setCTypes] = React.useState<string[]>([]);
   const [typeDraft, setTypeDraft] = React.useState('');
   const [creating, setCreating] = React.useState(false);
 
   const resetCreate = () => {
-    setShowCreate(false); setCName(''); setCRegion('upper'); setCTypes([]); setTypeDraft('');
+    setShowCreate(false); setCName(''); setCBlock('mens_upper'); setCTypes([]); setTypeDraft('');
   };
   const addType = () => {
     const t = typeDraft.trim();
@@ -59,7 +71,7 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
     setCreating(true);
     try {
       const created = await designsApi.createGarmentCategory({
-        name: cName.trim(), body_region: cRegion, garment_types: cTypes,
+        name: cName.trim(), body_region: cRegion, drafting_block: cBlock, garment_types: cTypes,
       });
       toast('success', `Created "${created.name}"`, 'Now set its chart, capture-set & fit presets.');
       resetCreate();
@@ -71,18 +83,24 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
     }
   };
 
-  React.useEffect(() => {
+  // [DSG-11-12] A failed load is not an empty library.
+  //
+  // The catch toasted "Load failed" and left `cats` at [], so the counter flipped to
+  // "0 of 0" and the table said "No garment types yet — create your first." — inviting the
+  // designer to author a duplicate of a garment type that already exists. That either 409s
+  // on the slug or, under a different name, silently forks the fit recipe.
+  const [error, setError] = React.useState<string | null>(null);
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(null);
     designsApi
       .garmentCategories()
       .then(setCats)
-      .catch((e) =>
-        setToasts((t) => [
-          ...t,
-          createToast('error', 'Load failed', e instanceof Error ? e.message : undefined),
-        ]),
-      )
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load garment types.'))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => { load(); }, [load]);
 
   const captureCount = (c: GarmentCategoryOption) =>
     Array.isArray(c.capture_set) ? (c.capture_set as string[]).length : 0;
@@ -91,6 +109,21 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
   const shown = query.trim()
     ? cats.filter((c) => c.name.toLowerCase().includes(query.trim().toLowerCase()))
     : cats;
+
+  if (error) {
+    // The server's own message, and a way back — not an invitation to create something
+    // that may already exist.
+    return (
+      <div className={styles.page}>
+        <ToastContainer toasts={toasts} onDismiss={dismiss} />
+        <EmptyState
+          title="Couldn't load garment types"
+          body={error}
+          action={{ label: 'Retry', onClick: load }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -150,6 +183,21 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
                 const presets = c.calibrated_fit_presets != null ? calibrated : authored;
                 const configured = captureCount(c) > 0 || presets.length > 0;
                 const usedBy = c.used_by_designs ?? 0;
+                // [DSG-11-13] The server refuses a delete on designs OR customer fit
+                // profiles OR storefront categories. The button knew only the first, so a
+                // type used by 50 fit profiles and 0 designs offered an enabled bin, opened
+                // the confirm, and failed with a 409 — after the operator had committed to
+                // it. On this data 5 of 18 types are in exactly that state.
+                const blockers = [
+                  usedBy > 0 ? `${usedBy} design${usedBy === 1 ? '' : 's'}` : null,
+                  (c.used_by_storefront_categories ?? 0) > 0
+                    ? `${c.used_by_storefront_categories} storefront categor${c.used_by_storefront_categories === 1 ? 'y' : 'ies'}`
+                    : null,
+                  (c.used_by_fit_profiles ?? 0) > 0
+                    ? `${c.used_by_fit_profiles} customer fit profile${c.used_by_fit_profiles === 1 ? '' : 's'}`
+                    : null,
+                ].filter(Boolean) as string[];
+                const deleteBlocked = blockers.length > 0;
                 return (
                   <tr key={c.id} className={styles.row}>
                     <td className={styles.customerName} style={{ fontWeight: 500 }}>{c.name}</td>
@@ -158,7 +206,11 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
                         ? c.garment_types.join(', ')
                         : <span style={{ opacity: 0.5 }}>—</span>}
                     </td>
-                    <td style={{ textTransform: 'capitalize', color: 'var(--color-text-secondary)' }}>{c.body_region ?? '—'}</td>
+                    <td style={{ color: 'var(--color-text-secondary)' }}>
+                      {c.drafting_block
+                        ? DRAFTING_BLOCK_LABELS[c.drafting_block as DraftingBlock] ?? c.drafting_block
+                        : (c.body_region ?? '—')}
+                    </td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>
                       {captureCount(c) > 0 ? `${captureCount(c)} fields` : <span style={{ opacity: 0.5 }}>none</span>}
                     </td>
@@ -188,10 +240,10 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
                         <button
                           type="button"
                           className={styles.actionBtn}
-                          title={usedBy > 0 ? `In use by ${usedBy} design${usedBy === 1 ? '' : 's'} — can't delete` : 'Delete this garment type'}
-                          disabled={usedBy > 0}
+                          title={deleteBlocked ? `In use by ${blockers.join(', ')} — can't delete` : 'Delete this garment type'}
+                          disabled={deleteBlocked}
                           onClick={() => setDelTarget(c)}
-                          style={{ padding: '4px 8px', opacity: usedBy > 0 ? 0.35 : 1, cursor: usedBy > 0 ? 'not-allowed' : 'pointer' }}
+                          style={{ padding: '4px 8px', opacity: deleteBlocked ? 0.35 : 1, cursor: deleteBlocked ? 'not-allowed' : 'pointer' }}
                         >
                           <UilTrashAlt size={14} />
                         </button>
@@ -226,11 +278,13 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
           </div>
           <div className={styles.formField}>
             <label className={styles.formLabel}>Body region</label>
-            <select className={styles.formControl} value={cRegion} onChange={(e) => setCRegion(e.target.value as 'upper' | 'lower')}>
-              <option value="upper">Upper body (chest / shoulder — shirts, kurtas…)</option>
-              <option value="lower">Lower body (waist / hip — trousers, skirts…)</option>
+            <select className={styles.formControl} value={cBlock} onChange={(e) => setCBlock(e.target.value as DraftingBlock)}>
+              {DRAFTING_BLOCKS.map((b) => (
+                <option key={b} value={b}>{DRAFTING_BLOCK_LABELS[b]}</option>
+              ))}
             </select>
-            <p className={styles.formHint}>Decides which measurements the engine asks for. You can't change this later, so pick carefully.</p>
+            <p className={styles.formHint}>{DRAFTING_BLOCK_HINTS[cBlock]}</p>
+            <p className={styles.formHint}>Decides which measurements the engine asks for and how the garment is drafted. You can't change this later, so pick carefully.</p>
           </div>
           <div className={styles.formField}>
             <label className={styles.formLabel}>Cuts it can make (optional)</label>

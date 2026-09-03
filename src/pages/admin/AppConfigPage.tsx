@@ -171,6 +171,20 @@ export const AppConfigPage: React.FC = () => {
                     <span>
                       {item.label}
                       {item.dangerous && <span className={styles.dangerBadge}>dangerous</span>}
+                      {/* [SHL-7-9] This page lists every app_config row, so a setting
+                          nothing reads looks exactly like one that governs the storefront.
+                          An operator would reasonably conclude it is the rule — and
+                          `cancellation_allowed_until` in particular READS as the
+                          cancellation rule while the real one is keyed to the cut event.
+                          Say it where they are about to type. */}
+                      {item.enforced === false && (
+                        <span
+                          className={styles.inertBadge}
+                          title="Nothing in the system reads this setting yet. You can change it, and it will save, but it will not change any behaviour."
+                        >
+                          not enforced
+                        </span>
+                      )}
                       {isDirty && <span className={styles.unsavedBadge}>unsaved</span>}
                     </span>
                     {item.description && <span className={styles.configDesc}>{item.description}</span>}

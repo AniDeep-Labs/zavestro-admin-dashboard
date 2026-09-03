@@ -14,13 +14,14 @@ import type {
   TicketMessage,
   AdminOrder,
   RescueSummary,
+  ReplyTemplate,
 } from "../../api/adminApi";
-import { catalogApi } from "../../api/catalogApi";
 import type { AdminUser } from "../../api/catalogApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { StatusBadge, PageHeader, DetailShell, PolicyCard } from "../../components";
 import { useBreadcrumbTitle } from "../../contexts/BreadcrumbContext";
+import { TICKET_RESOLUTIONS, ticketResolutionLabel } from "../../constants/ticketResolutions";
 import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
 import styles from "./TicketDetailPage.module.css";
 import {
@@ -36,25 +37,15 @@ import {
   UilClock,
   UilUserCheck,
 } from "@iconscout/react-unicons";
+import { ticketCategoryLabel } from '../../constants/ticketCategories';
 
-// T3-3 (W-S4): canned responses are now the agent's OWN, editable + persisted (localStorage),
-// seeded with these defaults. No more four hardcoded strings you can't change.
-const DEFAULT_TEMPLATES = [
-  "Thank you for reaching out to Zavestro support.",
-  "We've reviewed your order and are looking into this.",
-  "Your refund has been processed and will reflect in 3–5 days.",
-  "I'll escalate this to our operations team right away.",
-];
-const TEMPLATES_KEY = "zavestro_support_templates";
-const loadTemplates = (): string[] => {
-  try {
-    const saved = JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "null");
-    return Array.isArray(saved) ? saved : DEFAULT_TEMPLATES;
-  } catch {
-    return DEFAULT_TEMPLATES;
-  }
-};
-const saveTemplates = (t: string[]) => localStorage.setItem(TEMPLATES_KEY, JSON.stringify(t));
+// [SUP-32-7] The library used to live here: four hardcoded DEFAULT_TEMPLATES persisted
+// into `localStorage` under `zavestro_support_templates` (T3-3 / W-S4).
+// That made it per agent and per browser: lost on a cache clear, invisible to teammates,
+// ungovernable. A new hire started with four while the veteran's twenty lived on one
+// laptop. It is now `support_reply_templates`, shared and reviewable — see
+// supportApi.templates. The four defaults were seeded by migration 264, so nobody's
+// library got shorter on the way in.
 
 export const TicketDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -64,21 +55,70 @@ export const TicketDetailPage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [reply, setReply] = React.useState("");
   const [showTemplates, setShowTemplates] = React.useState(false);
-  // T3-3 (W-S4): the agent's own editable canned responses.
-  const [templates, setTemplates] = React.useState<string[]>(loadTemplates);
-  const addTemplate = () => {
+  // T3-3 (W-S4) / [SUP-32-7]: the TEAM's canned responses, loaded from the server.
+  const [templates, setTemplates] = React.useState<ReplyTemplate[]>([]);
+  const [templateBusy, setTemplateBusy] = React.useState(false);
+
+  const refreshTemplates = React.useCallback(async () => {
+    try {
+      setTemplates(await supportApi.templates.list());
+    } catch (e) {
+      // Reported, not swallowed: an agent whose library silently came back empty would
+      // assume the team has no templates and start writing their own again.
+      showToast(
+        'error',
+        'Could not load reply templates',
+        e instanceof Error ? e.message : undefined,
+      );
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void refreshTemplates();
+  }, [refreshTemplates]);
+
+  // A shared library needs a name an agent can scan, so saving asks for one inline —
+  // a window.prompt would have been quicker to write and the only one in the console.
+  const [newTemplateTitle, setNewTemplateTitle] = React.useState('');
+  const [namingTemplate, setNamingTemplate] = React.useState(false);
+
+  const addTemplate = async () => {
     const v = reply.trim();
-    if (!v || templates.includes(v)) return;
-    const next = [...templates, v];
-    setTemplates(next);
-    saveTemplates(next);
+    const title = newTemplateTitle.trim();
+    if (!v || !title || templateBusy) return;
+    setTemplateBusy(true);
+    try {
+      await supportApi.templates.create(title, v, ticket?.category ?? null);
+      await refreshTemplates();
+      setNewTemplateTitle('');
+      setNamingTemplate(false);
+      showToast('success', 'Template saved for the team');
+    } catch (e) {
+      showToast('error', 'Could not save template', e instanceof Error ? e.message : undefined);
+    } finally {
+      setTemplateBusy(false);
+    }
   };
-  const removeTemplate = (i: number) => {
-    const next = templates.filter((_, j) => j !== i);
-    setTemplates(next);
-    saveTemplates(next);
+
+  const removeTemplate = async (t: ReplyTemplate) => {
+    if (templateBusy) return;
+    setTemplateBusy(true);
+    try {
+      await supportApi.templates.retire(t.id);
+      await refreshTemplates();
+      showToast('success', `"${t.title}" retired for everyone`);
+    } catch (e) {
+      showToast('error', 'Could not retire template', e instanceof Error ? e.message : undefined);
+    } finally {
+      setTemplateBusy(false);
+    }
   };
   const [resolveOnReply, setResolveOnReply] = React.useState(false);
+  // [SUP-32-5]
+  const [showResolve, setShowResolve] = React.useState(false);
+  const [resolution, setResolution] = React.useState('');
+  const [resolutionNote, setResolutionNote] = React.useState('');
+  const [resolving, setResolving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"reply" | "notes">("reply");
   const [internalNote, setInternalNote] = React.useState("");
   const [sending, setSending] = React.useState(false);
@@ -317,11 +357,19 @@ export const TicketDetailPage: React.FC = () => {
 
   useBreadcrumbTitle(ticket?.subject);
 
+  // [SUP-32-4] Ask who can take this ticket, not for the whole admin roster. The old
+  // call was super_admin-only, so support got a 403 that this `.catch(() => {})`
+  // swallowed: the control rendered with nothing in it and no sign anything had failed,
+  // which is how a dead affordance survives review. A failure here is now visible.
+  const [assignLoadError, setAssignLoadError] = React.useState(false);
   React.useEffect(() => {
-    catalogApi
-      .listAdminUsers()
-      .then(setAdminUsers)
-      .catch(() => {});
+    supportApi
+      .assignableAgents()
+      .then((a) => {
+        setAdminUsers(a as unknown as AdminUser[]);
+        setAssignLoadError(false);
+      })
+      .catch(() => setAssignLoadError(true));
   }, []);
 
   React.useEffect(() => {
@@ -394,14 +442,12 @@ export const TicketDetailPage: React.FC = () => {
     setSending(true);
     try {
       await supportApi.addReply(ticket.id, reply.trim(), false);
-      if (resolveOnReply) {
-        const updated = await supportApi.update(ticket.id, {
-          status: "Resolved",
-        });
-        setTicket(updated);
-      }
       setReply("");
       showToast("success", "Reply sent");
+      // [SUP-32-5] This used to resolve silently on send. Resolving now requires an
+      // outcome, so the reply lands first and the question is asked straight after —
+      // rather than the send failing on a 400 the agent did not ask for.
+      if (resolveOnReply) setShowResolve(true);
     } catch (e) {
       showToast(
         "error",
@@ -438,6 +484,28 @@ export const TicketDetailPage: React.FC = () => {
     }
   };
 
+  // [SUP-32-5] Resolve WITH the outcome that fixed it.
+  const submitResolve = async () => {
+    if (!ticket || !resolution) return;
+    setResolving(true);
+    try {
+      await supportApi.resolve(ticket.id, resolution, resolutionNote);
+      // Re-read rather than trust the PATCH response: `resolved_by_name` comes from a
+      // join the UPDATE's RETURNING cannot do, so using the response directly left the
+      // Outcome block saying what fixed it but not who — visible only after a reload.
+      setTicket(await supportApi.get(ticket.id));
+      setShowResolve(false);
+      setResolution('');
+      setResolutionNote('');
+      setResolveOnReply(false);
+      showToast('success', 'Ticket resolved');
+    } catch (e) {
+      showToast('error', 'Failed to resolve', e instanceof Error ? e.message : undefined);
+    } finally {
+      setResolving(false);
+    }
+  };
+
   // T3-3 (W-S3): snooze the ticket to a follow-up time (or clear it). Snoozed
   // tickets leave "Needs reply" until the time passes.
   const [savingSnooze, setSavingSnooze] = React.useState(false);
@@ -452,6 +520,9 @@ export const TicketDetailPage: React.FC = () => {
     'Request re-measure',
   );
   const creditDialog = useDialog(showCredit, () => setShowCredit(false), 'Issue goodwill credit');
+  // [SUP-32-5] Resolving now asks what fixed it. The server refuses a resolve without an
+  // outcome, so this is the only path to Resolved rather than an optional extra step.
+  const resolveDialog = useDialog(showResolve, () => setShowResolve(false), 'Resolve ticket');
   const escalateDialog = useDialog(
     showEscalate,
     () => setShowEscalate(false),
@@ -529,7 +600,12 @@ export const TicketDetailPage: React.FC = () => {
           >
             {ticket.priority}
           </span>
-          <span className={styles.categoryTag}>{ticket.category}</span>
+          {/* [SUP-32-5] Render the LABEL, not the raw column value. This printed
+              "order_issue" in the page header — a database spelling shown to an agent
+              mid-conversation, and unreadable to anyone who did not write the seed. */}
+          <span className={styles.categoryTag} title={ticket.category ?? undefined}>
+            {ticketCategoryLabel(ticket.category)}
+          </span>
         </>
       }
     />
@@ -549,6 +625,34 @@ export const TicketDetailPage: React.FC = () => {
             <div className={styles.metaLabel}>Last Activity</div>
             <div className={styles.metaValue}>{ticket.lastActivity}</div>
           </div>
+          {/* [SUP-32-5] The outcome, shown beside the category. A ticket resolved before
+              this existed reads "Not recorded" rather than borrowing a plausible one —
+              the gap is real and saying so is what keeps the first report honest. */}
+          {(ticket.status === "Resolved" || ticket.status === "Closed") && (
+            <div>
+              <div className={styles.metaLabel}>Outcome</div>
+              <div className={styles.metaValue}>
+                {ticket.resolution ? (
+                  <>
+                    {ticketResolutionLabel(ticket.resolution)}
+                    {ticket.resolvedByName && (
+                      <div className={styles.fieldLabel}>
+                        by {ticket.resolvedByName}
+                        {ticket.resolvedAt
+                          ? ` · ${new Date(ticket.resolvedAt).toLocaleDateString("en-IN")}`
+                          : ""}
+                      </div>
+                    )}
+                    {ticket.resolutionNote && (
+                      <div className={styles.fieldLabel}>{ticket.resolutionNote}</div>
+                    )}
+                  </>
+                ) : (
+                  <span className={styles.fieldLabel}>Not recorded</span>
+                )}
+              </div>
+            </div>
+          )}
           <div>
             <div className={styles.metaLabel}>Assigned to</div>
             <div
@@ -563,15 +667,29 @@ export const TicketDetailPage: React.FC = () => {
                 const current = adminUsers.find(
                   (u) => u.id === ticket.assignedTo,
                 );
+                // [SUP-32-4] The picker is now a narrower list than the full admin
+                // roster, so "not in the list" no longer means "not assigned". A ticket
+                // held by an account that can no longer work tickets must not render as
+                // Unassigned — that would quietly hide a ticket nobody is coming for.
+                const label = current
+                  ? current.name
+                  : ticket.assignedTo
+                    ? "Assigned to an account that can no longer work tickets"
+                    : "Unassigned";
                 return (
                   <span
                     className={current ? styles.metaValue : styles.unassigned}
                     style={{ marginBottom: 4 }}
                   >
-                    {current ? current.name : "Unassigned"}
+                    {label}
                   </span>
                 );
               })()}
+              {assignLoadError && (
+                <span className={styles.unassigned}>
+                  Couldn&rsquo;t load the list of agents — reload to try again.
+                </span>
+              )}
               <select
                 className={styles.fieldSelect}
                 value={selectedAssignee}
@@ -592,15 +710,11 @@ export const TicketDetailPage: React.FC = () => {
                   <option value="__unassign__">— Remove assignment —</option>
                 )}
                 {adminUsers
-                  // G-43: only support-capable roles are offered (a ticket
-                  // shouldn't land with design/procurement/finance). A current
-                  // out-of-scope assignee is still shown so it isn't dropped.
-                  .filter(
-                    (u) =>
-                      u.is_active &&
-                      (["support", "admin", "super_admin"].includes(u.role) ||
-                        u.id === selectedAssignee),
-                  )
+                  // G-43 is now enforced server-side (/support/assignable returns only
+                  // active admins holding customers:write), so there is no role list to
+                  // keep in sync here — and the old one offered super_admin, who cannot
+                  // reply to or assign a ticket at all. An out-of-scope current
+                  // assignee is surfaced in the label above rather than in this list.
                   .map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.name}
@@ -711,6 +825,21 @@ export const TicketDetailPage: React.FC = () => {
 
       <div className={styles.card}>
         <h3 className={styles.sectionTitle}>Ticket Actions</h3>
+        {/* [SUP-32-8] Say why the card is empty.
+            Every CX lever here is wrapped in `ticket.user_id &&` — re-measure, credit,
+            alteration, return — and the create modal lets a ticket be raised by typing a
+            customer NAME with no lookup. Such a ticket rendered an empty Ticket Actions
+            card with nothing explaining it, so the agent reads "no actions available" as
+            a broken page rather than a missing link. The schema's own comment records the
+            history ("Previously dropped — tickets came in unlinked"); the modal still
+            permits it, so the detail has to cope with it honestly. */}
+        {!ticket.user_id && (
+          <p className={styles.unlinkedNote}>
+            This ticket isn't linked to a customer record, so re-measure, credit, alteration
+            and return can't be raised from it — they all act on a customer. Find the
+            customer and reopen the request from their profile, or from an order.
+          </p>
+        )}
         <div className={styles.actionList}>
           {/* Fit-Promise levers (G-37): the right moves for a fit complaint */}
           {ticket.user_id && (
@@ -758,7 +887,7 @@ export const TicketDetailPage: React.FC = () => {
           {ticket.status !== "Resolved" && (
             <button
               className={styles.resolveBtn}
-              onClick={() => handleStatusChange("Resolved")}
+              onClick={() => setShowResolve(true)}
             >
               Resolve Ticket
             </button>
@@ -1011,34 +1140,75 @@ export const TicketDetailPage: React.FC = () => {
                   </button>
                   {showTemplates && (
                     <div className={styles.templateDropdown}>
-                      {templates.map((t, i) => (
-                        <div key={i} className={styles.templateRow}>
+                      {/* [SUP-32-7] Titles, not the full body: the library is shared and
+                          long enough now that an agent scans names, not paragraphs. */}
+                      {templates.length === 0 && (
+                        <div className={styles.templateRow}>
+                          <span className={styles.fieldLabel}>
+                            No shared templates yet — save a reply below to start the library.
+                          </span>
+                        </div>
+                      )}
+                      {templates.map((t) => (
+                        <div key={t.id} className={styles.templateRow}>
                           <button
                             className={styles.templateItem}
+                            title={t.body}
                             onClick={() => {
-                              setReply(t);
+                              setReply(t.body);
                               setShowTemplates(false);
                             }}
                           >
-                            {t}
+                            {t.title}
                           </button>
                           <button
                             className={styles.templateDelete}
-                            title="Remove this canned response"
-                            onClick={(e) => { e.stopPropagation(); removeTemplate(i); }}
+                            title="Retire this reply for the whole team"
+                            disabled={templateBusy}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void removeTemplate(t);
+                            }}
                           >
                             <UilTimes size={13} />
                           </button>
                         </div>
                       ))}
-                      {/* T3-3 (W-S4): save the current reply as a reusable canned response. */}
-                      <button
-                        className={styles.templateAdd}
-                        disabled={!reply.trim()}
-                        onClick={() => addTemplate()}
-                      >
-                        + Save current reply as a template
-                      </button>
+                      {/* T3-3 (W-S4) / [SUP-32-7]: save the current reply for the TEAM. */}
+                      {namingTemplate ? (
+                        <div className={styles.templateRow}>
+                          <input
+                            className={styles.templateItem}
+                            autoFocus
+                            maxLength={80}
+                            value={newTemplateTitle}
+                            placeholder="Name it so the team can find it"
+                            onChange={(e) => setNewTemplateTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') void addTemplate();
+                              if (e.key === 'Escape') setNamingTemplate(false);
+                            }}
+                          />
+                          <button
+                            className={styles.templateAdd}
+                            disabled={!newTemplateTitle.trim() || templateBusy}
+                            onClick={() => void addTemplate()}
+                          >
+                            Save
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className={styles.templateAdd}
+                          disabled={!reply.trim() || templateBusy}
+                          onClick={() => {
+                            setNewTemplateTitle(reply.trim().slice(0, 60));
+                            setNamingTemplate(true);
+                          }}
+                        >
+                          + Save current reply as a team template
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1128,6 +1298,61 @@ export const TicketDetailPage: React.FC = () => {
                 onClick={submitRemeasure}
               >
                 {requestingRemeasure ? "Requesting…" : "Request re-measure"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* [SUP-32-5] What fixed it — asked at the resolve, because an outcome asked for
+          later is an outcome nobody fills in. */}
+      {showResolve && (
+        <div className={styles.modalOverlay} onClick={() => setShowResolve(false)}>
+          <div
+            className={styles.modal}
+            {...resolveDialog.dialogProps}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className={styles.modalTitle}>Resolve {ticket.reference_id ?? 'ticket'}</h3>
+            <p className={styles.fieldLabel}>
+              What actually fixed this? The category says why they got in touch; this says
+              what it cost us to put right. Both are needed to tell ten answered questions
+              apart from ten remakes.
+            </p>
+            <select
+              className={styles.fieldTextarea}
+              value={resolution}
+              onChange={(e) => setResolution(e.target.value)}
+            >
+              <option value="">Choose an outcome…</option>
+              {TICKET_RESOLUTIONS.map((r) => (
+                <option key={r.slug} value={r.slug}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            {resolution && (
+              <p className={styles.fieldLabel}>
+                {TICKET_RESOLUTIONS.find((r) => r.slug === resolution)?.hint}
+              </p>
+            )}
+            <textarea
+              className={styles.fieldTextarea}
+              rows={2}
+              value={resolutionNote}
+              onChange={(e) => setResolutionNote(e.target.value)}
+              placeholder="Anything the outcome alone doesn't capture (optional)"
+            />
+            <div className={styles.modalActions}>
+              <button className={styles.cancelModalBtn} onClick={() => setShowResolve(false)}>
+                Cancel
+              </button>
+              <button
+                className={styles.assignSelfBtn}
+                disabled={!resolution || resolving}
+                onClick={submitResolve}
+              >
+                {resolving ? 'Resolving…' : 'Resolve ticket'}
               </button>
             </div>
           </div>

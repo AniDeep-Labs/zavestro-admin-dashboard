@@ -222,8 +222,23 @@ export const PromoCodesPage: React.FC = () => {
                     <td>{p.discount_type === 'percent' ? 'Percentage' : 'Flat (₹)'}</td>
                     <td>{p.discount_type === 'percent' ? `${p.discount_value}%` : `₹${p.discount_value}`}</td>
                     <td>{p.min_order_amount > 0 ? `₹${p.min_order_amount}` : '—'}</td>
-                    {/* T2-34 (F-5): actual redemptions / max, then total ₹ spent (avg/order). */}
-                    <td>{(p.usage_count ?? 0).toLocaleString('en-IN')} / {p.max_uses ?? '∞'}</td>
+                    {/* [PM-26-4] The cap is enforced against `uses`; this cell rendered
+                        `usage_count`, which is net of cancelled and refunded orders. Both
+                        are true and they answer different questions — on the seeded data
+                        AUDLASTONE showed "0 / 100" while the enforced value was 99, so the
+                        console promised a hundred redemptions and the next one would have
+                        been refused as "usage limit reached". The cap now shows the number
+                        that governs it; net redemptions stay, labelled, because that is the
+                        finance figure. A divergence is itself worth seeing: in production
+                        the two move together atomically, so a gap means something didn't. */}
+                    <td>
+                      {(p.enforced_uses ?? 0).toLocaleString('en-IN')} / {p.max_uses ?? '∞'}
+                      {p.enforced_uses !== p.usage_count && (
+                        <div className={styles.avgSpend} title="Redemptions counted for finance, net of cancelled and refunded orders. The cap above is enforced separately; these should normally match.">
+                          {(p.usage_count ?? 0).toLocaleString('en-IN')} net of reversals
+                        </div>
+                      )}
+                    </td>
                     <td>
                       {(p.usage_count ?? 0) > 0 ? (
                         <>

@@ -65,3 +65,10 @@
 }
 .fhint { font-size: var(--font-size-xs); color: var(--color-text-tertiary); }
 .modalActions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* [CM-19-3] A draft listing is not demand. Shown, because the CM should know it exists,
+   but visibly separated from the live ones that actually consume the fabric. */
+.feedDrafts {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
