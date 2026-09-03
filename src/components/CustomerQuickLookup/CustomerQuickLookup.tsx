@@ -20,6 +20,14 @@ interface Props {
    * default — a call site that needs full contact details has to say so.
    */
   masked?: boolean;
+  /**
+   * [SUP-33-6] Seed the box from the URL, so arriving from a ticket, an order or a
+   * ringing-phone integration does not land the agent on an empty field with the number
+   * they already have. Seeds and searches only — it deliberately does NOT auto-select a
+   * single hit: choosing who is on the phone is the agent's call, and G-93's identity
+   * check exists precisely so that decision is made by a person.
+   */
+  initialQuery?: string;
 }
 
 export const CustomerQuickLookup: React.FC<Props> = ({
@@ -30,8 +38,9 @@ export const CustomerQuickLookup: React.FC<Props> = ({
   autoFocus,
   label,
   masked = true,
+  initialQuery,
 }) => {
-  const [query, setQuery] = React.useState('');
+  const [query, setQuery] = React.useState(initialQuery ?? '');
   const [results, setResults] = React.useState<CustomerLookupResult[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [open, setOpen] = React.useState(false);

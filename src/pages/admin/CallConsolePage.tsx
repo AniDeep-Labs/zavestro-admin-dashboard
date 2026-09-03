@@ -1,6 +1,6 @@
 import React from "react";
 import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA11-3]
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   usersApi,
   fetchMoneyConfig,
@@ -143,6 +143,18 @@ export const CallConsolePage: React.FC = () => {
   const setCall = (id: string | null) => {
     callIdRef.current = id;
   };
+  // [SUP-33-6] Every other CX page honours a URL query (G-43); this one used
+  // useSearchParams nowhere, so arriving from a ticket, an order, a customer record or a
+  // ringing-phone integration landed the agent on an empty box with the number already in
+  // their hand. `?phone=` is the name a telephony hand-off would use; `?search=` matches
+  // the rest of the console, and either is accepted.
+  const [searchParams] = useSearchParams();
+  const deepLinkedQuery = (
+    searchParams.get('phone') ??
+    searchParams.get('search') ??
+    ''
+  ).trim();
+
   const [callbackDue, setCallbackDue] = React.useState('');
   const [disposition, setDisposition] = React.useState<CallDisposition | "">("");
   const [wrapSummary, setWrapSummary] = React.useState("");
@@ -631,7 +643,12 @@ export const CallConsolePage: React.FC = () => {
               Search by the number they're calling from, their ZC-ID, name or
               email.
             </p>
-            <CustomerQuickLookup onSelect={onSelectCustomer} autoFocus masked />
+            <CustomerQuickLookup
+              onSelect={onSelectCustomer}
+              autoFocus
+              masked
+              initialQuery={deepLinkedQuery}
+            />
           </div>
         </div>
       </div>

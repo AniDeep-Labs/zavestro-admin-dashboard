@@ -1214,6 +1214,21 @@ export const OrderDetailPage: React.FC = () => {
               View Profile →
             </button>
           )}
+          {/* [SUP-33-6] Into the phone seat with the caller already looked up. Carries
+              the REFERENCE ID, not the phone number: the console accepts either, and a
+              customer's number does not belong in a URL, browser history or an access
+              log. The reference is a stable non-PII identifier that /customers/lookup
+              already matches on. */}
+          {order.customer_ref && (
+            <button
+              className={styles.linkBtn}
+              onClick={() =>
+                navigate(`/admin/support/call?search=${encodeURIComponent(order.customer_ref!)}`)
+              }
+            >
+              Call console →
+            </button>
+          )}
           <span className={`${styles.customerLabel} ${styles.customerLabelGap}`}>
             Hub
           </span>
