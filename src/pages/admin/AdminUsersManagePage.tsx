@@ -24,8 +24,14 @@ const ROLE_LABELS: Record<string, string> = {
   support: "Support",
   finance: "Finance",
   pricing_manager: "Pricing & Promotions",
-  // legacy role — kept for displaying existing god-mode accounts (not creatable)
-  admin: "Operations · Full Access",
+  // [KA2-6 / LEG-8-4] Legacy role — kept only to DISPLAY existing accounts (not creatable).
+  //
+  // This read "Operations · Full Access", which is a soft, operational-sounding phrase for
+  // the one credential that crosses every wall in the RBAC model: the only actor that can
+  // finish a return, record a QC verdict AND read every customer's measurements. On the one
+  // screen whose job is to retire these accounts, the label should say what it is rather
+  // than make it sound like a job title someone ought to have.
+  admin: "Legacy · god-mode (retire)",
 };
 
 // [SHL-1-12] The roles defined PER HUB — mirrors HUB_SCOPED_ADMIN_ROLES in the
