@@ -572,7 +572,7 @@ export const AdminUsersManagePage: React.FC = () => {
                 <th>Role</th>
                 <th>Hub Scope</th>
                 <th>Last Login</th>
-                <th>Actions</th>
+                <th className={styles.actionsCol}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -635,7 +635,7 @@ export const AdminUsersManagePage: React.FC = () => {
                           )
                         : "Never"}
                     </td>
-                    <td>
+                    <td className={styles.actionsCol}>
                       <div className={styles.rowActions}>
                         <button
                           className={styles.resetBtn}
