@@ -24,6 +24,12 @@ const ROLE_LABELS: Record<string, string> = {
   support: "Support",
   finance: "Finance",
   pricing_manager: "Pricing & Promotions",
+  // [KA2-11] `pending` is a real role ([T0-1], migration 144) — a self-registered account
+  // with ZERO capabilities until a super_admin assigns one. It had no entry here, so the
+  // column fell back to `?? user.role` and rendered a bare lowercase "pending" beside
+  // Title Case labels. Naming it also states the thing that matters about the account:
+  // it is not a role that can do anything, it is one waiting to be given one.
+  pending: "Pending · no role yet",
   // [KA2-6 / LEG-8-4] Legacy role — kept only to DISPLAY existing accounts (not creatable).
   //
   // This read "Operations · Full Access", which is a soft, operational-sounding phrase for
@@ -499,8 +505,11 @@ export const AdminUsersManagePage: React.FC = () => {
                   <div>
                     <div className={styles.userName}>{user.name}</div>
                     <div className={styles.userEmail}>{user.email}</div>
+                    {/* [KA2-11] Was the raw column value — a bare lowercase "pending"
+                        beside Title Case labels everywhere else in this console. Same
+                        map as the role pill, so the two cannot drift. */}
                     <div className={styles.userMeta}>
-                      role: {user.role ?? "pending"}
+                      role: {ROLE_LABELS[user.role ?? "pending"] ?? user.role ?? "pending"}
                     </div>
                   </div>
                 </div>
