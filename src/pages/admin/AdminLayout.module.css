@@ -279,6 +279,13 @@
 
 .topSearch {
   flex: 1;
+  /* [KA2-2] Required alongside the `nowrap` below. A flex item's min-width defaults to
+     `auto`, i.e. its CONTENT size — so once the label stopped wrapping, this box refused to
+     shrink below the full string and starved its neighbours instead: at 1280px the
+     breadcrumb clipped to "Desig" and the hub switcher to "All h". Trading one crowding
+     symptom for another is not a fix. With `min-width: 0` the box shrinks and the label
+     ellipsises, which is the behaviour the inner span was already set up for. */
+  min-width: 0;
   max-width: 460px;
   display: flex;
   align-items: center;
@@ -303,9 +310,20 @@
   background: var(--color-bg-primary);
 }
 .topSearchIcon { color: var(--color-text-tertiary); flex-shrink: 0; }
+/* [KA2-2] This is a <span>, not an <input> — the palette trigger only looks like a search
+   box — so its text WRAPS. `.topSearch` is `flex: 1; max-width: 460px`, and once the header
+   is crowded (measured at 1280px) the label broke onto two lines inside a 40px-tall control:
+   "Search or type" / "a command…", clipped. A control that changes height with the viewport
+   also shifts everything beside it.
+
+   One line, always; ellipsis when there is not room. The `min-width: 0` above already lets
+   the flex item shrink below its content — it just had nothing telling it not to wrap. */
 .topSearchInput {
   flex: 1;
   min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   border: none;
   background: none;
   outline: none;
