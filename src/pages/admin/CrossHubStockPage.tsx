@@ -555,6 +555,14 @@ export const CrossHubStockPage: React.FC = () => {
                       const reserved = Number(r.reserved_meters);
                       const reorder = num(r.reorder_meters);
                       const sugg = num(r.reorder_suggestion);
+                      // [PRC-17-9] The suggestion reached the grid already; its BASIS did
+                      // not. `consumed_30d` renders only inside the below-reorder exception
+                      // table, which by definition holds rows that already have a reorder
+                      // point — so on the rows where the buyer is being asked to SET one,
+                      // "≈2m" arrived as a bare number with nothing to check it against.
+                      // The suggestion is (30-day consumption ÷ 30) × supplier lead time,
+                      // so those are the two figures that make it auditable.
+                      const consumed = num(r.consumed_30d);
                       // [CM-19-4] A FOURTH derivation of "low", in the same file as the
                       // one above and with a different boundary again. The server decides.
                       const low = r.is_low ?? (reorder != null && avail <= reorder);
@@ -588,11 +596,22 @@ export const CrossHubStockPage: React.FC = () => {
                               <button
                                 className={styles.reorderBtn}
                                 title={sugg != null
-                                  ? `Suggested ≈${sugg}m (demand during lead time). Set the reorder point — below it this SKU surfaces in the exception list.`
+                                  ? `Suggested ≈${sugg}m — demand during lead time${consumed != null ? `, from ${consumed}m consumed in 30 days` : ''}. Set the reorder point — below it this SKU surfaces in the exception list.`
                                   : 'Set the reorder point — below it this SKU surfaces in the exception list'}
                                 onClick={() => { setEditKey(key); setEditVal(reorder != null ? String(reorder) : ''); }}
                               >
-                                {reorder != null ? `RP ${reorder}m` : (sugg != null ? <>set RP <span className={cs.sugg}>≈{sugg}m</span></> : 'set RP')}
+                                {reorder != null ? (
+                                  `RP ${reorder}m`
+                                ) : sugg != null ? (
+                                  <>
+                                    set RP <span className={cs.sugg}>≈{sugg}m</span>
+                                    {consumed != null && consumed > 0 && (
+                                      <span className={cs.suggBasis}>{consumed}m/30d</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  'set RP'
+                                )}
                               </button>
                             )}
                           </div>
