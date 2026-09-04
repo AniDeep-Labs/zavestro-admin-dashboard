@@ -36,6 +36,7 @@ import {
   UilImage,
   UilCopy,
 } from "@iconscout/react-unicons";
+import { SafeImg } from '../../components/Image/SafeImg';
 
 const url = (k?: string) => (k && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${k}` : "");
 
@@ -508,8 +509,12 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
               return (
                 <div key={r.sample_id} className={s.readyCard}>
                   <div className={s.readyImg}>
+                    {/* [CM-18-8] On the page whose subject IS the photograph, a dead key
+                        must be an explicit state, not the browser's broken-image box with
+                        the design name inside it. Falls back to the same placeholder the
+                        no-photo branch draws. */}
                     {img ? (
-                      <img src={img} alt={r.design_name} />
+                      <SafeImg src={img} alt={r.design_name} fallback={<UilImage size={22} />} />
                     ) : (
                       <UilImage size={22} />
                     )}
@@ -591,7 +596,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
               <div key={l.id} className={s.card} onClick={() => openEdit(l)}>
                 <div className={s.cardImg}>
                   {img ? (
-                    <img src={img} alt={l.design_name} />
+                    <SafeImg src={img} alt={l.design_name} fallback={<UilImage size={26} />} />
                   ) : (
                     <UilImage size={26} />
                   )}
@@ -833,7 +838,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
               <div className={s.thumbs}>
                 {editor.photos.map((k, i) => (
                   <div key={k} className={s.thumb}>
-                    <img src={url(k)} alt={`photo ${i + 1}`} />
+                    <SafeImg src={url(k)} alt={`photo ${i + 1}`} fallback={<UilImage size={20} />} />
                     <button
                       type="button"
                       onClick={() =>
