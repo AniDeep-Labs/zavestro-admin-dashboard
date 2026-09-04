@@ -21,6 +21,7 @@ import s from './CodReconciliationPage.module.css';
 import cs from './CrossHubStockPage.module.css';
 import { UilImport } from '@iconscout/react-unicons';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
+import { isDenied } from '../../components/EmptyState/asyncState';
 
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 
@@ -51,6 +52,44 @@ export const CrossHubStockPage: React.FC = () => {
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
 
+  // [RC-3 · found via CM-19-6] Every panel below is an EXCEPTION list, so a failed fetch
+  // that renders an empty one does not say "we could not check" — it says "nothing is
+  // wrong". That is the most dangerous falsehood this page can tell: the whole reason a
+  // buyer opens it is to be shown what needs attention, and a swallowed error turns it into
+  // a clean bill of health. `setDeadFromLedger(null)` meant "no idle capital"; an empty
+  // in-transit list meant "nothing is on its way".
+  //
+  // These are not caught by the RC-3 ratchet, whose regex only matches an EMPTY catch body —
+  // a catch that writes a benign default is the same lie with more typing.
+  //
+  // Denial is tracked separately from failure: a role that may not read a panel should not
+  // be told the page is broken (see FitFeedbackPage, where warning on a 403 cried wolf on
+  // every load).
+  const [panelsFailed, setPanelsFailed] = React.useState<Set<string>>(new Set());
+  // Both memoised with empty deps (setState identities are stable), so they can be listed in
+  // the effect dependency arrays below without re-running the fetches every render.
+  const markPanelFailed = React.useCallback((name: string) => {
+    setPanelsFailed((p) => (p.has(name) ? p : new Set(p).add(name)));
+  }, []);
+  /** Run a panel fetch; on a real failure record it so the page stops claiming all-clear. */
+  const panelFetch = React.useCallback(
+    <T,>(name: string, run: Promise<T>, apply: (v: T) => void) =>
+      run
+        .then((v) => {
+          apply(v);
+          setPanelsFailed((p) => {
+            if (!p.has(name)) return p;
+            const n = new Set(p);
+            n.delete(name);
+            return n;
+          });
+        })
+        .catch((e) => {
+          if (!isDenied(e)) markPanelFailed(name);
+        }),
+    [markPanelFailed],
+  );
+
   const load = React.useCallback(() => {
     setLoading(true);
     fabricsApi
@@ -62,11 +101,18 @@ export const CrossHubStockPage: React.FC = () => {
     distributionApi
       .list({ status: 'pushed', hub_id: hubFilter || undefined })
       .then(setInTransit)
-      .catch(() => setInTransit([]));
-  }, [hubFilter]);
+      .catch((e) => {
+        if (!isDenied(e)) markPanelFailed('In transit');
+        setInTransit([]);
+      });
+  }, [hubFilter, markPanelFailed]);
 
   React.useEffect(() => { load(); }, [load]);
-  React.useEffect(() => { hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {}); }, []);
+
+
+  React.useEffect(() => {
+    panelFetch('Hub filter', hubsApi.list(), (r) => setHubs(r.hubs));
+  }, [panelFetch]);
   // [PRC-17-3] Dead stock comes from the server, keyed on the LEDGER.
   //
   // This page derived it as `now - hub_fabric_stock.updated_at > 60 days`. That column is
@@ -83,20 +129,22 @@ export const CrossHubStockPage: React.FC = () => {
   // DeadStockPage shows, so the two surfaces now agree.)
   const [deadFromLedger, setDeadFromLedger] = React.useState<DeadStock | null>(null);
   React.useEffect(() => {
-    fabricsApi.deadStock().then(setDeadFromLedger).catch(() => setDeadFromLedger(null));
-  }, []);
+    panelFetch('Dead stock', fabricsApi.deadStock(), setDeadFromLedger);
+  }, [panelFetch]);
 
   // T1-10: count-variance + monthly-count-due by hub.
   const [variance, setVariance] = React.useState<HubStockVariance[]>([]);
-  React.useEffect(() => { fabricsApi.hubStockVariance().then(setVariance).catch(() => {}); }, []);
+  React.useEffect(() => {
+    panelFetch('Count variance', fabricsApi.hubStockVariance(), setVariance);
+  }, [panelFetch]);
   // T1-12: stale-reservation exception view + guarded release.
   const [staleRes, setStaleRes] = React.useState<StaleReservation[]>([]);
   const [releaseFor, setReleaseFor] = React.useState<string | null>(null);
   const [releaseReason, setReleaseReason] = React.useState('');
   const [releasing, setReleasing] = React.useState(false);
   const loadStale = React.useCallback(() => {
-    fabricsApi.staleReservations().then(setStaleRes).catch(() => {});
-  }, []);
+    panelFetch('Stale reservations', fabricsApi.staleReservations(), setStaleRes);
+  }, [panelFetch]);
   React.useEffect(() => { loadStale(); }, [loadStale]);
   const doRelease = async (orderId: string) => {
     if (!releaseReason.trim()) { toast('error', 'A reason is required'); return; }
@@ -506,9 +554,21 @@ export const CrossHubStockPage: React.FC = () => {
           </div>
         </section>
       )}
-      {!loading && belowReorder.length === 0 && deadStock.length === 0 && visibleTransit.length === 0 && visibleRows.length > 0 && (
-        <EmptyState title="Nothing below reorder, no dead stock, nothing in transit ✓" size="compact" />
-      )}
+      {!loading &&
+        belowReorder.length === 0 &&
+        deadStock.length === 0 &&
+        visibleTransit.length === 0 &&
+        visibleRows.length > 0 &&
+        (panelsFailed.size === 0 ? (
+          <EmptyState title="Nothing below reorder, no dead stock, nothing in transit ✓" size="compact" />
+        ) : (
+          /* A tick here would be a clean bill of health this page cannot currently give. */
+          <EmptyState
+            title="Nothing flagged — but some checks could not run"
+            body={`${[...panelsFailed].join(', ')} failed to load, so anything they would have flagged is not shown. Reload before treating this as all clear.`}
+            size="compact"
+          />
+        ))}
 
       {/* The full grid — fabric × hub matrix (spec §294), sticky fabric column */}
       <section className={ds.section}>
@@ -555,6 +615,14 @@ export const CrossHubStockPage: React.FC = () => {
                       const reserved = Number(r.reserved_meters);
                       const reorder = num(r.reorder_meters);
                       const sugg = num(r.reorder_suggestion);
+                      // [PRC-17-9] The suggestion reached the grid already; its BASIS did
+                      // not. `consumed_30d` renders only inside the below-reorder exception
+                      // table, which by definition holds rows that already have a reorder
+                      // point — so on the rows where the buyer is being asked to SET one,
+                      // "≈2m" arrived as a bare number with nothing to check it against.
+                      // The suggestion is (30-day consumption ÷ 30) × supplier lead time,
+                      // so those are the two figures that make it auditable.
+                      const consumed = num(r.consumed_30d);
                       // [CM-19-4] A FOURTH derivation of "low", in the same file as the
                       // one above and with a different boundary again. The server decides.
                       const low = r.is_low ?? (reorder != null && avail <= reorder);
@@ -588,11 +656,22 @@ export const CrossHubStockPage: React.FC = () => {
                               <button
                                 className={styles.reorderBtn}
                                 title={sugg != null
-                                  ? `Suggested ≈${sugg}m (demand during lead time). Set the reorder point — below it this SKU surfaces in the exception list.`
+                                  ? `Suggested ≈${sugg}m — demand during lead time${consumed != null ? `, from ${consumed}m consumed in 30 days` : ''}. Set the reorder point — below it this SKU surfaces in the exception list.`
                                   : 'Set the reorder point — below it this SKU surfaces in the exception list'}
                                 onClick={() => { setEditKey(key); setEditVal(reorder != null ? String(reorder) : ''); }}
                               >
-                                {reorder != null ? `RP ${reorder}m` : (sugg != null ? <>set RP <span className={cs.sugg}>≈{sugg}m</span></> : 'set RP')}
+                                {reorder != null ? (
+                                  `RP ${reorder}m`
+                                ) : sugg != null ? (
+                                  <>
+                                    set RP <span className={cs.sugg}>≈{sugg}m</span>
+                                    {consumed != null && consumed > 0 && (
+                                      <span className={cs.suggBasis}>{consumed}m/30d</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  'set RP'
+                                )}
                               </button>
                             )}
                           </div>

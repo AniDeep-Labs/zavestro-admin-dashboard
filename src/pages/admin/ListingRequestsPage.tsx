@@ -33,6 +33,14 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
   const [sp] = useSearchParams();
   const isProc = mode === 'procurement';
 
+  // [PRC-16-9] A swatch key can outlive the object in R2. Without onError the card renders
+  // the browser's broken-image box with the ALT TEXT in it — so "Chambray" appears as a
+  // failed graphic rather than as the fabric it names. Fabrics Master already swaps in the
+  // placeholder tile for exactly this; same component family, so same behaviour.
+  const [brokenSwatch, setBrokenSwatch] = React.useState<Set<string>>(new Set());
+  const markSwatchBroken = (id: string) =>
+    setBrokenSwatch((b) => (b.has(id) ? b : new Set(b).add(id)));
+
   const [confirm, setConfirm] = React.useState<ConfirmState | null>(null);
   const [confirming, setConfirming] = React.useState(false);
   const runConfirm = async () => {
@@ -241,7 +249,13 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
         className={`${s.card} ${isProc ? s.clickCard : ''}`}
         onClick={isProc ? () => navigate(`/admin/procurement/track/${r.hub_id}/${r.fabric_id}`) : undefined}
       >
-        <div className={s.cardSwatch}>{img ? <img src={img} alt={r.fabric_name} /> : <UilImage size={26} />}</div>
+        <div className={s.cardSwatch}>
+          {img && !brokenSwatch.has(r.id) ? (
+            <img src={img} alt={r.fabric_name} onError={() => markSwatchBroken(r.id)} />
+          ) : (
+            <UilImage size={26} />
+          )}
+        </div>
         <div className={s.cardBody}>
           <div className={s.cardTop}>
             <span className={s.cardCode}>{r.fabric_code}{r.fabric_color ? ` · ${r.fabric_color}` : ''}</span>

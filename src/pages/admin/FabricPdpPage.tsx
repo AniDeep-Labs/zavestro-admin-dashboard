@@ -34,7 +34,9 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
   // T2-28 procurement cockpit: tabs + movement/designs data + reorder editor + push modal
   const [tab, setTab] = React.useState<'stock' | 'designs' | 'movement'>('stock');
   const [movements, setMovements] = React.useState<FabricLedgerEntry[] | null>(null);
+  const [movementsErr, setMovementsErr] = React.useState(false);
   const [designUses, setDesignUses] = React.useState<FabricDesignUse[] | null>(null);
+  const [designUsesErr, setDesignUsesErr] = React.useState(false);
   const [reorderEdits, setReorderEdits] = React.useState<Record<string, string>>({});
   const [savingReorder, setSavingReorder] = React.useState('');
   const [push, setPush] = React.useState<{ hub_id: string; meters: string; lot: string; consignment: string } | null>(null);
@@ -66,8 +68,24 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
   }, [isDesign]);
   React.useEffect(() => {
     if (isDesign || !id) return;
-    if (tab === 'movement' && movements === null) fabricsApi.movements(id).then(setMovements).catch(() => setMovements([]));
-    if (tab === 'designs' && designUses === null) fabricsApi.designsUsing(id).then(setDesignUses).catch(() => setDesignUses([]));
+    // [RC-3 class] These used to `.catch(() => setX([]))`, which renders the panel's
+    // EMPTY sentence for a failed request: "No stock movement recorded yet." for a ledger
+    // that could not be read, and "No design uses this fabric yet." for a fabric whose
+    // uses are unknown. The second is the one that costs money — that sentence is the
+    // evidence someone would write this cloth off on.
+    //
+    // The RC-3 ratchet does not see this shape: its regex matches an EMPTY catch body, and
+    // a catch that writes a benign default is the same lie with more typing.
+    if (tab === 'movement' && movements === null)
+      fabricsApi
+        .movements(id)
+        .then((m) => { setMovements(m); setMovementsErr(false); })
+        .catch(() => setMovementsErr(true));
+    if (tab === 'designs' && designUses === null)
+      fabricsApi
+        .designsUsing(id)
+        .then((d) => { setDesignUses(d); setDesignUsesErr(false); })
+        .catch(() => setDesignUsesErr(true));
   }, [tab, isDesign, id, movements, designUses]);
 
   const requestSample = async () => {
@@ -299,7 +317,12 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
             {tab === 'designs' && (
               <div className={s.card}>
                 <h4 className={s.cardTitle}>Designs using this fabric</h4>
-                {designUses === null ? (
+                {designUsesErr ? (
+                  <p className={s.stockEmpty}>
+                    Couldn&rsquo;t load which designs use this fabric — this is not the same
+                    as none. Reload before acting on it.
+                  </p>
+                ) : designUses === null ? (
                   <div className={s.center}><Spinner /></div>
                 ) : designUses.length === 0 ? (
                   <p className={s.stockEmpty}>No design uses this fabric yet.</p>
@@ -324,7 +347,12 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
             {tab === 'movement' && (
               <div className={s.card}>
                 <h4 className={s.cardTitle}>Stock movement</h4>
-                {movements === null ? (
+                {movementsErr ? (
+                  <p className={s.stockEmpty}>
+                    Couldn&rsquo;t load the movement ledger — this is not the same as no
+                    movement. Reload before treating this stock as idle.
+                  </p>
+                ) : movements === null ? (
                   <div className={s.center}><Spinner /></div>
                 ) : movements.length === 0 ? (
                   <p className={s.stockEmpty}>No stock movement recorded yet.</p>

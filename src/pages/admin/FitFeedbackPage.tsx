@@ -15,6 +15,7 @@ const fitTone = (n: number) => (n >= 4 ? 'done' : n <= 2 ? 'blocked' : 'qc');
 
 // ACP-6 [KA11-6]: one date formatter for the admin.
 import { fmtDate } from '../../utils/date';
+import { isDenied } from '../../components/EmptyState/asyncState';
 
 const areaLabel = (k: string, v: number) => `${k.replace(/_/g, ' ')} ${v < 0 ? 'tight' : 'loose'}`;
 
@@ -35,10 +36,37 @@ export const FitFeedbackPage: React.FC = () => {
   const [busy, setBusy] = React.useState(false);
   // T1-21b Phase 2: rescue watchlist — customers whose rescue rate is abnormal.
   const [watch, setWatch] = React.useState<RescueWatchRow[]>([]);
-  React.useEffect(() => { supportApi.rescueWatchlist().then(setWatch).catch(() => {}); }, []);
+  // [RC-3] An empty watchlist and a watchlist that failed to load look identical, and this
+  // one names customers whose fit keeps going wrong — "nobody needs rescuing" is the more
+  // dangerous of the two readings.
+  //
+  // But DENIED is not FAILED. `/support/rescue-watchlist` is 403 for design, which reads
+  // this page legitimately, so warning on every load would cry wolf at the role that uses
+  // the console most — worse than the silence it replaced. A denial hides the panel; only a
+  // real failure is worth interrupting anyone about.
+  React.useEffect(() => {
+    supportApi
+      .rescueWatchlist()
+      .then(setWatch)
+      .catch((e) => {
+        // The panel renders only when non-empty, so a denial simply leaves it out —
+        // which is the correct answer for a role this tool does not belong to.
+        if (isDenied(e)) return;
+        toast('warning', 'Rescue watchlist unavailable', 'Reload to try again.');
+      });
+  }, []);
   // T1-23: single-source the support credit cap.
   const [creditCap, setCreditCap] = React.useState(500);
-  React.useEffect(() => { fetchMoneyConfig().then((c) => setCreditCap(c.support_credit_cap)).catch(() => {}); }, []);
+  // [RC-3] The credit cap is MONEY policy. Swallowing this leaves the component's built-in
+  // default on screen as if it were the configured cap, so an agent could be shown a limit
+  // the business never set — and would have no way to know.
+  React.useEffect(() => {
+    fetchMoneyConfig()
+      .then((c) => setCreditCap(c.support_credit_cap))
+      .catch(() =>
+        toast('warning', 'Credit cap unknown', 'The configured limit could not be loaded — do not rely on the figure shown.'),
+      );
+  }, []);
   const openRescue = (row: FitFeedbackEntry, mode: 'credit' | 'remeasure') => {
     setRescue({ row, mode }); setAmount(''); setReason('');
   };

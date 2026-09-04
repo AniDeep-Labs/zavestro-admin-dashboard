@@ -30,6 +30,7 @@ import styles from "./OrderDetailPage.module.css";
 import { money } from "../../utils/money"; // ACP-2 [KA7-8]: one shape, everywhere
 import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA11-3]
 import { fmtDate, toDateInput } from "../../utils/date"; // ACP-6 [KA7-7]: one shape, named timezone
+import { isDenied } from "../../components/EmptyState/asyncState";
 import {
   UilAngleLeft,
   UilBox,
@@ -164,6 +165,10 @@ interface NextStepProps {
   order: AdminOrder;
   customerFitProfiles: CustomerMeasurementsData["profiles"];
   profilesLoading: boolean;
+  /** The lookup FAILED — distinct from "this customer has none". See the fetch. */
+  profilesFailed: boolean;
+  /** This ROLE may not read customer measurements (403) — also not "has none". */
+  profilesDenied: boolean;
   advancingStage: boolean;
   assigningCraft: boolean;
   assigningQC: boolean;
@@ -177,6 +182,8 @@ const NextStepCard: React.FC<NextStepProps> = ({
   order,
   customerFitProfiles,
   profilesLoading,
+  profilesFailed,
+  profilesDenied,
   advancingStage,
   assigningCraft,
   assigningQC,
@@ -219,6 +226,26 @@ const NextStepCard: React.FC<NextStepProps> = ({
         {profilesLoading ? (
           <div className={styles.nextStepLoading}>
             Checking saved measurements…
+          </div>
+        ) : profilesDenied ? (
+          /* A 403 here is the DPDP guard doing its job, not an outage: measurements are
+             body data and not every admin role may read them. Saying "couldn't check"
+             would cry wolf on every load for those roles (the FitFeedbackPage lesson), and
+             saying "no saved measurements" would be worse still. */
+          <div className={styles.nextStepDesc}>
+            Your role cannot see saved measurements, so whether this customer has any is
+            not shown here. Do not read this as &ldquo;none&rdquo;.
+          </div>
+        ) : profilesFailed ? (
+          /* [RC-3 class] This used to `.catch(() => setCustomerFitProfiles([]))`, and an
+             empty list here does not read as "unknown" — it renders "No saved measurements
+             — a home visit is required." So a failed lookup dispatched an agent to a
+             customer who may already be measured: a real visit, a slower order, and a cost
+             the business never needed to pay. Whether the customer has a profile is not
+             something to guess at from a network error. */
+          <div className={styles.nextStepDesc}>
+            Couldn&rsquo;t check saved measurements — this is <strong>not</strong> the same
+            as having none. Reload before booking a home visit for this order.
           </div>
         ) : hasSavedProfiles ? (
           <>
@@ -546,6 +573,8 @@ export const OrderDetailPage: React.FC = () => {
     CustomerMeasurementsData["profiles"]
   >([]);
   const [profilesLoading, setProfilesLoading] = React.useState(false);
+  const [profilesFailed, setProfilesFailed] = React.useState(false);
+  const [profilesDenied, setProfilesDenied] = React.useState(false);
 
   // Action states
   const [advancingStage, setAdvancingStage] = React.useState(false);
@@ -720,8 +749,12 @@ export const OrderDetailPage: React.FC = () => {
     setProfilesLoading(true);
     customerMeasurementsApi
       .get(order.user_id)
-      .then((d) => setCustomerFitProfiles(d.profiles ?? []))
-      .catch(() => setCustomerFitProfiles([]))
+      .then((d) => {
+        setCustomerFitProfiles(d.profiles ?? []);
+        setProfilesFailed(false);
+        setProfilesDenied(false);
+      })
+      .catch((e) => (isDenied(e) ? setProfilesDenied(true) : setProfilesFailed(true)))
       .finally(() => setProfilesLoading(false));
   }, [order?.user_id, order?.stage]);
 
@@ -1305,6 +1338,8 @@ export const OrderDetailPage: React.FC = () => {
         <NextStepCard
           order={order}
           customerFitProfiles={customerFitProfiles}
+          profilesFailed={profilesFailed}
+          profilesDenied={profilesDenied}
           profilesLoading={profilesLoading}
           advancingStage={advancingStage}
           assigningCraft={assigningCraft}

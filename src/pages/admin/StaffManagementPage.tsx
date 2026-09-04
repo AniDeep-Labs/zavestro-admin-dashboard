@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useHubContextFilter } from "../../utils/useHubContextFilter"; // [SHL-3-8]
 import { staffApi, hubsApi } from "../../api/adminApi";
 import type { StaffMember, StaffRole, Hub } from "../../api/adminApi";
@@ -34,7 +35,7 @@ const EMPTY = {
   hub_id: "",
 };
 
-export const StaffManagementPage: React.FC = () => {
+export const StaffManagementPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) => {
   const [staff, setStaff] = React.useState<StaffMember[]>([]);
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   // [SHL-3-8] Defaults to the header hub switcher and follows it. Was React.useState(''),
@@ -43,6 +44,22 @@ export const StaffManagementPage: React.FC = () => {
   const [roleFilter, setRoleFilter] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const [open, setOpen] = React.useState(false);
+  // [SHL-3-10] Quick-create (+) pointed at the LIST page ("New staff" landed on Ops Staff,
+  // not a create form), leaving the operator to hunt for the real control. It deep-links to
+  // /new now, and per [DSG-10-3] the deep-linked modal's open state is the URL: closing
+  // returns to the list and browser-back closes it rather than leaving the page.
+  const navigate = useNavigate();
+  const location = useLocation();
+  const openCreate = () => { setForm(EMPTY); setErrors({}); setOpen(true); };
+  const closeEditor = () => {
+    setOpen(false);
+    if (location.pathname.endsWith("/new")) navigate("/admin/system/staff", { replace: true });
+  };
+  const armed = React.useRef(false);
+  React.useEffect(() => {
+    if (autoNew && !armed.current) { armed.current = true; openCreate(); }
+    if (!autoNew) armed.current = false;
+  }, [autoNew]);
   const [form, setForm] = React.useState(EMPTY);
   const [saving, setSaving] = React.useState(false);
   const [actingId, setActingId] = React.useState("");
@@ -188,7 +205,7 @@ export const StaffManagementPage: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
       <div className={base.pageHeader}>
         <h1 className={base.title}>Ops Staff</h1>
-        <Button variant="primary" onClick={() => { setForm(EMPTY); setErrors({}); setOpen(true); }}>
+        <Button variant="primary" onClick={openCreate}>
           <UilPlus size={16} /> New staff
         </Button>
       </div>
@@ -308,11 +325,11 @@ export const StaffManagementPage: React.FC = () => {
 
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeEditor}
         title="New ops staff"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
+            <Button variant="ghost" onClick={closeEditor}>
               Cancel
             </Button>
             <Button

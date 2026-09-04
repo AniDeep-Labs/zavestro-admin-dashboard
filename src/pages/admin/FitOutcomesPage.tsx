@@ -33,6 +33,11 @@ export const FitOutcomesPage: React.FC = () => {
   const [hubFilter, setHubFilter] = useHubContextFilter();
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
+  // [RC-3] Kept separate from `error`: the page's error state blanks the whole report, and a
+  // hub list that failed is no reason to withhold the numbers. But it must not be silent —
+  // a dropdown holding only "All hubs" reads as "this account has one hub", and the reader
+  // then takes an ALL-HUB rate for a single hub's rate.
+  const [hubsFailed, setHubsFailed] = React.useState(false);
 
   const load = React.useCallback(() => {
     setLoading(true);
@@ -53,7 +58,12 @@ export const FitOutcomesPage: React.FC = () => {
   }, [hubFilter]);
 
   React.useEffect(() => { load(); }, [load]);
-  React.useEffect(() => { hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {}); }, []);
+  React.useEffect(() => {
+    hubsApi
+      .list()
+      .then((r) => { setHubs(r.hubs); setHubsFailed(false); })
+      .catch(() => setHubsFailed(true));
+  }, []);
 
   const o = data?.overall;
   const overallResponded = o ? responded(o) : 0;
@@ -94,10 +104,20 @@ export const FitOutcomesPage: React.FC = () => {
       />
 
       <div className={local.toolbar}>
-        <select className={local.hubSel} value={hubFilter} onChange={(e) => setHubFilter(e.target.value)}>
+        <select
+          className={local.hubSel}
+          value={hubFilter}
+          onChange={(e) => setHubFilter(e.target.value)}
+          disabled={hubsFailed}
+        >
           <option value="">All hubs</option>
           {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
         </select>
+        {hubsFailed && (
+          <span className={local.hubSelNote}>
+            Hub list unavailable — these figures cover every hub.
+          </span>
+        )}
       </div>
 
       {error ? (

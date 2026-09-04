@@ -159,6 +159,27 @@ export const UserDetailPage: React.FC = () => {
       // somewhere else is the money version of this whole finding.
       .catch(setLedgerErr);
 
+  /**
+   * [RC-3] Refresh a panel after a write that has ALREADY SUCCEEDED.
+   *
+   * All four post-action refreshes on this page used to end `.catch(() => {})`. The write
+   * is reported either way, so what the swallow hides is the REFRESH — which leaves the old
+   * rows on screen underneath a green "Saved" toast. That is the most confident possible way
+   * to show someone the wrong state, and this page is body data: a stale fit profile or
+   * re-measure row reads as the current one, and the next decision is made against it.
+   *
+   * The write is not rolled back and must not be reported as failed. The honest message is
+   * that it landed and the view did not follow.
+   */
+  const refreshAfterWrite = (panel: string, run: () => Promise<unknown>) =>
+    run().catch(() =>
+      showToast(
+        "warning",
+        "Saved — but the view is out of date",
+        `${panel} could not be refreshed, so what you see below may be stale. Reload the page for the current state.`,
+      ),
+    );
+
   // T1-21b Phase 3 (E): record the re-measure outcome (our fault vs customer error).
   const setOutcome = async (
     requestId: string,
@@ -167,7 +188,10 @@ export const UserDetailPage: React.FC = () => {
     try {
       await usersApi.setRemeasureOutcome(requestId, outcome);
       showToast("success", "Outcome recorded");
-      if (id) usersApi.remeasureRequests(id).then(setRemeasures).catch(() => {});
+      if (id)
+        refreshAfterWrite("Re-measure requests", () =>
+          usersApi.remeasureRequests(id).then(setRemeasures),
+        );
     } catch (e) {
       showToast("error", "Failed", e instanceof Error ? e.message : undefined);
     }
@@ -184,7 +208,9 @@ export const UserDetailPage: React.FC = () => {
       showToast("success", "Re-measure requested", "Ops will schedule a free agent visit.");
       setShowRemeasure(false);
       setRemeasureReason("");
-      usersApi.remeasureRequests(id).then(setRemeasures).catch(() => {});
+      refreshAfterWrite("Re-measure requests", () =>
+        usersApi.remeasureRequests(id).then(setRemeasures),
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : undefined;
       showToast(
@@ -199,7 +225,7 @@ export const UserDetailPage: React.FC = () => {
 
   const reloadProfiles = () => {
     if (!id) return;
-    fitProfilesAdminApi.list(id).then(setFitProfiles).catch(() => {});
+    refreshAfterWrite("Fit profiles", () => fitProfilesAdminApi.list(id).then(setFitProfiles));
   };
 
   const submitFlag = async () => {
@@ -225,7 +251,9 @@ export const UserDetailPage: React.FC = () => {
       setShowFlag(false);
       setFlagReason("");
       reloadProfiles();
-      usersApi.remeasureRequests(id).then(setRemeasures).catch(() => {});
+      refreshAfterWrite("Re-measure requests", () =>
+        usersApi.remeasureRequests(id).then(setRemeasures),
+      );
     } catch (e) {
       showToast("error", "Failed", e instanceof Error ? e.message : undefined);
     } finally {
