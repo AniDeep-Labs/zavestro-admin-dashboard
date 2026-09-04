@@ -34,6 +34,9 @@ export const HubDetailPage: React.FC = () => {
   const [roster, setRoster] = React.useState<StaffMember[] | null>(null);
   // W-18: per-hub fabric stock for the Capacity & Stock tab.
   const [stock, setStock] = React.useState<FabricStockRow[] | null>(null);
+  // [RC-3 class] `.catch(() => setStock([]))` rendered "No fabric stock recorded at this
+  // hub yet." for a failed read — a statement about the hub, made from a network error.
+  const [stockErr, setStockErr] = React.useState(false);
   // T2-24: recent orders + activity feed + deactivate confirmation
   const [recentOrders, setRecentOrders] = React.useState<HubRecentOrder[] | null>(null);
   const [activity, setActivity] = React.useState<HubActivityItem[] | null>(null);
@@ -54,7 +57,10 @@ export const HubDetailPage: React.FC = () => {
       .catch(e => showToast('error', 'Failed to load hub', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
     staffApi.list(id).then(setRoster).catch(() => setRoster([]));
-    fabricsApi.stock({ hub_id: id }).then(setStock).catch(() => setStock([]));
+    fabricsApi
+      .stock({ hub_id: id })
+      .then((r) => { setStock(r); setStockErr(false); })
+      .catch(() => setStockErr(true));
     hubsApi.recentOrders(id).then(setRecentOrders).catch(() => setRecentOrders([]));
     hubsApi.activity(id).then(setActivity).catch(() => setActivity([]));
   }, [id, isNew]);
@@ -267,7 +273,12 @@ export const HubDetailPage: React.FC = () => {
       </div>
       <div className={styles.card}>
         <h3 className={styles.sectionTitle}>Fabric stock at this hub</h3>
-        {stock === null ? (
+        {stockErr ? (
+          <div className={styles.empty}>
+            Couldn&rsquo;t load this hub&rsquo;s stock — that is not the same as the hub
+            holding none. Reload before acting on it.
+          </div>
+        ) : stock === null ? (
           <div className={styles.empty}>Loading stock…</div>
         ) : stock.length === 0 ? (
           <div className={styles.empty}>No fabric stock recorded at this hub yet.</div>

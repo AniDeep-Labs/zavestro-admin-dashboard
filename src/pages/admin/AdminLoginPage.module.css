@@ -7,13 +7,26 @@
   padding: 16px;
 }
 
+/* [KA1-2] The card carried its edge entirely on `box-shadow`, which is a LIGHT-theme
+   device: on the near-black dark ground a shadow has nothing to darken, and
+   --color-bg-primary sits only a few points above it there, so the elevation stops
+   reading and the card dissolves into the page.
+
+   Every other dark card in the admin — the dashboard's `.card`, its mini-cards, the
+   overview panels — already draws a 1px border for exactly this reason. Adopting the same
+   token instead of inventing a login-only treatment; the shadow stays for light. */
 .card {
   width: 100%;
   max-width: 400px;
   background: var(--color-bg-primary);
+  border: 1px solid transparent;
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   padding: 40px 32px 32px;
+}
+
+[data-theme="dark"] .card {
+  border-color: var(--color-border-light);
 }
 
 .header {

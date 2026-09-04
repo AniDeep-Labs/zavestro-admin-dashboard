@@ -13,6 +13,7 @@ import { useDirtyGuard } from '../../hooks/useDirtyGuard';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import s from './DesignEditorPage.module.css';
 import { UilTimes, UilPlus, UilImage, UilUpload, UilFileAlt, UilCheck } from '@iconscout/react-unicons';
+import { SafeImg } from '../../components/Image/SafeImg';
 
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 
@@ -525,7 +526,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
           <div className={s.refImages}>
             {refKeys.map((k, i) => (
               <div key={k} className={`${s.refThumb} ${i === 0 ? s.refThumbCover : ''}`}>
-                <img src={url(k)} alt="reference" />
+                <SafeImg src={url(k)} alt="reference" fallback={<UilImage size={18} />} />
                 {i === 0 ? (
                   <span className={s.coverBadge}>Cover</span>
                 ) : (
@@ -754,7 +755,11 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                 return (
                   <div key={id} className={s.matchedRow}>
                     <span className={s.matchedSwatch}>
-                      {f && url(f.image_keys?.[0]) ? <img src={url(f.image_keys[0])} alt={f.name} /> : <UilImage size={16} />}
+                      <SafeImg
+                        src={f ? url(f.image_keys?.[0]) : undefined}
+                        alt={f?.name ?? ''}
+                        fallback={<UilImage size={16} />}
+                      />
                     </span>
                     <div className={s.matchedInfo}>
                       <strong>{f?.name ?? 'Fabric'}</strong>
@@ -787,7 +792,11 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                   onClick={() => setMatched([...matched, f.id])}
                 >
                   <span className={s.pickSwatch}>
-                    {url(f.image_keys?.[0]) ? <img src={url(f.image_keys[0])} alt={f.name} /> : <UilImage size={18} />}
+                    <SafeImg
+                      src={url(f.image_keys?.[0])}
+                      alt={f.name}
+                      fallback={<UilImage size={18} />}
+                    />
                   </span>
                   <span className={s.pickName}>{f.name}</span>
                   {f.code ? <span className={s.pickCode}>{f.code}</span> : null}
@@ -876,7 +885,9 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
             {refKeys.length > 0 && (
               <div className={s.refImages} style={{ marginTop: 'var(--spacing-md)' }}>
                 {refKeys.map((k) => (
-                  <div key={k} className={s.refThumb}><img src={url(k)} alt="reference" /></div>
+                  <div key={k} className={s.refThumb}>
+                    <SafeImg src={url(k)} alt="reference" fallback={<UilImage size={18} />} />
+                  </div>
                 ))}
               </div>
             )}

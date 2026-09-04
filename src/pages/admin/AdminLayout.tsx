@@ -578,12 +578,17 @@ const NAV_LESS_CAP: { prefix: string; caps: string[] }[] = [
 
 // T3-1 (S-1 + S-3): cap-gated create verbs — the single source for both the palette actions
 // and the quick-create (+) menu, so they never offer a create the role can't do.
+// [SHL-3-10] Every target is a CREATE affordance, not a list page. Four of the five used
+// to land on the list and leave the operator to find the real control — "quick create" that
+// was navigation wearing a create label, which is worse than no shortcut because the label
+// promises the form is one click away. Each /new route opens that page's create modal, and
+// closing it returns to the list (see [DSG-10-3] for why the open state is the URL).
 const CREATE_ACTIONS: { label: string; cap: string; to: string }[] = [
   { label: "New design", cap: "designs:write", to: "/admin/design/library/new" },
-  { label: "New fabric", cap: "distribution:write", to: "/admin/procurement/fabrics" },
-  { label: "New listing", cap: "catalog:write", to: "/admin/catalog/listings" },
-  { label: "New ticket", cap: "customers:write", to: "/admin/support" },
-  { label: "New staff", cap: "staff:manage", to: "/admin/system/staff" },
+  { label: "New fabric", cap: "distribution:write", to: "/admin/procurement/fabrics/new" },
+  { label: "New listing", cap: "catalog:write", to: "/admin/catalog/listings/new" },
+  { label: "New ticket", cap: "customers:write", to: "/admin/support/new" },
+  { label: "New staff", cap: "staff:manage", to: "/admin/system/staff/new" },
 ];
 // Paths inside role-owned operating consoles (Design, Catalog) — deep-link-blocked for super_admin.
 const ROLE_OWNED_PATHS: string[] = SECTIONS.filter((s) => s.roleOwned).flatMap(

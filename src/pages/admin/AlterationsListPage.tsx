@@ -73,6 +73,10 @@ export const AlterationsListPage: React.FC = () => {
   const [alterations, setAlterations] = React.useState<AlterationRequest[]>([]);
   // [SUP-31-3] the aging panel's unpaginated source — see the effect below
   const [agingPool, setAgingPool] = React.useState<AlterationRequest[]>([]);
+  // The panel renders only when non-empty, so a failed read does not show an empty aging
+  // list — it removes the panel entirely, which reads as "nothing is late". That is the
+  // lie this panel's own comment warns about, one level up.
+  const [agingErr, setAgingErr] = React.useState(false);
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -145,8 +149,8 @@ export const AlterationsListPage: React.FC = () => {
   // and being told nothing is late would be the same lie in a smaller box.
   React.useEffect(() => {
     alterationsApi.list({ limit: 200 })
-      .then(r => setAgingPool(r.alterations))
-      .catch(() => setAgingPool([]));
+      .then(r => { setAgingPool(r.alterations); setAgingErr(false); })
+      .catch(() => setAgingErr(true));
   }, [refreshTick]);
 
   // When a customer is chosen in the create modal, load their DELIVERED orders.
@@ -259,7 +263,14 @@ export const AlterationsListPage: React.FC = () => {
       </div>
 
       {/* Aging leads — the P1 TAT exceptions where support intervenes */}
-      {!loading && aging.length > 0 && (
+      {!loading && agingErr && (
+        <p className={d.sectionTitle}>
+          Aging — couldn&rsquo;t be checked. The unpaginated read this panel depends on
+          failed, so nothing here means &ldquo;unknown&rdquo;, not &ldquo;nothing is
+          late&rdquo;. Reload to try again.
+        </p>
+      )}
+      {!loading && !agingErr && aging.length > 0 && (
         <>
           <h3 className={d.sectionTitle}>Aging — over {AGING_DAYS} days open</h3>
           <div className={styles.tableWrap}>

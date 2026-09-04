@@ -27,6 +27,16 @@
   padding: 1px 8px;
 }
 
+/* [DSG-12-11] Sits beside the count to say the list is a window, not a total.
+   Deliberately quieter than .count — it is a caveat, not a number. */
+.windowNote {
+  margin-left: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
 .sampleCell { display: flex; align-items: center; gap: 10px; }
 .thumb {
   width: 38px; height: 38px;

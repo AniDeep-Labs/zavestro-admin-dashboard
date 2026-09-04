@@ -23,6 +23,7 @@ const inr = (v: string | number | null | undefined) => money(v);
 // ACP-6 [KA11-6]: one date formatter for the admin.
 import { fmtDate } from '../../utils/date';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
+import { SafeImg } from '../../components/Image/SafeImg';
 
 export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boolean }> = ({ autoEdit, autoCutSheet }) => {
   const { id } = useParams<{ id: string }>();
@@ -242,11 +243,15 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
           </div>
         ) : (
           <div className={s.gallery}>
-            <a href={refUrls[0]} target="_blank" rel="noreferrer" className={s.hero}><img src={refUrls[0]} alt={design.name} /></a>
+            <a href={refUrls[0]} target="_blank" rel="noreferrer" className={s.hero}>
+              <SafeImg src={refUrls[0]} alt={design.name} fallback={<UilImage size={28} />} />
+            </a>
             {refUrls.length > 1 && (
               <div className={s.thumbs}>
                 {refUrls.slice(1).map((u) => (
-                  <a key={u} href={u} target="_blank" rel="noreferrer" className={s.thumb}><img src={u} alt="reference" /></a>
+                  <a key={u} href={u} target="_blank" rel="noreferrer" className={s.thumb}>
+                    <SafeImg src={u} alt="reference" fallback={<UilImage size={16} />} />
+                  </a>
                 ))}
               </div>
             )}
@@ -376,7 +381,13 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
                   <tr key={f.id}>
                     <td>
                       <div className={dd.fabricCell}>
-                        <span className={dd.swatch}>{url(f.image_keys?.[0]) ? <img src={url(f.image_keys[0])} alt={f.name} /> : <UilImage size={16} />}</span>
+                        <span className={dd.swatch}>
+                          <SafeImg
+                            src={url(f.image_keys?.[0])}
+                            alt={f.name}
+                            fallback={<UilImage size={16} />}
+                          />
+                        </span>
                         <span>
                           <span className={dd.fabricName}>{f.name}</span>
                           <span className={dd.fabricMeta}>{[f.code, f.color_name, f.composition].filter(Boolean).join(' · ')}</span>

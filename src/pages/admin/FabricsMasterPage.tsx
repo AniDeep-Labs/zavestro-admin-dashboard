@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { fabricsApi, uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { ReorderCoverage, FabricFieldVisibility } from '../../api/adminApi';
 import type { Fabric, FabricInput } from '../../api/adminApi';
@@ -47,7 +47,10 @@ const REFERENCE_WIDTH_CM = 112;
 const EMPTY = { name: '', color_name: '', composition: '', weave: '', finish: '', weight_gsm: '', width_cm: '', origin: '', supplier: '', supplier_city: '', supplier_lead_time: '', supplier_moq: '', supplier_phone: '', supplier_email: '', supplier_gstin: '', price_per_meter: '', care: '', fabric_type: 'woven', stretch_pct: '', shrinkage_pct: '' };
 type Form = typeof EMPTY;
 
-export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ mode = 'procurement' }) => {
+export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design'; autoNew?: boolean }> = ({
+  mode = 'procurement',
+  autoNew,
+}) => {
   const navigate = useNavigate();
   const readOnly = mode === 'design';
   const basePath = readOnly ? '/admin/design/fabrics' : '/admin/procurement/fabrics';
@@ -107,7 +110,25 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
     return () => clearTimeout(t);
   }, [load]);
 
+  // [SHL-3-10] Quick-create (+) used to point here, at the LIST, leaving the operator to
+  // hunt for the real control — "quick create" that was navigation wearing a create label.
+  // It now deep-links to /new. Following [DSG-10-3]: the deep-linked modal's open state IS
+  // the URL, so closing it returns to the list and browser-back closes it rather than
+  // leaving the page. Deriving from the prop (not an initial-state read) matters because
+  // list → /new renders the SAME component with a different prop and React does not remount.
+  const location = useLocation();
+  const closeEditor = () => {
+    setOpen(false);
+    if (location.pathname.endsWith('/new')) navigate('/admin/procurement/fabrics', { replace: true });
+  };
   const openCreate = () => { setEditingId(null); setEditingCode(''); setForm(EMPTY); setImages([]); setOpen(true); };
+  // Open once on arrival at /new; `openCreate` also resets the form, which a bare
+  // `setOpen(true)` would not — a deep-link must not inherit the last edited fabric.
+  const armed = React.useRef(false);
+  React.useEffect(() => {
+    if (autoNew && !armed.current) { armed.current = true; openCreate(); }
+    if (!autoNew) armed.current = false;
+  }, [autoNew]);
   const openEdit = (f: Fabric) => {
     setEditingId(f.id); setEditingCode(f.code);
     setForm({
@@ -606,11 +627,11 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design' }> = 
 
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeEditor}
         title={editingId ? `Edit fabric · ${editingCode}` : 'New fabric'}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={closeEditor}>Cancel</Button>
             <Button variant="primary" state={saving ? 'loading' : 'default'} onClick={save}>{editingId ? 'Save' : 'Create'}</Button>
           </>
         }

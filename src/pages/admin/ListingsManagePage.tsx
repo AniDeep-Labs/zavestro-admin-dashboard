@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import {
   cmListingsApi,
   designsApi,
@@ -36,6 +36,7 @@ import {
   UilImage,
   UilCopy,
 } from "@iconscout/react-unicons";
+import { SafeImg } from '../../components/Image/SafeImg';
 
 const url = (k?: string) => (k && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${k}` : "");
 
@@ -113,7 +114,7 @@ type Editor = {
 /** Under this many garments left, the merchant should be reordering, not discovering. */
 const LOW_GARMENTS = 5;
 
-export const ListingsManagePage: React.FC = () => {
+export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) => {
   const [listings, setListings] = React.useState<CmListing[]>([]);
   const [ready, setReady] = React.useState<ReadyToListSample[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
@@ -209,6 +210,22 @@ export const ListingsManagePage: React.FC = () => {
       photos: r.sample_photos ?? [],
       isActive: true,
     });
+  // [SHL-3-10] Quick-create (+) pointed at the LIST page, leaving the operator to hunt for
+  // the real control. It deep-links to /new now; per [DSG-10-3] the deep-linked modal's open
+  // state is the URL, so closing returns to the list and browser-back closes it.
+  const listingNavigate = useNavigate();
+  const listingLocation = useLocation();
+  const armedNew = React.useRef(false);
+  React.useEffect(() => {
+    if (autoNew && !armedNew.current) { armedNew.current = true; openDirect(); }
+    if (!autoNew) armedNew.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoNew]);
+  const closeEditor = () => {
+    setEditor(null);
+    if (listingLocation.pathname.endsWith("/new"))
+      listingNavigate("/admin/catalog/listings", { replace: true });
+  };
   const openDirect = () =>
     setEditor({
       mode: "direct",
@@ -492,8 +509,12 @@ export const ListingsManagePage: React.FC = () => {
               return (
                 <div key={r.sample_id} className={s.readyCard}>
                   <div className={s.readyImg}>
+                    {/* [CM-18-8] On the page whose subject IS the photograph, a dead key
+                        must be an explicit state, not the browser's broken-image box with
+                        the design name inside it. Falls back to the same placeholder the
+                        no-photo branch draws. */}
                     {img ? (
-                      <img src={img} alt={r.design_name} />
+                      <SafeImg src={img} alt={r.design_name} fallback={<UilImage size={22} />} />
                     ) : (
                       <UilImage size={22} />
                     )}
@@ -575,7 +596,7 @@ export const ListingsManagePage: React.FC = () => {
               <div key={l.id} className={s.card} onClick={() => openEdit(l)}>
                 <div className={s.cardImg}>
                   {img ? (
-                    <img src={img} alt={l.design_name} />
+                    <SafeImg src={img} alt={l.design_name} fallback={<UilImage size={26} />} />
                   ) : (
                     <UilImage size={26} />
                   )}
@@ -667,7 +688,7 @@ export const ListingsManagePage: React.FC = () => {
 
       <Modal
         open={!!editor}
-        onClose={() => setEditor(null)}
+        onClose={closeEditor}
         title={
           editor?.mode === "edit"
             ? "Edit listing"
@@ -677,7 +698,7 @@ export const ListingsManagePage: React.FC = () => {
         }
         footer={
           <>
-            <Button variant="ghost" onClick={() => setEditor(null)}>
+            <Button variant="ghost" onClick={closeEditor}>
               Cancel
             </Button>
             <Button
@@ -817,7 +838,7 @@ export const ListingsManagePage: React.FC = () => {
               <div className={s.thumbs}>
                 {editor.photos.map((k, i) => (
                   <div key={k} className={s.thumb}>
-                    <img src={url(k)} alt={`photo ${i + 1}`} />
+                    <SafeImg src={url(k)} alt={`photo ${i + 1}`} fallback={<UilImage size={20} />} />
                     <button
                       type="button"
                       onClick={() =>

@@ -2402,12 +2402,28 @@ export interface SampleJobDetail {
 }
 
 export const sampleJobsApi = {
+  // [DSG-12-11] `statuses` fetches one bucket in one request; `limit`/`offset`/`order`
+  // bound it. The endpoint had no LIMIT at all, so an unfiltered call streamed the whole
+  // sampling history. Note the backend validator STRIPS query keys it does not declare,
+  // so any param added here must be added to `sampleQuerySchema` too or it is silently
+  // dropped and the caller quietly gets the default.
   list: async (
-    params: { status?: string; hub_id?: string } = {},
+    params: {
+      status?: string;
+      statuses?: string[];
+      hub_id?: string;
+      limit?: number;
+      offset?: number;
+      order?: "created_at" | "updated_at";
+    } = {},
   ): Promise<SampleJob[]> => {
     const qs = new URLSearchParams();
     if (params.status) qs.set("status", params.status);
+    if (params.statuses?.length) qs.set("statuses", params.statuses.join(","));
     if (params.hub_id) qs.set("hub_id", params.hub_id);
+    if (params.limit != null) qs.set("limit", String(params.limit));
+    if (params.offset != null) qs.set("offset", String(params.offset));
+    if (params.order) qs.set("order", params.order);
     const q = qs.toString();
     return req<SampleJob[]>(`/api/admin/sample-jobs${q ? `?${q}` : ""}`);
   },

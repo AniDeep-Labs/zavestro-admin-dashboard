@@ -38,19 +38,39 @@ const Gallery: React.FC<{ title: string; keys: string[]; emptyHint: string }> = 
   emptyHint,
 }) => {
   const [active, setActive] = React.useState(0);
-  const urls = keys.map(url).filter(Boolean);
+  // [DSG-12-12] A key can outlive the object in R2. Without this the hero renders the
+  // browser's broken-image glyph and the reviewer is asked to pass judgement on a
+  // garment they cannot see — worse than an honest placeholder, because it reads as a
+  // broken page rather than a missing file. "Recorded but unfetchable" is its own
+  // state, and is NOT the same answer as "nothing was ever uploaded".
+  const [broken, setBroken] = React.useState<Set<string>>(new Set());
+  const markBroken = (u: string) => setBroken((b) => (b.has(u) ? b : new Set(b).add(u)));
+  const allUrls = keys.map(url).filter(Boolean);
+  const urls = allUrls.filter((u) => !broken.has(u));
+  const everythingUnfetchable = allUrls.length > 0 && urls.length === 0;
+  React.useEffect(() => {
+    if (active >= urls.length) setActive(0);
+  }, [urls.length, active]);
   return (
     <section className={styles.gallery}>
       <h3 className={styles.galleryTitle}>{title}</h3>
       {urls.length === 0 ? (
         <div className={styles.galleryEmpty}>
           <UilImage size={28} />
-          <span>{emptyHint}</span>
+          <span>
+            {everythingUnfetchable
+              ? `${allUrls.length === 1 ? 'A photo is' : `${allUrls.length} photos are`} recorded but couldn't be loaded.`
+              : emptyHint}
+          </span>
         </div>
       ) : (
         <>
           <a href={urls[active]} target="_blank" rel="noreferrer" className={styles.hero}>
-            <img src={urls[active]} alt={`${title} ${active + 1}`} />
+            <img
+              src={urls[active]}
+              alt={`${title} ${active + 1}`}
+              onError={() => markBroken(urls[active])}
+            />
           </a>
           {urls.length > 1 && (
             <div className={styles.thumbs}>
@@ -223,7 +243,28 @@ export const SampleDetailPage: React.FC = () => {
 
       {sample.status === 'rejected' && sample.rejection_reason && (
         <div className={styles.rejectBanner}>
-          <strong>Rejected:</strong> {sample.rejection_reason}
+          <div>
+            <strong>Rejected:</strong> {sample.rejection_reason}
+          </div>
+          {/* [DSG-12-13] The reject modal and its toast both say "request a fresh sample
+              once the fix is made", and until now the page offered no way to do it: the
+              request modal lives on the other tab and did not pre-fill, and `rebuild` is
+              ops-only. The recovery path was described twice and offered zero times.
+              Design holds samples:write, so the reviewer who rejected can re-request. */}
+          <Can cap="samples:write">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                navigate(
+                  `/admin/design/samples?design=${sample.design.id}` +
+                    `&fabric=${sample.fabric.id}&hub=${sample.hub_id}`,
+                )
+              }
+            >
+              Request a fresh sample
+            </Button>
+          </Can>
         </div>
       )}
       {cancelled && (
@@ -284,9 +325,16 @@ export const SampleDetailPage: React.FC = () => {
               <Spec label="Design status" value={design.status} />
             </dl>
 
-            {captureSet.length > 0 && (
-              <div className={styles.tagsBlock}>
-                <span className={styles.tagsLabel}>Measured fields</span>
+            {/* [DSG-12-14] These two blocks used to render only when non-empty, so a
+                design with no capture set and no pain-point menu showed six spec rows
+                and nothing else — and the reviewer had no way to tell "this garment
+                has no fit spec" from "this page doesn't show fit spec". They are the
+                FIT half of what a sample is judged against, so their absence is a
+                finding about the design, not a reason to draw less. Always rendered;
+                empty says which empty. */}
+            <div className={styles.tagsBlock}>
+              <span className={styles.tagsLabel}>Measured fields</span>
+              {captureSet.length > 0 ? (
                 <div className={styles.tags}>
                   {captureSet.map((c) => (
                     <span key={c} className={styles.tag}>
@@ -294,11 +342,16 @@ export const SampleDetailPage: React.FC = () => {
                     </span>
                   ))}
                 </div>
-              </div>
-            )}
-            {painPoints.length > 0 && (
-              <div className={styles.tagsBlock}>
-                <span className={styles.tagsLabel}>Pain-point options</span>
+              ) : (
+                <span className={styles.tagsEmpty}>
+                  None on the design — nothing records which body fields this garment is cut
+                  from, so the fit half of this spec cannot be checked against the sample.
+                </span>
+              )}
+            </div>
+            <div className={styles.tagsBlock}>
+              <span className={styles.tagsLabel}>Pain-point options</span>
+              {painPoints.length > 0 ? (
                 <div className={styles.tags}>
                   {painPoints.map((p) => (
                     <span key={p} className={styles.tag}>
@@ -306,8 +359,13 @@ export const SampleDetailPage: React.FC = () => {
                     </span>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <span className={styles.tagsEmpty}>
+                  None on the design — a customer who does not get on with this garment has
+                  no fit complaint to choose, so nothing will come back here.
+                </span>
+              )}
+            </div>
 
             {design.tech_pack && Object.keys(design.tech_pack).length > 0 && (
               <div className={styles.techPack}>
@@ -437,8 +495,19 @@ export const SampleDetailPage: React.FC = () => {
       {reviewable && (
         <Can cap="designs:write">
           <div className={styles.actionBar}>
+            {/* [DSG-12-7] Say what the gate actually checks. `assertSampleGate` matches on
+                design + hub + status='reviewed' and has NO fabric clause, so approving this
+                sample unlocks the first listing of this design at this hub in ANY fabric —
+                including one nobody has stitched. For a brand whose promise is that a human
+                physically checked the garment that is not incidental: drape, shrinkage and
+                stretch change the finished spec, and the engine itself adjusts ease by
+                stretch_pct/shrinkage_pct. The previous wording was technically accurate and
+                quietly concealed it. Whether the GATE should narrow to design×fabric×hub is
+                a product decision; until it is taken, the reviewer should at least know the
+                scope of what they are signing off. */}
             <span className={styles.gateNote}>
-              Your verdict gates the first listing of this design at {sample.hub_name ?? 'this hub'} (D13).
+              Your verdict gates the first listing of this design at{' '}
+              {sample.hub_name ?? 'this hub'} (D13) — in any fabric, not only {fabric.name}.
             </span>
             <Button variant="primary" state={acting ? 'loading' : 'default'} onClick={markReviewed}>
               <UilCheckCircle size={16} /> Approve — ready to list

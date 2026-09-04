@@ -411,6 +411,8 @@ function App() {
           <Route path="analytics/:section" element={<AnalyticsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="support" element={<SupportListPage />} />
+          {/* [SHL-3-10] quick-create deep-link — opens the create modal, not just the list */}
+          <Route path="support/new" element={<SupportListPage autoNew />} />
           <Route path="support/call" element={<CallConsolePage />} />
           <Route path="fit-feedback" element={<FitFeedbackPage />} />
           <Route path="fit-outcomes" element={<FitOutcomesPage />} />
@@ -421,6 +423,8 @@ function App() {
           <Route path="system/service-areas" element={<ServiceAreasPage />} />
           <Route path="system/health" element={<SystemHealthPage />} />
           <Route path="system/staff" element={<StaffManagementPage />} />
+          {/* [SHL-3-10] */}
+          <Route path="system/staff/new" element={<StaffManagementPage autoNew />} />
           <Route path="returns" element={<ReturnsListPage />} />
           <Route path="returns/:id" element={<ReturnDetailPage />} />
           <Route path="alterations" element={<AlterationsListPage />} />
@@ -457,6 +461,9 @@ function App() {
               route so old deep-links (?design=) + the CM nav entry still resolve. */}
           <Route path="design/my-samples" element={<SamplesPage />} />
           <Route path="procurement/fabrics" element={<FabricsMasterPage />} />
+          {/* [SHL-3-10] Before :id for readability — v6 already ranks the static
+              segment above the dynamic one, so "new" can never be read as a fabric id. */}
+          <Route path="procurement/fabrics/new" element={<FabricsMasterPage autoNew />} />
           <Route path="procurement/fabrics/:id" element={<FabricPdpPage />} />
           <Route
             path="procurement/distribution"
@@ -477,6 +484,8 @@ function App() {
             element={<RestockQueuePage mode="cm" />}
           />
           <Route path="catalog/listings" element={<ListingsManagePage />} />
+          {/* [SHL-3-10] */}
+          <Route path="catalog/listings/new" element={<ListingsManagePage autoNew />} />
           <Route path="catalog/fabric-stock" element={<FabricStockPage />} />
           <Route path="catalog/qc-templates" element={<QcTemplatesPage />} />
           <Route path="catalog/brand-qc" element={<BrandQcPage />} />
