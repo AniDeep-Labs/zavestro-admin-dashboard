@@ -49,14 +49,27 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
   React.useEffect(() => { load(); }, [load]);
   React.useEffect(() => { hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {}); }, []);
 
-  // Deep-link from a design's detail page (?design=<id>) → open the request modal pre-filled.
+  // Deep-link into the request modal, pre-filled.
+  //   ?design=<id>                     — from a design's detail page
+  //   ?design=&fabric=&hub=            — [DSG-12-13] from a REJECTED sample, which tells
+  //                                      the reviewer to "request a fresh sample once the
+  //                                      fix is made" and, before this, gave them nowhere
+  //                                      to do it. Re-cutting the same garment means the
+  //                                      same design AND the same fabric AND the same hub;
+  //                                      carrying only the design would make the reviewer
+  //                                      re-pick the other two from memory.
   React.useEffect(() => {
     const designId = searchParams.get('design');
     if (!designId) return;
+    const fabricId = searchParams.get('fabric') ?? undefined;
+    const hubId = searchParams.get('hub');
     setShowRequest(true);
     designsApi.list().then(setDesigns).catch(() => {});
-    pickDesign(designId);
+    pickDesign(designId, fabricId);
+    if (hubId) setReqHub(hubId);
     searchParams.delete('design');
+    searchParams.delete('fabric');
+    searchParams.delete('hub');
     setSearchParams(searchParams, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -69,9 +82,20 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
     setShowRequest(false);
     setReqDesign(''); setReqFabric(''); setReqHub(''); setDesignFabrics([]);
   };
-  const pickDesign = (designId: string) => {
+  const pickDesign = (designId: string, preselectFabric?: string) => {
     setReqDesign(designId); setReqFabric(''); setDesignFabrics([]);
-    if (designId) designsApi.get(designId).then((d) => setDesignFabrics(d.fabrics)).catch(() => {});
+    if (designId)
+      designsApi
+        .get(designId)
+        .then((d) => {
+          setDesignFabrics(d.fabrics);
+          // Only preselect a fabric that is STILL paired with the design. A rejected
+          // sample can outlive the pairing, and silently pre-filling an unpaired fabric
+          // would set the reviewer up for the 400 that [DSG-12-6] guards.
+          if (preselectFabric && d.fabrics.some((f) => f.id === preselectFabric))
+            setReqFabric(preselectFabric);
+        })
+        .catch(() => {});
   };
   // [DSG-12-5] Check before the cloth is committed, not after.
   //
