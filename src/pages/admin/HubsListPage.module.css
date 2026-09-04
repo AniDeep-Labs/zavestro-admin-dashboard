@@ -77,6 +77,22 @@
 .hubCard:hover { box-shadow: var(--shadow-md); }
 .hubHeader { display: flex; justify-content: space-between; align-items: flex-start; }
 .hubName { font-family: var(--font-display); font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
+/* [KA2-8] The reference id is ONE token and must never break: on a long hub name it split
+   as "ZH-" / "00003" across two lines, which is not an id any more. Was an inline style on
+   the element (also style-debt); a class keeps it nowrap and out of the ratchet. */
+.refChip {
+  display: inline-block;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 8px;
+  padding: 1px 6px;
+  background: var(--color-primary-faint, rgba(31, 107, 79, 0.08));
+  color: var(--color-primary);
+  border-radius: 4px;
+}
+
 .hubLocation { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
 .statusBadge { display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); white-space: nowrap; }
 .statusActive { background: rgba(31, 107, 79,0.1); color: #1F6B4F; }
@@ -98,7 +114,11 @@
 .viewBtn { background: none; border: none; cursor: pointer; font-family: var(--font-family); font-size: 13px; color: var(--color-primary); font-weight: var(--font-weight-semibold); padding: 0; }
 .viewBtn:hover { text-decoration: underline; }
 .hubStatus { display: inline-block; padding: 3px 9px; border-radius: var(--radius-full); font-size: 12px; font-weight: var(--font-weight-semibold); white-space: nowrap; }
-.hubStats { display: flex; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); overflow: hidden; }
+/* [KA2-8] `margin-top: auto` pins the stat strip and everything under it to the bottom of
+   the card, so a hub whose NAME wraps to two lines no longer pushes its own numbers ~40px
+   below its neighbours'. The cards already stretch to equal height in the grid; only their
+   contents were drifting, which is what made three cards in a row look like three designs. */
+.hubStats { margin-top: auto; display: flex; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); overflow: hidden; }
 .stat { flex: 1; text-align: center; padding: 10px 4px; background: var(--color-bg-secondary); }
 .stat + .stat { border-left: 1px solid var(--color-border-light); }
 .statVal { font-family: var(--font-family); font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }

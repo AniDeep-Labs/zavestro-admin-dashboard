@@ -78,9 +78,7 @@ export const HubsListPage: React.FC = () => {
                   <div className={styles.hubName}>
                     {hub.name}
                     {hub.reference_id && (
-                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 500, marginLeft: 8, padding: '1px 6px', background: 'var(--color-primary-faint, rgba(31, 107, 79,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
-                        {hub.reference_id}
-                      </span>
+                      <span className={styles.refChip}>{hub.reference_id}</span>
                     )}
                   </div>
                   <div className={styles.hubLocation}>{[hub.city, hub.state].map(s => s?.trim()).filter(Boolean).join(', ')}</div>
