@@ -16,6 +16,7 @@ import { CanvasRender } from './canvas/CanvasRender';
 import { CanvasEditor } from './canvas/CanvasEditor';
 import { emptyCanvas, newId, DEFAULT_ELEMENT, type CanvasDoc } from './canvas/canvasTypes';
 import { UilEye, UilEyeSlash, UilPen, UilPlus, UilTrashAlt } from "@iconscout/react-unicons";
+import { SafeImg } from '../../components/Image/SafeImg';
 
 // ─── Layout metadata + reusable hero renderer ───────────────────────────────────
 
@@ -171,7 +172,7 @@ export function BannerHero({ data, frame, animate }: { data: HeroData; frame: 'm
         {showAd && <span className={b.adLabel}>AD</span>}
         <div className={`${b.freeText} ${fontCls} ${data.editable ? b.freeTextEditable : ''}`}
           style={{ left: `${tx}%`, top: `${ty}%`, alignItems, textAlign: align }}>
-          {logoUrl ? <span className={b.brandChip}><img src={logoUrl} alt="" className={b.brandLogo} /></span>
+          {logoUrl ? <span className={b.brandChip}><SafeImg src={logoUrl} alt="" className={b.brandLogo} /></span>
             : tag ? <span className={b.brandChip}>{tag}</span> : null}
           <span className={b.freeTitle} style={titleStyle}>{(title || 'Headline').replace(/\\n/g, '\n')}</span>
           {subtitle && <span className={b.freeSub} style={{ color: c.headlineColor || (textColor === 'dark' ? '#141210' : '#fff') }}>{subtitle}</span>}
@@ -193,7 +194,7 @@ export function BannerHero({ data, frame, animate }: { data: HeroData; frame: 'm
           <div className={b.storyScrim} />
           {showAd && <span className={b.adLabel}>AD</span>}
           <div className={b.storyText}>
-            {logoUrl ? <span className={b.brandChip}><img src={logoUrl} alt="" className={b.brandLogo} /></span>
+            {logoUrl ? <span className={b.brandChip}><SafeImg src={logoUrl} alt="" className={b.brandLogo} /></span>
               : tag ? <span className={b.brandChip}>{tag}</span> : null}
             <span className={b.storyTitle}>{(title || 'Headline').replace(/\\n/g, '\n')}</span>
             {subtitle && <span className={b.storySub}>{subtitle}</span>}
@@ -223,7 +224,7 @@ export function BannerHero({ data, frame, animate }: { data: HeroData; frame: 'm
               {/* Shop-the-look thumbnail strip (refs: Everyday Cargos) */}
               {thumbUrls.length > 0 && (
                 <div className={b.curThumbs}>
-                  {thumbUrls.slice(0, 3).map((u, i) => <div key={i} className={b.curThumb}><img src={u} alt="" /></div>)}
+                  {thumbUrls.slice(0, 3).map((u, i) => <div key={i} className={b.curThumb}><SafeImg src={u} alt="" /></div>)}
                 </div>
               )}
             </div>
@@ -766,7 +767,7 @@ function BannerForm({
     if (m === 'upload') {
       return (
         <div className={`${b.hero} ${frame === 'mobile' ? b.stackable : b.web}`} style={{ background: 'var(--color-bg-secondary)', aspectRatio: String(ratio) }}>
-          {url ? <img src={url} alt="" className={b.heroImg} style={{ objectFit: 'cover', objectPosition: `${ux}% ${uy}%` }} />
+          {url ? <SafeImg src={url} alt="" className={b.heroImg} style={{ objectFit: 'cover', objectPosition: `${ux}% ${uy}%` }} />
             : <div className={b.heroEmpty}>Upload {isM ? 'mobile' : 'web'} creative</div>}
         </div>
       );
@@ -829,7 +830,7 @@ function BannerForm({
                     onMouseMove={e => { if (draggingFocal.current) setFocalFromPoint(e.clientX, e.clientY); }}
                     onMouseUp={() => { draggingFocal.current = false; }}
                     onMouseLeave={() => { draggingFocal.current = false; }}>
-                    <img src={previewUrl} alt="" className={b.focalImg} style={{ objectPosition: `${fx}% ${fy}%` }} />
+                    <SafeImg src={previewUrl} alt="" className={b.focalImg} style={{ objectPosition: `${fx}% ${fy}%` }} />
                     <span className={b.focalDot} style={{ left: `${fx}%`, top: `${fy}%` }} />
                   </div>
                   <span className={b.focalHint}>Drag the dot to set the focus — kept in frame when cropped.</span>
@@ -929,7 +930,7 @@ function BannerForm({
                     <input ref={logoRef} type="file" accept="image/png,image/webp,image/svg+xml" className={b.hidden}
                       onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ''; }} />
                     {logoKey ? (
-                      <div className={b.imgRow}>{logoUrl && <img src={logoUrl} alt="logo" className={b.logoThumb} />}<span className={b.imgKey}>{logoKey.split('/').pop()}</span><button type="button" onClick={() => setLogoKey('')} className={b.imgRemove}>Remove</button></div>
+                      <div className={b.imgRow}>{logoUrl && <SafeImg src={logoUrl} alt="logo" className={b.logoThumb} />}<span className={b.imgKey}>{logoKey.split('/').pop()}</span><button type="button" onClick={() => setLogoKey('')} className={b.imgRemove}>Remove</button></div>
                     ) : <button type="button" onClick={() => logoRef.current?.click()} className={`${b.input} ${b.chooseBtn}`}>＋ Upload logo (transparent PNG)</button>}
                     <span className={b.hint}>Shown in the white chip; falls back to the tag text.</span>
                   </div>
@@ -940,7 +941,7 @@ function BannerForm({
                     <input ref={thumbRef} type="file" accept="image/jpeg,image/png,image/webp" className={b.hidden}
                       onChange={e => { const f = e.target.files?.[0]; if (f) handleThumbFile(f); e.target.value = ''; }} />
                     <div className={b.thumbStrip}>
-                      {thumbUrls.map((u, i) => <div key={i} className={b.thumbStripItem}><img src={u} alt="" /><button type="button" onClick={() => setThumbKeys(prev => prev.filter((_, j) => j !== i))}>×</button></div>)}
+                      {thumbUrls.map((u, i) => <div key={i} className={b.thumbStripItem}><SafeImg src={u} alt="" /><button type="button" onClick={() => setThumbKeys(prev => prev.filter((_, j) => j !== i))}>×</button></div>)}
                       {thumbKeys.length < 3 && <button type="button" className={b.thumbAdd} onClick={() => thumbRef.current?.click()}>＋</button>}
                     </div>
                   </div>
@@ -1273,9 +1274,40 @@ export const BannersPage: React.FC = () => {
                       {(() => {
                         const k = bn.image_mobile || bn.image_web || bn.image_key;
                         const u = k && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${k}` : '';
-                        return u
-                          ? <img src={u} alt="" className={b.heroImg} style={{ objectPosition: `${bn.focal_x_mobile ?? 50}% ${bn.focal_y_mobile ?? 50}%` }} />
-                          : <div className={b.miniHero}><BannerHero frame="fill" data={{ layout: bn.layout_mobile ?? bn.layout ?? 'full_image', title: bn.title, ctaText: bn.cta_text, imageUrl: '', bgColor1: bn.bg_color_1 || '#1F6B4F', bgColor2: bn.bg_color_2 || '#0D3D2C', textPosition: 'left', textColor: 'light', overlay: 40 }} /></div>;
+                        // The no-image branch draws the banner's own gradient + headline,
+                        // which is far more use than a grey box. A key whose object has gone
+                        // gets the SAME thing rather than an empty cell: "recorded but
+                        // unfetchable" and "never uploaded" should look alike here, because
+                        // the row's job is to identify the banner either way.
+                        const noImage = (
+                          <div className={b.miniHero}>
+                            <BannerHero
+                              frame="fill"
+                              data={{
+                                layout: bn.layout_mobile ?? bn.layout ?? 'full_image',
+                                title: bn.title,
+                                ctaText: bn.cta_text,
+                                imageUrl: '',
+                                bgColor1: bn.bg_color_1 || '#1F6B4F',
+                                bgColor2: bn.bg_color_2 || '#0D3D2C',
+                                textPosition: 'left',
+                                textColor: 'light',
+                                overlay: 40,
+                              }}
+                            />
+                          </div>
+                        );
+                        return u ? (
+                          <SafeImg
+                            src={u}
+                            alt=""
+                            className={b.heroImg}
+                            style={{ objectPosition: `${bn.focal_x_mobile ?? 50}% ${bn.focal_y_mobile ?? 50}%` }}
+                            fallback={noImage}
+                          />
+                        ) : (
+                          noImage
+                        );
                       })()}
                     </div>
                   </td>
