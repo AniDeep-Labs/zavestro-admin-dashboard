@@ -98,7 +98,16 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
     setToasts((t) => [...t, createToast(type, title, msg)]);
 
   React.useEffect(() => {
-    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
+    hubsApi
+      .list()
+      .then((r) => setHubs(r.hubs))
+      .catch(() =>
+        // [RC-3] A silently empty hub filter reads as "this account has no hubs", which on a
+        // money page changes what the operator believes they are looking at: an unfiltered
+        // total looks like a hub total. Say the filter is unavailable instead of showing
+        // one that quietly cannot filter.
+        showToast("warning", "Hub filter unavailable", "Showing every hub. Reload to try again."),
+      );
   }, []);
 
   const load = React.useCallback(() => {
