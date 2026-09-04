@@ -63,3 +63,34 @@
 .resultIcon { color: var(--color-text-tertiary); flex: none; display: flex; }
 .resultLabel { font-weight: var(--font-weight-medium); }
 .resultSub { margin-left: auto; color: var(--color-text-tertiary); font-size: var(--font-size-sm); }
+
+/* [SHL-3-11] Footer hint row: quiet enough to ignore once learned, present enough to be
+   read once. Wraps rather than clipping on a narrow window. */
+.hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  align-items: center;
+  padding: 8px var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-section);
+  font-size: var(--font-size-xs);
+  /* --color-text-tertiary measured 3.26:1 on the dark palette background — under WCAG AA
+     (4.5:1), and this is xs text. --color-text-secondary is ~7.8:1 and is what the kbd
+     chips already use, so the row also stops looking two-tone. */
+  color: var(--color-text-secondary);
+}
+.hints kbd {
+  display: inline-block;
+  min-width: 16px;
+  padding: 1px 5px;
+  margin-right: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-primary);
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  text-align: center;
+}

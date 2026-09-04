@@ -207,6 +207,28 @@ export const CommandPalette: React.FC<Props> = ({
             ))
           )}
         </div>
+        {/* [SHL-3-11] The console is keyboard-first — `g o` / `g d` jump, `/` opens this
+            palette, `?` opens the shortcut sheet — but the ONLY way to discover any of it
+            was to press `?` on a hunch. A shortcut system nobody can find is a shortcut
+            system nobody has. The palette is where a keyboard-minded operator already is,
+            so it names the rest of the system, including the key that lists them all. */}
+        <div className={styles.hints}>
+          <span>
+            <kbd>↑</kbd><kbd>↓</kbd> navigate
+          </span>
+          <span>
+            <kbd>↵</kbd> open
+          </span>
+          <span>
+            <kbd>g</kbd> <kbd>o</kbd> orders
+          </span>
+          <span>
+            <kbd>g</kbd> <kbd>d</kbd> dashboard
+          </span>
+          <span>
+            <kbd>?</kbd> all shortcuts
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import {
   cmListingsApi,
   designsApi,
@@ -113,7 +113,7 @@ type Editor = {
 /** Under this many garments left, the merchant should be reordering, not discovering. */
 const LOW_GARMENTS = 5;
 
-export const ListingsManagePage: React.FC = () => {
+export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) => {
   const [listings, setListings] = React.useState<CmListing[]>([]);
   const [ready, setReady] = React.useState<ReadyToListSample[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
@@ -209,6 +209,22 @@ export const ListingsManagePage: React.FC = () => {
       photos: r.sample_photos ?? [],
       isActive: true,
     });
+  // [SHL-3-10] Quick-create (+) pointed at the LIST page, leaving the operator to hunt for
+  // the real control. It deep-links to /new now; per [DSG-10-3] the deep-linked modal's open
+  // state is the URL, so closing returns to the list and browser-back closes it.
+  const listingNavigate = useNavigate();
+  const listingLocation = useLocation();
+  const armedNew = React.useRef(false);
+  React.useEffect(() => {
+    if (autoNew && !armedNew.current) { armedNew.current = true; openDirect(); }
+    if (!autoNew) armedNew.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoNew]);
+  const closeEditor = () => {
+    setEditor(null);
+    if (listingLocation.pathname.endsWith("/new"))
+      listingNavigate("/admin/catalog/listings", { replace: true });
+  };
   const openDirect = () =>
     setEditor({
       mode: "direct",
@@ -667,7 +683,7 @@ export const ListingsManagePage: React.FC = () => {
 
       <Modal
         open={!!editor}
-        onClose={() => setEditor(null)}
+        onClose={closeEditor}
         title={
           editor?.mode === "edit"
             ? "Edit listing"
@@ -677,7 +693,7 @@ export const ListingsManagePage: React.FC = () => {
         }
         footer={
           <>
-            <Button variant="ghost" onClick={() => setEditor(null)}>
+            <Button variant="ghost" onClick={closeEditor}>
               Cancel
             </Button>
             <Button

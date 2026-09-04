@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { supportApi, usersApi } from "../../api/adminApi";
 import type { SupportTicket, AdminUser, SupportInbox } from "../../api/adminApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
@@ -45,7 +45,7 @@ const TICKET_KEY: Record<string, string> = {
   Closed: "closed",
 };
 
-export const SupportListPage: React.FC = () => {
+export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) => {
   const navigate = useNavigate();
   // G-43: seed search from ?search= so "View All Tickets" from a customer profile
   // lands filtered to that customer.
@@ -70,6 +70,19 @@ export const SupportListPage: React.FC = () => {
   const searching = debouncedSearch.trim().length > 0;
 
   const [showCreate, setShowCreate] = React.useState(false);
+  // [SHL-3-10] Quick-create (+) pointed at the LIST page, leaving the operator to hunt for
+  // the real control. It deep-links to /new now; per [DSG-10-3] the deep-linked modal's open
+  // state is the URL, so closing returns to the list and browser-back closes it.
+  const ticketLocation = useLocation();
+  const closeCreate = () => {
+    setShowCreate(false);
+    if (ticketLocation.pathname.endsWith("/new")) navigate("/admin/support", { replace: true });
+  };
+  const armedNew = React.useRef(false);
+  React.useEffect(() => {
+    if (autoNew && !armedNew.current) { armedNew.current = true; setShowCreate(true); }
+    if (!autoNew) armedNew.current = false;
+  }, [autoNew]);
   const [creating, setCreating] = React.useState(false);
   const [form, setForm] = React.useState({
     customerName: "",
@@ -560,7 +573,7 @@ export const SupportListPage: React.FC = () => {
       {showCreate && (
         <div
           className={styles.modalOverlay}
-          onClick={() => setShowCreate(false)}
+          onClick={closeCreate}
         >
           <div className={styles.modal} {...createTicketDialog.dialogProps} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>Create Support Ticket</h2>
@@ -764,7 +777,7 @@ export const SupportListPage: React.FC = () => {
             <div className={styles.modalActions}>
               <button
                 className={styles.cancelModalBtn}
-                onClick={() => setShowCreate(false)}
+                onClick={closeCreate}
               >
                 Cancel
               </button>
