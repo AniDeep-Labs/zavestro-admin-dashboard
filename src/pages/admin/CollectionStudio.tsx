@@ -82,6 +82,12 @@ export function CollectionStudio({
   const canvasFor = (k: 'canvas_card' | 'canvas_hero') => (k === 'canvas_card' ? (cs.canvas_card ?? cs.canvas) : cs.canvas_hero) as CanvasDoc | undefined;
   const activeCanvas = canvasFor(canvasKey);
 
+  // [DSG-12-12 class] A cover key can outlive the object in R2. The focal picker is a
+  // control for aiming a crop, so over a missing image it is not just ugly — it is a
+  // widget that cannot do anything, and the broken glyph reads as a broken tool.
+  const [coverBroken, setCoverBroken] = React.useState(false);
+  React.useEffect(() => { setCoverBroken(false); }, [coverUrl]);
+
   // Collections own name/subtitle outside the studio. Field→canvas: editing the
   // name/subtitle updates bound text in BOTH surface canvases.
   React.useEffect(() => {
@@ -219,10 +225,22 @@ export function CollectionStudio({
                   onMouseDown={e => { dragging.current = true; setFocalFromPoint(e.clientX, e.clientY); }}
                   onMouseMove={e => { if (dragging.current) setFocalFromPoint(e.clientX, e.clientY); }}
                   onMouseUp={() => { dragging.current = false; }} onMouseLeave={() => { dragging.current = false; }}>
-                  <img src={coverUrl} alt="" className={b.focalImg} style={{ objectPosition: `${fx}% ${fy}%` }} />
-                  <span className={b.focalDot} style={{ left: `${fx}%`, top: `${fy}%` }} />
+                  {!coverBroken && (
+                    <img
+                      src={coverUrl}
+                      alt=""
+                      className={b.focalImg}
+                      style={{ objectPosition: `${fx}% ${fy}%` }}
+                      onError={() => setCoverBroken(true)}
+                    />
+                  )}
+                  {!coverBroken && <span className={b.focalDot} style={{ left: `${fx}%`, top: `${fy}%` }} />}
                 </div>
-                <span className={b.focalHint}>Drag the focus — kept in frame for this surface’s crop.</span>
+                <span className={b.focalHint}>
+                  {coverBroken
+                    ? 'The cover image is recorded but could not be loaded, so there is nothing to aim a crop at. Re-upload it above.'
+                    : 'Drag the focus — kept in frame for this surface’s crop.'}
+                </span>
               </div>
             </div>
           )}

@@ -107,8 +107,23 @@ export function BannerHero({ data, frame, animate }: { data: HeroData; frame: 'm
   // image-only layouts respect the Fit toggle (where "contain" is meaningful).
   const coverStyle: React.CSSProperties = { objectFit: 'cover', objectPosition: focalPos, transform: scaleT };
   const fitStyle: React.CSSProperties = { objectFit: imageFit, objectPosition: focalPos, transform: scaleT };
-  const Img = imageUrl ? <img src={imageUrl} alt="" className={b.heroImg} style={coverStyle} /> : null;
-  const FitImg = imageUrl ? <img src={imageUrl} alt="" className={b.heroImg} style={fitStyle} /> : null;
+  // A cover key can outlive the object in R2. Without onError the browser paints its own
+  // broken-image glyph INSIDE the card the merchandiser is judging — and this renderer
+  // feeds the layout gallery, the live card/hero preview and the full-size device preview,
+  // so one dead key breaks the whole studio at once and reads as "the tool is broken"
+  // rather than "this image is missing". Falling back to null lets the gradient show, which
+  // is already the design's background and is what the card looks like with no image.
+  // Same defect class as [DSG-12-12] on the sample review surfaces.
+  const [imgBroken, setImgBroken] = React.useState(false);
+  React.useEffect(() => { setImgBroken(false); }, [imageUrl]);
+  const usableImage = imageUrl && !imgBroken ? imageUrl : '';
+  const onImgError = () => setImgBroken(true);
+  const Img = usableImage ? (
+    <img src={usableImage} alt="" className={b.heroImg} style={coverStyle} onError={onImgError} />
+  ) : null;
+  const FitImg = usableImage ? (
+    <img src={usableImage} alt="" className={b.heroImg} style={fitStyle} onError={onImgError} />
+  ) : null;
 
   const text = (withCta = true) => (
     <>

@@ -55,6 +55,10 @@ export const CollectionEditPage: React.FC<{
   const [selectedProducts, setSelectedProducts] = React.useState<{id: string; name: string}[]>([]);
   const [searchResults, setSearchResults] = React.useState<ApiProduct[]>([]);
   const [coverImageKey, setCoverImageKey] = React.useState('');
+  // [DSG-12-12 class] "key recorded but object missing" is its own state. Reset whenever the
+  // key changes, or replacing a dead image would keep showing the missing-state tile.
+  const [coverBroken, setCoverBroken] = React.useState(false);
+  React.useEffect(() => { setCoverBroken(false); }, [coverImageKey]);
   const [design, setDesign] = React.useState<CollectionDesign>(DEFAULT_DESIGN);
   const [imageUploading, setImageUploading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -397,10 +401,22 @@ export const CollectionEditPage: React.FC<{
                   }} />
                 {coverImageKey ? (
                   <div className={`${styles.uploadArea} ${styles.uploadAreaRow}`}>
-                    {R2_PUBLIC_URL && (
-                      <img src={`${R2_PUBLIC_URL}/${coverImageKey}`} alt="Cover"
-                        className={styles.coverThumb} />
-                    )}
+                    {R2_PUBLIC_URL &&
+                      (coverBroken ? (
+                        // The key is recorded but the object is gone — say that, rather than
+                        // drawing the browser's broken-image glyph next to a filename that
+                        // reads as if everything is fine. [DSG-12-12] on this surface.
+                        <span className={styles.coverThumbMissing} title="Image not found in storage">
+                          <UilImage size={14} />
+                        </span>
+                      ) : (
+                        <img
+                          src={`${R2_PUBLIC_URL}/${coverImageKey}`}
+                          alt="Cover"
+                          className={styles.coverThumb}
+                          onError={() => setCoverBroken(true)}
+                        />
+                      ))}
                     <span className={styles.coverKey}>{coverImageKey}</span>
                     <button type="button" onClick={() => setCoverImageKey('')}
                       className={styles.coverRemove}>
