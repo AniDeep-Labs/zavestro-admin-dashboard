@@ -119,7 +119,12 @@ export const UsersListPage: React.FC = () => {
             onClick={() => setConfirmExport(true)}
             disabled={exporting}
           >
-            <UilImport size={14} /> {exporting ? "Exporting…" : "Export CSV"}
+            {/* [KA7-16] The confirm dialog already stated the count and the scope; the
+                BUTTON said neither, so the operator learned what they were about to download
+                only after committing to the dialog. Scope matters here — this exports the
+                FILTER, not the table, and those differ by however many filters are on. */}
+            <UilImport size={14} />{' '}
+            {exporting ? "Exporting…" : `Export CSV (${total.toLocaleString('en-IN')} matching)`}
           </button>
         </div>
       </div>
@@ -174,9 +179,15 @@ export const UsersListPage: React.FC = () => {
               <th>Name</th>
               <th>Email</th>
               <th>City</th>
-              <th>Orders</th>
-              <th>LTV</th>
-              <th>Credits</th>
+              {/* [KA7-13] All ten columns computed `text-align: left`, so ORDERS, LTV and
+                  CREDITS had no decimal spine — ₹28,078 and ₹0 started at the same x and
+                  ended nowhere near each other, in a table whose whole purpose is comparing
+                  customers. The Orders list right-aligns its TOTAL correctly, so this was
+                  drift between two tables in one console, not a missing convention.
+                  `moneyCell` is that convention, already global ([KA8-15]). */}
+              <th className="moneyCell">Orders</th>
+              <th className="moneyCell">LTV</th>
+              <th className="moneyCell">Credits</th>
               <th>Joined</th>
               <th>Status</th>
             </tr>
@@ -233,9 +244,9 @@ export const UsersListPage: React.FC = () => {
                   <td className={styles.userName}><CustomerNameCell name={u.name} /></td>
                   <td className={styles.email}>{u.email || "—"}</td>
                   <td>{u.city || "—"}</td>
-                  <td className={styles.orders}>{u.orders}</td>
-                  <td className={styles.credits}>₹{u.ltv?.toLocaleString("en-IN")}</td>
-                  <td className={styles.credits}>
+                  <td className={`moneyCell ${styles.orders}`}>{u.orders}</td>
+                  <td className={`moneyCell ${styles.credits}`}>₹{u.ltv?.toLocaleString("en-IN")}</td>
+                  <td className={`moneyCell ${styles.credits}`}>
                     ₹{u.credits?.toLocaleString("en-IN")}
                   </td>
                   <td className={styles.date}>{u.joined}</td>
