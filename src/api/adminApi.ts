@@ -4893,6 +4893,11 @@ export interface AdminMe {
  * alike, so a retry after a failure is a real retry.
  */
 let meInFlight: Promise<AdminMe> | null = null;
+// A generation counter, so the settle handler can ask "am I still the current request?"
+// without referring to the promise it is attached to. Comparing against the promise itself
+// would mean reading `p` inside its own initializer — legal, since the handlers run later,
+// but a use-before-define that static analysis rightly objects to.
+let meGeneration = 0;
 
 export const adminAuthExtApi = {
   /** Current admin identity + capabilities (drives role-based UI gating). */
@@ -4904,15 +4909,19 @@ export const adminAuthExtApi = {
     // immediately after its own `await` gets the settled answer back instead of a fresh
     // request — a cache, which is the one thing this must not be ([SHL-2-11]).
     // Registering the clear first makes it run before any caller's handler, always.
-    const p: Promise<AdminMe> = (req("/api/admin/auth/me") as Promise<AdminMe>).then(
+    const mine = ++meGeneration;
+    const release = () => {
+      if (meGeneration === mine) meInFlight = null;
+    };
+    const p = (req("/api/admin/auth/me") as Promise<AdminMe>).then(
       (v) => {
-        if (meInFlight === p) meInFlight = null;
+        release();
         return v;
       },
       (e) => {
         // Released on failure too, or one failure would pin the rejected promise and
         // every later caller would replay it instead of retrying.
-        if (meInFlight === p) meInFlight = null;
+        release();
         throw e;
       },
     );
