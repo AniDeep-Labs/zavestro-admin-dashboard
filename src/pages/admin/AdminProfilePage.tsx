@@ -3,6 +3,7 @@ import { adminAuthExtApi, getAdminUser, setAdminUser } from '../../api/adminApi'
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import styles from './AppConfigPage.module.css';
+import own from './AdminProfilePage.module.css';
 import { UilEye, UilEyeSlash, UilKeySkeletonAlt, UilQuestionCircle, UilShield } from "@iconscout/react-unicons";
 import { StatusBadge } from '../../components';
 
@@ -249,7 +250,7 @@ export const AdminProfilePage: React.FC = () => {
                 <div className={styles.metaValue} style={{ textTransform: 'capitalize' }}>
                   {((profile?.role ?? adminUser?.role) ?? '').replace('_', ' ') || '—'}
                   {profileErr != null && (
-                    <span className={styles.staleHint}> · couldn&rsquo;t refresh — may be out of date</span>
+                    <span className={own.staleHint}> · couldn&rsquo;t refresh — may be out of date</span>
                   )}
                 </div>
               </div>

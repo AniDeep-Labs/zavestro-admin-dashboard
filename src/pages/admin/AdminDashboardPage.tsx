@@ -223,6 +223,11 @@ export const AdminDashboardPage: React.FC = () => {
       >
         <div className={styles.metricTop}>
           <span className={styles.metricLabel}>{kpi.label}</span>
+          {/* [KA6-15] Every metric cell navigates — each carries a navPath and an onClick —
+              but none said so, so the whole band read as a stat wall with one clickable tile.
+              An affordance that is on every cell is consistent by construction; one that is
+              on some teaches the operator to guess. */}
+          <span className={styles.metricGo} aria-hidden="true"><Icons.ArrowRight /></span>
           <span className={`${styles.metricIcon} ${iconTint ?? ''}`}><KpiIcon /></span>
         </div>
         <div className={styles.metricValueRow}>
@@ -419,7 +424,7 @@ export const AdminDashboardPage: React.FC = () => {
                  case ("performance appears once matching designs sell", [KA3-11]);
                  this is that, applied here. */
               revenueDays > 1
-                ? <AreaTrendChart data={data!.revenue as unknown as Record<string, string | number>[]} xKey="label" dataKey="simplified" height={262} valueFormatter={fmtINRShort} seriesName="Revenue collected" />
+                ? <div className={styles.chartBox}><AreaTrendChart data={data!.revenue as unknown as Record<string, string | number>[]} xKey="label" dataKey="simplified" height={262} valueFormatter={fmtINRShort} seriesName="Revenue collected" yLabel="₹ collected" xLabel="Day" /></div>
                 : (
                   <div className={styles.emptyState}>
                     {revenueDays === 1

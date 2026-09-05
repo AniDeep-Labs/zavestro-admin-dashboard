@@ -1397,3 +1397,22 @@
   border-radius: var(--radius-sm);
   margin-bottom: 4px;
 }
+
+/* [KA6-15] The "this goes somewhere" affordance, on every metric cell rather than one.
+   Quiet at rest so the band still reads as figures, and it steps forward on hover. */
+.metricGo {
+  margin-left: auto;
+  margin-right: 6px;
+  display: inline-flex;
+  opacity: 0.3;
+  transition: opacity var(--transition-fast);
+}
+.metricCell:hover .metricGo,
+.metricCell:focus-visible .metricGo { opacity: 0.85; }
+
+/* [KA6-14] The card stretched the series to ~1,600px, flattening the shape until four Y
+   ticks carried a month of revenue. A trend is read by its slope, and slope is destroyed by
+   unbounded width — capping it makes the same data legible without changing the data. */
+.chartBox {
+  max-width: 1100px;
+}

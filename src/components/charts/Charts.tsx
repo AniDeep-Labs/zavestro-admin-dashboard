@@ -85,11 +85,21 @@ export function Sparkline({ data, up = true, height = 38, color }: { data: numbe
 type AreaPoint = Record<string, string | number>;
 export function AreaTrendChart({
   data, xKey, dataKey, height = 260, valueFormatter, color, seriesName = 'Value',
+  yLabel, xLabel,
 }: {
   data: AreaPoint[]; xKey: string; dataKey: string; height?: number;
   valueFormatter?: (v: number) => string; color?: string;
   /** [KA8-18] What the number IS. Passing '' left the tooltip with a blank line. */
   seriesName?: string;
+  /**
+   * [KA6-13] Axis titles. The Y axis carried ₹ units on its ticks and no label; the X had
+   * neither. Defensible under a card already titled "Revenue Trend" — which is why these are
+   * OPTIONAL rather than forced on every chart — but the axes become semantic the moment the
+   * series is exported, and a reader who scrolled past the card title has nothing to anchor
+   * the numbers to.
+   */
+  yLabel?: string;
+  xLabel?: string;
 }) {
   const c = useChartColors();
   const id = useId().replace(/:/g, '');
@@ -97,7 +107,7 @@ export function AreaTrendChart({
   const fmt = valueFormatter ?? ((v: number) => String(v));
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: xLabel ? 6 : 0, left: 0 }}>
         <defs>
           <linearGradient id={`area-${id}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={stroke} stopOpacity={0.22} />
@@ -108,10 +118,13 @@ export function AreaTrendChart({
         <XAxis
           dataKey={xKey} tick={{ fill: c.axis, fontSize: 11 }} tickLine={false}
           axisLine={{ stroke: c.grid }} minTickGap={24} dy={4}
+          height={xLabel ? 40 : undefined}
+          label={xLabel ? { value: xLabel, position: 'insideBottom', offset: -2, fill: c.axis, fontSize: 11 } : undefined}
         />
         <YAxis
           tick={{ fill: c.axis, fontSize: 11 }} tickLine={false} axisLine={false}
-          width={48} tickFormatter={(v) => fmt(Number(v))}
+          width={yLabel ? 62 : 48} tickFormatter={(v) => fmt(Number(v))}
+          label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', fill: c.axis, fontSize: 11, style: { textAnchor: 'middle' } } : undefined}
         />
         <Tooltip
           cursor={{ stroke: c.axis, strokeDasharray: '3 3' }}

@@ -9,6 +9,7 @@ import { Modal } from '../../components/Modal/Modal';
 import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import styles from './OrdersListPage.module.css';
+import own from './GarmentTypeTemplatesPage.module.css';
 import { UilAngleRightB, UilPlus, UilTimes, UilTrashAlt } from '@iconscout/react-unicons';
 import { StatusBadge } from '../../components';
 import {
@@ -164,13 +165,13 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
         const missing = cats.length - ready;
         if (missing === 0) {
           return (
-            <p className={styles.rollup}>
+            <p className={own.rollup}>
               All {cats.length} garment types have a fit recipe.
             </p>
           );
         }
         return (
-          <p className={`${styles.rollup} ${styles.rollupWarn}`}>
+          <p className={`${own.rollup} ${own.rollupWarn}`}>
             <strong>{missing} of {cats.length}</strong> garment types have no fit recipe yet —
             the engine cannot draft them, so every design of those types is blocked until one exists.
           </p>
@@ -246,7 +247,7 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
                           template looks configured and a draft from it would fail. */}
                       {authored.filter((p) => !calibrated.includes(p)).length > 0 && (
                         <span
-                          className={styles.uncalibratedNote}
+                          className={own.uncalibratedNote}
                           title={`Authored but not calibrated — the engine cannot run: ${authored
                             .filter((p) => !calibrated.includes(p))
                             .join(', ')}`}

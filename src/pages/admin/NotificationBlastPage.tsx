@@ -5,6 +5,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import styles from './OrdersListPage.module.css';
+import blast from './NotificationBlastPage.module.css'; // [KA6-7/8/9]
 import { UilExclamationTriangle, UilMessage } from "@iconscout/react-unicons";
 
 export const NotificationBlastPage: React.FC = () => {
@@ -73,7 +74,12 @@ export const NotificationBlastPage: React.FC = () => {
         <h1 className={styles.title}>Notification Blast</h1>
       </div>
 
-      <div className={styles.card} style={{ maxWidth: 680 }}>
+      {/* [KA6-9] The form sat in the left ~45% of a 1440 screen with the rest empty, and its
+          width was an inline style. [KA6-7] The product's other composer (banners) renders a
+          live device frame; this one — which also lands on a phone — previewed nothing. The
+          void and the missing preview are the same gap, so one fixes both. */}
+      <div className={blast.composer}>
+      <div className={styles.card}>
         <div className={styles.fields}>
           <div className={styles.field}>
             <label className={styles.fieldLabel}>Audience</label>
@@ -86,7 +92,7 @@ export const NotificationBlastPage: React.FC = () => {
                 consequence stated nowhere. Choosing it means messaging people who
                 declined marketing — a DPDP question, not a reach setting. */}
             {form.segment === 'all' && (
-              <div className={styles.consentWarning}>
+              <div className={blast.consentWarning}>
                 <UilExclamationTriangle size={15} />
                 <span>
                   This ignores marketing consent. It will message customers who explicitly
@@ -98,10 +104,17 @@ export const NotificationBlastPage: React.FC = () => {
           <div className={styles.field}>
             <label className={styles.fieldLabel}>Email Subject *</label>
             <input className={styles.fieldInput} value={form.subject} maxLength={200} onChange={e => set('subject', e.target.value)} placeholder="e.g. New monsoon collection is live" />
+            {/* [KA6-8] `maxLength` stopped over-typing but showed nothing, so an author
+                learned the limit by being silently unable to type. */}
+            <div className={blast.counterRow}><span>{form.subject.length} / 200</span></div>
           </div>
           <div className={styles.field}>
             <label className={styles.fieldLabel}>Headline *</label>
             <input className={styles.fieldInput} value={form.headline} maxLength={200} onChange={e => set('headline', e.target.value)} placeholder="Shown in-app and as the push title" />
+            <div className={blast.counterRow}>
+              <span>{form.headline.length} / 200</span>
+              {form.headline.length > 40 && <span className={blast.counterWarn}>over ~40 — most lock screens cut the title here</span>}
+            </div>
           </div>
           <div className={styles.field}>
             <label className={styles.fieldLabel}>Body *</label>
@@ -110,6 +123,10 @@ export const NotificationBlastPage: React.FC = () => {
           <div className={styles.field}>
             <label className={styles.fieldLabel}>Push Body (optional — defaults to headline)</label>
             <input className={styles.fieldInput} value={form.pushBody} maxLength={200} onChange={e => set('pushBody', e.target.value)} placeholder="Short text for the push notification" />
+            <div className={blast.counterRow}>
+              <span>{(form.pushBody ?? "").length} / 200</span>
+              {(form.pushBody ?? "").length > 110 && <span className={blast.counterWarn}>over ~110 — most lock screens cut the body here</span>}
+            </div>
           </div>
           <div className={styles.field}>
             <label className={styles.fieldLabel}>CTA Text (optional)</label>
@@ -125,6 +142,31 @@ export const NotificationBlastPage: React.FC = () => {
             <UilMessage size={14} /> Review & Send
           </button>
         </div>
+      </div>
+
+      {/* [KA6-7] What actually lands. Two surfaces, because one blast becomes two things:
+          a push notification on a lock screen (title + body, aggressively truncated by the
+          OS) and an in-app card. Rendering the truncation is the point — a headline that
+          reads fine in a 680px input is often cut mid-word on a phone, and nothing else on
+          this page would have told the author that before it went to everyone. */}
+      <aside className={blast.previewRail} aria-label="Preview">
+        <p className={blast.previewHead}>Push notification</p>
+        <div className={blast.pushCard}>
+          <div className={blast.pushApp}>ZAVESTRO · now</div>
+          <div className={blast.pushTitle}>{form.headline || 'Your headline'}</div>
+          <div className={blast.pushBody}>{form.pushBody || form.headline || 'Your push text'}</div>
+        </div>
+        <p className={blast.previewNote}>
+          Most phones show about 40 characters of title and 110 of body on the lock screen.
+        </p>
+
+        <p className={blast.previewHead}>In-app</p>
+        <div className={blast.inAppCard}>
+          <div className={blast.inAppTitle}>{form.headline || 'Your headline'}</div>
+          <div className={blast.inAppBody}>{form.body || 'The main message…'}</div>
+          {form.ctaText && <div className={blast.inAppCta}>{form.ctaText}</div>}
+        </div>
+      </aside>
       </div>
 
       {/* T2-26 (SU-7): sent history — every blast, to whom, by whom, when. */}
@@ -169,7 +211,7 @@ export const NotificationBlastPage: React.FC = () => {
             {/* [KA6-6] Say it again at the point of no return, not just at the
                 point of selection. */}
             {form.segment === 'all' && (
-              <p className={styles.consentWarning}>
+              <p className={blast.consentWarning}>
                 <UilExclamationTriangle size={15} />
                 <span>
                   <strong>Consent is being overridden.</strong> This audience includes customers
