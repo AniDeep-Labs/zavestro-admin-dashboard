@@ -14,6 +14,10 @@ export const NotificationBlastPage: React.FC = () => {
   const [confirming, setConfirming] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const [audienceCount, setAudienceCount] = React.useState<number | null>(null);
+  // [RC-3 class] `audienceCount === null` meant BOTH "still counting" and "the count
+  // failed", and the dialog rendered the same confident phrase for both. Three states, not
+  // two — this is the confirm for an irreversible, customer-facing send.
+  const [audienceState, setAudienceState] = React.useState<'loading' | 'ok' | 'failed'>('loading');
   const [history, setHistory] = React.useState<BlastHistoryRow[] | null>(null); // T2-26 SU-7
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
@@ -31,6 +35,8 @@ export const NotificationBlastPage: React.FC = () => {
     setToasts(t => [...t, createToast(type, title, msg)]);
 
   const loadHistory = React.useCallback(() => {
+    // Kept a benign default deliberately: an empty history panel is not a claim about the
+    // business, and this page's decision — who receives the blast — does not rest on it.
     notificationsAdminApi.history().then(setHistory).catch(() => setHistory([]));
   }, []);
   React.useEffect(() => { loadHistory(); }, [loadHistory]);
@@ -40,11 +46,12 @@ export const NotificationBlastPage: React.FC = () => {
 
   const openConfirm = () => {
     setAudienceCount(null);
+    setAudienceState('loading');
     setConfirming(true);
     notificationsAdminApi
       .audienceCount(form.segment ?? 'opted_in')
-      .then(setAudienceCount)
-      .catch(() => setAudienceCount(null));
+      .then((n) => { setAudienceCount(n); setAudienceState('ok'); })
+      .catch(() => setAudienceState('failed'));
   };
 
   const send = async () => {
@@ -160,12 +167,28 @@ export const NotificationBlastPage: React.FC = () => {
             <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, lineHeight: 1.5 }}>
               This will queue{' '}
               <strong>
-                {audienceCount === null
-                  ? form.segment === 'all' ? 'all active customers' : 'all opted-in customers'
-                  : `~${audienceCount.toLocaleString('en-IN')} ${form.segment === 'all' ? 'active' : 'opted-in'} customer${audienceCount === 1 ? '' : 's'}`}
+                {audienceState === 'ok' && audienceCount !== null
+                  ? `~${audienceCount.toLocaleString('en-IN')} ${form.segment === 'all' ? 'active' : 'opted-in'} customer${audienceCount === 1 ? '' : 's'}`
+                  : audienceState === 'loading'
+                    ? 'counting the audience…'
+                    : form.segment === 'all'
+                      ? 'all active customers'
+                      : 'all opted-in customers'}
               </strong>{' '}
               to receive “<strong>{form.headline}</strong>” via in-app inbox, email, and push. This cannot be recalled once sent.
             </p>
+            {audienceState === 'failed' && (
+              /* The send is still valid — the SIZE is what is unknown. Saying so beats a
+                 confident phrase on the one dialog that cannot be undone. */
+              <p className={styles.consentWarning}>
+                <UilExclamationTriangle size={15} />
+                <span>
+                  <strong>The audience size could not be checked.</strong> The blast will
+                  still go to this segment, but how many people that is right now is unknown.
+                  Close and reopen this dialog to try counting again.
+                </span>
+              </p>
+            )}
             {/* [KA6-6] Say it again at the point of no return, not just at the
                 point of selection. */}
             {form.segment === 'all' && (

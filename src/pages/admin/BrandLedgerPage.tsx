@@ -48,8 +48,23 @@ export const BrandLedgerPage: React.FC = () => {
       .listBrands()
       .then((r) => {
         setBrands(r.brands);
-        const house = r.brands.find((b) => b.is_house_brand) ?? r.brands[0];
-        if (house) setBrandId(house.id);
+        // [FIN-36-5] Open on a brand that HAS something to look at.
+        //
+        // This defaulted to the house brand, whose ledger is empty BY DESIGN — the house
+        // brand is not paid out — so the page reliably opened on "Balance owed: ₹0 · No
+        // ledger entries yet." while the only brand with entries sat second in the list.
+        // An empty first impression on a payouts page reads as "nothing is owed", which is
+        // a statement about the business rather than about the default selection.
+        //
+        // Largest outstanding balance first, because that is the row a finance operator
+        // opens this page to act on; then any brand with a non-zero balance; then the old
+        // house default, so a genuinely empty ledger still lands somewhere sensible.
+        const withBalance = r.brands
+          .filter((b) => typeof b.ledger_balance === 'number' && b.ledger_balance !== 0)
+          .sort((a, b) => Math.abs(b.ledger_balance ?? 0) - Math.abs(a.ledger_balance ?? 0));
+        const pick =
+          withBalance[0] ?? r.brands.find((b) => b.is_house_brand) ?? r.brands[0];
+        if (pick) setBrandId(pick.id);
       })
       .catch((e) => toast('error', 'Failed to load brands', e instanceof Error ? e.message : undefined));
   }, []);

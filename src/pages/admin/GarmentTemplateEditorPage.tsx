@@ -623,6 +623,28 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       for (const [field, v] of Object.entries(tolerances)) {
         if (v !== '' && Number.isFinite(Number(v))) tolerancesOut[field] = Number(v);
       }
+      // [DSG-11-10] Count what we are about to discard, so the author can be told.
+      //
+      // Re-hydrating from the response already stops a dropped row from sitting on screen
+      // marked as saved. But "the row disappears" is only feedback if the author happens to
+      // be looking at that section when it goes — and it goes under a green "Template
+      // saved". The finding asked for both halves: re-hydrate AND say what was dropped.
+      //
+      // A row with nothing in it is still counted. It vanishes just the same, and an author
+      // who added three rows and filled two should be told two were kept, not left to
+      // notice.
+      const droppedClient: string[] = [];
+      const nPains = pains.filter((p) => !(p.tag.trim() && p.field && p.delta !== '')).length;
+      const nShapes = shapes.filter((sh) => !(sh.shape.trim() && sh.field && sh.delta !== '')).length;
+      const nChart = chart.length - cleanChart.length;
+      const nTol = Object.values(tolerances).filter(
+        (v) => v !== '' && !Number.isFinite(Number(v)),
+      ).length;
+      const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+      if (nPains) droppedClient.push(plural(nPains, 'pain-point row', 'pain-point rows'));
+      if (nShapes) droppedClient.push(plural(nShapes, 'body-shape row', 'body-shape rows'));
+      if (nChart) droppedClient.push(plural(nChart, 'chart size', 'chart sizes'));
+      if (nTol) droppedClient.push(plural(nTol, 'tolerance', 'tolerances'));
       // [FIT-74] A cleared box must not persist as an ABSENT key.
       //
       // `setPresetParam` deletes the key while the box is empty — it has to, or a designer
@@ -686,14 +708,46 @@ export const GarmentTemplateEditorPage: React.FC = () => {
       hydrate(saved);
       setNote('');
       setConflict(null);
-      toast('success', 'Template saved');
+      // Only the client's own drops are reported. The audit described the server dropping
+      // rows too (bands with height_min_cm ≤ 0 or length_value ≤ 0), but that is no longer
+      // reachable: the validator rejects those as a 422 before the service's skip is
+      // reached, and a chart row without a label or measurements is refused the same way.
+      // Checked against the running API rather than assumed.
+      if (droppedClient.length) {
+        toast(
+          'warning',
+          'Saved — but not everything was kept',
+          `${droppedClient.join(', ')} were incomplete and have not been stored. They have been removed from the editor; re-add them with every field filled in.`,
+        );
+      } else {
+        toast('success', 'Template saved');
+      }
     } catch (e) {
       // [DSG-11-9] A conflict is not a generic failure and must not be a toast: a toast
       // fades, and the author would try again and again. It is a persistent banner,
       // because the only way forward is to look at what the other person did.
-      if ((e as { status?: number }).status === 409) {
+      // [DSG-11-10] TWO different 409s reach here, and treating them alike told the author
+      // something false. `TEMPLATE_VERSION_CONFLICT` is the optimistic-lock case
+      // ([DSG-11-9]). A plain `CONFLICT` is a unique-constraint violation — most easily hit
+      // by typing the same size label twice, which the editor happily lets you do. That was
+      // reported as "someone else got there first", sending the author to reload and diff a
+      // template nobody else had touched. Verified against the running API: two chart rows
+      // with size_label "38" under the same preset answer 409 CONFLICT
+      // (constraint uq_garment_size_chart), not TEMPLATE_VERSION_CONFLICT.
+      const err = e as { status?: number; code?: string };
+      if (err.status === 409 && err.code === 'TEMPLATE_VERSION_CONFLICT') {
         setConflict(e instanceof Error ? e.message : 'Someone else saved this template while you were editing.');
         toast('error', 'Not saved — someone else got there first');
+      } else if (err.status === 409) {
+        // A duplicate, not a race. No banner: reloading would not help, and the fix is on
+        // screen — two rows that need to differ.
+        toast(
+          'error',
+          'Not saved — two rows are the same',
+          e instanceof Error && e.message !== 'That already exists.'
+            ? e.message
+            : 'A size label, length band or fit preset appears twice. Each must be unique.',
+        );
       } else {
         toast('error', 'Save failed', e instanceof Error ? e.message : undefined);
       }

@@ -24,8 +24,20 @@ const ROLE_LABELS: Record<string, string> = {
   support: "Support",
   finance: "Finance",
   pricing_manager: "Pricing & Promotions",
-  // legacy role — kept for displaying existing god-mode accounts (not creatable)
-  admin: "Operations · Full Access",
+  // [KA2-11] `pending` is a real role ([T0-1], migration 144) — a self-registered account
+  // with ZERO capabilities until a super_admin assigns one. It had no entry here, so the
+  // column fell back to `?? user.role` and rendered a bare lowercase "pending" beside
+  // Title Case labels. Naming it also states the thing that matters about the account:
+  // it is not a role that can do anything, it is one waiting to be given one.
+  pending: "Pending · no role yet",
+  // [KA2-6 / LEG-8-4] Legacy role — kept only to DISPLAY existing accounts (not creatable).
+  //
+  // This read "Operations · Full Access", which is a soft, operational-sounding phrase for
+  // the one credential that crosses every wall in the RBAC model: the only actor that can
+  // finish a return, record a QC verdict AND read every customer's measurements. On the one
+  // screen whose job is to retire these accounts, the label should say what it is rather
+  // than make it sound like a job title someone ought to have.
+  admin: "Legacy · god-mode (retire)",
 };
 
 // [SHL-1-12] The roles defined PER HUB — mirrors HUB_SCOPED_ADMIN_ROLES in the
@@ -493,8 +505,11 @@ export const AdminUsersManagePage: React.FC = () => {
                   <div>
                     <div className={styles.userName}>{user.name}</div>
                     <div className={styles.userEmail}>{user.email}</div>
+                    {/* [KA2-11] Was the raw column value — a bare lowercase "pending"
+                        beside Title Case labels everywhere else in this console. Same
+                        map as the role pill, so the two cannot drift. */}
                     <div className={styles.userMeta}>
-                      role: {user.role ?? "pending"}
+                      role: {ROLE_LABELS[user.role ?? "pending"] ?? user.role ?? "pending"}
                     </div>
                   </div>
                 </div>
@@ -557,7 +572,7 @@ export const AdminUsersManagePage: React.FC = () => {
                 <th>Role</th>
                 <th>Hub Scope</th>
                 <th>Last Login</th>
-                <th>Actions</th>
+                <th className={styles.actionsCol}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -620,7 +635,7 @@ export const AdminUsersManagePage: React.FC = () => {
                           )
                         : "Never"}
                     </td>
-                    <td>
+                    <td className={styles.actionsCol}>
                       <div className={styles.rowActions}>
                         <button
                           className={styles.resetBtn}

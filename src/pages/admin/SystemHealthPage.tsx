@@ -2,13 +2,26 @@ import React from 'react';
 import { systemHealthApi } from '../../api/adminApi';
 import type { SystemHealth } from '../../api/adminApi';
 import { StatusBadge } from '../../components/StatusBadge';
+import type { StatusTone } from '../../components/StatusBadge/vocab';
 import { EmptyState } from '../../components/EmptyState';
 import styles from './SystemHealthPage.module.css';
 import { UilSync } from '@iconscout/react-unicons';
 
 // System Health (FABLE-ADMIN-UIUX §3C / SOLUTIONS P13): integration status +
 // core checks + worker liveness. Reads only.
-const dot = (ok: boolean) => (ok ? 'done' : 'blocked');
+// [KA2-17] Every chip on this page rendered the SAME grey.
+//
+// `StatusBadge` resolves its colour as `toneOverride ?? STATUS_VOCAB[status]?.tone ??
+// 'neutral'`, and STATUS_VOCAB is keyed by ORDER STAGES — `cutting`, `shipped`, and so on.
+// It contains no `done` and no `blocked`, which are exactly the two values this page passed.
+// So both fell through to `neutral`: a failed database and a healthy one were the same
+// colour, as were a configured integration and one that is not set. The one screen whose
+// entire job is to signal state carried no state signal at all.
+//
+// `tone` is the override [PRC-15-6] added for precisely this — a status that is real but
+// lives outside the order-stage vocabulary.
+const dot = (ok: boolean): { status: string; tone: StatusTone } =>
+  ok ? { status: 'done', tone: 'done' } : { status: 'blocked', tone: 'blocked' };
 
 export const SystemHealthPage: React.FC = () => {
   const [health, setHealth] = React.useState<SystemHealth | null>(null);
@@ -65,15 +78,15 @@ export const SystemHealthPage: React.FC = () => {
           <div className={styles.grid}>
             <div className={styles.card}>
               <h3 className={styles.cardTitle}>Core</h3>
-              <div className={styles.row}><span>Database</span><StatusBadge status={dot(health.core.database === 'ok')} label={health.core.database} size="sm" /></div>
-              <div className={styles.row}><span>Redis</span><StatusBadge status={dot(health.core.redis === 'ok')} label={health.core.redis} size="sm" /></div>
+              <div className={styles.row}><span>Database</span><StatusBadge {...dot(health.core.database === 'ok')} label={health.core.database} size="sm" /></div>
+              <div className={styles.row}><span>Redis</span><StatusBadge {...dot(health.core.redis === 'ok')} label={health.core.redis} size="sm" /></div>
             </div>
 
             <div className={styles.card}>
               <h3 className={styles.cardTitle}>Worker / queue</h3>
               <div className={styles.row}>
                 <span>Invoice queue</span>
-                <StatusBadge status={dot(health.worker.status === 'ok')} label={health.worker.status} size="sm" />
+                <StatusBadge {...dot(health.worker.status === 'ok')} label={health.worker.status} size="sm" />
               </div>
               {health.worker.stuckInvoices > 0 && (
                 <div className={styles.warn}>
@@ -91,7 +104,12 @@ export const SystemHealthPage: React.FC = () => {
                 <span>{r.label}</span>
                 <span className={styles.rowRight}>
                   {r.note && <span className={styles.rowNote}>{r.note}</span>}
-                  <StatusBadge status={r.ok ? 'done' : 'pending'} label={r.ok ? 'Configured' : 'Not set'} size="sm" />
+                  <StatusBadge
+                    status={r.ok ? 'done' : 'pending'}
+                    tone={r.ok ? 'done' : 'pending'}
+                    label={r.ok ? 'Configured' : 'Not set'}
+                    size="sm"
+                  />
                 </span>
               </div>
             ))}
