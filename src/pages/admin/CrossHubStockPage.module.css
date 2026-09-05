@@ -1,3 +1,12 @@
+/* [KA4-14] The page container is `display:flex; gap:20px`, and these panels each carried
+   `margin: 4px 0 20px` on top of it — so the gap and the margin ADDED, putting ~40px between
+   every block and making "the supply brain" take two scrolls to see its own brain. The
+   parent's gap is the one that should decide; the margin is removed rather than halved so
+   there is a single source of the spacing.
+   NOTE: the filters row and the KPI row still add their own bottom margins, but those are
+   `.toolbar` (DistributionPage) and `.summary` (CodReconciliationPage) — shared classes owned
+   by other pages. Changing them would move spacing on pages not audited here, so they are
+   left alone deliberately. */
 /* Cross-hub Stock — page-specific bits (shared table/filter classes stay in
    OrdersListPage / Distribution / CodReconciliation modules). */
 
@@ -59,7 +68,7 @@
 
 /* T1-10: count variance by hub */
 .varPanel {
-  margin: 4px 0 20px;
+  margin: 0;
   padding: 14px 16px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border-light);
@@ -74,7 +83,7 @@
 
 /* T1-12: stale reservations */
 .stalePanel {
-  margin: 4px 0 20px;
+  margin: 0;
   padding: 14px 16px;
   background: var(--color-warning-bg, #fdf6ec);
   border: 1px solid var(--color-warning, #b7791f);

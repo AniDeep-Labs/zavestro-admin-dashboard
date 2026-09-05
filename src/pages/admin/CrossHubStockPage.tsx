@@ -23,6 +23,10 @@ import { UilImport } from '@iconscout/react-unicons';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 import { isDenied } from '../../components/EmptyState/asyncState';
 import { FabricSwatch } from '../../components/Image/FabricSwatch';
+import { useTableSort } from '../../hooks/useTableSort';
+import { SortableTh } from '../../components/Table/SortableTh';
+
+type StockSortKey = 'hub' | 'fabric' | 'available' | 'held' | 'capital';
 
 
 const DEAD_STOCK_DAYS = 60; // SOLUTIONS P8: no movement for 60d = a decision you forgot to make
@@ -192,10 +196,12 @@ export const CrossHubStockPage: React.FC = () => {
   // Derived views
   const num = (v: string | number | null | undefined) => (v == null ? null : Number(v));
   // Capital tied up = ALL metres we own (available + reserved-to-orders, not yet cut) × ₹/m.
-  const value = (r: FabricStockRow) => {
-    const ppm = num(r.price_per_meter);
+  // useCallback so the sort accessors below can depend on it honestly rather than closing
+  // over a function that is new on every render.
+  const value = React.useCallback((r: FabricStockRow) => {
+    const ppm = r.price_per_meter == null ? null : Number(r.price_per_meter);
     return ppm == null ? null : (Number(r.available_meters) + Number(r.reserved_meters)) * ppm;
-  };
+  }, []);
 
   // Distinct fabrics across the (hub-filtered) rows, for the fabric filter dropdown.
   const fabricOptions = React.useMemo(() => {
@@ -247,6 +253,22 @@ export const CrossHubStockPage: React.FC = () => {
   ]
     .filter(Boolean)
     .join(' · ');
+  // [KA4-15] Neither exception table could be ordered by the quantities they exist to
+  // compare. The two tables are rendered by one helper, and a helper cannot hold hooks — so
+  // both sort states live here, unconditionally, and are handed in.
+  const stockSortAccessors = React.useMemo(
+    () => ({
+      hub: (r: FabricStockRow) => r.hub_name ?? '',
+      fabric: (r: FabricStockRow) => r.fabric_name ?? '',
+      available: (r: FabricStockRow) => Number(r.available_meters),
+      held: (r: FabricStockRow) => Number(r.quarantine_meters ?? 0),
+      capital: (r: FabricStockRow) => value(r),
+    }),
+    [value],
+  );
+  const reorderSort = useTableSort(belowReorder, stockSortAccessors);
+  const deadSort = useTableSort(deadStock, stockSortAccessors);
+
   const totalAvail = visibleRows.reduce((sum, r) => sum + Number(r.available_meters), 0);
   const totalValue = visibleRows.reduce((sum, r) => sum + (value(r) ?? 0), 0);
 
@@ -314,7 +336,10 @@ export const CrossHubStockPage: React.FC = () => {
     </Link>
   );
 
-  const exceptionTable = (list: FabricStockRow[], kind: 'reorder' | 'dead') => (
+  const exceptionTable = (
+    sorter: ReturnType<typeof useTableSort<FabricStockRow, StockSortKey>>,
+    kind: 'reorder' | 'dead',
+  ) => (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead><tr>
@@ -322,14 +347,17 @@ export const CrossHubStockPage: React.FC = () => {
               this query, so however much cloth was quarantined the grid could not say —
               the only surface that ever showed it was FabricAtHubPage, which has no nav
               entry. Held cloth is owned, paid for, on the shelf, and not sellable. */}
-          <th>Hub</th><th>Fabric</th><th>Available</th><th>Held (QC)</th>
+          <SortableTh sortKey="hub" sort={sorter.sort} onToggle={sorter.toggle}>Hub</SortableTh>
+          <SortableTh sortKey="fabric" sort={sorter.sort} onToggle={sorter.toggle}>Fabric</SortableTh>
+          <SortableTh sortKey="available" sort={sorter.sort} onToggle={sorter.toggle}>Available</SortableTh>
+          <SortableTh sortKey="held" sort={sorter.sort} onToggle={sorter.toggle}>Held (QC)</SortableTh>
           {kind === 'reorder' ? <th>Reorder at</th> : <th>No movement since</th>}
           {/* T3-4 (W-P4): the raw draw behind the reorder point — makes it checkable, not trusted. */}
           {kind === 'reorder' && <th>Consumed (30d)</th>}
-          <th>Capital</th><th></th>
+          <SortableTh sortKey="capital" sort={sorter.sort} onToggle={sorter.toggle}>Capital</SortableTh><th></th>
         </tr></thead>
         <tbody>
-          {list.map((r) => (
+          {sorter.sorted.map((r) => (
             <tr key={rowKey(r)} className={styles.row} {...rowActivation(() => openLedger(r))}>
               <td className={styles.customerName}>{r.hub_name}</td>
               <td>
@@ -533,13 +561,13 @@ export const CrossHubStockPage: React.FC = () => {
       {!loading && belowReorder.length > 0 && (
         <section className={ds.section}>
           <h2 className={ds.sectionTitle}>Below reorder point <span className={ds.count}>{belowReorder.length}</span></h2>
-          {exceptionTable(belowReorder, 'reorder')}
+          {exceptionTable(reorderSort, 'reorder')}
         </section>
       )}
       {!loading && deadStock.length > 0 && (
         <section className={ds.section}>
           <h2 className={ds.sectionTitle}>Dead stock — no movement for {DEAD_STOCK_DAYS}+ days <span className={ds.count}>{deadStock.length}</span></h2>
-          {exceptionTable(deadStock, 'dead')}
+          {exceptionTable(deadSort, 'dead')}
         </section>
       )}
       {!loading && visibleTransit.length > 0 && (

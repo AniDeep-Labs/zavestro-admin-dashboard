@@ -12,6 +12,8 @@ import kpi from "./CodReconciliationPage.module.css";
 import s from "./CentralStockPage.module.css";
 import { UilPlus, UilSlidersV, UilHistory, UilImport } from "@iconscout/react-unicons";
 import { FabricSwatch } from '../../components/Image/FabricSwatch';
+import { useTableSort } from '../../hooks/useTableSort';
+import { SortableTh } from '../../components/Table/SortableTh';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const num = (v: string | number | null | undefined) => (v == null ? 0 : Number(v));
@@ -84,12 +86,33 @@ export const CentralStockPage: React.FC = () => {
 
   // T1-17: value at weighted-average cost-at-receipt; fall back to list price only when a
   // fabric has no costed receipts (so a list-price edit no longer revalues shelved stock).
-  const costBasis = (r: CentralStockRow) =>
-    r.unit_cost_wac != null ? num(r.unit_cost_wac) : r.price_per_meter != null ? num(r.price_per_meter) : null;
-  const valueOf = (r: CentralStockRow) => {
-    const c = costBasis(r);
-    return c != null ? num(r.available_meters) * c : null;
-  };
+  const costBasis = React.useCallback(
+    (r: CentralStockRow) =>
+      r.unit_cost_wac != null ? num(r.unit_cost_wac) : r.price_per_meter != null ? num(r.price_per_meter) : null,
+    [],
+  );
+  const valueOf = React.useCallback(
+    (r: CentralStockRow) => {
+      const c = costBasis(r);
+      return c != null ? num(r.available_meters) * c : null;
+    },
+    [costBasis],
+  );
+
+  // [KA4-15] This table exists to compare quantities across SKUs and offered no way to order
+  // by any of them. Accessors are memoised so the hook's useMemo is not invalidated on every render.
+  const sortAccessors = React.useMemo(
+    () => ({
+      fabric_name: (r: CentralStockRow) => r.fabric_name ?? '',
+      fabric_code: (r: CentralStockRow) => r.fabric_code ?? '',
+      received: (r: CentralStockRow) => num(r.received_meters),
+      allocated: (r: CentralStockRow) => num(r.allocated_meters),
+      available: (r: CentralStockRow) => num(r.available_meters),
+      capital: (r: CentralStockRow) => valueOf(r),
+    }),
+    [valueOf],
+  );
+  const { sort, toggle, sorted } = useTableSort(rows, sortAccessors);
 
   // ── rollups ──
   const totReceived = rows.reduce((sum, r) => sum + num(r.received_meters), 0);
@@ -244,14 +267,15 @@ export const CentralStockPage: React.FC = () => {
           <table className={base.table}>
             <thead>
               <tr>
-                <th>Fabric</th><th>Code</th>
-                <th className={s.numCol}>Received</th>
-                <th className={s.numCol}>Allocated</th>
-                <th className={s.numCol}>Available</th>
+                <SortableTh sortKey="fabric_name" sort={sort} onToggle={toggle}>Fabric</SortableTh>
+                <SortableTh sortKey="fabric_code" sort={sort} onToggle={toggle}>Code</SortableTh>
+                <SortableTh sortKey="received" sort={sort} onToggle={toggle} className={s.numCol}>Received</SortableTh>
+                <SortableTh sortKey="allocated" sort={sort} onToggle={toggle} className={s.numCol}>Allocated</SortableTh>
+                <SortableTh sortKey="available" sort={sort} onToggle={toggle} className={s.numCol}>Available</SortableTh>
                 {/* [KA4-13] Was "Value (avail)" beside a KPI called "Capital (avail)" — the
                     same quantity under two names on one page. Cross-hub already says
                     "Capital on hub shelves" ([PRC-17-2]), so "Capital" is the house word. */}
-                <th className={s.numCol}>Capital (avail)</th>
+                <SortableTh sortKey="capital" sort={sort} onToggle={toggle} className={s.numCol}>Capital (avail)</SortableTh>
                 <th></th>
               </tr>
             </thead>
@@ -265,7 +289,7 @@ export const CentralStockPage: React.FC = () => {
                   <EmptyState title="No central stock yet" body="Use “Receive fabric” to record a purchase — then it can be shipped to hubs." size="compact" />
                 </td></tr>
               ) : (
-                rows.map((r) => (
+                sorted.map((r) => (
                   <tr key={r.fabric_id} className={base.row} {...rowActivation(() => openHistory(r))}>
                     <td>
                       <div className={base.fabricCell}>
