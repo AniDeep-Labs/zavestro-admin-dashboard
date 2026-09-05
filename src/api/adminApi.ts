@@ -5494,6 +5494,11 @@ export type BrandSummary = {
   slug: string;
   is_house_brand: boolean;
   status: string;
+  /**
+   * [FIN-36-5] Present ONLY for a `finance:read` caller — the picker is deliberately
+   * money-free for the catalog/reports roles it was widened to serve ([CM-20-1]).
+   */
+  ledger_balance?: number;
 };
 export type BrandLedgerEntry = {
   id: string;
