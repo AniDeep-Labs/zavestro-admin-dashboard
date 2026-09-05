@@ -610,12 +610,27 @@ const AdminLayoutInner: React.FC = () => {
   const { title: entityTitle } = useBreadcrumb();
   const [theme, setTheme] = React.useState(getCurrentTheme());
   const [collapsed, setCollapsed] = React.useState(false);
+  // [KA1-18] Four groups are expanded by default, so at 1280x800 the nav runs past the fold
+  // and the page you are ON can be below it — the sidebar scrolls, but nothing ever tells it
+  // where you are. Collapsing groups by default would be a behaviour change for every
+  // operator to fix a layout problem; bringing the active item into view is additive and
+  // fixes it wherever the list happens to end up.
+  //
+  // `block: 'nearest'` so an item already visible does not jolt the list.
+  const activeNavRef = React.useRef<HTMLElement | null>(null);
   const [expandedSections, setExpandedSections] = React.useState<string[]>([
     "Storefront",
     "Content",
     "Analytics",
     "System",
   ]);
+  React.useEffect(() => {
+    // After the route (and any group expansion) has painted.
+    const id = requestAnimationFrame(() => {
+      activeNavRef.current?.scrollIntoView({ block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [location.pathname, collapsed, expandedSections]);
 
   const adminUser = getAdminUser();
   const adminEmail = adminUser?.email ?? "admin@zavestro.in";
@@ -893,6 +908,7 @@ const AdminLayoutInner: React.FC = () => {
                 <Link
                   key={child.path}
                   to={child.path}
+                  ref={isActive(child.path) ? (el) => { activeNavRef.current = el; } : undefined}
                   className={`${styles.navChild} ${isActive(child.path) ? styles.navChildActive : ""}`}
                   aria-current={isActive(child.path) ? "page" : undefined}
                 >

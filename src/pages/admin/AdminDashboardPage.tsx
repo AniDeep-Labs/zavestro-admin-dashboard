@@ -160,13 +160,23 @@ export const AdminDashboardPage: React.FC = () => {
   // brand-new database, during a quality crisis, and while the data held a QC-2
   // FAIL. `|| 0` would be just as wrong in the other direction: an unmeasured hub
   // is not a hub scoring zero. null → the card renders "—".
-  const avgQc = React.useMemo<number | null>(() => {
-    const measured = (data?.hubPerformance ?? []).filter(
+  // [KA1-14] The denominator travels with the figure. [SHL-4-2] stopped this being
+  // fabricated, but a bare "87% · across hubs" still does not say across how many — and
+  // "across hubs" reads as ALL of them. One measured hub out of six is a different claim
+  // from six out of six, and on a quality metric that difference is the whole story.
+  const qc = React.useMemo<{ avg: number; measured: number; total: number } | null>(() => {
+    const hubs = data?.hubPerformance ?? [];
+    const measured = hubs.filter(
       (h) => typeof h.qcPassRate === 'number',
     ) as { qcPassRate: number }[];
     if (measured.length === 0) return null;
-    return Math.round(measured.reduce((s, h) => s + h.qcPassRate, 0) / measured.length);
+    return {
+      avg: Math.round(measured.reduce((s, h) => s + h.qcPassRate, 0) / measured.length),
+      measured: measured.length,
+      total: hubs.length,
+    };
   }, [data]);
+  const avgQc = qc?.avg ?? null;
   // [KA6-12] How many days actually carry revenue — one spike is not a trend.
   const revenueDays = React.useMemo(
     () => (data?.revenue ?? []).filter((d) => Number(d.simplified ?? 0) > 0).length,
@@ -335,7 +345,9 @@ export const AdminDashboardPage: React.FC = () => {
             >
               <div className={styles.miniHead}>
                 <span className={styles.miniTitle}>QC Pass Rate</span>
-                <span className={styles.miniSub}>across hubs</span>
+                <span className={styles.miniSub}>
+                  {qc ? `${qc.measured} of ${qc.total} hubs` : 'across hubs'}
+                </span>
               </div>
               {/* [SHL-4-2] "—" and a reason, never a fabricated number. */}
               <div className={styles.miniValue}>{avgQc === null ? '—' : `${avgQc}%`}</div>
