@@ -4,8 +4,10 @@ import {
   Route,
   Navigate,
   useNavigate as useNav404,
+  useLocation as useLoc404,
 } from "react-router-dom";
 import { lazy, type ComponentType } from "react";
+import nf from "./pages/admin/NotFoundPage.module.css"; // [KA1-10]
 // Eager: the entry/auth pages + the layout shell (always needed on first paint).
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
@@ -306,48 +308,30 @@ const StaffManagementPage = lazyPage(
 
 function NotFoundPage() {
   const nav = useNav404();
+  const loc = useLoc404();
+
+  // [KA1-10] Open the palette through the SAME entry point the rest of the app uses:
+  // AdminLayout binds ⌘K on `window`, so dispatching the shortcut reuses that one handler
+  // rather than adding a second way in that could drift from it.
+  const openPalette = () =>
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true, bubbles: true }),
+    );
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "60vh",
-        textAlign: "center",
-        padding: "48px 24px",
-      }}
-    >
-      <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.25 }}>404</div>
-      <h2 style={{ margin: "0 0 8px", fontSize: "1.25rem", fontWeight: 600 }}>
-        Page not found
-      </h2>
-      <p
-        style={{
-          margin: "0 0 24px",
-          fontSize: "0.875rem",
-          opacity: 0.55,
-          maxWidth: 360,
-        }}
-      >
-        The page you're looking for doesn't exist or has been moved.
-      </p>
-      <button
-        onClick={() => nav("/admin/dashboard")}
-        style={{
-          padding: "10px 24px",
-          background: "var(--color-primary, #1F6B4F)",
-          color: "#fff",
-          border: "none",
-          borderRadius: 8,
-          cursor: "pointer",
-          fontSize: "0.875rem",
-          fontFamily: "inherit",
-          fontWeight: 500,
-        }}
-      >
-        ← Back to Dashboard
-      </button>
+    <div className={nf.wrap}>
+      <div className={nf.code}>404</div>
+      <h2 className={nf.title}>Page not found</h2>
+      <p className={nf.body}>The page you're looking for doesn't exist or has been moved.</p>
+      <p className={nf.path}>{loc.pathname}</p>
+      <div className={nf.actions}>
+        <button className={nf.primary} onClick={() => nav('/admin/dashboard')}>
+          ← Back to Dashboard
+        </button>
+        <button className={nf.secondary} onClick={openPalette}>
+          Search for a page<span className={nf.kbd}>⌘K</span>
+        </button>
+      </div>
     </div>
   );
 }
