@@ -2,7 +2,7 @@ import React from 'react';
 import { useHubContextFilter } from '../../utils/useHubContextFilter'; // [SHL-3-8]
 import { isDenied, errorMessage } from '../../components/EmptyState/asyncState'; // [SHL-3-1]
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { distributionApi, designsApi, hubsApi, fabricsApi, qcTemplatesApi, R2_PUBLIC_URL } from '../../api/adminApi';
+import { distributionApi, designsApi, hubsApi, fabricsApi, qcTemplatesApi } from '../../api/adminApi';
 import type { Distribution, DesignSummary, DesignFabricRef, Hub, CentralStockRow, FabricStockRow, Fabric, QcCheck } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
@@ -14,9 +14,9 @@ import type { ToastData } from '../../components/Toast/Toast';
 import styles from './OrdersListPage.module.css';
 import s from './DistributionPage.module.css';
 import { UilPlus } from '@iconscout/react-unicons';
+import { FabricSwatch } from '../../components/Image/FabricSwatch';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
-const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 const numv = (v: string | number | null | undefined) => (v == null ? 0 : Number(v));
 
 export const DistributionPage: React.FC = () => {
@@ -325,7 +325,7 @@ export const DistributionPage: React.FC = () => {
       <td>
         {r.fabric_name ? (
           <div className={styles.fabricCell}>
-            {swatch(r.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(r.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
+            <FabricSwatch imageKeys={r.fabric_image_keys} name={r.fabric_name} />
             <div className={styles.fabricCellText}>
               <span>{r.fabric_name}</span>
               <span className={styles.fabricCellCode}>{r.fabric_code}</span>
@@ -365,27 +365,32 @@ export const DistributionPage: React.FC = () => {
           {r.status === 'pushed' && <AgeCell since={r.created_at} warnAfterH={120} alertAfterH={240} />}
           {r.status === 'pushed' && (
             <>
-              <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => openReceive(r)}>Receive…</Button>
-              <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => { setCancelTarget(r); setCancelReason(''); }}>Cancel</Button>
+              {/* [KA4-5] These are opposite acts and were the same brand green, same size,
+                  same weight. Receive stays primary-toned; Cancel — which destroys a
+                  shipment — carries the error colour. [KA4-6] "Receive…" was being clipped
+                  inside its column; a verb the operator has to trust must never be
+                  abbreviated by layout, so the cell no longer wraps or truncates it. */}
+              <Button variant="ghost" size="sm" className={s.rowVerb} disabled={cancelling} onClick={() => openReceive(r)}>Receive…</Button>
+              <Button variant="ghost-danger" size="sm" className={s.rowVerb} disabled={cancelling} onClick={() => { setCancelTarget(r); setCancelReason(''); }}>Cancel</Button>
             </>
           )}
           {/* [PRC-15-13] Who counted it. The page's own banner says procurement records
               receipts on the hub's behalf, which is exactly why the stand-in has to be
               named. Older receipts have nobody recorded and say so rather than guess. */}
           {r.status === 'received' && (
-            <span className={styles.varianceReason}>
+            <span className={s.varianceReason}>
               {r.received_by_name ? `counted by ${r.received_by_name}` : 'counter not recorded'}
             </span>
           )}
           {/* The reason is mandatory to record and was rendered nowhere. A tooltip is not
               a rendering — nothing about the row invites the hover that reveals it. */}
           {r.status === 'received' && r.variance_reason && (
-            <span className={styles.varianceReason} title={r.variance_reason}>
+            <span className={s.varianceReason} title={r.variance_reason}>
               {r.variance_reason}
             </span>
           )}
           {r.status === 'cancelled' && r.cancel_reason && (
-            <span className={styles.varianceReason} title={r.cancel_reason}>
+            <span className={s.varianceReason} title={r.cancel_reason}>
               {r.cancel_reason}
             </span>
           )}
@@ -483,7 +488,7 @@ export const DistributionPage: React.FC = () => {
               {designs.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.garment_type}</option>)}
             </select>
             {designsErr ? (
-              <span className={styles.fieldHint}>
+              <span className={s.fieldHint}>
                 {isDenied(designsErr)
                   ? 'Ask a super admin for design read access — a plain fabric restock still works without it.'
                   : 'A plain fabric restock still works. Reload to try the design list again.'}
@@ -520,7 +525,7 @@ export const DistributionPage: React.FC = () => {
               {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
             </select>
             {hubsErr ? (
-              <span className={styles.fieldHint}>
+              <span className={s.fieldHint}>
                 Without the hub list there is nothing to push to. Reload, or ask a super admin.
               </span>
             ) : null}
@@ -577,11 +582,11 @@ export const DistributionPage: React.FC = () => {
               />
             )}
             {/* T1-13: inbound QC gate */}
-            <div className={styles.qcBox}>
-              <div className={styles.qcTitle}>Inbound QC — check width / GSM / shade / defects</div>
+            <div className={s.qcBox}>
+              <div className={s.qcTitle}>Inbound QC — check width / GSM / shade / defects</div>
               {/* T1-13b: the design's category checklist (required checks + tolerances). */}
               {qcChecks.length > 0 && (
-                <div className={styles.qcChecklist}>
+                <div className={s.qcChecklist}>
                   {qcChecks.map((c) => {
                     const v = qcAnswers[c.key];
                     const fail = checkFails(c);
@@ -590,15 +595,15 @@ export const DistributionPage: React.FC = () => {
                         ? `${c.min != null ? `≥${c.min}` : ''}${c.min != null && c.max != null ? ' & ' : ''}${c.max != null ? `≤${c.max}` : ''}${c.unit ? ` ${c.unit}` : ''}`
                         : '';
                     return (
-                      <div key={c.key} className={styles.qcCheckRow}>
-                        <span className={styles.qcCheckLabel}>
+                      <div key={c.key} className={s.qcCheckRow}>
+                        <span className={s.qcCheckLabel}>
                           {c.label}
                           {c.required ? ' *' : ''}
-                          {tol && <span className={styles.qcCheckTol}> ({tol})</span>}
+                          {tol && <span className={s.qcCheckTol}> ({tol})</span>}
                         </span>
                         {c.type === 'numeric' ? (
                           <input
-                            className={`${styles.qcCheckInput} ${fail ? styles.qcCheckFail : ''}`}
+                            className={`${s.qcCheckInput} ${fail ? s.qcCheckFail : ''}`}
                             type="number"
                             value={typeof v === 'number' ? String(v) : ''}
                             onChange={(e) =>
@@ -606,39 +611,39 @@ export const DistributionPage: React.FC = () => {
                             }
                           />
                         ) : (
-                          <span className={styles.qcPassFail}>
+                          <span className={s.qcPassFail}>
                             <button
                               type="button"
-                              className={`${styles.qcChip} ${v === true ? styles.qcChipOn : ''}`}
+                              className={`${s.qcChip} ${v === true ? s.qcChipOn : ''}`}
                               onClick={() => setAnswer(c.key, true)}
                             >
                               Pass
                             </button>
                             <button
                               type="button"
-                              className={`${styles.qcChip} ${v === false ? styles.qcChipFail : ''}`}
+                              className={`${s.qcChip} ${v === false ? s.qcChipFail : ''}`}
                               onClick={() => setAnswer(c.key, false)}
                             >
                               Fail
                             </button>
                           </span>
                         )}
-                        {fail && <span className={styles.qcFailFlag}>out of tolerance</span>}
+                        {fail && <span className={s.qcFailFlag}>out of tolerance</span>}
                       </div>
                     );
                   })}
                 </div>
               )}
-              <div className={styles.qcRow}>
+              <div className={s.qcRow}>
                 <Input label="Reject (write-off, m)" type="number" value={rejectedMeters} onChange={setRejectedMeters} placeholder="0" />
                 <Input label="Hold (quarantine, m)" type="number" value={heldMeters} onChange={setHeldMeters} placeholder="0" />
               </div>
-              <div className={styles.qcDefects}>
+              <div className={s.qcDefects}>
                 {['width', 'gsm', 'shade', 'defect', 'other'].map((d) => (
                   <button
                     key={d}
                     type="button"
-                    className={`${styles.qcChip} ${qcDefects.includes(d) ? styles.qcChipOn : ''}`}
+                    className={`${s.qcChip} ${qcDefects.includes(d) ? s.qcChipOn : ''}`}
                     onClick={() => toggleDefect(d)}
                   >
                     {d}
@@ -674,7 +679,7 @@ export const DistributionPage: React.FC = () => {
             <p className={styles.fabricCellCode}>
               {inspectTarget.fabric_name ?? 'fabric'} → {hubName(inspectTarget.hub_id)} · {Number(inspectTarget.held_meters ?? 0)}m held in quarantine
             </p>
-            <div className={styles.qcRow}>
+            <div className={s.qcRow}>
               <Input label="Accept → available (m)" type="number" value={acceptMeters} onChange={setAcceptMeters} placeholder="0" />
               <Input label="Reject → write-off (m)" type="number" value={rejMeters} onChange={setRejMeters} placeholder="0" />
             </div>

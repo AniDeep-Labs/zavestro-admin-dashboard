@@ -1,0 +1,29 @@
+.swatch {
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-section);
+}
+
+/* [KA4-7] The empty state must NOT look like a colour.
+   The old placeholder was a solid square filled with --color-bg-section, so every fabric
+   without an image rendered the same pale mint — Indigo Denim and Oxford Cotton identical,
+   on the one screen where colour IS the fabric's identity. A swatch is a claim about the
+   physical thing; a placeholder that looks like a real colour chip is worse than no swatch.
+   [KA4-11] It must not look FAILED either. Central Stock filled the same square with an
+   image glyph, which reads as a broken image rather than an intentional gap.
+   Transparent with a dashed rule is the empty-slot idiom: it holds the row's alignment,
+   claims no colour, and reads as "nothing on file" rather than "something went wrong". */
+.empty {
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  display: inline-block;
+}
+
+/* Two sizes exist in the console: rows are 34px, Central Stock's are 40px. Classes rather
+   than an inline style, per the admin's no-inline-styles rule. */
+.sm { width: 34px; height: 34px; }
+.md { width: 40px; height: 40px; }

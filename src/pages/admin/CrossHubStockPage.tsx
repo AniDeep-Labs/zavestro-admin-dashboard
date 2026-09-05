@@ -1,7 +1,7 @@
 import React from 'react';
 import { useHubContextFilter } from '../../utils/useHubContextFilter'; // [SHL-3-8]
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { fabricsApi, hubsApi, distributionApi, R2_PUBLIC_URL } from '../../api/adminApi';
+import { fabricsApi, hubsApi, distributionApi } from '../../api/adminApi';
 import type {
   FabricStockRow,
   Hub,
@@ -22,8 +22,8 @@ import cs from './CrossHubStockPage.module.css';
 import { UilImport } from '@iconscout/react-unicons';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 import { isDenied } from '../../components/EmptyState/asyncState';
+import { FabricSwatch } from '../../components/Image/FabricSwatch';
 
-const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 
 const DEAD_STOCK_DAYS = 60; // SOLUTIONS P8: no movement for 60d = a decision you forgot to make
 
@@ -334,14 +334,14 @@ export const CrossHubStockPage: React.FC = () => {
               <td className={styles.customerName}>{r.hub_name}</td>
               <td>
                 <div className={styles.fabricCell}>
-                  {swatch(r.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(r.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
+                  <FabricSwatch imageKeys={r.fabric_image_keys} name={r.fabric_name} />
                   {fabricNameLink(r)}
                 </div>
               </td>
               <td className={styles.total}>{Number(r.available_meters)}m</td>
               <td className={styles.total}>
                 {Number(r.quarantine_meters ?? 0) > 0 ? (
-                  <span className={styles.heldMeters}>{Number(r.quarantine_meters)}m</span>
+                  <span className={cs.heldMeters}>{Number(r.quarantine_meters)}m</span>
                 ) : (
                   '—'
                 )}
@@ -540,7 +540,7 @@ export const CrossHubStockPage: React.FC = () => {
                     <td className={styles.customerName}>{d.design_name}</td>
                     <td>
                       <div className={styles.fabricCell}>
-                        {swatch(d.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(d.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
+                        <FabricSwatch imageKeys={d.fabric_image_keys} name={d.fabric_name} />
                         <span>{d.fabric_name ?? 'hub stocks SKU'}</span>
                       </div>
                     </td>
@@ -601,7 +601,7 @@ export const CrossHubStockPage: React.FC = () => {
                   <tr key={f.fabric_id}>
                     <td className={cs.stickyCell}>
                       <div className={styles.fabricCell}>
-                        {swatch(f.fabric_image_keys) ? <img className={styles.swatchThumb} src={swatch(f.fabric_image_keys)} alt="" /> : <div className={styles.swatchThumb} />}
+                        <FabricSwatch imageKeys={f.fabric_image_keys} name={f.fabric_name} />
                         <div className={styles.fabricCellText}>
                           {fabricNameLink(f)}
                           <span className={styles.fabricCellCode}>{f.fabric_code}</span>

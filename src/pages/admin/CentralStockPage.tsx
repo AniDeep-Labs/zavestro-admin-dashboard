@@ -1,6 +1,6 @@
 import React from "react";
 import { useSearchParams } from "react-router-dom";
-import { fabricsApi, R2_PUBLIC_URL } from "../../api/adminApi";
+import { fabricsApi } from "../../api/adminApi";
 import type { CentralStockRow, CentralReceipt, Fabric } from "../../api/adminApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
@@ -10,13 +10,12 @@ import { PageHeader, EmptyState, MoneyCell } from "../../components";
 import base from "./OrdersListPage.module.css";
 import kpi from "./CodReconciliationPage.module.css";
 import s from "./CentralStockPage.module.css";
-import { UilPlus, UilSlidersV, UilHistory, UilImport, UilImage } from "@iconscout/react-unicons";
+import { UilPlus, UilSlidersV, UilHistory, UilImport } from "@iconscout/react-unicons";
+import { FabricSwatch } from '../../components/Image/FabricSwatch';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const num = (v: string | number | null | undefined) => (v == null ? 0 : Number(v));
 const fmtM = (v: string | number | null | undefined) => `${num(v).toLocaleString("en-IN")} m`;
-const imgOf = (keys: string[] | null) =>
-  keys && keys[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : "";
 
 /**
  * Central procurement fabric pool (Phase 3, INVENTORY-FABRIC-MODEL §3). Fabric ORIGIN:
@@ -48,8 +47,6 @@ export const CentralStockPage: React.FC = () => {
   const [historyTarget, setHistoryTarget] = React.useState<CentralStockRow | null>(null);
   const [receipts, setReceipts] = React.useState<CentralReceipt[]>([]);
   const [loadingReceipts, setLoadingReceipts] = React.useState(false);
-  const [broken, setBroken] = React.useState<Set<string>>(new Set());
-  const markBroken = (id: string) => setBroken((b) => (b.has(id) ? b : new Set(b).add(id)));
 
   const showToast = (type: ToastData["type"], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
@@ -250,9 +247,11 @@ export const CentralStockPage: React.FC = () => {
                   <tr key={r.fabric_id} className={base.row} {...rowActivation(() => openHistory(r))}>
                     <td>
                       <div className={base.fabricCell}>
-                        {imgOf(r.fabric_image_keys) && !broken.has(r.fabric_id)
-                          ? <img className={base.swatchThumb} src={imgOf(r.fabric_image_keys)} alt="" onError={() => markBroken(r.fabric_id)} />
-                          : <span className={base.swatchThumb}><UilImage size={16} /></span>}
+                        {/* [KA4-11] The page used to track broken keys itself and swap in a
+                            filled square with an image glyph, which read as a FAILED image
+                            rather than a missing one. SafeImg owns that state now, so the
+                            local `broken` set and its onError plumbing are gone with it. */}
+                        <FabricSwatch imageKeys={r.fabric_image_keys} name={r.fabric_name} size="md" />
                         <span>{r.fabric_name}</span>
                       </div>
                     </td>

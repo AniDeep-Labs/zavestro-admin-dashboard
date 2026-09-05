@@ -90,3 +90,11 @@
   font-size: 11px;
   color: var(--color-text-secondary);
 }
+
+/* [KA4-6] "Receive…" was clipped inside its own column. A verb the operator must trust
+   should never be abbreviated by layout, and the ellipsis in this label is meaningful — it
+   promises a dialog follows — so losing it to truncation also loses that promise. */
+.rowVerb {
+  white-space: nowrap;
+  flex-shrink: 0;
+}

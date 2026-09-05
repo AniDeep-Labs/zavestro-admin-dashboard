@@ -94,7 +94,7 @@
   "src/pages/admin/ReturnDetailPage.module.css": 2,
   "src/pages/admin/ReturnDetailPage.tsx": 5,
   "src/pages/admin/ReviewsListPage.module.css": 1,
-  "src/pages/admin/ReviewsListPage.tsx": 13,
+  "src/pages/admin/ReviewsListPage.tsx": 11,
   "src/pages/admin/SampleDetailPage.module.css": 1,
   "src/pages/admin/SampleVerificationPage.module.css": 1,
   "src/pages/admin/ServiceAreasPage.tsx": 18,
