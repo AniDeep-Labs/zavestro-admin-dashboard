@@ -336,8 +336,8 @@ export const DistributionPage: React.FC = () => {
         )}
       </td>
       <td>{hubName(r.hub_id)}</td>
-      <td className={styles.total}>{Number(r.sample_qty)}</td>
-      <td className={styles.total}>{Number(r.sellable_qty)}</td>
+      <td className={`${styles.total} ${s.numCol}`}>{Number(r.sample_qty).toLocaleString('en-IN')} m</td>
+      <td className={`${styles.total} ${s.numCol}`}>{Number(r.sellable_qty).toLocaleString('en-IN')} m</td>
       <td>
         <div className={styles.rowActions} onClick={(e) => e.stopPropagation()}>
           {/* [PRC-15-6] "Received 50m of 10m" and "Received 80m of 100m" both wore the
@@ -399,8 +399,22 @@ export const DistributionPage: React.FC = () => {
           )}
         </div>
       </td>
-      <td style={{ color: 'var(--color-text-secondary)' }}>
-        {new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+      {/* [KA4-9] This rendered "10 Jun" — no year — while the row's age ("67d") is shown
+          beside the status pill, which the craft audit calls exactly right for a worklist.
+          So the duplication was not the age; it was a date too short to place a 67-day-old
+          consignment, which could as easily be last year. The year shows when it is not the
+          current one, and the full timestamp plus the age live in the title.
+          The inline style this used to carry is now the shared `.date` class. */}
+      <td className={styles.date}>
+        <span title={`Pushed ${new Date(r.created_at).toLocaleString('en-IN')}`}>
+          {new Date(r.created_at).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            ...(new Date(r.created_at).getFullYear() === new Date().getFullYear()
+              ? {}
+              : { year: 'numeric' }),
+          })}
+        </span>
         {/* T3-4 (W-P3): the physical-world handle — what to quote when a hub says "never arrived". */}
         {r.consignment_ref && <div className={styles.fabricCellCode}>LR {r.consignment_ref}</div>}
       </td>
@@ -410,22 +424,33 @@ export const DistributionPage: React.FC = () => {
   const section = (title: string, list: Distribution[], emptyMsg: string) => (
     <section className={s.section}>
       <h2 className={s.sectionTitle}>{title} {!loading && <span className={s.count}>{list.length}</span>}</h2>
+      {/* [KA4-10] An empty section used to render its full 7-column header over a single
+          "Nothing received yet." row. Column names describe rows that exist; with none, they
+          are scaffolding around a sentence. The header now appears only when there is
+          something to head — while loading (the skeleton needs its columns) or with rows. */}
+      {!loading && list.length === 0 ? (
+        <p className={s.sectionEmpty}>{emptyMsg}</p>
+      ) : (
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Design</th><th>Fabric</th><th>Hub</th><th>Sample qty</th><th>Sellable qty</th><th>Status</th><th>Pushed</th></tr>
+            {/* [KA4-8] These were "Sample qty" / "Sellable qty", left-aligned with bare
+                integers, on the same console where Central Stock right-aligns its figures
+                with the unit attached. They are METRES — the push form's own fields are
+                labelled "Sample metres" and the column is NUMERIC(8,2) — so "qty" was
+                doubly wrong: no unit, and the wrong noun for a decimal length. */}
+            <tr><th>Design</th><th>Fabric</th><th>Hub</th><th className={s.numCol}>Sample metres</th><th className={s.numCol}>Sellable metres</th><th>Status</th><th>Pushed</th></tr>
           </thead>
           <tbody>
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <tr key={i}>{Array.from({ length: 7 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
               ))
-            ) : list.length === 0 ? (
-              <tr><td colSpan={7} className={styles.empty}>{emptyMsg}</td></tr>
             ) : list.map(renderRow)}
           </tbody>
         </table>
       </div>
+      )}
     </section>
   );
 

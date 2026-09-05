@@ -58,7 +58,7 @@
   "src/pages/admin/DesignLibraryPage.tsx": 1,
   "src/pages/admin/DesignSampleRequestsPage.module.css": 1,
   "src/pages/admin/DistributionPage.module.css": 8,
-  "src/pages/admin/DistributionPage.tsx": 4,
+  "src/pages/admin/DistributionPage.tsx": 3,
   "src/pages/admin/FabricAtHubPage.module.css": 2,
   "src/pages/admin/FabricStockPage.module.css": 4,
   "src/pages/admin/FabricsMasterPage.module.css": 5,

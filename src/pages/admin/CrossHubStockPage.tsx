@@ -338,7 +338,24 @@ export const CrossHubStockPage: React.FC = () => {
                   {fabricNameLink(r)}
                 </div>
               </td>
-              <td className={styles.total}>{Number(r.available_meters)}m</td>
+              {/* [KA4-16] A zero was rendered at the same weight as a live quantity, so a
+                  SKU with nothing sellable read like one with stock. The two ways of being
+                  at zero are also different facts: fully allocated (the cloth exists, it is
+                  spoken for) and genuinely none. Muted so it stops competing with real
+                  numbers, and labelled so it says which zero it is. */}
+              {(() => {
+                const avail = Number(r.available_meters);
+                const reserved = Number(r.reserved_meters ?? 0);
+                if (avail > 0) return <td className={styles.total}>{avail}m</td>;
+                return (
+                  <td className={`${styles.total} ${cs.zeroVal}`}>
+                    0m
+                    <span className={cs.zeroWhy}>
+                      {reserved > 0 ? 'fully allocated' : 'none in stock'}
+                    </span>
+                  </td>
+                );
+              })()}
               <td className={styles.total}>
                 {Number(r.quarantine_meters ?? 0) > 0 ? (
                   <span className={cs.heldMeters}>{Number(r.quarantine_meters)}m</span>

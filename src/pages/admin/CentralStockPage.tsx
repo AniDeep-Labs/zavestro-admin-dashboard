@@ -96,6 +96,20 @@ export const CentralStockPage: React.FC = () => {
   const totAllocated = rows.reduce((sum, r) => sum + num(r.allocated_meters), 0);
   const totAvailable = rows.reduce((sum, r) => sum + num(r.available_meters), 0);
   const totCapital = rows.reduce((sum, r) => sum + (valueOf(r) ?? 0), 0);
+  // [KA4-12] The figure has to say what it IS. It was rendered as a hard money number with
+  // no basis, which on a procurement console is indistinguishable from a cash balance.
+  //
+  // The craft audit assumed this was metres x TODAY's price — that was true when it was
+  // written, and T1-17 has since moved it to weighted-average cost at receipt. So the basis
+  // line states the real rule, including the part that is still a restatement: a fabric with
+  // no costed receipts falls back to list price, and for those rows the number genuinely is
+  // "what it would cost today", not what was paid. Saying "at weighted-average cost" flatly
+  // would be the same overstatement in a new coat.
+  const listPriceRows = rows.filter((r) => r.unit_cost_wac == null && r.price_per_meter != null).length;
+  const capitalBasis =
+    listPriceRows > 0
+      ? `available metres × cost — ${listPriceRows} of ${rows.length} at list price (no costed receipts yet)`
+      : 'available metres × weighted-average cost at receipt';
 
   const submitReceive = async () => {
     const m = Number(meters);
@@ -214,7 +228,12 @@ export const CentralStockPage: React.FC = () => {
           <div className={kpi.summaryCard}><div className={kpi.summaryLabel}>Received</div><div className={kpi.summaryValue}>{fmtM(totReceived)}</div></div>
           <div className={kpi.summaryCard}><div className={kpi.summaryLabel}>Allocated to hubs</div><div className={kpi.summaryValue}>{fmtM(totAllocated)}</div></div>
           <div className={kpi.summaryCard}><div className={kpi.summaryLabel}>Available</div><div className={kpi.summaryValue}>{fmtM(totAvailable)}</div></div>
-          <div className={kpi.summaryCard}><div className={kpi.summaryLabel}>Capital (avail)</div><div className={kpi.summaryValue}>₹{Math.round(totCapital).toLocaleString("en-IN")}</div></div>
+          <div className={kpi.summaryCard}>
+            <div className={kpi.summaryLabel}>Capital (avail)</div>
+            <div className={kpi.summaryValue}>₹{Math.round(totCapital).toLocaleString("en-IN")}</div>
+            {/* [KA4-12] The basis, on the card — not in a tooltip nothing invites you to hover. */}
+            <div className={kpi.summarySub}>{capitalBasis}</div>
+          </div>
         </div>
       )}
 
@@ -229,7 +248,10 @@ export const CentralStockPage: React.FC = () => {
                 <th className={s.numCol}>Received</th>
                 <th className={s.numCol}>Allocated</th>
                 <th className={s.numCol}>Available</th>
-                <th className={s.numCol}>Value (avail)</th>
+                {/* [KA4-13] Was "Value (avail)" beside a KPI called "Capital (avail)" — the
+                    same quantity under two names on one page. Cross-hub already says
+                    "Capital on hub shelves" ([PRC-17-2]), so "Capital" is the house word. */}
+                <th className={s.numCol}>Capital (avail)</th>
                 <th></th>
               </tr>
             </thead>
