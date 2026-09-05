@@ -19,6 +19,7 @@ import { Can } from "../../components/Can/Can";
 import styles from "./OrdersListPage.module.css";
 import s from "./CodReconciliationPage.module.css";
 import ds from "./DistributionPage.module.css";
+import own from "./FinanceReportPage.module.css"; // [KA8-4] + [FIN-37-4]'s provisional marker
 import { UilRefresh, UilTimes, UilImport } from "@iconscout/react-unicons";
 import { downloadCsv, datedFilename } from "../../utils/csv";
 import { money } from "../../utils/money";
@@ -65,7 +66,7 @@ const SummaryCard: React.FC<{
         room — a margin, a hub ranking or a board slide built on it inherits a COGS of zero
         as though it had been measured. Two decimals of precision on top of an unmeasured
         cost line is the part that misleads. */}
-    <div className={`${s.summaryValue}${accent ? ` ${s.pendingAccent}` : ""}${provisional ? ` ${s.provisionalValue}` : ""}`}>
+    <div className={`${s.summaryValue}${accent ? ` ${s.pendingAccent}` : ""}${provisional ? ` ${own.provisionalValue}` : ""}`}>
       {loading || value === undefined ? "—" : provisional ? `≈ ${fmtINR(value)}` : fmtINR(value)}
     </div>
     {!loading && note && <div className={s.summarySub}>{note}</div>}
@@ -270,7 +271,17 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
         {name ?? "—"}
       </Link>
     ) : (
-      (name ?? "Unassigned")
+      /* [KA8-4] "Unassigned" sat in plain black between two green hub links with nothing
+         saying what it is — a CA reading a per-hub P&L found revenue attributed to no hub
+         and no way to learn why. It is orders with no hub_id (placed before a hub was
+         assigned, or against a hub since removed); it is not drillable because there is no
+         hub to scope to, and that is now stated rather than merely enacted. */
+      <span
+        className={own.unassignedHub}
+        title="Revenue from orders with no hub attributed — placed before a hub was assigned, or against a hub since removed. Not drillable: there is no hub to scope to."
+      >
+        {name ?? "Unassigned"}
+      </span>
     );
 
   const dayRow = (d: SettlementDay) => (
@@ -389,6 +400,32 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
           <option value="">All Hubs</option>
           {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
         </select>
+        {/* [KA8-16] Two native dd/mm/yyyy inputs and no presets, on the console whose main
+            artifact is a MONTHLY CA pack — so the most-run report in the product took four
+            interactions with a browser date widget every time. The presets are the ranges
+            this page actually gets asked for. */}
+        <div className={own.rangePresets}>
+          {([
+            ['This month', () => { const n = new Date(); return [new Date(n.getFullYear(), n.getMonth(), 1), n] as const; }],
+            ['Last month', () => { const n = new Date(); return [new Date(n.getFullYear(), n.getMonth() - 1, 1), new Date(n.getFullYear(), n.getMonth(), 0)] as const; }],
+            ['This quarter', () => { const n = new Date(); return [new Date(n.getFullYear(), Math.floor(n.getMonth() / 3) * 3, 1), n] as const; }],
+            ['Last 30 days', () => { const n = new Date(); return [new Date(n.getTime() - 29 * 86400000), n] as const; }],
+          ] as [string, () => readonly [Date, Date]][]).map(([label, range]) => (
+            <button
+              key={label}
+              type="button"
+              className={own.rangePreset}
+              onClick={() => {
+                const [a, b] = range();
+                const iso = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+                setStartDate(iso(a));
+                setEndDate(iso(b));
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <span className={s.dateWrap}><input className={s.dateInput} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} aria-label="Start date" /></span>
         <span className={s.dateWrap}><input className={s.dateInput} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} aria-label="End date" /></span>
         {filtered && <button className={styles.clearBtn} onClick={clearFilters}><UilTimes size={14} /> Clear</button>}
@@ -507,7 +544,13 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
 
             {(settlement!.by_day?.length ?? 0) > 0 && (
               <section className={ds.section}>
-                <h2 className={ds.sectionTitle}>By day <span className={ds.count}>{settlement!.by_day!.length}</span></h2>
+                {/* [KA8-14] The two tables differ only in their first column, so scrolled past their
+                    16px headings they are indistinguishable — the `th` list repeats verbatim.
+                    The heading now says what each one slices BY and over what, which is the
+                    difference a reader is actually looking for. */}
+                <h2 className={ds.sectionTitle}>By day <span className={ds.count}>{settlement!.by_day!.length}</span>
+                  <span className={own.sectionHint}>each day in the window, all hubs together</span>
+                </h2>
                 <div className={styles.tableWrap}>
                   <table className={styles.table}>
                     <thead><tr><th>Date</th><th>Orders</th><th className="moneyCell">Gross (online)</th><th className="moneyCell">Refunded</th><th className="moneyCell">Net settled</th></tr></thead>
@@ -517,7 +560,9 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
               </section>
             )}
             <section className={ds.section}>
-              <h2 className={ds.sectionTitle}>By hub <span className={ds.count}>{settlement!.hubs.length}</span></h2>
+              <h2 className={ds.sectionTitle}>By hub <span className={ds.count}>{settlement!.hubs.length}</span>
+                <span className={own.sectionHint}>each hub, the whole window together</span>
+              </h2>
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead><tr><th>Hub</th><th>Orders</th><th className="moneyCell">Gross (online)</th><th className="moneyCell">Refunded</th><th className="moneyCell">Net settled</th></tr></thead>

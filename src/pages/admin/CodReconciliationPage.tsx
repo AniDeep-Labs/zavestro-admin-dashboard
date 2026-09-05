@@ -173,11 +173,23 @@ export const CodReconciliationPage: React.FC = () => {
     );
   };
 
-  const ordersCell = (d: CodDeposit) => (
-    <button className={s.expandBtn} onClick={(e) => { e.stopPropagation(); toggleOrders(d); }}>
-      {expanded.has(d.id) ? <UilAngleDown size={14} /> : <UilAngleRight size={14} />}{d.order_count}
-    </button>
-  );
+  // [KA8-6] A deposit tied to 0 orders rendered as a button with a disclosure chevron —
+  // promising detail that cannot exist, to the one person whose job is matching cash to what
+  // the cash was FOR. A control that expands nothing is worse than no control: it costs a
+  // click to learn that the answer is unavailable.
+  //
+  // Zero is also a fact worth stating rather than hiding: a deposit with no orders linked is
+  // either a deposit recorded before its orders were, or one that will never reconcile.
+  const ordersCell = (d: CodDeposit) =>
+    d.order_count ? (
+      <button className={s.expandBtn} onClick={(e) => { e.stopPropagation(); toggleOrders(d); }}>
+        {expanded.has(d.id) ? <UilAngleDown size={14} /> : <UilAngleRight size={14} />}{d.order_count}
+      </button>
+    ) : (
+      <span className={s.noOrders} title="No orders are linked to this deposit, so there is nothing to expand. The cash was recorded without the orders it covers.">
+        0 — none linked
+      </span>
+    );
 
   // kind: awaiting | variance | confirmed → trailing column differs.
   const section = (title: string, list: CodDeposit[], kind: 'awaiting' | 'variance' | 'confirmed', accent = false) =>
@@ -292,11 +304,17 @@ export const CodReconciliationPage: React.FC = () => {
         <div className={s.summaryCard}>
           <div className={s.summaryLabel}>Open variances</div>
           <div className={`${s.summaryValue} ${variancesOpen.length ? s.pendingAccent : ''}`}>{loading ? '—' : variancesOpen.length}</div>
-          {!loading && variancesOpen.length > 0 && <div className={s.summarySub}>cash mismatches to resolve</div>}
+          {/* [KA8-7] The sub-label rendered only when the count was non-zero, so the two
+              cards that most need a qualifier were bare zeros — and ZERO is exactly when a
+              reader needs to know what the number counts. A bare 0 beside "Confirmed" could
+              mean nothing has been confirmed or nothing has been submitted; those are very
+              different mornings for whoever reconciles the cash. */}
+          {!loading && <div className={s.summarySub}>cash mismatches to resolve</div>}
         </div>
         <div className={s.summaryCard}>
           <div className={s.summaryLabel}>Confirmed</div>
           <div className={s.summaryValue}>{loading ? '—' : confirmed.length}</div>
+          {!loading && <div className={s.summarySub}>deposits matched against the bank</div>}
         </div>
       </div>
 

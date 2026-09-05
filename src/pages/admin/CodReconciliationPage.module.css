@@ -124,3 +124,12 @@
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
 }
+
+/* [KA8-6] A deposit with no orders linked. Stated, not offered as an expandable that
+   expands nothing. */
+.noOrders {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  border-bottom: 1px dotted var(--color-border);
+  cursor: help;
+}

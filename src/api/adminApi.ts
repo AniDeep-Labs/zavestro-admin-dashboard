@@ -3499,6 +3499,9 @@ export interface RefundEntry {
   customer_id?: string | null;
   // T3-7 (W-F3): "where's my money?" — the gateway refund ref + when it should land.
   razorpay_refund_id?: string | null;
+  /** [KA8-11] Who disbursed it. NULL when the system settled it (webhook / auto-refund job)
+      or the row predates the column — the UI distinguishes those from a blank. */
+  settled_by_name?: string | null;
   expected_settlement_at?: string | null; // initiated + N business days (in-flight only)
   settlement_business_days?: number;
 }
@@ -3656,13 +3659,27 @@ export interface CreditRequest {
   customer_ref: string | null;
   requested_by_name: string | null;
   reviewed_by_name: string | null;
+  /** [KA8-9] The two numbers the automatic cap enforces on, so finance sees what the
+      machine would have said rather than deciding blind. */
+  wallet_balance?: number;
+  goodwill_in_window?: number;
 }
 export const creditApprovalsApi = {
-  list: async (status = "pending"): Promise<CreditRequest[]> => {
-    const r = await req<{ requests: CreditRequest[] }>(
-      `/api/admin/credit-requests?status=${encodeURIComponent(status)}`,
-    );
-    return r?.requests ?? [];
+  /** [KA8-9] Also returns the cap the automatic path enforces, so the page can say when an
+      approval would cross it — before the click rather than after. */
+  list: async (
+    status = "pending",
+  ): Promise<{ requests: CreditRequest[]; windowDays: number | null; cap: number | null }> => {
+    const r = await req<{
+      requests: CreditRequest[];
+      goodwill_window_days?: number;
+      goodwill_customer_cap?: number;
+    }>(`/api/admin/credit-requests?status=${encodeURIComponent(status)}`);
+    return {
+      requests: r?.requests ?? [],
+      windowDays: r?.goodwill_window_days ?? null,
+      cap: r?.goodwill_customer_cap ?? null,
+    };
   },
   approve: async (id: string, note?: string): Promise<{ message: string }> =>
     req(`/api/admin/credit-requests/${id}/approve`, {
