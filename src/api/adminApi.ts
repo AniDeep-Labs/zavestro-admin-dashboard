@@ -2825,6 +2825,32 @@ export interface ListingExceptions {
   below_floor: ListingBelowFloorRow[];
 }
 
+/** [DSG-9-6] One named change between two versions of a design. */
+export interface DesignVersionChange {
+  path: string;
+  from: unknown;
+  to: unknown;
+}
+
+export interface DesignVersionRow {
+  version: number;
+  note: string | null;
+  source: 'save' | 'baseline' | 'restore';
+  /** The edit touched a material field (tech-pack, fit, fabric, category, metreage). */
+  material: boolean;
+  created_at: string;
+  /** null for the automatic baseline, or an author since deleted. */
+  created_by: { id: string; name: string } | null;
+  changed: number;
+  changes: DesignVersionChange[];
+  truncated: boolean;
+}
+
+export interface DesignVersionFull extends Omit<DesignVersionRow, 'changed' | 'changes' | 'truncated'> {
+  snapshot: Record<string, unknown>;
+  diff: { changes: DesignVersionChange[]; total: number; truncated: boolean };
+}
+
 export const designsApi = {
   list: async (
     params: {
@@ -2878,6 +2904,14 @@ export const designsApi = {
     req(
       `/api/admin/designs/garment-categories/${categoryId}/fit-chart?fit=${encodeURIComponent(fit)}`,
     ),
+
+  // [DSG-9-6] The design's revision history. Same shape as the garment-template spine's
+  // (DSG-11-9), deliberately — one renderer can read either.
+  versions: async (designId: string): Promise<DesignVersionRow[]> =>
+    req(`/api/admin/designs/${designId}/versions`),
+
+  version: async (designId: string, version: number): Promise<DesignVersionFull> =>
+    req(`/api/admin/designs/${designId}/versions/${version}`),
 
   createGarmentCategory: async (
     input: CreateGarmentCategoryInput,
