@@ -327,3 +327,10 @@
   color: var(--color-primary);
   text-decoration: underline;
 }
+
+/* [KA3-13] The reason a disabled Run is disabled, beside it rather than in a tooltip
+   nothing invites you to hover. */
+.hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}

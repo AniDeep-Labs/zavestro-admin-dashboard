@@ -151,6 +151,32 @@ export const GarmentTypeTemplatesPage: React.FC = () => {
         <span className={styles.pagination}>{loading ? '' : `${shown.length} of ${cats.length}`}</span>
       </div>
 
+      {/* [KA3-8] "N of 7 have no fit recipe" is the single most important fact in this
+          console, and the page presented it only as N identical rows saying "Needs setup" —
+          a reader had to count them, and a count of rows is not a summary. It says the
+          number once, up front, and what it costs: a garment type with no recipe cannot be
+          drafted, so every design of that type is blocked behind it. */}
+      {!loading && cats.length > 0 && (() => {
+        const ready = cats.filter(
+          (c) => captureCount(c) > 0 ||
+            ((c.calibrated_fit_presets != null ? c.calibrated_fit_presets : (c.available_fit_presets ?? [])).length > 0),
+        ).length;
+        const missing = cats.length - ready;
+        if (missing === 0) {
+          return (
+            <p className={styles.rollup}>
+              All {cats.length} garment types have a fit recipe.
+            </p>
+          );
+        }
+        return (
+          <p className={`${styles.rollup} ${styles.rollupWarn}`}>
+            <strong>{missing} of {cats.length}</strong> garment types have no fit recipe yet —
+            the engine cannot draft them, so every design of those types is blocked until one exists.
+          </p>
+        );
+      })()}
+
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
