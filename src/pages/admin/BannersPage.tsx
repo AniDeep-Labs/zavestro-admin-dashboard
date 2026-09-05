@@ -748,8 +748,45 @@ function BannerForm({
       : endsAt && new Date(endsAt + 'T23:59:59').getTime() < now ? { label: 'Expired', cls: b.statusExpired }
         : { label: 'Active', cls: b.statusActive };
 
+  // [KA5-6] Status was decoupled from readiness, so the chip could read ACTIVE above a phone
+  // frame holding no artwork at all — a banner that cannot show anything, presented as live.
+  // A schedule says WHEN it runs; it says nothing about whether there is something to run.
+  //
+  // Per DEVICE, because that is what the preview shows: mobile and web carry separate
+  // creatives, and a banner ready on one is genuinely not ready on the other.
+  const deviceMode = dev === 'mobile' ? modeMobile : modeWeb;
+  const deviceHasCreative =
+    deviceMode === 'upload'
+      ? !!(dev === 'mobile' ? imageMobile : imageWeb)
+      : deviceMode === 'canvas'
+        ? !!(cs[dev === 'mobile' ? 'canvas_mobile' : 'canvas_web'] as CanvasDoc | undefined)?.elements?.length
+        : true; // compose always renders from its fields
+  const showStatus =
+    status.label === 'Active' && !deviceHasCreative
+      ? { label: `Active · no ${dev} creative`, cls: b.statusIncomplete }
+      : status;
+
   // Recommended creative dimensions follow the chosen aspect for that device.
   const dimFor = (ratio: number, base: number) => `${base}×${Math.round(base / ratio)}`;
+
+/**
+ * [KA5-3] The ratio's name and the ratio's selection came from two places: the chips used
+ * this list, while the readout hardcoded "tall" for anything below 1:1. At 0.80 that
+ * printed "RATIO — TALL 0.80 : 1" beside a highlighted **Portrait** chip — on the one
+ * control whose job is to name a shape, the name and the selection disagreed and nothing
+ * told the operator which was authoritative.
+ *
+ * One list now feeds both, so they cannot drift. A value between presets is named "custom"
+ * rather than borrowed from the nearest one — the slider is continuous, and pretending an
+ * arbitrary number is a named shape is how the two disagreed in the first place.
+ */
+const RATIO_PRESETS: Record<'mobile' | 'web', [string, number][]> = {
+  mobile: [['Tall', 0.66], ['Portrait', 0.8], ['Square', 1], ['Wide', 1.4]],
+  web: [['Banner', 4], ['Wide', 2.667], ['Short', 2], ['Tall', 1.8]],
+};
+const PRESET_EPSILON = 0.02;
+const ratioName = (dev: 'mobile' | 'web', aspect: number): string =>
+  RATIO_PRESETS[dev].find(([, v]) => Math.abs(aspect - v) < PRESET_EPSILON)?.[0] ?? 'Custom';
   const aspectHint = dev === 'mobile'
     ? `Mobile creative — design around ${dimFor(aspectMobile, 1200)} (${aspect.toFixed(2)}:1). Separate from web.`
     : `Web creative — design around ${dimFor(aspectWeb, 1920)} (${aspect.toFixed(2)}:1). Separate, wider.`;
@@ -854,15 +891,13 @@ function BannerForm({
             <div className={b.section}>
               <p className={b.sectionHead}>{dev === 'mobile' ? 'Mobile' : 'Web'} size &amp; ratio</p>
               <div className={b.fieldRowS}>
-                <label className={b.label}>Ratio — {aspect < 1 ? `tall ${aspect.toFixed(2)} : 1` : `${aspect.toFixed(2)} : 1`}</label>
+                <label className={b.label}>Ratio — {ratioName(dev, aspect)} {aspect.toFixed(2)} : 1</label>
                 <input type="range"
                   min={dev === 'mobile' ? 0.5 : 1.8} max={dev === 'mobile' ? 1.6 : 4} step={0.01}
                   value={aspect} onChange={e => setAspect(Number(e.target.value))} className={b.slider} />
                 <div className={b.sizePresets}>
-                  {(dev === 'mobile'
-                    ? [['Tall', 0.66], ['Portrait', 0.8], ['Square', 1], ['Wide', 1.4]]
-                    : [['Banner', 4], ['Wide', 2.667], ['Short', 2], ['Tall', 1.8]]).map(([lbl, v]) => (
-                    <button type="button" key={lbl as string} className={`${b.sizePreset} ${Math.abs(aspect - (v as number)) < 0.02 ? b.sizePresetOn : ''}`} onClick={() => setAspect(v as number)}>{lbl}</button>
+                  {RATIO_PRESETS[dev].map(([lbl, v]) => (
+                    <button type="button" key={lbl} className={`${b.sizePreset} ${Math.abs(aspect - v) < PRESET_EPSILON ? b.sizePresetOn : ''}`} onClick={() => setAspect(v)}>{lbl}</button>
                   ))}
                 </div>
                 <span className={b.hint}>How tall/short this device's banner is.</span>
@@ -1016,7 +1051,7 @@ function BannerForm({
           {/* Live preview rail — shown in every mode (incl. canvas). */}
           <div className={b.previewPane}>
             <div className={b.previewLabelRow}>
-              <span className={`${b.statusChip} ${status.cls}`}>{status.label}</span>
+              <span className={`${b.statusChip} ${showStatus.cls}`}>{showStatus.label}</span>
               <span className={b.previewDevLabel}>{dev === 'mobile' ? 'Mobile preview' : 'Web preview'}</span>
             </div>
             <DeviceShell frame={dev} hero={deviceHero(dev)} />
@@ -1315,7 +1350,21 @@ export const BannersPage: React.FC = () => {
                     <div className={b.hlTitle}>{bn.title}</div>
                     {bn.subtitle && <div className={b.hlSub}>{bn.subtitle}</div>}
                     {bn.tag && <span className={b.hlTag}>{bn.tag}</span>}
-                    <div className={b.layoutName}>{(bn.layout_mobile ?? bn.layout ?? 'full_image').replace(/_/g, ' ')} · {(bn.layout_web ?? bn.layout ?? 'full_image').replace(/_/g, ' ')}</div>
+                    {/* [KA5-9] This printed the mobile layout and the web layout separated
+                        by a dot, and both default to `full_image` — so the overwhelmingly
+                        common case rendered "full image · full image", which reads as a
+                        duplication bug rather than as two distinct properties. When they
+                        agree, say it once and say that it covers both; when they differ,
+                        name which is which, because THEN the distinction is the point. */}
+                    {(() => {
+                      const m = (bn.layout_mobile ?? bn.layout ?? 'full_image').replace(/_/g, ' ');
+                      const w = (bn.layout_web ?? bn.layout ?? 'full_image').replace(/_/g, ' ');
+                      return (
+                        <div className={b.layoutName}>
+                          {m === w ? `${m} · both devices` : `mobile ${m} · web ${w}`}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className={b.ctaCell}>
                     <div>{bn.cta_text}</div>

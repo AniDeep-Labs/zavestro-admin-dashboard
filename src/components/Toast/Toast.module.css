@@ -127,3 +127,12 @@
     transform: translateX(100%);
   }
 }
+
+/* [KA5-2] How many identical toasts collapsed into this one. Quiet — it is a detail about
+   the failure, not the failure. */
+.repeats {
+  margin-left: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  opacity: 0.65;
+}
