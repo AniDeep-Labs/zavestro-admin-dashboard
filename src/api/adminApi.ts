@@ -4830,20 +4830,61 @@ export const serviceAreasApi = {
 
 // ─── Admin Auth Extended ──────────────────────────────────────────────────────
 
+export interface AdminMe {
+  id: string;
+  role: string;
+  hubId?: string | null;
+  capabilities: string[];
+  // Own-profile fields (best-effort server-side; may be null on older backends)
+  email?: string | null;
+  name?: string | null;
+  isActive?: boolean | null;
+  lastLoginAt?: string | null;
+  hasSecurityQuestion?: boolean | null;
+}
+
+/**
+ * [SHL-2-14] One page load fired `/auth/me` up to five times: AdminLayout, AdminProfilePage,
+ * AdminLoginPage, RestockQueuePage and ListingRequestsPage each ask independently, and they
+ * mount together.
+ *
+ * This COALESCES calls that are in flight at the same moment — it does NOT cache the answer.
+ * That distinction is the whole design. [SHL-2-11] exists because a stale identity had already
+ * caused a real bug: the profile page read role from a localStorage blob written once at login,
+ * so a super_admin demoted that morning still read as super_admin. A time-based cache here
+ * would reintroduce exactly that, one layer lower and harder to see.
+ *
+ * So: components mounting together share one request, and a later navigation re-asks the server
+ * and gets the truth. The promise is released as soon as it settles, successes and failures
+ * alike, so a retry after a failure is a real retry.
+ */
+let meInFlight: Promise<AdminMe> | null = null;
+
 export const adminAuthExtApi = {
   /** Current admin identity + capabilities (drives role-based UI gating). */
-  me: async (): Promise<{
-    id: string;
-    role: string;
-    hubId?: string | null;
-    capabilities: string[];
-    // Own-profile fields (best-effort server-side; may be null on older backends)
-    email?: string | null;
-    name?: string | null;
-    isActive?: boolean | null;
-    lastLoginAt?: string | null;
-    hasSecurityQuestion?: boolean | null;
-  }> => req("/api/admin/auth/me"),
+  me: (): Promise<AdminMe> => {
+    if (meInFlight) return meInFlight;
+    // The release is attached to the REQUEST, and what callers receive is the promise
+    // derived from it. That ordering is load-bearing: a `.finally()` hung off the promise
+    // handed to callers clears one or two microtasks LATE, so a caller that re-asks
+    // immediately after its own `await` gets the settled answer back instead of a fresh
+    // request — a cache, which is the one thing this must not be ([SHL-2-11]).
+    // Registering the clear first makes it run before any caller's handler, always.
+    const p: Promise<AdminMe> = (req("/api/admin/auth/me") as Promise<AdminMe>).then(
+      (v) => {
+        if (meInFlight === p) meInFlight = null;
+        return v;
+      },
+      (e) => {
+        // Released on failure too, or one failure would pin the rejected promise and
+        // every later caller would replay it instead of retrying.
+        if (meInFlight === p) meInFlight = null;
+        throw e;
+      },
+    );
+    meInFlight = p;
+    return p;
+  },
 
   setupSecurityQuestion: async (
     question: string,
