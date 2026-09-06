@@ -8,6 +8,7 @@ import styles from './OrdersListPage.module.css';
 import ov from './OverviewExceptions.module.css';
 import { UilImport, UilTimes } from '@iconscout/react-unicons';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
+import { UilAngleRight } from '@iconscout/react-unicons'; // [KA2-5]
 
 // T2-21 (SU-1): the shared exceptions-first overview shell. Each page passes tabs of exception rows;
 // the shell renders hub/date filters, tab chips with counts, a table per tab, CSV of the whole tab,
@@ -150,7 +151,15 @@ export function OverviewExceptions<T>(props: OverviewExceptionsProps<T>) {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr>{active?.columns.map((c) => <th key={c.header}>{c.header}</th>)}</tr>
+            {/* [KA2-5] The row has a hover background and is keyboard-reachable via
+                rowActivation ([DSA-45-1]) — but at REST nothing said it opens anything, so
+                the exception list you are meant to act on offered no visible way in. A
+                trailing chevron is the disclosure convention, and unlike a hover cue it is
+                readable before you move the mouse. */}
+            <tr>
+              {active?.columns.map((c) => <th key={c.header}>{c.header}</th>)}
+              <th className={ov.chevronCol} aria-hidden="true" />
+            </tr>
           </thead>
           <tbody>
             {loading ? (
@@ -193,6 +202,9 @@ export function OverviewExceptions<T>(props: OverviewExceptionsProps<T>) {
                   {active.columns.map((c) => (
                     <td key={c.header}>{c.cell(r)}</td>
                   ))}
+                  <td className={ov.chevronCol} aria-hidden="true">
+                    <UilAngleRight size={16} />
+                  </td>
                 </tr>
               ))
             )}
