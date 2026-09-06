@@ -189,7 +189,11 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
       downloadCsv<SettlementHub>(
         datedFilename("settlement"),
         [
-          { header: "Hub", value: (h) => h.hub_name ?? "—" },
+          // [KA10-15] The SCREEN's placeholder glyph was leaking into the DATA: a hub with no
+          // name exported as a literal em dash, so a CA opening pnl.csv saw a row belonging to
+          // a hub called "—". A spreadsheet is not a screen — absence there is either an empty
+          // cell or a word, never a typographic placeholder.
+          { header: "Hub", value: (h) => h.hub_name ?? "Unassigned" },
           { header: "Orders", value: (h) => h.orders },
           { header: "Gross (online)", value: (h) => h.gross_online },
           { header: "Refunded", value: (h) => h.refunded },
@@ -201,7 +205,11 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
       downloadCsv<PnlHub>(
         datedFilename("pnl"),
         [
-          { header: "Hub", value: (h) => h.hub_name ?? "—" },
+          // [KA10-15] The SCREEN's placeholder glyph was leaking into the DATA: a hub with no
+          // name exported as a literal em dash, so a CA opening pnl.csv saw a row belonging to
+          // a hub called "—". A spreadsheet is not a screen — absence there is either an empty
+          // cell or a word, never a typographic placeholder.
+          { header: "Hub", value: (h) => h.hub_name ?? "Unassigned" },
           { header: "Orders", value: (h) => h.orders },
           { header: "Revenue", value: (h) => h.revenue },
           { header: "Fabric cost", value: (h) => h.fabric_cost },

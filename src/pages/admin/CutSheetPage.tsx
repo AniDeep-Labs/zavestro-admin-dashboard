@@ -155,6 +155,12 @@ export const CutSheetModal: React.FC<{ open: boolean; designId?: string; onClose
 
       {/* The printable sheet */}
       <div className={s.sheet}>
+        {/* [KA10-9] A printed sheet had nothing tying it to the garment it cut — no
+            printed-on date, no design reference. Print-only, because on screen the page
+            chrome already says all of this. */}
+        <div className={s.printStamp}>
+          {design.name} · fit {preset || '—'} · printed {new Date().toLocaleString('en-IN')}
+        </div>
         <div className={s.sheetHead}>
           <div>
             <div className={s.brand}>Zavestro · Cut sheet</div>
