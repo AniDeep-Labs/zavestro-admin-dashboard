@@ -1,5 +1,5 @@
 import React from 'react';
-import { homeSectionsApi } from '../../api/adminApi';
+import { homeSectionsApi, collectionsApi } from '../../api/adminApi';
 import type { HomeSection, HomeSectionPayload } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -25,6 +25,29 @@ export const HomeSectionsPage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [showCreate, setShowCreate] = React.useState(false);
   const [draft, setDraft] = React.useState<HomeSectionPayload>({ type: 'collection', title: '', sort_order: 50, item_limit: 10, is_active: true });
+  // [KA5-12] The collections a section may point at.
+  const [collections, setCollections] = React.useState<{ slug: string; name: string }[]>([]);
+  const [collectionsFailed, setCollectionsFailed] = React.useState(false);
+  React.useEffect(() => {
+    let alive = true;
+    collectionsApi
+      .list()
+      .then(r => {
+        if (!alive) return;
+        setCollections(
+          (r.collections ?? [])
+            .map(c => ({ slug: String(c.slug ?? ''), name: String(c.name ?? c.slug ?? '') }))
+            .filter(c => c.slug),
+        );
+      })
+      .catch(() => {
+        // [RC-3] Not swallowed: if the list cannot load, the picker silently offers only
+        // "— none —" and the stored slug, which would read as "this collection was deleted".
+        // The row says which it is instead.
+        if (alive) setCollectionsFailed(true);
+      });
+    return () => { alive = false; };
+  }, []);
   // In-flight guard — blocks duplicate creates / raced reorder swaps (was unguarded).
   const [busy, setBusy] = React.useState(false);
   const [removeTarget, setRemoveTarget] = React.useState<HomeSection | null>(null);
@@ -45,7 +68,11 @@ export const HomeSectionsPage: React.FC = () => {
   const patch = async (id: string, data: HomeSectionPayload) => {
     if (busy) return;
     setBusy(true);
-    try { await homeSectionsApi.update(id, data); load(); }
+    // [KA5-11] Title and Collection autosave on blur, and said nothing when they did — no
+    // Save button, no dirty marker, no confirmation, and the only button on the page is
+    // "Refresh", which implies fetching rather than persisting. An operator could not tell an
+    // edit that landed from one that evaporated. Autosave is fine; silent autosave is not.
+    try { await homeSectionsApi.update(id, data); load(); toast('success', 'Saved'); }
     catch (e) { toast('error', 'Update failed', e instanceof Error ? e.message : undefined); }
     finally { setBusy(false); }
   };
@@ -112,7 +139,16 @@ export const HomeSectionsPage: React.FC = () => {
       {loading ? <p>Loading…</p> : sections.length === 0 ? (
         <p className={styles.empty}>No sections yet. Add one to build the home screen.</p>
       ) : (
-        <div className={styles.tableWrap}>
+        <>
+        {/* [KA5-10] The banner above says this page has no customer-facing effect, and the
+            table below it was nonetheless rendered at full contrast with every control live
+            — an operator could curate a home screen for ten minutes and change nothing that
+            anyone sees. Disabling the inputs would be worse: the sections ARE real records,
+            and preparing them ahead of the server-driven move (P5) is the point of the page.
+            So the surface is dimmed and labelled instead — it stays fully usable, and stops
+            looking like it is driving something. */}
+        <div className={styles.previewNote} aria-hidden="true">Preview — edits are saved, but nothing renders from them yet</div>
+        <div className={`${styles.tableWrap} ${styles.previewSurface}`}>
         <table className={styles.table}>
           <thead>
             <tr className={styles.headRow}>
@@ -124,18 +160,44 @@ export const HomeSectionsPage: React.FC = () => {
             {sections.map((s, i) => (
               <tr key={s.id}>
                 <td className={styles.cell}>
-                  <span className={styles.orderNum}>{s.sort_order}</span>
+                  {/* [KA5-13] The raw sparse integers (1 · 10 · 20 · 30) sat beside ↑/↓
+                      arrows — two ordering models on one row, one of which the operator
+                      cannot act on. The arrows are the model that works; the integer moves
+                      to the title so the underlying value is still available without
+                      competing with them. */}
+                  <span className={styles.orderNum} title={`sort_order ${s.sort_order}`}>{i + 1}</span>
                   <button className={styles.iconBtn} aria-label="Move section up" disabled={busy || i === 0} onClick={() => move(i, -1)}><UilArrowUp size={14} /></button>
                   <button className={styles.iconBtn} aria-label="Move section down" disabled={busy || i === sections.length - 1} onClick={() => move(i, 1)}><UilArrowDown size={14} /></button>
                 </td>
                 <td className={styles.cell}>{TYPE_LABEL[s.type] ?? s.type}</td>
                 <td className={styles.cell}>
-                  <input defaultValue={s.title ?? ''} placeholder="(default)" className={styles.inp}
+                  <input defaultValue={s.title ?? ''} placeholder="Uses the section's default title" className={styles.inp}
                     onBlur={e => e.target.value !== (s.title ?? '') && patch(s.id, { title: e.target.value || undefined })} />
                 </td>
                 <td className={styles.cell}>{s.type === 'collection' ? (
-                  <input defaultValue={s.collection_slug ?? ''} placeholder="slug" className={styles.inp}
-                    onBlur={e => e.target.value !== (s.collection_slug ?? '') && patch(s.id, { collection_slug: e.target.value || undefined })} />
+                  /* [KA5-12] This was a plain text input holding the raw slug, so a typo
+                     silently pointed a home section at a collection that does not exist —
+                     a foreign key entered by hand, with no feedback until the storefront
+                     rendered nothing. A picker of what actually exists cannot be mistyped.
+                     Falls back to the raw value if the list has not loaded, so an existing
+                     slug is never blanked by a slow request. */
+                  <>
+                  <select value={s.collection_slug ?? ''} className={styles.inp} disabled={busy}
+                    onChange={e => e.target.value !== (s.collection_slug ?? '') && patch(s.id, { collection_slug: e.target.value || undefined })}>
+                    <option value="">— none —</option>
+                    {collections.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                    {s.collection_slug && !collections.some(c => c.slug === s.collection_slug) && (
+                      <option value={s.collection_slug}>
+                        {s.collection_slug}{collectionsFailed ? '' : ' (not found)'}
+                      </option>
+                    )}
+                  </select>
+                  {collectionsFailed && (
+                    <span className={styles.pickerWarn} title="The collection list could not be loaded, so this is the stored value rather than a choice from what exists.">
+                      list unavailable
+                    </span>
+                  )}
+                  </>
                 ) : '—'}</td>
                 <td className={styles.cell}>
                   <label className={styles.checkLabel}>
@@ -148,6 +210,7 @@ export const HomeSectionsPage: React.FC = () => {
           </tbody>
         </table>
         </div>
+        </>
       )}
 
       <Modal

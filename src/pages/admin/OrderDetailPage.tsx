@@ -1529,15 +1529,25 @@ export const OrderDetailPage: React.FC = () => {
               Override Stage
             </button>
           </Can>
+          {/* [KA7-11] These three were the same width, weight and colour, stacked — and they
+              are of very different consequence. Generating an invoice MINTS A NUMBERED
+              STATUTORY DOCUMENT: it consumes a number from the tax series, and undoing it
+              needs a credit note ([FIN-35-5]), so it belongs with the writes rather than
+              beside a download. Downloading one changes nothing at all.
+              Weighted accordingly, and the consequence is stated rather than left to be
+              discovered from the audit log afterwards. */}
           <button
-            className={styles.actionBtnSecondary}
+            className={styles.actionBtnWrite}
             disabled={invoiceGenerating}
             onClick={handleGenerateInvoice}
           >
             {invoiceGenerating ? "Queuing…" : "Generate Invoice"}
           </button>
+          <p className={styles.actionNote}>
+            Mints a numbered tax invoice. Reversing one needs a credit note.
+          </p>
           <button
-            className={styles.actionBtnSecondary}
+            className={styles.actionBtnQuiet}
             disabled={invoiceLoading}
             onClick={handleDownloadInvoice}
           >

@@ -49,9 +49,16 @@
   background: var(--color-border);
 }
 
+/* [KA3-4] `auto-fill` reserves phantom columns for cards that do not exist, so a small
+   result set sat in the top-left with empty tracks beside it. `auto-fit` collapses those,
+   and the 340px cap stops three designs stretching into billboards on a wide screen.
+   NOTE: this addresses the phantom COLUMNS. The finding also observes that three designs
+   leave the lower two-thirds of a 900px viewport empty — that is a consequence of there
+   being three designs, and no grid rule fixes it honestly. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 340px));
+  justify-content: start;
   gap: var(--spacing-lg);
 }
 
@@ -81,6 +88,18 @@
   aspect-ratio: 4 / 3;
   background: var(--color-bg-section);
   overflow: hidden;
+}
+
+/* [KA3-2] With nothing seeded, every card's image well was a MINT-FILLED, 4:3-tall "No
+   image" block, so three tinted rectangles dominated the page that exists to show garments.
+   The placeholder was competing with the content instead of standing aside for it.
+   Empty cards get a short, neutral well: the metadata carries the card, and the dashed rule
+   says "nothing on file" rather than asserting a colour — the same treatment [KA4-7] gave
+   the fabric swatch, so the two empty states now read alike. */
+.thumbNone {
+  aspect-ratio: 16 / 5;
+  background: transparent;
+  border-bottom: 1px dashed var(--color-border);
 }
 
 .thumb img {

@@ -6,6 +6,7 @@ import { Checkbox } from '../../components/Checkbox/Checkbox';
 import styles from './AdminLoginPage.module.css';
 import regStyles from './AuthCard.module.css';
 import { UilArrowLeft, UilArrowRight, UilEye, UilEyeSlash, UilSpinner } from "@iconscout/react-unicons";
+import { isProductionApi, apiHost } from '../../api/apiBase'; // [KA1-6]
 
 type View = 'login' | 'forgot' | 'security-q' | 'change-password';
 
@@ -220,12 +221,22 @@ export const AdminLoginPage: React.FC = () => {
               {loading ? <UilSpinner size={16} className={styles.spinnerIcon} /> : null}
               {loading ? 'Signing in…' : <><span>Sign In</span><UilArrowRight size={16} /></>}
             </button>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-              <button type="button" className={styles.forgotBtn} onClick={() => setView('security-q')}>
-                Forgot password via security question
-              </button>
+            {/* [KA1-4] These were the only right-aligned text on a centred card — and the
+                wrapper's `alignItems: center` did NOT fix it, because `.forgotBtn` carries
+                `align-self: flex-end`, which wins over a parent's `align-items`.
+
+                They were also peers of identical weight, so the operator had to choose
+                between two recovery MECHANISMS before knowing which one their account
+                supports. The email route works for every admin; the security question only
+                works if that admin set one up, and at the login screen — unauthenticated —
+                the console cannot know whether they did. So the one that always works is
+                primary, and the conditional one says out loud that it is conditional. */}
+            <div className={styles.recovery}>
               <button type="button" className={styles.forgotBtn} onClick={() => setView('forgot')}>
                 Email me a reset link
+              </button>
+              <button type="button" className={styles.forgotAlt} onClick={() => setView('security-q')}>
+                Use my security question <span className={styles.forgotAltHint}>— if you set one up</span>
               </button>
             </div>
             {/* [SHL-2-5] This said "New team member? Request access" and linked to a form
@@ -236,6 +247,19 @@ export const AdminLoginPage: React.FC = () => {
             <div className={regStyles.loginLink}>
               Need access? Ask a super admin to create your account.
             </div>
+            {/* [KA1-6] The card floated in a large empty ground saying nothing. What that
+                space is worth saying is WHICH BACKEND this sign-in will hit — the login
+                screen is the one place you are guaranteed not to know yet, and [SHL-2-13]
+                already established that a non-production build pointed at the live API is
+                the combination nothing else on screen distinguishes. Same rule as the
+                shell's banner, applied one screen earlier. */}
+            {import.meta.env.MODE !== 'production' && (
+              <div className={isProductionApi() ? styles.envNoteDanger : styles.envNote}>
+                {isProductionApi()
+                  ? `⚠ Signing in to the PRODUCTION API (${apiHost()}) — this is the live business.`
+                  : `${import.meta.env.MODE === 'development' ? 'Local dev' : 'Staging'} · API: ${apiHost()}`}
+              </div>
+            )}
           </form>
         )}
 

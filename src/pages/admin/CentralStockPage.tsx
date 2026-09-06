@@ -1,6 +1,6 @@
 import React from "react";
 import { useSearchParams } from "react-router-dom";
-import { fabricsApi, R2_PUBLIC_URL } from "../../api/adminApi";
+import { fabricsApi } from "../../api/adminApi";
 import type { CentralStockRow, CentralReceipt, Fabric } from "../../api/adminApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
@@ -10,13 +10,14 @@ import { PageHeader, EmptyState, MoneyCell } from "../../components";
 import base from "./OrdersListPage.module.css";
 import kpi from "./CodReconciliationPage.module.css";
 import s from "./CentralStockPage.module.css";
-import { UilPlus, UilSlidersV, UilHistory, UilImport, UilImage } from "@iconscout/react-unicons";
+import { UilPlus, UilSlidersV, UilHistory, UilImport } from "@iconscout/react-unicons";
+import { FabricSwatch } from '../../components/Image/FabricSwatch';
+import { useTableSort } from '../../hooks/useTableSort';
+import { SortableTh } from '../../components/Table/SortableTh';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const num = (v: string | number | null | undefined) => (v == null ? 0 : Number(v));
 const fmtM = (v: string | number | null | undefined) => `${num(v).toLocaleString("en-IN")} m`;
-const imgOf = (keys: string[] | null) =>
-  keys && keys[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : "";
 
 /**
  * Central procurement fabric pool (Phase 3, INVENTORY-FABRIC-MODEL §3). Fabric ORIGIN:
@@ -48,8 +49,6 @@ export const CentralStockPage: React.FC = () => {
   const [historyTarget, setHistoryTarget] = React.useState<CentralStockRow | null>(null);
   const [receipts, setReceipts] = React.useState<CentralReceipt[]>([]);
   const [loadingReceipts, setLoadingReceipts] = React.useState(false);
-  const [broken, setBroken] = React.useState<Set<string>>(new Set());
-  const markBroken = (id: string) => setBroken((b) => (b.has(id) ? b : new Set(b).add(id)));
 
   const showToast = (type: ToastData["type"], title: string, msg?: string) =>
     setToasts((t) => [...t, createToast(type, title, msg)]);
@@ -87,18 +86,53 @@ export const CentralStockPage: React.FC = () => {
 
   // T1-17: value at weighted-average cost-at-receipt; fall back to list price only when a
   // fabric has no costed receipts (so a list-price edit no longer revalues shelved stock).
-  const costBasis = (r: CentralStockRow) =>
-    r.unit_cost_wac != null ? num(r.unit_cost_wac) : r.price_per_meter != null ? num(r.price_per_meter) : null;
-  const valueOf = (r: CentralStockRow) => {
-    const c = costBasis(r);
-    return c != null ? num(r.available_meters) * c : null;
-  };
+  const costBasis = React.useCallback(
+    (r: CentralStockRow) =>
+      r.unit_cost_wac != null ? num(r.unit_cost_wac) : r.price_per_meter != null ? num(r.price_per_meter) : null,
+    [],
+  );
+  const valueOf = React.useCallback(
+    (r: CentralStockRow) => {
+      const c = costBasis(r);
+      return c != null ? num(r.available_meters) * c : null;
+    },
+    [costBasis],
+  );
+
+  // [KA4-15] This table exists to compare quantities across SKUs and offered no way to order
+  // by any of them. Accessors are memoised so the hook's useMemo is not invalidated on every render.
+  const sortAccessors = React.useMemo(
+    () => ({
+      fabric_name: (r: CentralStockRow) => r.fabric_name ?? '',
+      fabric_code: (r: CentralStockRow) => r.fabric_code ?? '',
+      received: (r: CentralStockRow) => num(r.received_meters),
+      allocated: (r: CentralStockRow) => num(r.allocated_meters),
+      available: (r: CentralStockRow) => num(r.available_meters),
+      capital: (r: CentralStockRow) => valueOf(r),
+    }),
+    [valueOf],
+  );
+  const { sort, toggle, sorted } = useTableSort(rows, sortAccessors);
 
   // ── rollups ──
   const totReceived = rows.reduce((sum, r) => sum + num(r.received_meters), 0);
   const totAllocated = rows.reduce((sum, r) => sum + num(r.allocated_meters), 0);
   const totAvailable = rows.reduce((sum, r) => sum + num(r.available_meters), 0);
   const totCapital = rows.reduce((sum, r) => sum + (valueOf(r) ?? 0), 0);
+  // [KA4-12] The figure has to say what it IS. It was rendered as a hard money number with
+  // no basis, which on a procurement console is indistinguishable from a cash balance.
+  //
+  // The craft audit assumed this was metres x TODAY's price — that was true when it was
+  // written, and T1-17 has since moved it to weighted-average cost at receipt. So the basis
+  // line states the real rule, including the part that is still a restatement: a fabric with
+  // no costed receipts falls back to list price, and for those rows the number genuinely is
+  // "what it would cost today", not what was paid. Saying "at weighted-average cost" flatly
+  // would be the same overstatement in a new coat.
+  const listPriceRows = rows.filter((r) => r.unit_cost_wac == null && r.price_per_meter != null).length;
+  const capitalBasis =
+    listPriceRows > 0
+      ? `available metres × cost — ${listPriceRows} of ${rows.length} at list price (no costed receipts yet)`
+      : 'available metres × weighted-average cost at receipt';
 
   const submitReceive = async () => {
     const m = Number(meters);
@@ -217,7 +251,12 @@ export const CentralStockPage: React.FC = () => {
           <div className={kpi.summaryCard}><div className={kpi.summaryLabel}>Received</div><div className={kpi.summaryValue}>{fmtM(totReceived)}</div></div>
           <div className={kpi.summaryCard}><div className={kpi.summaryLabel}>Allocated to hubs</div><div className={kpi.summaryValue}>{fmtM(totAllocated)}</div></div>
           <div className={kpi.summaryCard}><div className={kpi.summaryLabel}>Available</div><div className={kpi.summaryValue}>{fmtM(totAvailable)}</div></div>
-          <div className={kpi.summaryCard}><div className={kpi.summaryLabel}>Capital (avail)</div><div className={kpi.summaryValue}>₹{Math.round(totCapital).toLocaleString("en-IN")}</div></div>
+          <div className={kpi.summaryCard}>
+            <div className={kpi.summaryLabel}>Capital (avail)</div>
+            <div className={kpi.summaryValue}>₹{Math.round(totCapital).toLocaleString("en-IN")}</div>
+            {/* [KA4-12] The basis, on the card — not in a tooltip nothing invites you to hover. */}
+            <div className={kpi.summarySub}>{capitalBasis}</div>
+          </div>
         </div>
       )}
 
@@ -228,11 +267,15 @@ export const CentralStockPage: React.FC = () => {
           <table className={base.table}>
             <thead>
               <tr>
-                <th>Fabric</th><th>Code</th>
-                <th className={s.numCol}>Received</th>
-                <th className={s.numCol}>Allocated</th>
-                <th className={s.numCol}>Available</th>
-                <th className={s.numCol}>Value (avail)</th>
+                <SortableTh sortKey="fabric_name" sort={sort} onToggle={toggle}>Fabric</SortableTh>
+                <SortableTh sortKey="fabric_code" sort={sort} onToggle={toggle}>Code</SortableTh>
+                <SortableTh sortKey="received" sort={sort} onToggle={toggle} className={s.numCol}>Received</SortableTh>
+                <SortableTh sortKey="allocated" sort={sort} onToggle={toggle} className={s.numCol}>Allocated</SortableTh>
+                <SortableTh sortKey="available" sort={sort} onToggle={toggle} className={s.numCol}>Available</SortableTh>
+                {/* [KA4-13] Was "Value (avail)" beside a KPI called "Capital (avail)" — the
+                    same quantity under two names on one page. Cross-hub already says
+                    "Capital on hub shelves" ([PRC-17-2]), so "Capital" is the house word. */}
+                <SortableTh sortKey="capital" sort={sort} onToggle={toggle} className={s.numCol}>Capital (avail)</SortableTh>
                 <th></th>
               </tr>
             </thead>
@@ -246,13 +289,15 @@ export const CentralStockPage: React.FC = () => {
                   <EmptyState title="No central stock yet" body="Use “Receive fabric” to record a purchase — then it can be shipped to hubs." size="compact" />
                 </td></tr>
               ) : (
-                rows.map((r) => (
+                sorted.map((r) => (
                   <tr key={r.fabric_id} className={base.row} {...rowActivation(() => openHistory(r))}>
                     <td>
                       <div className={base.fabricCell}>
-                        {imgOf(r.fabric_image_keys) && !broken.has(r.fabric_id)
-                          ? <img className={base.swatchThumb} src={imgOf(r.fabric_image_keys)} alt="" onError={() => markBroken(r.fabric_id)} />
-                          : <span className={base.swatchThumb}><UilImage size={16} /></span>}
+                        {/* [KA4-11] The page used to track broken keys itself and swap in a
+                            filled square with an image glyph, which read as a FAILED image
+                            rather than a missing one. SafeImg owns that state now, so the
+                            local `broken` set and its onError plumbing are gone with it. */}
+                        <FabricSwatch imageKeys={r.fabric_image_keys} name={r.fabric_name} size="md" />
                         <span>{r.fabric_name}</span>
                       </div>
                     </td>

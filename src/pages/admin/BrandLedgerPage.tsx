@@ -141,10 +141,17 @@ export const BrandLedgerPage: React.FC = () => {
         </div>
       </Can>
 
+        {/* [KA8-17] "No ledger entries yet" reads as a ledger awaiting its first entry. It
+            is not: nothing writes to this ledger automatically — entries arrive only from the
+            hand-typed payout form below ([FIN-39-3]). An empty state that implies a pipeline
+            which does not exist is the more misleading of the two readings. */}
       {loading ? (
         <div className={s.muted}>Loading…</div>
       ) : !data ? null : data.entries.length === 0 ? (
-        <div className={s.muted}>No ledger entries yet.</div>
+        <div className={s.muted}>
+          No ledger entries yet — nothing posts to this ledger automatically. Entries appear
+          when someone records one below.
+        </div>
       ) : (
         <table className={s.table}>
           <thead>

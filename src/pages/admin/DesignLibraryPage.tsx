@@ -212,7 +212,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
             const lc = lifecycle(d);
             return (
               <Link key={d.id} to={`/admin/design/library/${d.id}`} className={styles.card}>
-                <div className={styles.thumb}>
+                <div className={`${styles.thumb} ${cover ? '' : styles.thumbNone}`}>
                   {cover ? (
                     <img src={cover} alt={d.name} />
                   ) : (
@@ -224,6 +224,26 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
                   <span className={styles.cardPill}>
                     <StatusBadge status={d.status} size="sm" />
                   </span>
+                  {/* [KA3-3] This rendered ONLY when the design has no sample, so a design
+                      that already has one lost the slot entirely and the row of cards looked
+                      inconsistent for no stated reason. A card that silently drops an action
+                      teaches the operator that the UI is unreliable rather than that the
+                      state differs. The slot always says something now: request one, or how
+                      many exist and a way to them. */}
+                  {(d.sample_count ?? 0) > 0 && (
+                    <button
+                      type="button"
+                      className={styles.quickAction}
+                      title="View this design's samples"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate(`/admin/design/samples?design=${d.id}`);
+                      }}
+                    >
+                      {d.sample_count} sample{d.sample_count === 1 ? '' : 's'} →
+                    </button>
+                  )}
                   {(d.sample_count ?? 0) === 0 && (
                     <button
                       type="button"

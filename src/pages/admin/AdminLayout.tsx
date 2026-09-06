@@ -610,12 +610,27 @@ const AdminLayoutInner: React.FC = () => {
   const { title: entityTitle } = useBreadcrumb();
   const [theme, setTheme] = React.useState(getCurrentTheme());
   const [collapsed, setCollapsed] = React.useState(false);
+  // [KA1-18] Four groups are expanded by default, so at 1280x800 the nav runs past the fold
+  // and the page you are ON can be below it — the sidebar scrolls, but nothing ever tells it
+  // where you are. Collapsing groups by default would be a behaviour change for every
+  // operator to fix a layout problem; bringing the active item into view is additive and
+  // fixes it wherever the list happens to end up.
+  //
+  // `block: 'nearest'` so an item already visible does not jolt the list.
+  const activeNavRef = React.useRef<HTMLElement | null>(null);
   const [expandedSections, setExpandedSections] = React.useState<string[]>([
     "Storefront",
     "Content",
     "Analytics",
     "System",
   ]);
+  React.useEffect(() => {
+    // After the route (and any group expansion) has painted.
+    const id = requestAnimationFrame(() => {
+      activeNavRef.current?.scrollIntoView({ block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [location.pathname, collapsed, expandedSections]);
 
   const adminUser = getAdminUser();
   const adminEmail = adminUser?.email ?? "admin@zavestro.in";
@@ -893,6 +908,7 @@ const AdminLayoutInner: React.FC = () => {
                 <Link
                   key={child.path}
                   to={child.path}
+                  ref={isActive(child.path) ? (el) => { activeNavRef.current = el; } : undefined}
                   className={`${styles.navChild} ${isActive(child.path) ? styles.navChildActive : ""}`}
                   aria-current={isActive(child.path) ? "page" : undefined}
                 >
@@ -1135,12 +1151,28 @@ const AdminLayoutInner: React.FC = () => {
               {!collapsed && (
                 <>
                   <span className={styles.adminName}>{adminEmail}</span>
+                  {/* [KA9-12] `super_admin` already reads as itself, in gold. The LEGACY
+                      `admin` role did not: it is the broadest role in the system — the nav
+                      check at the top of this file short-circuits every capability for it —
+                      and it wore the blandest chip in the topbar, identical in weight to
+                      Support or Finance. Nothing in the chrome said this session can do
+                      everything. It says so now, and says the role is being retired, because
+                      the fix for a god-mode session is to stop using one. */}
                   <span
-                    className={`${styles.roleBadge} ${adminRole === "super_admin" ? styles.roleBadgeSuperAdmin : ""}`}
+                    className={`${styles.roleBadge} ${
+                      adminRole === "super_admin" ? styles.roleBadgeSuperAdmin : ""
+                    } ${adminRole === "admin" ? styles.roleBadgeLegacy : ""}`}
+                    title={
+                      adminRole === "admin"
+                        ? "Legacy full-access role: it bypasses every capability check. Being retired — use a scoped role where one exists."
+                        : undefined
+                    }
                   >
                     {adminRole === "super_admin"
                       ? "Super Admin"
-                      : adminRole.replace("_", " ")}
+                      : adminRole === "admin"
+                        ? "Legacy · full access"
+                        : adminRole.replace("_", " ")}
                   </span>
                 </>
               )}

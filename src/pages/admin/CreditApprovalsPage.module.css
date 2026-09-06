@@ -59,3 +59,12 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
+
+/* [KA8-9] This approval would take the customer past the rolling cap the automatic path
+   enforces. Said before the click, not discovered after it. */
+.overCap {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-warning);
+}

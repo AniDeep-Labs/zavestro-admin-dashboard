@@ -56,3 +56,13 @@
   font-size: var(--font-size-base);
   color: var(--color-text-primary);
 }
+
+/* [KA2-5] The disclosure affordance, readable at rest rather than only on hover. Muted so a
+   column of chevrons does not compete with the data it points at. */
+.chevronCol {
+  width: 28px;
+  text-align: right;
+  color: var(--color-text-tertiary);
+  vertical-align: middle;
+}
+.rowClickable:hover .chevronCol { color: var(--color-primary); }

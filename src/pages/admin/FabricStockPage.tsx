@@ -126,6 +126,12 @@ export const FabricStockPage: React.FC = () => {
                 <th>Fabric</th>
                 <th className={s.numCol}>Available</th>
                 <th className={s.numCol}>Reserved</th>
+                {/* [CM-19-9] A CM deciding whether to publish or restock could see neither
+                    the cloth already on its way nor the cloth arrived-but-held by QC, so
+                    "what will I have?" was unanswerable on the page whose operator needs it
+                    most. Both were one join away. */}
+                <th className={s.numCol} title="Pushed from the warehouse, not yet received at this hub.">In transit</th>
+                <th className={s.numCol} title="Arrived and paid for, held by QC — on the shelf but not sellable.">Held (QC)</th>
                 <th className={s.numCol}>Reorder at</th>
                 <th className={s.numCol}>Stock value</th>
                 <th></th>
@@ -187,6 +193,14 @@ export const FabricStockPage: React.FC = () => {
                     {isLow(r) && <span className={s.lowChip}>Low</span>}
                   </td>
                   <td className={s.numCol}>{fmtM(r.reserved_meters)}</td>
+                  {/* Zero is muted: "none coming" and "12m coming" are different facts, and
+                      a column of bold zeros competes with the numbers being scanned for. */}
+                  <td className={`${s.numCol} ${num(r.in_transit_meters) > 0 ? '' : s.zeroCell}`}>
+                    {fmtM(r.in_transit_meters ?? 0)}
+                  </td>
+                  <td className={`${s.numCol} ${num(r.quarantine_meters) > 0 ? s.heldVal : s.zeroCell}`}>
+                    {fmtM(r.quarantine_meters ?? 0)}
+                  </td>
                   <td className={s.numCol}>{reorderOf(r) > 0 ? fmtM(r.reorder_meters) : "—"}</td>
                   <td className={s.numCol}>
                     {valueOf(r) != null ? `₹${num(valueOf(r)).toLocaleString("en-IN")}` : "—"}

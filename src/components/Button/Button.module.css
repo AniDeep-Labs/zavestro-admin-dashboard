@@ -158,3 +158,28 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* [KA4-5] A destructive verb inline beside a primary one.
+   Distribution's in-transit rows rendered "Receive…" and "Cancel" both as `ghost`, which is
+   `color: var(--color-primary)` — so cancelling a shipment and receiving it were the same
+   brand green, same size, same weight. Opposite acts, identical presentation.
+   Transparent like ghost so it stays quiet in a table row; the error colour so it cannot be
+   mistaken for the primary act. The tint matches the existing red Deactivate on the admin
+   users page, so this is the house pattern promoted to the design system rather than a
+   third local copy of it. */
+.variant-ghost-danger {
+  background-color: transparent;
+  color: var(--color-error);
+}
+
+.variant-ghost-danger:hover:not(:disabled) {
+  background-color: rgba(215, 91, 91, 0.08);
+}
+
+[data-theme="dark"] .variant-ghost-danger:hover:not(:disabled) {
+  background-color: rgba(215, 91, 91, 0.14);
+}
+
+.variant-ghost-danger:active:not(:disabled) {
+  background-color: rgba(215, 91, 91, 0.14);
+}

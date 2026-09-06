@@ -199,7 +199,7 @@ export const FitOutcomesPage: React.FC = () => {
                         <td className={styles.customerName}>
                           {h.hub_name ?? (
                             <span
-                              className={styles.noHub}
+                              className={local.noHub}
                               title="Delivered orders with no hub recorded — not a hub's score. Counted in the company total above."
                             >
                               No hub recorded

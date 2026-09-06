@@ -488,6 +488,15 @@ export const UserDetailPage: React.FC = () => {
       }
       eyebrow="Customer"
       title={user.name}
+      /* [KA11-5] The title is a person's name; the subtitle says which record this is and
+         since when — so the page identifies itself when the name alone is ambiguous. */
+      subtitle={
+        <>
+          Customer record
+          {user.reference_id ? ` · ${user.reference_id}` : ''}
+          {user.joined ? ` · joined ${user.joined}` : ''}
+        </>
+      }
       meta={
         <>
           <StatusBadge

@@ -6,12 +6,15 @@
 }
 .back:hover { color: var(--color-text); }
 
-/* ── Single clean column ── */
+/* ── The record column ──
+   [KA4-1] This was capped at 680px, so on a 1440px screen the specs, the tabs and the hub
+   stock all stacked in the left half and the right half was empty; at 1920 the void is
+   larger than the content. The cap is now wide enough to use the screen it is given. */
 .col {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
-  max-width: 680px;
+  max-width: 1180px;
 }
 
 /* Header — swatch thumbnail + identity */
@@ -66,6 +69,20 @@
 
 /* Specs */
 .specs { margin: 0; display: flex; flex-direction: column; }
+
+/* [KA4-1] The specification list is the tallest thing in the column and the easiest to
+   pair: ten label/value rows in one stack is a lot of vertical travel for a table that is
+   mostly whitespace on the right. Two columns once there is room for them. The rows keep
+   their own label/value grid, so nothing about a single row changes. */
+@media (min-width: 1100px) {
+  .specs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--spacing-xl);
+  }
+  /* The last row's rule would otherwise float mid-list in the shorter column. */
+  .specs > .specRow:last-child { border-bottom: 1px solid var(--color-border); }
+}
 .specRow {
   display: grid;
   grid-template-columns: 140px 1fr;
@@ -78,7 +95,14 @@
 .specRow dd { margin: 0; color: var(--color-text); font-size: var(--font-size-sm); }
 
 /* Hub stock */
-.stockEmpty { font-size: var(--font-size-sm); color: var(--color-text-muted); margin: 0; }
+.stockEmpty { font-size: var(--font-size-sm); color: var(--color-text-muted); margin: 0;
+  /* [KA4-4] Now holds a real Distribute button beside the sentence, not just its name. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+.stockEmpty p { margin: 0; }
 .stockRow { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); font-size: var(--font-size-sm); }
 .stockHub { color: var(--color-text-secondary); }
 .stockMeters { color: var(--color-text); white-space: nowrap; }
@@ -155,3 +179,20 @@
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
+
+/* [KA4-3] The basis line under the price. A quiet, inline route to the history rather than
+   a claim about a date the record does not carry. */
+.priceBasis {
+  display: block;
+  margin-top: 2px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+.priceBasis:hover { color: var(--color-primary); text-decoration: underline; }

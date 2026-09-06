@@ -11,7 +11,19 @@ export interface PageHeaderProps {
   /** Small uppercase kicker above the title (workspace / section name). */
   eyebrow?: React.ReactNode;
   title: React.ReactNode;
-  subtitle?: React.ReactNode;
+  /**
+   * [KA11-5] REQUIRED, not optional.
+   *
+   * The audit measured it: the pages that carry a subtitle are the better pages, and finance
+   * and the call console score highest largely because of theirs. A subtitle is where a page
+   * says what it is FOR — which of two similar tables this is, what the numbers on it mean,
+   * what it does not cover. Optional, it was the first thing dropped; required, the type
+   * asks the question before the page ships.
+   *
+   * Pass `null` deliberately for the rare header that genuinely needs none — that is a
+   * decision someone made, which is the point, rather than a field nobody filled in.
+   */
+  subtitle: React.ReactNode | null;
   /** Chips / badges that belong with the title (StatusBadge, ids, counts). */
   meta?: React.ReactNode;
   /** Right-aligned action buttons. */

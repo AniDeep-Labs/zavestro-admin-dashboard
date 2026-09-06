@@ -12,6 +12,7 @@ import base from './OrdersListPage.module.css';
 import s from './FabricPdpPage.module.css';
 import { UilArrowLeft, UilImage } from '@iconscout/react-unicons';
 import { StatusBadge, CopyId } from '../../components';
+import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
 
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 
@@ -33,6 +34,10 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
 
   // T2-28 procurement cockpit: tabs + movement/designs data + reorder editor + push modal
   const [tab, setTab] = React.useState<'stock' | 'designs' | 'movement'>('stock');
+  // [KA4-2] Without this the shell falls back to "…" (AdminLayout:1023), so the fabric's own
+  // detail page showed an ellipsis where its name belongs — in the one string a multi-tab
+  // operator reads to tell two tabs apart.
+  useBreadcrumbTitle(fabric?.name);
   const [movements, setMovements] = React.useState<FabricLedgerEntry[] | null>(null);
   const [movementsErr, setMovementsErr] = React.useState(false);
   const [designUses, setDesignUses] = React.useState<FabricDesignUse[] | null>(null);
@@ -192,7 +197,19 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
               <StatusBadge status={fabric.is_active ? 'active' : 'inactive'} />
             </div>
             <h1 className={s.name}>{fabric.name}{fabric.color_name ? <span className={s.color}> · {fabric.color_name}</span> : null}</h1>
-            {fabric.price_per_meter && <div className={s.price}>₹{Number(fabric.price_per_meter).toLocaleString('en-IN')}<span> / metre</span></div>}
+            {/* [KA4-3] This was a bare number presented as a fact — no "since", and no route
+                to the Movement tab that holds its history. There is no price-changed
+                timestamp on the fabric record, so inventing an as-of date would be worse
+                than the gap; what it CAN say is which price this is (the current list
+                price, not what any particular metre cost) and where the history lives. */}
+            {fabric.price_per_meter && (
+              <div className={s.price}>
+                ₹{Number(fabric.price_per_meter).toLocaleString('en-IN')}<span> / metre</span>
+                <button type="button" className={s.priceBasis} onClick={() => setTab('movement')}>
+                  current list price · see Movement
+                </button>
+              </div>
+            )}
             {!isDesign && (
               <div className={s.headerActions}>
                 <Button variant="primary" size="sm" onClick={() => setPush({ hub_id: '', meters: '', lot: '', consignment: '' })}>Distribute →</Button>
@@ -267,8 +284,18 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
             {tab === 'stock' && (
               <div className={s.card}>
                 <h4 className={s.cardTitle}>Hub stock &amp; reorder points</h4>
+                {/* [KA4-4] The copy pointed at "Distribute →", which by the time you read
+                    this has scrolled off the top. The best action-pointer in the audit was
+                    pointing at something not on screen; now it IS the button. */}
                 {(fabric.stock?.length ?? 0) === 0 ? (
-                  <p className={s.stockEmpty}>Not stocked at any hub yet. Use “Distribute →” to send some.</p>
+                  <div className={s.stockEmpty}>
+                    <p>Not stocked at any hub yet.</p>
+                    {!isDesign && (
+                      <Button variant="primary" size="sm" onClick={() => setPush({ hub_id: '', meters: '', lot: '', consignment: '' })}>
+                        Distribute →
+                      </Button>
+                    )}
+                  </div>
                 ) : (
                   <table className={base.table}>
                     {/* [PRC-15-9] Held metres arrived, were paid for, and sit on the hub's

@@ -72,3 +72,8 @@
   color: var(--color-text-tertiary);
   font-style: italic;
 }
+
+/* [CM-19-9] A zero in these columns is an absence, not a quantity to scan. */
+.zeroCell { color: var(--color-text-tertiary); }
+/* Cloth that arrived and was paid for but cannot be sold is worth noticing. */
+.heldVal { color: var(--color-warning); font-weight: var(--font-weight-semibold); }
