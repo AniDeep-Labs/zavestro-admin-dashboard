@@ -1151,12 +1151,28 @@ const AdminLayoutInner: React.FC = () => {
               {!collapsed && (
                 <>
                   <span className={styles.adminName}>{adminEmail}</span>
+                  {/* [KA9-12] `super_admin` already reads as itself, in gold. The LEGACY
+                      `admin` role did not: it is the broadest role in the system — the nav
+                      check at the top of this file short-circuits every capability for it —
+                      and it wore the blandest chip in the topbar, identical in weight to
+                      Support or Finance. Nothing in the chrome said this session can do
+                      everything. It says so now, and says the role is being retired, because
+                      the fix for a god-mode session is to stop using one. */}
                   <span
-                    className={`${styles.roleBadge} ${adminRole === "super_admin" ? styles.roleBadgeSuperAdmin : ""}`}
+                    className={`${styles.roleBadge} ${
+                      adminRole === "super_admin" ? styles.roleBadgeSuperAdmin : ""
+                    } ${adminRole === "admin" ? styles.roleBadgeLegacy : ""}`}
+                    title={
+                      adminRole === "admin"
+                        ? "Legacy full-access role: it bypasses every capability check. Being retired — use a scoped role where one exists."
+                        : undefined
+                    }
                   >
                     {adminRole === "super_admin"
                       ? "Super Admin"
-                      : adminRole.replace("_", " ")}
+                      : adminRole === "admin"
+                        ? "Legacy · full access"
+                        : adminRole.replace("_", " ")}
                   </span>
                 </>
               )}

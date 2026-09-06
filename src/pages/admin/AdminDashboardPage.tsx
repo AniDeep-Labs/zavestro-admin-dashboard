@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UilSync, UilTruck, UilRuler, UilCheckCircle, UilReceipt, UilBox, UilExclamationTriangle, UilShoppingBag, UilHistory, UilProcess } from '@iconscout/react-unicons';
-import { dashboardApi, hasCapability } from '../../api/adminApi';
+import { dashboardApi, hasCapability, getAdminCapabilities } from '../../api/adminApi';
 import type { DashboardData } from '../../api/adminApi';
 import { clearAdminToken } from '../../api/catalogApi';
 import { Sparkline, AreaTrendChart, BarMini, stageRamp, fmtINRShort } from '../../components/charts/Charts';
@@ -252,7 +252,8 @@ export const AdminDashboardPage: React.FC = () => {
         )}
         <div className={styles.metricSpark}>
           {!loading && sparks && sparks.length > 0 && (
-            <Sparkline data={sparks} up={isUp} height={30} color={isUp ? '#5BC08D' : '#EFA6A6'} />
+            <Sparkline data={sparks} up={isUp} height={30} color={isUp ? '#5BC08D' : '#EFA6A6'}
+              label={kpi.label} valueFormatter={kpi.format} />
           )}
         </div>
       </div>
@@ -264,6 +265,8 @@ export const AdminDashboardPage: React.FC = () => {
   // get the ActionInbox + workspace pointer, not an error banner.
   const hasDashData =
     hasCapability('orders:read') || hasCapability('reports:read') || hasCapability('customers:write');
+  // [KA9-2] Nothing on this page will render for such a session except the account card.
+  const hasNoCapabilities = getAdminCapabilities().length === 0;
 
   React.useEffect(() => {
     if (!hasDashData) {
@@ -288,7 +291,12 @@ export const AdminDashboardPage: React.FC = () => {
   }, [period, refreshTick, hasDashData]);
 
   return (
-    <div className={styles.page}>
+    /* [KA9-2] For a zero-capability session every band and section below is gated off, so
+       the dashboard rendered one card at the top of a full-width page and ~750px of nothing
+       — the only page the role can open, laid out as if the rest were merely missing. It is
+       not missing; there is nothing to show until a role is granted. Narrowing the page makes
+       the account card read as the page rather than as a fragment of a broken one. */
+    <div className={`${styles.page} ${hasNoCapabilities ? styles.pageBare : ''}`}>
       {apiError && (
         <div className={styles.errorBanner}>
           <strong>API Error:</strong> {apiError} — check browser console (F12 → Network) for details.
@@ -375,7 +383,7 @@ export const AdminDashboardPage: React.FC = () => {
               {/* P-5 (T3-8): AOV's own daily series (was mislabeled — it borrowed the GMV series). */}
               {!loading && data?.sparklines?.aov && data.sparklines.aov.length > 0 && (
                 <div className={styles.miniSpark}>
-                  <Sparkline data={data.sparklines.aov} up height={42} />
+                  <Sparkline data={data.sparklines.aov} up height={42} label="Avg. order value" valueFormatter={(v) => `₹${v.toLocaleString('en-IN')}`} />
                 </div>
               )}
             </div>

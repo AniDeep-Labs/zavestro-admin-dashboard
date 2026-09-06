@@ -1416,3 +1416,9 @@
 .chartBox {
   max-width: 1100px;
 }
+
+/* [KA9-2] A session with no role has exactly one card to show. Full page width makes that
+   card look like the survivor of a failed render; a narrow column makes it look intended. */
+.pageBare {
+  max-width: 620px;
+}

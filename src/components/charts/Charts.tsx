@@ -57,11 +57,32 @@ export function fmtINRShort(v: number): string {
 }
 
 // ─── Sparkline — tiny gradient area chart for KPI cards ────────────────────────
-export function Sparkline({ data, up = true, height = 38, color }: { data: number[]; up?: boolean; height?: number; color?: string }) {
+export function Sparkline({
+  data, up = true, height = 38, color, label, valueFormatter,
+}: {
+  data: number[]; up?: boolean; height?: number; color?: string;
+  /**
+   * [KA9-11] What the curve measures. A sparkline is allowed to have no axis — that IS the
+   * form — but it is not allowed to say nothing: with no label, no scale and no hover these
+   * read as decoration, and GMV's and Total Orders' curves being the same shape (the same
+   * event counted twice) made that literal. A tooltip gives the value on hover; the range
+   * below gives the scale without spending pixels on an axis; the label says what it is.
+   */
+  label?: string;
+  valueFormatter?: (v: number) => string;
+}) {
   const c = useChartColors();
   const id = useId().replace(/:/g, '');
   const stroke = color ?? (up ? c.primary : c.error);
   const series = data.map((v, i) => ({ i, v }));
+  const fmt = valueFormatter ?? ((v: number) => String(v));
+  const lo = data.length ? Math.min(...data) : 0;
+  const hi = data.length ? Math.max(...data) : 0;
+  // The one string that turns a decorative curve into a readable one, for a screen reader
+  // and for a hover, without adding an axis to a 38px-tall graphic.
+  const summary = data.length
+    ? `${label ? `${label}: ` : ''}${data.length} points, ${fmt(lo)} to ${fmt(hi)}`
+    : `${label ?? 'No data'}`;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={series} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
@@ -71,10 +92,16 @@ export function Sparkline({ data, up = true, height = 38, color }: { data: numbe
             <stop offset="100%" stopColor={stroke} stopOpacity={0} />
           </linearGradient>
         </defs>
+        <Tooltip
+          cursor={false}
+          contentStyle={{ background: c.card, border: `1px solid ${c.grid}`, borderRadius: 8, fontSize: 11, padding: '4px 8px' }}
+          labelFormatter={() => summary}
+          formatter={(v: number | string) => [fmt(Number(v)), label ?? 'Value']}
+        />
         <Area
           type="monotone" dataKey="v" stroke={stroke} strokeWidth={1.8}
           fill={`url(#spark-${id})`} isAnimationActive animationDuration={900}
-          dot={false} activeDot={false}
+          dot={false} activeDot={{ r: 2.5, fill: stroke }}
         />
       </AreaChart>
     </ResponsiveContainer>
