@@ -54,7 +54,7 @@
   display: none;
   margin: 0 0 12px;
   padding: 10px 14px;
-  border: 2px solid #000;
+  border: 2px solid var(--color-print-ink);
   font-weight: 700;
   font-size: 16px;
   letter-spacing: 0.08em;
@@ -79,12 +79,12 @@
      as hairlines — a document read at arm's length over a cutting table, printed at the size
      of a footnote. Screen greys also lose most of their contrast in toner.
      Body goes to a readable print size; muted text goes to ink; rules gain weight. */
-  .sheet { font-size: 10.5pt; color: #000; }
+  .sheet { font-size: 10.5pt; color: var(--color-print-ink); }
   .sheet .label,
   .sheet .brand,
-  .sheet .sub { color: #000 !important; }
+  .sheet .sub { color: var(--color-print-ink) !important; }
   .sheet table th,
-  .sheet table td { border-color: #000 !important; }
+  .sheet table td { border-color: var(--color-print-ink) !important; }
 
   /* The hierarchy was inverted for this document's actual reader. The design NAME was the
      largest element, while FIT and FABRIC — the two facts a cutting table acts on — were
@@ -99,9 +99,9 @@
     visibility: visible !important;
     margin-top: 8mm;
     padding-top: 3mm;
-    border-top: 1px solid #000;
+    border-top: 1px solid var(--color-print-ink);
     font-size: 8pt;
-    color: #000;
+    color: var(--color-print-ink);
   }
 }
 

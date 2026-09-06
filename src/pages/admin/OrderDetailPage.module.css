@@ -323,7 +323,7 @@
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
-  color: #fff;
+  color: var(--color-on-accent);
 }
 .actionBtnWrite:disabled { opacity: 0.55; cursor: not-allowed; }
 

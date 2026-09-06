@@ -51,7 +51,7 @@
 /* A lock-screen notification: dark, rounded, tight. */
 .pushCard {
   background: rgba(28, 26, 23, 0.92);
-  color: #fff;
+  color: var(--color-on-accent);
   border-radius: 14px;
   padding: 10px 12px;
   display: flex;
@@ -96,7 +96,7 @@
 .inAppCta {
   align-self: flex-start;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-accent);
   font-size: 12px;
   font-weight: var(--font-weight-semibold);
   padding: 6px 14px;
