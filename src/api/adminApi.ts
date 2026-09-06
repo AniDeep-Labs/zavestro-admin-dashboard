@@ -4241,6 +4241,9 @@ export interface FabricStockRow {
   // [PRC-17-6] Held by QC — arrived, paid for, on the shelf, not available. The query did
   // not select it, so no cross-hub surface could show it.
   quarantine_meters?: string | number | null;
+  /** [CM-19-9] Pushed from the warehouse, not yet received AT THIS HUB. Hub-scoped, unlike
+      the fabrics-master rollup which sums every hub. */
+  in_transit_meters?: string | number | null;
   // [CM-19-4] Whether this shelf position has reached its reorder point, decided ONCE on
   // the server. Three surfaces used to derive it independently — the CM's page with `<=`,
   // the procurement grid with `<`, the fabrics master via low_somewhere — so a fabric
