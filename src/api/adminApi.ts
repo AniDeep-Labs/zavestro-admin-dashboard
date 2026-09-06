@@ -1947,6 +1947,11 @@ export interface HubSurgeRow {
   hub_name: string | null;
   wip_total: number;
   over_sla_total: number;
+  /** [SHL-5-10] What the WIP total is made of. `over_sla_total` counts orders only — an
+      alteration has no SLA row to breach — so without the split the two numbers look like
+      they describe the same population and do not. */
+  wip_orders?: number;
+  wip_alterations?: number;
   wip_threshold: number;
   sla_breach_threshold: number;
   is_surging: boolean;

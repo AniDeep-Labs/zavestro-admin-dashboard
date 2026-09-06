@@ -383,3 +383,12 @@
   color: var(--color-text-tertiary);
   align-self: center;
 }
+
+/* [SHL-6-7] A page-level subtitle for pages that still hand-roll their header (the
+   PageHeader migration is ratcheted, not done — see check-page-header.mjs). */
+.pageSubtitle {
+  margin: 4px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 68ch;
+}
