@@ -290,11 +290,9 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
                 {(fabric.stock?.length ?? 0) === 0 ? (
                   <div className={s.stockEmpty}>
                     <p>Not stocked at any hub yet.</p>
-                    {!isDesign && (
-                      <Button variant="primary" size="sm" onClick={() => setPush({ hub_id: '', meters: '', lot: '', consignment: '' })}>
-                        Distribute →
-                      </Button>
-                    )}
+                    <Button variant="primary" size="sm" onClick={() => setPush({ hub_id: '', meters: '', lot: '', consignment: '' })}>
+                      Distribute →
+                    </Button>
                   </div>
                 ) : (
                   <table className={base.table}>
