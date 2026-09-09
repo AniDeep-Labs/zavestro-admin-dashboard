@@ -1276,7 +1276,7 @@ export const TicketDetailPage: React.FC = () => {
       </DetailShell>
 
       {/* Re-measure quick-action modal (G-37) */}
-      {showRemeasure && ticket && (
+      {showRemeasure && (
         <div
           className={styles.modalOverlay}
           onClick={() => setShowRemeasure(false)}
@@ -1479,7 +1479,7 @@ export const TicketDetailPage: React.FC = () => {
       )}
 
       {/* Alteration quick-action modal — sibling to re-measure */}
-      {showAlteration && ticket && (
+      {showAlteration && (
         <div
           className={styles.modalOverlay}
           onClick={() => setShowAlteration(false)}
@@ -1520,7 +1520,7 @@ export const TicketDetailPage: React.FC = () => {
       )}
 
       {/* Return quick-action modal */}
-      {showReturn && ticket && (
+      {showReturn && (
         <div
           className={styles.modalOverlay}
           onClick={() => setShowReturn(false)}

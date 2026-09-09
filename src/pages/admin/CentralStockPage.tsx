@@ -162,7 +162,8 @@ export const CentralStockPage: React.FC = () => {
   const submitAdjust = async () => {
     if (!adjustTarget) return;
     const d = Number(adjustDelta);
-    if (!d || Number.isNaN(d)) return showToast("error", "Enter a non-zero adjustment (+/- metres)");
+    // `!d` already covers NaN, 0 and "" — NaN is falsy, so it never reaches a second test.
+    if (!d) return showToast("error", "Enter a non-zero adjustment (+/- metres)");
     if (!adjustNote.trim()) return showToast("error", "A reason is required");
     setAdjusting(true);
     try {

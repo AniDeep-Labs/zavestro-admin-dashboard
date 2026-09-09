@@ -294,7 +294,7 @@ export function CanvasEditor({ doc, onChange, aspect, defaultLink, content }: { 
                 onDoubleClick={e => { e.stopPropagation(); if (el.type === 'text' || el.type === 'button') { setSelId(el.id); setEditId(el.id); } }}>
                 {editId === el.id ? (
                   <textarea autoFocus className={c.inlineEdit}
-                    style={{ fontFamily: el.font === 'serif' || el.font === 'display' ? 'Georgia, serif' : 'inherit', textAlign: el.align, color: (el.type === 'button' ? el.color : el.color) || '#fff' }}
+                    style={{ fontFamily: el.font === 'serif' || el.font === 'display' ? 'Georgia, serif' : 'inherit', textAlign: el.align, color: el.color || '#fff' }}
                     value={el.text ?? ''} onChange={ev => patch(el.id, { text: ev.target.value })}
                     onBlur={() => setEditId(null)} onMouseDown={ev => ev.stopPropagation()}
                     onKeyDown={ev => { if (ev.key === 'Escape' || (ev.key === 'Enter' && !ev.shiftKey)) { ev.preventDefault(); setEditId(null); } }} />

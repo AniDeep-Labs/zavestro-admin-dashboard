@@ -34,7 +34,6 @@
   "src/pages/admin/OrderDetailPage.tsx": 1,
   "src/pages/admin/OrdersListPage.tsx": 1,
   "src/pages/admin/ProductsListPage.tsx": 1,
-  "src/pages/admin/PromoCodesPage.tsx": 1,
   "src/pages/admin/QcTemplatesPage.tsx": 1,
   "src/pages/admin/RestockQueuePage.tsx": 4,
   "src/pages/admin/ServiceAreasPage.tsx": 1,
