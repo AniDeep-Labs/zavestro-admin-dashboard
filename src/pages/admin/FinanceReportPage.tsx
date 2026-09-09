@@ -270,7 +270,7 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
         {name ?? "—"}
       </Link>
     ) : (
-      (name ?? "Unassigned")
+      name ?? "Unassigned"
     );
 
   const dayRow = (d: SettlementDay) => (

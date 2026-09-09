@@ -694,26 +694,32 @@ const AdminLayoutInner: React.FC = () => {
     return n && n > 0 ? n : undefined;
   };
 
-  const canSee = (item: NavItem) =>
-    !item.hidden &&
-    (item.caps ? item.caps.some((c) => caps.includes(c)) : !item.cap || caps.includes(item.cap));
-  // Legacy `admin` = unchanged god-mode (sees all). super_admin = oversight-only:
-  // role-owned operating consoles (Design, Catalog) are hidden — super gets
-  // read-only overviews instead. Other roles: capability-gated as usual.
-  const canSeeSection = (section: NavSection) => {
-    if (adminRole === "admin") return true;
-    if (section.superOnly) return adminRole === "super_admin";
-    if (adminRole === "super_admin" && section.roleOwned) return false;
-    // super_admin (oversight): show a section if it holds the cap for ANY item in it;
-    // the item-level `canSee` filter then shows only those. This is what lets super
-    // SEE Finance's read-only Settlement/P&L (reports:read) while the refunds/promo
-    // operating items (refunds:approve / pricing:write — which super lacks) stay hidden.
-    if (adminRole === "super_admin") return section.items.some(canSee);
-    return section.caps.some((c) => caps.includes(c));
-  };
-  const visibleSections = SECTIONS.filter(canSeeSection)
-    .map((s) => ({ ...s, items: s.items.filter(canSee) }))
-    .filter((s) => s.items.length > 0);
+  // Memoised on its real inputs. This used to be a bare expression, so every render
+  // produced a fresh array — which silently defeated the `navTargets` memo below that
+  // lists it as a dependency. `caps` is useState-held and `adminRole` is a string, so
+  // both are stable between renders and the memo actually holds.
+  const visibleSections = React.useMemo(() => {
+    const canSee = (item: NavItem) =>
+      !item.hidden &&
+      (item.caps ? item.caps.some((c) => caps.includes(c)) : !item.cap || caps.includes(item.cap));
+    // Legacy `admin` = unchanged god-mode (sees all). super_admin = oversight-only:
+    // role-owned operating consoles (Design, Catalog) are hidden — super gets
+    // read-only overviews instead. Other roles: capability-gated as usual.
+    const canSeeSection = (section: NavSection) => {
+      if (adminRole === "admin") return true;
+      if (section.superOnly) return adminRole === "super_admin";
+      if (adminRole === "super_admin" && section.roleOwned) return false;
+      // super_admin (oversight): show a section if it holds the cap for ANY item in it;
+      // the item-level `canSee` filter then shows only those. This is what lets super
+      // SEE Finance's read-only Settlement/P&L (reports:read) while the refunds/promo
+      // operating items (refunds:approve / pricing:write — which super lacks) stay hidden.
+      if (adminRole === "super_admin") return section.items.some(canSee);
+      return section.caps.some((c) => caps.includes(c));
+    };
+    return SECTIONS.filter(canSeeSection)
+      .map((s) => ({ ...s, items: s.items.filter(canSee) }))
+      .filter((s) => s.items.length > 0);
+  }, [adminRole, caps]);
 
   // ⌘K command palette (FABLE-ADMIN-UIUX §1.2) — wires the top-bar search.
   const [paletteOpen, setPaletteOpen] = React.useState(false);
