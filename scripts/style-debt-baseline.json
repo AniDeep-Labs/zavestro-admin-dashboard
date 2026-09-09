@@ -72,7 +72,7 @@
   "src/pages/admin/HubDetailPage.module.css": 17,
   "src/pages/admin/HubDetailPage.tsx": 2,
   "src/pages/admin/HubsListPage.module.css": 14,
-  "src/pages/admin/HubsListPage.tsx": 4,
+  "src/pages/admin/HubsListPage.tsx": 3,
   "src/pages/admin/InvoicesListPage.tsx": 5,
   "src/pages/admin/ListingRequestsPage.module.css": 4,
   "src/pages/admin/ListingsManagePage.module.css": 3,

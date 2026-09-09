@@ -142,8 +142,13 @@ export const SupplyOverviewPage: React.FC = () => {
   const kpis = (
     <div className={local.kpiRow}>
       <div className={local.kpiCard}>
-        <span className={local.kpiLabel}>In stock (all hubs)</span>
-        <span className={local.kpiValue}>{loading ? '…' : `${totalStock.toLocaleString('en-IN')}m`}</span>
+        {/* [KA2-3] The unit belongs in the LABEL. This read "191.5m" in a console whose
+            neighbouring tiles are ₹ figures, where a bare lowercase m is genuinely
+            ambiguous — metres or millions, and the two differ by six orders of magnitude
+            on a number that is capital. The label carries it now; the value stays a
+            number. */}
+        <span className={local.kpiLabel}>In stock — metres (all hubs)</span>
+        <span className={local.kpiValue}>{loading ? '…' : totalStock.toLocaleString('en-IN')}</span>
       </div>
       <div className={local.kpiCard}>
         <span className={local.kpiLabel}>Hubs stocked</span>

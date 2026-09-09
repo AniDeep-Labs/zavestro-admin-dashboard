@@ -78,9 +78,7 @@ export const HubsListPage: React.FC = () => {
                   <div className={styles.hubName}>
                     {hub.name}
                     {hub.reference_id && (
-                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 500, marginLeft: 8, padding: '1px 6px', background: 'var(--color-primary-faint, rgba(31, 107, 79,0.08))', color: 'var(--color-primary)', borderRadius: 4 }}>
-                        {hub.reference_id}
-                      </span>
+                      <span className={styles.refChip}>{hub.reference_id}</span>
                     )}
                   </div>
                   <div className={styles.hubLocation}>{[hub.city, hub.state].map(s => s?.trim()).filter(Boolean).join(', ')}</div>
@@ -90,7 +88,22 @@ export const HubsListPage: React.FC = () => {
               <div className={styles.hubStats}>
                 <div className={styles.stat}><div className={styles.statVal}>{hub.activeOrders}</div><div className={styles.statLabel}>Active Orders</div></div>
                 <div className={styles.stat}><div className={styles.statVal}>{hub.tailorCount}</div><div className={styles.statLabel}>Tailors</div></div>
-                <div className={styles.stat}><div className={styles.statVal}>{hub.qcPassRate}%</div><div className={styles.statLabel}>QC Pass</div></div>
+                {/* [KA2-9 / SHL-4-2] "—" and a reason, never a fabricated number.
+                    The backend was fixed to send NULL when nothing has been inspected —
+                    its comment even says "the frontend renders '—' and not yet measured" —
+                    but this surface was never updated, so a null rendered as a bare "%".
+                    Before that it was the literal 100, which is the worse failure: a
+                    permanently green quality metric suppresses the alarm it exists to
+                    raise, and on an empty hub "100% QC Pass" beside "0 Active Orders" is a
+                    perfect score for work nobody has done. */}
+                <div className={styles.stat}>
+                  <div className={styles.statVal}>
+                    {hub.qcPassRate === null ? '—' : `${hub.qcPassRate}%`}
+                  </div>
+                  <div className={styles.statLabel}>
+                    {hub.qcPassRate === null ? 'QC Pass · not yet measured' : 'QC Pass'}
+                  </div>
+                </div>
               </div>
               <div className={styles.capacityRow}>
                 <span className={styles.capacityLabel}>Capacity</span>

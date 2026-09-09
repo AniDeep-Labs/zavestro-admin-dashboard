@@ -14,6 +14,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import s from './DesignEditorPage.module.css';
 import { UilTimes, UilPlus, UilImage, UilUpload, UilFileAlt, UilCheck } from '@iconscout/react-unicons';
 import { SafeImg } from '../../components/Image/SafeImg';
+import { Alert } from '../../components/Alert/Alert';
 
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 
@@ -64,6 +65,10 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const [pendingExit, setPendingExit] = React.useState<null | (() => void)>(null);
   const [step, setStep] = React.useState(0); // wizard step (0=Basics … 4=Review)
+  // [DSG-10-1] What the SERVER locks on — `has_reviewed_sample || live_listings > 0`
+  // (designs.service.ts). The detail response already carries both signals, so the editor
+  // has known this at open time all along; it simply never said so.
+  const [lockedBy, setLockedBy] = React.useState<{ sample: boolean; hubs: number } | null>(null);
 
   const dismiss = (t: string) => setToasts((x) => x.filter((y) => y.id !== t));
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -100,11 +105,17 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
     setStep(0);
     setFieldErrors({});
     setBaseline('');
+    setLockedBy(null);
     if (designId) {
       setLoading(true);
       designsApi
         .get(designId)
         .then((d) => {
+          setLockedBy(
+            d.has_reviewed_sample || (d.live_hub_count ?? 0) > 0
+              ? { sample: !!d.has_reviewed_sample, hubs: d.live_hub_count ?? 0 }
+              : null,
+          );
           setName(d.name);
           setCategoryId(d.garment_category_id);
           setGarmentType(d.design_garment_type ?? '');
@@ -425,6 +436,29 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
               </button>
             ))}
           </div>
+
+          {/* [DSG-10-1] Say it at OPEN time, not at step 6.
+              A locked design rendered identically to a new one: no badge, no banner,
+              nothing on the Fit or Fabric steps. So a designer could traverse all six
+              steps, change metreage or fabric, press Save — and only then meet the 409
+              DESIGN_LOCKED. That refusal is a good refusal; it just arrives after the
+              work instead of before it. Sits above the step body so it is on screen for
+              every step, not only Basics. */}
+          {lockedBy && (
+            <Alert
+              type="warning"
+              title="This design is locked — editing it re-triggers sampling"
+              message={
+                `It has ${[
+                  lockedBy.sample ? 'an approved sample' : null,
+                  lockedBy.hubs > 0 ? `${lockedBy.hubs} live listing hub${lockedBy.hubs === 1 ? '' : 's'}` : null,
+                ].filter(Boolean).join(' and ')}. ` +
+                'Changing the tech-pack, fit, fabric, category or metreage will send it back ' +
+                'for a fresh sample; you will be asked to confirm that on save. Everything else ' +
+                'saves normally.'
+              }
+            />
+          )}
 
           <div className={s.wizBody}>
         {step === 0 && (

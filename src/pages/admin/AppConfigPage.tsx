@@ -4,6 +4,7 @@ import { configApi } from '../../api/adminApi';
 import type { ConfigGroup } from '../../api/adminApi';
 import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import styles from './AppConfigPage.module.css';
+import { Alert } from '../../components/Alert/Alert';
 
 type ConfigItem = ConfigGroup['items'][number];
 
@@ -119,9 +120,18 @@ export const AppConfigPage: React.FC = () => {
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>App Configuration</h1>
-      <div className={styles.warningBanner}>
-        Changes are applied immediately. All edits are logged in the audit trail.
-      </div>
+      {/* [KA2-13] This sentence is INFORMATION, and it was painted in the system's error
+          colour — `.warningBanner` is rgba(215,91,91,…) on a #A8434A foreground, the same
+          red the real failure below uses. On a settings page red reads as "something is
+          wrong", and nothing is: it is telling you the save is immediate and audited.
+          Using the design system's info tone instead of a bespoke banner also means the two
+          messages no longer look identical — the one underneath, "Not saved: …", genuinely
+          is an error and keeps the red. */}
+      <Alert
+        type="info"
+        title="Changes are applied immediately"
+        message="All edits are logged in the audit trail."
+      />
 
       {saved && <div className={styles.successBanner}>Configuration updated ✓</div>}
       {saveError && (
@@ -157,7 +167,10 @@ export const AppConfigPage: React.FC = () => {
 
       {groups.map(group => (
         <div key={group.title} className={styles.card}>
-          <h2 className={styles.groupTitle}>{group.title}</h2>
+          {/* [KA2-18] The client synthesises ONE container group titled "App Configuration"
+              (adminApi.ts), so this printed the page's own H1 again ~150px below it. A lone
+              container group has no name worth stating; a real second group would. */}
+          {groups.length > 1 && <h2 className={styles.groupTitle}>{group.title}</h2>}
           <div className={styles.configList}>
             {group.items.map(item => {
               const isDirty = dirty.has(item.key);
