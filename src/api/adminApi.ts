@@ -4586,7 +4586,26 @@ export const listingsAdminApi = {
 
 // ─── Catalog-manager listings management ──────────────────────────────────────
 
+/** [CM-18-6] Where one listing photo came from. Derived server-side, not stamped. */
+export type ListingPhotoSource = "sample" | "upload" | "copied";
+
+export interface ListingPhotoProvenance {
+  key: string;
+  source: ListingPhotoSource;
+  /** Set when source is "sample" — the reviewed sample job whose photography this is. */
+  sample_job_id: string | null;
+  /** Set when source is "copied" — the listing that already showed this image. */
+  copied_from_listing_id: string | null;
+}
+
 export interface CmListing {
+  /**
+   * [CM-18-6] Per-photo source, in photo_keys order. A mockup, a stock image and a photograph
+   * of the garment actually stitched in this fabric used to ship identically.
+   */
+  photo_provenance?: ListingPhotoProvenance[];
+  /** Is the image the customer sees FIRST an actual photograph of this pairing's sample? */
+  hero_from_sample?: boolean;
   /**
    * [CM-19-2] Garments the hub can still cut — computed server-side from worst-case metres
    * × fabric width × cutting wastage, the same figure the Fabric Stock page and the publish

@@ -11,6 +11,7 @@ import {
 } from "../../api/adminApi";
 import type {
   CmListing,
+  ListingPhotoSource,
   ReadyToListSample,
   DesignSummary,
   Fabric,
@@ -86,6 +87,13 @@ type Editor = {
   description: string;
   fitNotes: string; // T3-6 (W-C2): authored fit guidance
   photos: string[];
+  /**
+   * [CM-18-6] Where each photo came from, keyed by photo key. Seeded from the server's
+   * derived provenance when editing; set locally for photos this session introduces, whose
+   * source the operator is watching them acquire — a fresh upload is an upload, and the
+   * photography `openDuplicate` carries over from another listing is copied.
+   */
+  photoSources: Record<string, ListingPhotoSource>;
   isActive: boolean;
   // T3-6 (W-C2): auto-assembled fabric facts (edit mode; read-only reference).
   fabricComposition?: string | null;
@@ -218,6 +226,9 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       description: "",
       fitNotes: "",
       photos: r.sample_photos ?? [],
+      photoSources: Object.fromEntries(
+        (r.sample_photos ?? []).map((k) => [k, "sample" as const]),
+      ),
       isActive: true,
     });
   // [SHL-3-10] Quick-create (+) pointed at the LIST page, leaving the operator to hunt for
@@ -248,6 +259,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       description: "",
       fitNotes: "",
       photos: [],
+      photoSources: {},
       isActive: true,
     });
   const openEdit = (l: CmListing) =>
@@ -263,6 +275,9 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       description: l.description ?? "",
       fitNotes: l.fit_notes ?? "",
       photos: l.photo_keys ?? [],
+      photoSources: Object.fromEntries(
+        (l.photo_provenance ?? []).map((p) => [p.key, p.source]),
+      ),
       isActive: l.is_active,
       pricePerMeter: l.price_per_meter,
       metersPerGarment: l.meters_per_garment,
@@ -285,7 +300,13 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       price: l.price ?? "",
       description: l.description ?? "",
       fitNotes: l.fit_notes ?? "",
+      // [CM-18-6] Whatever these were on the original, on THIS listing they are copied
+      // photography of a different design/fabric pairing — which is the case the audit
+      // named. Marked as such before it is saved, not after.
       photos: l.photo_keys ?? [],
+      photoSources: Object.fromEntries(
+        (l.photo_keys ?? []).map((k) => [k, "copied" as const]),
+      ),
       isActive: false,
       fabricComposition: l.fabric_composition,
       fabricWeightGsm: l.fabric_weight_gsm,
@@ -302,7 +323,14 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
           .slice(0, 8)
           .map((f) => uploadToR2(f, "listings")),
       );
-      setEditor({ ...editor, photos: [...editor.photos, ...keys] });
+      setEditor({
+        ...editor,
+        photos: [...editor.photos, ...keys],
+        photoSources: {
+          ...editor.photoSources,
+          ...Object.fromEntries(keys.map((k) => [k, "upload" as const])),
+        },
+      });
     } catch (e) {
       toast(
         "error",
@@ -634,6 +662,20 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                   ) : (
                     <UilImage size={26} />
                   )}
+                  {/* [CM-18-6] Flag the listings whose FIRST image — the one the customer
+                      sees — is not a photograph of this pairing's reviewed sample. Marked on
+                      the exception rather than the norm: a shelf where most heroes are real
+                      sample shots should draw the eye to the ones that are not. Only shown
+                      once the server's answer has arrived, so a loading grid is not a wall
+                      of false warnings. */}
+                  {l.hero_from_sample === false && (l.photo_keys ?? []).length > 0 && (
+                    <span
+                      className={s.heroNotSample}
+                      title="The first image is not a photograph of this design stitched in this fabric. It was uploaded by hand or carried over from another listing — so the customer is not seeing the garment they will receive."
+                    >
+                      Not a sample photo
+                    </span>
+                  )}
                 </div>
                 <div className={s.cardBody}>
                   <div className={s.cardName}>{l.design_name}</div>
@@ -870,9 +912,32 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                 <p className={s.photoNudge}>Add one more — a single photo undersells the garment.</p>
               )}
               <div className={s.thumbs}>
-                {editor.photos.map((k, i) => (
+                {editor.photos.map((k, i) => {
+                  // [CM-18-6] Say what this image IS. "sample" is the model's promise — a
+                  // photograph of the garment actually stitched in this fabric; the other two
+                  // are not, and shipped indistinguishably before this.
+                  const src = editor.photoSources[k] ?? "upload";
+                  const provLabel =
+                    src === "sample"
+                      ? "Sample photo"
+                      : src === "copied"
+                        ? "Copied"
+                        : "Uploaded";
+                  const provTitle =
+                    src === "sample"
+                      ? "Photographed from the reviewed sample of this design in this fabric — the garment the customer will receive."
+                      : src === "copied"
+                        ? "Carried over from another listing. It shows a different design/fabric pairing than this one."
+                        : "Uploaded by hand. Not tied to a reviewed sample of this pairing.";
+                  return (
                   <div key={k} className={s.thumb}>
                     <SafeImg src={url(k)} alt={`photo ${i + 1}`} fallback={<UilImage size={20} />} />
+                    <span
+                      className={`${s.provBadge} ${src === "sample" ? s.provSample : s.provOther}`}
+                      title={provTitle}
+                    >
+                      {provLabel}
+                    </span>
                     <button
                       type="button"
                       onClick={() =>
@@ -885,7 +950,8 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                       <UilTimes size={12} />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
                 <label className={s.uploadBox}>
                   {uploading ? (
                     <Spinner />
