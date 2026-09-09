@@ -119,6 +119,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
   // [CM-18-9] What the server knows that the loaded page does not.
   const [total, setTotal] = React.useState(0);
   const [serverDrafts, setServerDrafts] = React.useState<number | null>(null);
+  const [serverOos, setServerOos] = React.useState<number | null>(null);
   const [truncated, setTruncated] = React.useState(false);
   const [ready, setReady] = React.useState<ReadyToListSample[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
@@ -164,6 +165,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
         setListings(l.listings);
         setTotal(l.total);
         setServerDrafts(l.drafts);
+        setServerOos(l.oos);
         setTruncated(l.truncated);
         setReady(r);
       })
@@ -461,15 +463,21 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
   const [searchParams, setSearchParams] = useSearchParams();
   const garmentFilter = searchParams.get("garment");
   // T2-27 (CM-1): tab-filter then garment-filter.
-  // [CM-18-9] Drafts comes from the SERVER, over every listing in scope — counting the
-  // loaded page would be quietly wrong now that the page is capped.
+  // [CM-18-9] Every chip counts over the WHOLE scope, from the server — counting the loaded
+  // array is quietly wrong now that the page is capped at CM_LISTING_MAX. "All" in particular
+  // read `listings.length`, so at a catalogue larger than the cap it announced the cap: "All
+  // (200)" with 1,500 listings behind it.
   //
-  // Out-of-stock cannot: `in_stock` is derived per row in JS from metreage and per-garment
-  // consumption, and re-deriving it in SQL would be a second definition of exactly the thing
-  // [CM-19-2]/[CM-19-4] were fixed to unify. So it counts the loaded page and the strip says
-  // so when the page is a subset.
+  // The out-of-stock count is server-side too. A previous comment here claimed `in_stock` was
+  // "derived per row in JS" and that re-deriving it in SQL would fork the definition — both
+  // wrong: `in_stock` has always BEEN SQL (the IN_STOCK_SQL EXISTS clause), so the aggregate
+  // reuses that one constant rather than restating it.
+  //
+  // The local fallbacks still stand for the first paint, before the response lands.
+  const allCount = total || listings.length;
   const draftCount = serverDrafts ?? listings.filter((l) => !l.is_active).length;
-  const oosCount = listings.filter((l) => l.is_active && l.in_stock === false).length;
+  const oosCount =
+    serverOos ?? listings.filter((l) => l.is_active && l.in_stock === false).length;
   const shownListings = React.useMemo(() => {
     let ls = listings;
     if (tab === "drafts") ls = ls.filter((l) => !l.is_active);
@@ -492,7 +500,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       {/* T2-27 (CM-1): status tabs */}
       <div className={base.viewChips}>
         {([
-          ["all", "All", listings.length],
+          ["all", "All", allCount],
           ["ready", "Ready", ready.length],
           ["drafts", "Drafts", draftCount],
           ["oos", "Out of stock", oosCount],
@@ -573,12 +581,15 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       <>
       <h2 className={s.sectionTitle}>
         {tab === "drafts" ? "Drafts" : tab === "oos" ? "Out of stock" : "Your listings"}{" "}
-        {/* [CM-18-9] A capped list that just ends looks like the whole list. Say what is
-            missing, and that the out-of-stock count is over what is loaded. */}
+        {/* [CM-18-9] A capped list that just ends looks like the whole list, so say what is
+            missing. The chips above are now server-side totals, so the caveat is about the
+            ROWS, not the counts: on a filtered tab the rows are that filter applied to the
+            newest page, which can show fewer than the chip counts. */}
         {truncated && (
           <span className={base.pagination}>
-            showing {listings.length} of {total} — newest first
-            {tab === "oos" ? "; the out-of-stock count covers only these" : ""}
+            {tab === "drafts" || tab === "oos"
+              ? `from the newest ${listings.length} of ${total} listings`
+              : `showing ${listings.length} of ${total} — newest first`}
           </span>
         )}{" "}
         {!loading && <span className={s.count}>{shownListings.length}</span>}

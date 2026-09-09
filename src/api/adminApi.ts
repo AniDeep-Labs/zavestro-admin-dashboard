@@ -4677,6 +4677,9 @@ export interface CmListingsPage {
   total: number;
   /** Inactive listings in scope — the Drafts chip, correct regardless of the cap. */
   drafts: number;
+  /** Live listings whose hub cannot cut a garment from the paired fabric — the Out-of-stock
+      chip, over every row in scope rather than the loaded page. */
+  oos: number;
   /** The page is a subset; the UI must say so rather than ending silently. */
   truncated: boolean;
 }
