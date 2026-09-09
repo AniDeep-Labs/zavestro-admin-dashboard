@@ -116,6 +116,10 @@ const LOW_GARMENTS = 5;
 
 export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) => {
   const [listings, setListings] = React.useState<CmListing[]>([]);
+  // [CM-18-9] What the server knows that the loaded page does not.
+  const [total, setTotal] = React.useState(0);
+  const [serverDrafts, setServerDrafts] = React.useState<number | null>(null);
+  const [truncated, setTruncated] = React.useState(false);
   const [ready, setReady] = React.useState<ReadyToListSample[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
   const [fabrics, setFabrics] = React.useState<Fabric[]>([]);
@@ -156,7 +160,11 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
     setLoading(true);
     Promise.all([cmListingsApi.list(), cmListingsApi.ready()])
       .then(([l, r]) => {
-        setListings(l);
+        // [CM-18-9] The endpoint is bounded now and returns its own counts.
+        setListings(l.listings);
+        setTotal(l.total);
+        setServerDrafts(l.drafts);
+        setTruncated(l.truncated);
         setReady(r);
       })
       .catch((e) =>
@@ -453,7 +461,14 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
   const [searchParams, setSearchParams] = useSearchParams();
   const garmentFilter = searchParams.get("garment");
   // T2-27 (CM-1): tab-filter then garment-filter.
-  const draftCount = listings.filter((l) => !l.is_active).length;
+  // [CM-18-9] Drafts comes from the SERVER, over every listing in scope — counting the
+  // loaded page would be quietly wrong now that the page is capped.
+  //
+  // Out-of-stock cannot: `in_stock` is derived per row in JS from metreage and per-garment
+  // consumption, and re-deriving it in SQL would be a second definition of exactly the thing
+  // [CM-19-2]/[CM-19-4] were fixed to unify. So it counts the loaded page and the strip says
+  // so when the page is a subset.
+  const draftCount = serverDrafts ?? listings.filter((l) => !l.is_active).length;
   const oosCount = listings.filter((l) => l.is_active && l.in_stock === false).length;
   const shownListings = React.useMemo(() => {
     let ls = listings;
@@ -558,6 +573,14 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       <>
       <h2 className={s.sectionTitle}>
         {tab === "drafts" ? "Drafts" : tab === "oos" ? "Out of stock" : "Your listings"}{" "}
+        {/* [CM-18-9] A capped list that just ends looks like the whole list. Say what is
+            missing, and that the out-of-stock count is over what is loaded. */}
+        {truncated && (
+          <span className={base.pagination}>
+            showing {listings.length} of {total} — newest first
+            {tab === "oos" ? "; the out-of-stock count covers only these" : ""}
+          </span>
+        )}{" "}
         {!loading && <span className={s.count}>{shownListings.length}</span>}
         {garmentFilter && (
           <button

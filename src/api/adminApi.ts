@@ -4637,9 +4637,26 @@ export interface ListingPreflight {
   can_publish: boolean;
 }
 
+export interface CmListingsPage {
+  listings: CmListing[];
+  /** Every listing in scope, not just the page. */
+  total: number;
+  /** Inactive listings in scope — the Drafts chip, correct regardless of the cap. */
+  drafts: number;
+  /** The page is a subset; the UI must say so rather than ending silently. */
+  truncated: boolean;
+}
+
 export const cmListingsApi = {
-  list: async (): Promise<CmListing[]> =>
-    req<CmListing[]>(`/api/admin/listings`),
+  /**
+   * [CM-18-9] Bounded, with the counts computed server-side.
+   *
+   * The page's chips used to count the loaded array, which was every listing in the hub. Now
+   * the list is capped, so counting it would be quietly WRONG rather than merely slow — the
+   * counts come from the server, over every row in scope.
+   */
+  list: async (): Promise<CmListingsPage> =>
+    req<CmListingsPage>(`/api/admin/listings`),
   preflight: async (p: {
     design_id: string;
     fabric_id: string;
