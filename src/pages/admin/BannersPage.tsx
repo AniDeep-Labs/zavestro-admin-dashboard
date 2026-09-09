@@ -14,6 +14,7 @@ import styles from './PromoCodesPage.module.css';
 import b from './BannersPage.module.css';
 import { CanvasRender } from './canvas/CanvasRender';
 import { CanvasEditor } from './canvas/CanvasEditor';
+import { startableFrom, assetReuse, type BannerAssetSource } from './canvas/bannerAssets';
 import { emptyCanvas, newId, DEFAULT_ELEMENT, type CanvasDoc } from './canvas/canvasTypes';
 import { UilEye, UilEyeSlash, UilPen, UilPlus, UilTrashAlt } from "@iconscout/react-unicons";
 import { SafeImg } from '../../components/Image/SafeImg';
@@ -469,11 +470,19 @@ function BannerForm({
   onSave,
   onCancel,
   saving,
+  library,
 }: {
   initial: BannerPayload & { id?: string };
   onSave: (data: BannerPayload) => void;
   onCancel: () => void;
   saving: boolean;
+  /**
+   * [CM-22-9] Every other banner. The canvas had no library beyond the built-in starters and
+   * no way to reuse a composition, so a seasonal set was rebuilt by hand each time — and
+   * nothing said whether a piece of creative was already in use elsewhere. Both answers are
+   * in the list the page has already loaded; neither needs a table.
+   */
+  library: Banner[];
 }) {
   const [dev, setDev] = React.useState<'mobile' | 'web'>('mobile');
   const [showDevicePreview, setShowDevicePreview] = React.useState(false);
@@ -523,6 +532,12 @@ function BannerForm({
   // independent and never borrows it — designing mobile never bleeds into web.
   const canvasFor = (k: 'canvas_mobile' | 'canvas_web') => (k === 'canvas_mobile' ? (cs.canvas_mobile ?? cs.canvas) : cs.canvas_web) as CanvasDoc | undefined;
   const activeCanvas = canvasFor(canvasKey);
+  // [CM-22-9] Compositions worth starting from, for THIS device. Pure logic lives in
+  // canvas/bannerAssets.ts so scripts/verify-banner-reuse.mjs can exercise it.
+  const startable = React.useMemo(
+    () => startableFrom(library as BannerAssetSource[], initial.id, canvasKey),
+    [library, initial.id, canvasKey],
+  );
   // Two-way content ↔ canvas binding. The Headline/Subtitle field is shared, so a
   // field edit updates bound text in BOTH device canvases; guards avoid loops.
   const syncCanvasFromField = (bind: 'title' | 'subtitle', value: string) => {
@@ -667,6 +682,18 @@ function BannerForm({
   const setMode = dev === 'mobile' ? setModeMobile : setModeWeb;
   const imageKey = dev === 'mobile' ? imageMobile : imageWeb;
   const setImageKey = dev === 'mobile' ? setImageMobile : setImageWeb;
+  // [CM-22-9] Which of this banner's creative is also used elsewhere. Declared HERE, after
+  // `imageKey` is bound on the line above: a useMemo factory runs during the render pass at
+  // its own position in the body, so reading imageKey any earlier is a temporal-dead-zone
+  // ReferenceError — one tsc cannot see through the closure.
+  const shared = React.useMemo(
+    () =>
+      assetReuse(
+        { id: initial.id ?? '', image_key: imageKey, logo_key: logoKey, compose_style: cs },
+        library as BannerAssetSource[],
+      ),
+    [initial.id, imageKey, logoKey, cs, library],
+  );
   const fx = dev === 'mobile' ? fxM : fxW;
   const fy = dev === 'mobile' ? fyM : fyW;
   const setFx = dev === 'mobile' ? setFxM : setFxW;
@@ -920,7 +947,57 @@ const ratioName = (dev: 'mobile' | 'web', aspect: number): string =>
                   ⧉ Copy from {dev === 'mobile' ? 'Web' : 'Mobile'}
                 </button>
                 <span className={b.hint}>Mobile &amp; Web have separate designs. “Copy from” duplicates the other device here.</span>
+
+                {/* [CM-22-9] Reuse across BANNERS, not just across devices. There was no
+                    library beyond the built-in starters, so a seasonal set was rebuilt by
+                    hand every time. The banners already made ARE the library. */}
+                {startable.length > 0 && (
+                  <div className={b.fieldRowS}>
+                    <label className={b.label} htmlFor="startFrom">Start from another banner</label>
+                    <select
+                      id="startFrom"
+                      className={b.input}
+                      value=""
+                      onChange={e => {
+                        const pick = startable.find(x => x.bn.id === e.target.value);
+                        if (pick) patchCs({ [canvasKey]: JSON.parse(JSON.stringify(pick.doc)) });
+                      }}
+                    >
+                      <option value="">Choose a banner…</option>
+                      {startable.map(({ bn, doc }) => (
+                        <option key={bn.id} value={bn.id}>
+                          {bn.title || 'Untitled'} — {doc.elements.length} element{doc.elements.length === 1 ? '' : 's'}
+                        </option>
+                      ))}
+                    </select>
+                    <span className={b.hint}>
+                      Copies that banner’s {dev} design here to edit. It is a copy — editing it
+                      never changes the banner you took it from.
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {/* [CM-22-9] Asset provenance. Reusing creative is fine, but replacing the file
+                  behind a key changes every banner using it at once — so say which those are
+                  before someone finds out the other way. */}
+              {shared.length > 0 && (
+                <div className={b.section}>
+                  <p className={b.sectionHead}>Shared creative</p>
+                  <span className={b.hint}>
+                    These images are also used by other banners. Swapping the file behind one
+                    changes it everywhere it appears.
+                  </span>
+                  <ul className={b.assetReuseList}>
+                    {shared.map(a => (
+                      <li key={a.key}>
+                        <code>{a.key.split('/').pop()}</code> — also in{' '}
+                        {a.others.map(o => o.title || 'Untitled').join(', ')}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className={b.section}>
                 <p className={b.sectionHead}>Link &amp; schedule</p>
                 <span className={b.hint}>Tapping this banner opens <code>{ctaLink || '/categories'}</code>. New Button elements inherit this link (change per-button in its properties).</span>
@@ -1419,6 +1496,7 @@ export const BannersPage: React.FC = () => {
             onSave={handleSave}
             onCancel={() => setModal(null)}
             saving={saving}
+            library={banners}
           />
         )}
       </Modal>

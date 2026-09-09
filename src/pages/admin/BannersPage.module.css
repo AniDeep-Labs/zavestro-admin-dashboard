@@ -458,3 +458,20 @@
 /* [KA5-6] Active, but with nothing to show on this device. Not an error — the banner may be
    half-built on purpose — but it must not wear the same chip as one that is ready. */
 .statusIncomplete { background: rgba(228, 149, 42, 0.16); color: var(--color-warning); }
+
+/* [CM-22-9] Which creative this banner shares with others. Sits under a section head, so it
+   inherits the panel's spacing and only needs list reset + a readable density. */
+.assetReuseList {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  list-style: disc;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+.assetReuseList code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  background: var(--color-bg-section);
+  border-radius: var(--radius-sm);
+  padding: 0 3px;
+}
