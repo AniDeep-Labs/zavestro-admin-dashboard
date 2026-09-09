@@ -5,6 +5,15 @@
 :root {
   /* PRIMARY GREEN — web --color-emerald #1F6B4F */
   --color-primary: #1F6B4F;
+  /* Text/iconography sitting ON a filled primary or error surface. It was a raw #fff repeated
+     across page modules; the style-debt guard's own rule is that token files are the only
+     place raw colours may live, so it belongs here. Deliberately NOT redefined in the dark
+     block: a filled green or red button keeps a white label in both themes. */
+  --color-on-accent: #FFFFFF;
+  /* [KA10-9] Ink on PAPER. Deliberately true black rather than a theme colour: a printed
+     sheet has no theme, and the screen's greys lose most of their contrast in toner. Only
+     ever used inside `@media print`. */
+  --color-print-ink: #000000;
   --color-primary-light: #2A8B5B;        /* web --color-emerald-hover */
   --color-primary-lighter: #C7E3D2;
   --color-primary-dark: #16523C;

@@ -236,6 +236,15 @@
   background: var(--color-bg);
 }
 
+/* [KA3-6] The save bar is `position: sticky; bottom: 0` over the page's own scroll, and the
+   content above it had no clearance — so on the app's longest form the last card was sliced
+   mid-sentence by the bar that saves it. The content now ends above the bar, not behind it.
+   Applied as a page-local class beside `base.twoCol` rather than in the shared module, so no
+   other page's spacing moves. Same defect as [KA5-4] on the banner composer. */
+.editorCols {
+  padding-bottom: 72px;
+}
+
 .actionBar {
   display: flex;
   align-items: center;
@@ -666,3 +675,7 @@
   gap: var(--spacing-sm);
   flex-wrap: wrap;
 }
+
+/* [KA3-9] "Never used" is a different fact from "used zero times", and must not wear the
+   weight of a measured count. */
+.railStatNone { color: var(--color-text-tertiary); }

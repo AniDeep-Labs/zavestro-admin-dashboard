@@ -206,6 +206,16 @@
   color: var(--color-text-secondary);
 }
 
+/* [KA1-4] `text-align: right` + `align-self: flex-end` made these the only right-aligned
+   text on a centred card, and `align-self` beats a parent's `align-items`, so wrapping them
+   in a centred flex container did not help. Both removed. */
+.recovery {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  margin-top: 2px;
+}
 .forgotBtn {
   background: none;
   border: none;
@@ -213,10 +223,33 @@
   font-family: var(--font-family);
   font-size: 13px;
   color: var(--color-primary);
-  text-align: right;
   padding: 0;
-  align-self: flex-end;
-  margin-top: -8px;
+}
+
+/* The conditional route, quieter than the one that always works. */
+.forgotAlt {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding: 0;
+}
+.forgotAlt:hover { color: var(--color-primary); text-decoration: underline; }
+.forgotAltHint { color: var(--color-text-tertiary); }
+
+/* [KA1-6] Which backend this sign-in will hit. */
+.envNote,
+.envNoteDanger {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 12px;
+}
+.envNote { color: var(--color-text-tertiary); }
+.envNoteDanger {
+  color: var(--color-error);
+  font-weight: var(--font-weight-semibold);
 }
 
 .forgotBtn:hover {

@@ -51,3 +51,17 @@
   margin: 8px 0;
   opacity: 0.6;
 }
+
+/* [KA9-10] What the dot colours mean, said once for the panel. Quiet — it is a key, not a
+   row of work. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-light);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}

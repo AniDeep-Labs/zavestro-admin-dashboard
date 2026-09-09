@@ -203,8 +203,22 @@ export const StaffManagementPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }
   return (
     <div className={base.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
+      {/* [SHL-6-7] There are TWO staff concepts in this codebase and they are not the same
+          rows: `staff` (ops LOGIN accounts — tailor, QC, dispatch, agent, hub manager), which
+          this page governs, and `hub_staff` (the hub floor ROSTER), which a different
+          endpoint owns and which `customer_measurement_profiles.taken_by_staff_id` points at.
+          The page was titled "Ops Staff" with nothing distinguishing the two, so deactivating
+          someone here looks like it removes them from the hub — and it does not.
+          The title names which one, and the subtitle names the one it does NOT govern. */}
       <div className={base.pageHeader}>
-        <h1 className={base.title}>Ops Staff</h1>
+        <div>
+          <h1 className={base.title}>Ops staff logins</h1>
+          <p className={base.pageSubtitle}>
+            Accounts that sign in to the ops app — tailor, QC, dispatch, agent, hub manager.
+            Separate from a hub&rsquo;s floor roster: deactivating a login here does not remove
+            anyone from a hub, and measurement provenance points at the roster, not at this list.
+          </p>
+        </div>
         <Button variant="primary" onClick={openCreate}>
           <UilPlus size={16} /> New staff
         </Button>

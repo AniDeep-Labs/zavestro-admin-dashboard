@@ -15,6 +15,14 @@ import styles from './ActionInbox.module.css';
  */
 type Tone = 'blocked' | 'qc' | 'pending' | 'fit';
 
+/** [KA9-10] What each severity colour claims. One definition, used by the dots and the legend. */
+const TONE_MEANING: Record<Tone, string> = {
+  blocked: 'Money or a customer is waiting on this.',
+  qc: 'Needs checking before it can move.',
+  fit: 'Needs a decision from someone.',
+  pending: 'Queued, not yet late.',
+};
+
 interface InboxItem {
   key: keyof NavCounts;
   label: (n: number) => string;
@@ -108,11 +116,26 @@ export const ActionInbox: React.FC = () => {
         <div className={styles.list}>
           {active.map(it => (
             <button key={it.key} className={styles.row} onClick={() => navigate(it.to)}>
-              <span className={`${styles.dot} ${styles[`dot-${it.tone}`]}`} />
+              {/* [KA9-10] The dots ranked five lines red/red/amber/red/grey with the ranking
+                  stated nowhere — "1 open support ticket" grey beside "1 credit request" red,
+                  which is at least debatable and was certainly unexplained. A colour used as
+                  a severity encoding needs to say what it encodes; the title carries it per
+                  row, and the legend below carries it for the panel. */}
+              <span
+                className={`${styles.dot} ${styles[`dot-${it.tone}`]}`}
+                title={TONE_MEANING[it.tone]}
+                aria-label={TONE_MEANING[it.tone]}
+              />
               <span className={styles.label}>{it.label(counts[it.key] as number)}</span>
               <span className={styles.arrow}>→</span>
             </button>
           ))}
+          <p className={styles.legend}>
+            <span className={`${styles.dot} ${styles['dot-blocked']}`} /> money or a customer is waiting
+            <span className={`${styles.dot} ${styles['dot-qc']}`} /> needs checking
+            <span className={`${styles.dot} ${styles['dot-fit']}`} /> needs a decision
+            <span className={`${styles.dot} ${styles['dot-pending']}`} /> queued, not yet late
+          </p>
         </div>
       )}
     </div>

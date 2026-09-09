@@ -610,12 +610,27 @@ const AdminLayoutInner: React.FC = () => {
   const { title: entityTitle } = useBreadcrumb();
   const [theme, setTheme] = React.useState(getCurrentTheme());
   const [collapsed, setCollapsed] = React.useState(false);
+  // [KA1-18] Four groups are expanded by default, so at 1280x800 the nav runs past the fold
+  // and the page you are ON can be below it — the sidebar scrolls, but nothing ever tells it
+  // where you are. Collapsing groups by default would be a behaviour change for every
+  // operator to fix a layout problem; bringing the active item into view is additive and
+  // fixes it wherever the list happens to end up.
+  //
+  // `block: 'nearest'` so an item already visible does not jolt the list.
+  const activeNavRef = React.useRef<HTMLElement | null>(null);
   const [expandedSections, setExpandedSections] = React.useState<string[]>([
     "Storefront",
     "Content",
     "Analytics",
     "System",
   ]);
+  React.useEffect(() => {
+    // After the route (and any group expansion) has painted.
+    const id = requestAnimationFrame(() => {
+      activeNavRef.current?.scrollIntoView({ block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [location.pathname, collapsed, expandedSections]);
 
   const adminUser = getAdminUser();
   const adminEmail = adminUser?.email ?? "admin@zavestro.in";
@@ -694,26 +709,32 @@ const AdminLayoutInner: React.FC = () => {
     return n && n > 0 ? n : undefined;
   };
 
-  const canSee = (item: NavItem) =>
-    !item.hidden &&
-    (item.caps ? item.caps.some((c) => caps.includes(c)) : !item.cap || caps.includes(item.cap));
-  // Legacy `admin` = unchanged god-mode (sees all). super_admin = oversight-only:
-  // role-owned operating consoles (Design, Catalog) are hidden — super gets
-  // read-only overviews instead. Other roles: capability-gated as usual.
-  const canSeeSection = (section: NavSection) => {
-    if (adminRole === "admin") return true;
-    if (section.superOnly) return adminRole === "super_admin";
-    if (adminRole === "super_admin" && section.roleOwned) return false;
-    // super_admin (oversight): show a section if it holds the cap for ANY item in it;
-    // the item-level `canSee` filter then shows only those. This is what lets super
-    // SEE Finance's read-only Settlement/P&L (reports:read) while the refunds/promo
-    // operating items (refunds:approve / pricing:write — which super lacks) stay hidden.
-    if (adminRole === "super_admin") return section.items.some(canSee);
-    return section.caps.some((c) => caps.includes(c));
-  };
-  const visibleSections = SECTIONS.filter(canSeeSection)
-    .map((s) => ({ ...s, items: s.items.filter(canSee) }))
-    .filter((s) => s.items.length > 0);
+  // Memoised on its real inputs. This used to be a bare expression, so every render
+  // produced a fresh array — which silently defeated the `navTargets` memo below that
+  // lists it as a dependency. `caps` is useState-held and `adminRole` is a string, so
+  // both are stable between renders and the memo actually holds.
+  const visibleSections = React.useMemo(() => {
+    const canSee = (item: NavItem) =>
+      !item.hidden &&
+      (item.caps ? item.caps.some((c) => caps.includes(c)) : !item.cap || caps.includes(item.cap));
+    // Legacy `admin` = unchanged god-mode (sees all). super_admin = oversight-only:
+    // role-owned operating consoles (Design, Catalog) are hidden — super gets
+    // read-only overviews instead. Other roles: capability-gated as usual.
+    const canSeeSection = (section: NavSection) => {
+      if (adminRole === "admin") return true;
+      if (section.superOnly) return adminRole === "super_admin";
+      if (adminRole === "super_admin" && section.roleOwned) return false;
+      // super_admin (oversight): show a section if it holds the cap for ANY item in it;
+      // the item-level `canSee` filter then shows only those. This is what lets super
+      // SEE Finance's read-only Settlement/P&L (reports:read) while the refunds/promo
+      // operating items (refunds:approve / pricing:write — which super lacks) stay hidden.
+      if (adminRole === "super_admin") return section.items.some(canSee);
+      return section.caps.some((c) => caps.includes(c));
+    };
+    return SECTIONS.filter(canSeeSection)
+      .map((s) => ({ ...s, items: s.items.filter(canSee) }))
+      .filter((s) => s.items.length > 0);
+  }, [adminRole, caps]);
 
   // ⌘K command palette (FABLE-ADMIN-UIUX §1.2) — wires the top-bar search.
   const [paletteOpen, setPaletteOpen] = React.useState(false);
@@ -893,6 +914,7 @@ const AdminLayoutInner: React.FC = () => {
                 <Link
                   key={child.path}
                   to={child.path}
+                  ref={isActive(child.path) ? (el) => { activeNavRef.current = el; } : undefined}
                   className={`${styles.navChild} ${isActive(child.path) ? styles.navChildActive : ""}`}
                   aria-current={isActive(child.path) ? "page" : undefined}
                 >
@@ -1135,12 +1157,28 @@ const AdminLayoutInner: React.FC = () => {
               {!collapsed && (
                 <>
                   <span className={styles.adminName}>{adminEmail}</span>
+                  {/* [KA9-12] `super_admin` already reads as itself, in gold. The LEGACY
+                      `admin` role did not: it is the broadest role in the system — the nav
+                      check at the top of this file short-circuits every capability for it —
+                      and it wore the blandest chip in the topbar, identical in weight to
+                      Support or Finance. Nothing in the chrome said this session can do
+                      everything. It says so now, and says the role is being retired, because
+                      the fix for a god-mode session is to stop using one. */}
                   <span
-                    className={`${styles.roleBadge} ${adminRole === "super_admin" ? styles.roleBadgeSuperAdmin : ""}`}
+                    className={`${styles.roleBadge} ${
+                      adminRole === "super_admin" ? styles.roleBadgeSuperAdmin : ""
+                    } ${adminRole === "admin" ? styles.roleBadgeLegacy : ""}`}
+                    title={
+                      adminRole === "admin"
+                        ? "Legacy full-access role: it bypasses every capability check. Being retired — use a scoped role where one exists."
+                        : undefined
+                    }
                   >
                     {adminRole === "super_admin"
                       ? "Super Admin"
-                      : adminRole.replace("_", " ")}
+                      : adminRole === "admin"
+                        ? "Legacy · full access"
+                        : adminRole.replace("_", " ")}
                   </span>
                 </>
               )}

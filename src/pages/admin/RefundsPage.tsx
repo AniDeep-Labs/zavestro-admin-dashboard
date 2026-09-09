@@ -107,6 +107,9 @@ export const RefundsPage: React.FC = () => {
         { header: "Initiated at", value: (r) => r.refund_initiated_at },
         { header: "Expected by", value: (r) => r.expected_settlement_at ?? "" },
         { header: "Completed at", value: (r) => r.refund_completed_at },
+        // [KA8-11] The export carries the actor too — a CA pack that cannot say who
+        // disbursed is the same gap one file further on.
+        { header: "Settled by", value: (r) => r.settled_by_name ?? "" },
         { header: "Created at", value: (r) => r.created_at },
       ],
       visible,
@@ -247,7 +250,18 @@ export const RefundsPage: React.FC = () => {
                     <td><AgeCell since={r.refund_initiated_at ?? r.created_at} warnAfterH={48} alertAfterH={120} /></td>
                   )}
                   {kind === "completed" ? (
-                    <td className={styles.date}>{fmtDate(r.refund_completed_at)}</td>
+                    <td className={styles.date}>
+                      {fmtDate(r.refund_completed_at)}
+                      {/* [KA8-11] The approval writes an audit row; the disbursement wrote
+                          none, so the step where money actually leaves had no human on it.
+                          "Settled automatically" and "we did not record who" are different
+                          facts and must not both render as a blank cell. */}
+                      <div className={styles.customerPhone}>
+                        {r.settled_by_name
+                          ? `by ${r.settled_by_name}`
+                          : 'settled automatically or not recorded'}
+                      </div>
+                    </td>
                   ) : (
                     <td>{canDisburse(r) ? disburseBtn(r) : <StatusBadge status={r.refund_status} />}</td>
                   )}

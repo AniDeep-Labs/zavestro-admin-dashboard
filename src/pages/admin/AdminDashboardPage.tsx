@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UilSync, UilTruck, UilRuler, UilCheckCircle, UilReceipt, UilBox, UilExclamationTriangle, UilShoppingBag, UilHistory, UilProcess } from '@iconscout/react-unicons';
-import { dashboardApi, hasCapability } from '../../api/adminApi';
+import { dashboardApi, hasCapability, getAdminCapabilities } from '../../api/adminApi';
 import type { DashboardData } from '../../api/adminApi';
 import { clearAdminToken } from '../../api/catalogApi';
 import { Sparkline, AreaTrendChart, BarMini, stageRamp, fmtINRShort } from '../../components/charts/Charts';
@@ -160,13 +160,23 @@ export const AdminDashboardPage: React.FC = () => {
   // brand-new database, during a quality crisis, and while the data held a QC-2
   // FAIL. `|| 0` would be just as wrong in the other direction: an unmeasured hub
   // is not a hub scoring zero. null → the card renders "—".
-  const avgQc = React.useMemo<number | null>(() => {
-    const measured = (data?.hubPerformance ?? []).filter(
+  // [KA1-14] The denominator travels with the figure. [SHL-4-2] stopped this being
+  // fabricated, but a bare "87% · across hubs" still does not say across how many — and
+  // "across hubs" reads as ALL of them. One measured hub out of six is a different claim
+  // from six out of six, and on a quality metric that difference is the whole story.
+  const qc = React.useMemo<{ avg: number; measured: number; total: number } | null>(() => {
+    const hubs = data?.hubPerformance ?? [];
+    const measured = hubs.filter(
       (h) => typeof h.qcPassRate === 'number',
     ) as { qcPassRate: number }[];
     if (measured.length === 0) return null;
-    return Math.round(measured.reduce((s, h) => s + h.qcPassRate, 0) / measured.length);
+    return {
+      avg: Math.round(measured.reduce((s, h) => s + h.qcPassRate, 0) / measured.length),
+      measured: measured.length,
+      total: hubs.length,
+    };
   }, [data]);
+  const avgQc = qc?.avg ?? null;
   // [KA6-12] How many days actually carry revenue — one spike is not a trend.
   const revenueDays = React.useMemo(
     () => (data?.revenue ?? []).filter((d) => Number(d.simplified ?? 0) > 0).length,
@@ -213,6 +223,11 @@ export const AdminDashboardPage: React.FC = () => {
       >
         <div className={styles.metricTop}>
           <span className={styles.metricLabel}>{kpi.label}</span>
+          {/* [KA6-15] Every metric cell navigates — each carries a navPath and an onClick —
+              but none said so, so the whole band read as a stat wall with one clickable tile.
+              An affordance that is on every cell is consistent by construction; one that is
+              on some teaches the operator to guess. */}
+          <span className={styles.metricGo} aria-hidden="true"><Icons.ArrowRight /></span>
           <span className={`${styles.metricIcon} ${iconTint ?? ''}`}><KpiIcon /></span>
         </div>
         <div className={styles.metricValueRow}>
@@ -237,7 +252,8 @@ export const AdminDashboardPage: React.FC = () => {
         )}
         <div className={styles.metricSpark}>
           {!loading && sparks && sparks.length > 0 && (
-            <Sparkline data={sparks} up={isUp} height={30} color={isUp ? '#5BC08D' : '#EFA6A6'} />
+            <Sparkline data={sparks} up={isUp} height={30} color={isUp ? '#5BC08D' : '#EFA6A6'}
+              label={kpi.label} valueFormatter={kpi.format} />
           )}
         </div>
       </div>
@@ -249,6 +265,8 @@ export const AdminDashboardPage: React.FC = () => {
   // get the ActionInbox + workspace pointer, not an error banner.
   const hasDashData =
     hasCapability('orders:read') || hasCapability('reports:read') || hasCapability('customers:write');
+  // [KA9-2] Nothing on this page will render for such a session except the account card.
+  const hasNoCapabilities = getAdminCapabilities().length === 0;
 
   React.useEffect(() => {
     if (!hasDashData) {
@@ -273,7 +291,12 @@ export const AdminDashboardPage: React.FC = () => {
   }, [period, refreshTick, hasDashData]);
 
   return (
-    <div className={styles.page}>
+    /* [KA9-2] For a zero-capability session every band and section below is gated off, so
+       the dashboard rendered one card at the top of a full-width page and ~750px of nothing
+       — the only page the role can open, laid out as if the rest were merely missing. It is
+       not missing; there is nothing to show until a role is granted. Narrowing the page makes
+       the account card read as the page rather than as a fragment of a broken one. */
+    <div className={`${styles.page} ${hasNoCapabilities ? styles.pageBare : ''}`}>
       {apiError && (
         <div className={styles.errorBanner}>
           <strong>API Error:</strong> {apiError} — check browser console (F12 → Network) for details.
@@ -335,7 +358,9 @@ export const AdminDashboardPage: React.FC = () => {
             >
               <div className={styles.miniHead}>
                 <span className={styles.miniTitle}>QC Pass Rate</span>
-                <span className={styles.miniSub}>across hubs</span>
+                <span className={styles.miniSub}>
+                  {qc ? `${qc.measured} of ${qc.total} hubs` : 'across hubs'}
+                </span>
               </div>
               {/* [SHL-4-2] "—" and a reason, never a fabricated number. */}
               <div className={styles.miniValue}>{avgQc === null ? '—' : `${avgQc}%`}</div>
@@ -358,7 +383,7 @@ export const AdminDashboardPage: React.FC = () => {
               {/* P-5 (T3-8): AOV's own daily series (was mislabeled — it borrowed the GMV series). */}
               {!loading && data?.sparklines?.aov && data.sparklines.aov.length > 0 && (
                 <div className={styles.miniSpark}>
-                  <Sparkline data={data.sparklines.aov} up height={42} />
+                  <Sparkline data={data.sparklines.aov} up height={42} label="Avg. order value" valueFormatter={(v) => `₹${v.toLocaleString('en-IN')}`} />
                 </div>
               )}
             </div>
@@ -407,7 +432,7 @@ export const AdminDashboardPage: React.FC = () => {
                  case ("performance appears once matching designs sell", [KA3-11]);
                  this is that, applied here. */
               revenueDays > 1
-                ? <AreaTrendChart data={data!.revenue as unknown as Record<string, string | number>[]} xKey="label" dataKey="simplified" height={262} valueFormatter={fmtINRShort} seriesName="Revenue collected" />
+                ? <div className={styles.chartBox}><AreaTrendChart data={data!.revenue as unknown as Record<string, string | number>[]} xKey="label" dataKey="simplified" height={262} valueFormatter={fmtINRShort} seriesName="Revenue collected" yLabel="₹ collected" xLabel="Day" /></div>
                 : (
                   <div className={styles.emptyState}>
                     {revenueDays === 1

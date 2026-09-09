@@ -2,7 +2,7 @@ import React from 'react';
 import { money } from '../../utils/money'; // ACP-2 [KA11-2]
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { designsApi, R2_PUBLIC_URL } from '../../api/adminApi';
-import type { DesignDetail, DesignStatus } from '../../api/adminApi';
+import type { DesignDetail, DesignStatus, DesignVersionRow } from '../../api/adminApi';
 import DesignEditorModal from './DesignEditorPage';
 import CutSheetModal from './CutSheetPage';
 import { PageHeader, DetailShell, Tabs, StatusBadge } from '../../components';
@@ -20,8 +20,24 @@ import { UilAngleLeft, UilImage, UilEdit, UilPlus, UilFileAlt, UilCopy } from '@
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 // ACP-2 [KA11-2]: one money formatter (was a local copy).
 const inr = (v: string | number | null | undefined) => money(v);
+
+/**
+ * [DSG-9-6] One side of a change, as a reader can take in at a glance.
+ *
+ * `null` is rendered as an em dash rather than the word "null", and an object as compact
+ * JSON — a tech pack shown as [object Object] would make the history useless for exactly
+ * the field most likely to be argued about.
+ */
+const renderVal = (v: unknown): string => {
+  if (v === null || v === undefined) return '—';
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '(none)';
+  if (typeof v === 'object') return JSON.stringify(v);
+  if (v === '') return '(empty)';
+  return String(v);
+};
 // ACP-6 [KA11-6]: one date formatter for the admin.
-import { fmtDate } from '../../utils/date';
+import { fmtDate, fmtDateTime } from '../../utils/date';
+import { isDenied } from '../../components/EmptyState/asyncState';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 import { SafeImg } from '../../components/Image/SafeImg';
 
@@ -43,6 +59,10 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
   const [dupBusy, setDupBusy] = React.useState(false);
   const [pending, setPending] = React.useState<DesignStatus | null>(null);
   const [fitChart, setFitChart] = React.useState<Record<string, number | string>[]>([]);
+  // [DSG-9-6] The revision history. Three states, not two: a 403 means "you may not see
+  // this", which is not the same claim as "this design has never been edited".
+  const [versions, setVersions] = React.useState<DesignVersionRow[]>([]);
+  const [versionsState, setVersionsState] = React.useState<'loading' | 'ok' | 'denied' | 'failed'>('loading');
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const dismiss = (t: string) => setToasts((x) => x.filter((y) => y.id !== t));
   const toast = (type: ToastData['type'], title: string, msg?: string) =>
@@ -89,6 +109,26 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
       .catch(() => { if (!cancelled) setFitChart([]); });
     return () => { cancelled = true; };
   }, [design?.garment_category_id, design?.fit_preset]);
+
+  // [DSG-9-6] Revision history.
+  React.useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    setVersionsState('loading');
+    designsApi
+      .versions(id)
+      .then((rows) => {
+        if (cancelled) return;
+        setVersions(rows);
+        setVersionsState('ok');
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setVersions([]);
+        setVersionsState(isDenied(e) ? 'denied' : 'failed');
+      });
+    return () => { cancelled = true; };
+  }, [id]);
 
   // #3: clone this design into a fresh draft (a variant to tweak).
   const duplicate = async () => {
@@ -298,6 +338,79 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
     </table>
   );
 
+  // [DSG-9-6] What this design looked like before, and who moved it.
+  const historyTab = (() => {
+    if (versionsState === 'loading') return <p className={dd.empty}>Loading history…</p>;
+    if (versionsState === 'denied')
+      return <p className={dd.empty}>You do not have permission to see this design&rsquo;s history.</p>;
+    if (versionsState === 'failed')
+      return <p className={dd.empty}>The history could not be loaded. This is not the same as a design that has never been edited &mdash; try again.</p>;
+    if (versions.length === 0)
+      return (
+        <p className={dd.empty}>
+          No edits recorded yet. History starts at the first save after this design&rsquo;s
+          revision spine was added &mdash; a design nobody has edited is still exactly what
+          created it.
+        </p>
+      );
+    return (
+      <ol className={dd.history}>
+        {versions.map((v) => (
+          <li key={v.version} className={dd.historyItem}>
+            <div className={dd.historyHead}>
+              <span className={dd.historyVersion}>v{v.version}</span>
+              {v.source === 'baseline' && (
+                <span className={dd.historyTag} title="The state found when history began — not an edit.">
+                  baseline
+                </span>
+              )}
+              {v.source === 'restore' && <span className={dd.historyTag}>restored</span>}
+              {v.material && (
+                <span
+                  className={dd.historyMaterial}
+                  title="Touched tech-pack, fit, fabric, garment type or metreage — the fields that re-open sample review on a locked design."
+                >
+                  material
+                </span>
+              )}
+              <span className={dd.historyWho}>
+                {v.created_by ? v.created_by.name : 'system'} &middot; {fmtDateTime(v.created_at)}
+              </span>
+            </div>
+            {v.note && <p className={dd.historyNote}>{v.note}</p>}
+            {v.source === 'baseline' ? (
+              <p className={dd.historyEmpty}>The state this design was in when history began.</p>
+            ) : v.changed === 0 ? (
+              <p className={dd.historyEmpty}>Saved with no change to any recorded field.</p>
+            ) : (
+              <>
+                <table className={dd.table}>
+                  <thead>
+                    <tr><th>Field</th><th>Was</th><th>Became</th></tr>
+                  </thead>
+                  <tbody>
+                    {v.changes.map((c, i) => (
+                      <tr key={`${c.path}-${i}`}>
+                        <td>{c.path}</td>
+                        <td className={dd.historyFrom}>{renderVal(c.from)}</td>
+                        <td className={dd.historyTo}>{renderVal(c.to)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {v.truncated && (
+                  <p className={dd.historyEmpty}>
+                    Showing {v.changes.length} of {v.changed} changes.
+                  </p>
+                )}
+              </>
+            )}
+          </li>
+        ))}
+      </ol>
+    );
+  })();
+
   const listingsTab = design.listings.length === 0 ? (
     <div className={dd.empty}>Not listed at any hub yet. The catalog manager lists a reviewed sample.</div>
   ) : (
@@ -444,6 +557,11 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
               { id: 'samples', label: `Samples (${design.samples.length})`, content: samplesTab },
               { id: 'listings', label: `Listings (${design.listings.length})`, content: listingsTab },
               { id: 'fit', label: 'Fit', content: fitTab },
+              {
+                id: 'history',
+                label: versionsState === 'ok' ? `History (${versions.length})` : 'History',
+                content: historyTab,
+              },
             ]}
           />
         </section>

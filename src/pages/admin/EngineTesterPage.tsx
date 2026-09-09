@@ -292,9 +292,20 @@ export const EngineTesterPage: React.FC = () => {
               <span className={s.label}>Garment type</span>
               <select className={s.select} value={catId} onChange={(e) => setCatId(e.target.value)}>
                 <option value="">Select a garment…</option>
-                {cats.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
+                {/* [KA3-14] With most garment types carrying no fit recipe, picking one
+                    produced an empty fit list and no explanation — the select offered seven
+                    equal choices when only some can actually be tested. It says which. */}
+                {cats.map((c) => {
+                  const presets = c.calibrated_fit_presets != null
+                    ? c.calibrated_fit_presets
+                    : (c.available_fit_presets ?? []);
+                  const ready = presets.length > 0;
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {c.name}{ready ? '' : ' — no fit recipe yet'}
+                    </option>
+                  );
+                })}
               </select>
             </label>
             <label className={s.field}>
@@ -431,6 +442,19 @@ export const EngineTesterPage: React.FC = () => {
 
           {!region && cat && (
             <p className={s.warn}>"{cat.name}" has no body region set — set it in Garment Types first.</p>
+          )}
+
+          {/* [KA3-13] The whole form — Run included — sits inside `region &&`, so until a
+              garment was chosen the page's own empty state promised an action that was not
+              on screen anywhere. A control that does not exist cannot tell you why it is
+              unavailable; a disabled one can. */}
+          {!region && (
+            <div className={s.actions}>
+              <Button variant="primary" disabled>
+                <UilBolt size={16} /> Run engine
+              </Button>
+              <span className={s.hint}>Choose a garment type above to build a test body.</span>
+            </div>
           )}
 
           {bodies.length > 0 && (

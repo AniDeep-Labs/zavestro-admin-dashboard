@@ -123,3 +123,84 @@
 /* #4: standard size chart scroll wrapper on the detail page. */
 .chartScroll { overflow-x: auto; }
 .chartScroll table { white-space: nowrap; }
+
+/* [DSG-9-6] Revision history — the design's own "what moved, and who moved it". */
+.history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.historyItem {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.historyHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.historyVersion {
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.historyTag,
+.historyMaterial {
+  font-size: var(--font-size-xs);
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.historyTag {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+}
+
+/* A material edit is the one that re-opens sample review — it earns a colour. Same amber
+   idiom as the dashboard's KPI chips. */
+.historyMaterial {
+  background: rgba(228, 149, 42, 0.13);
+  color: var(--color-warning);
+}
+
+.historyWho {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.historyNote {
+  margin: 0 0 8px;
+  font-size: var(--font-size-sm);
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.historyEmpty {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* The old value is receding, the new one is current — the weight says which is which
+   without needing a legend. */
+.historyFrom {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.historyTo {
+  font-weight: var(--font-weight-medium);
+}

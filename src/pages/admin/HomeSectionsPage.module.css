@@ -59,3 +59,33 @@
 }
 .modalTitle { margin-top: 0; font-size: 18px; }
 .modalActions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+/* [KA5-10] A surface that saves real records but drives no customer-facing render.
+   Dimmed rather than disabled: the records are real and preparing them is the point, but
+   at full contrast the table looked like it was running the storefront. Opacity lifts on
+   interaction so nothing is hard to read while you are actually working in it. */
+.previewSurface {
+  opacity: 0.72;
+  transition: opacity var(--transition-fast);
+}
+.previewSurface:hover,
+.previewSurface:focus-within {
+  opacity: 1;
+}
+
+.previewNote {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-tertiary);
+  margin-bottom: 6px;
+}
+
+/* [KA5-12] The picker could not load its options, so what is shown is the stored value
+   rather than a verified choice. Saying so stops "(not found)" reading as "deleted". */
+.pickerWarn {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--font-size-xs);
+  color: var(--color-warning);
+}

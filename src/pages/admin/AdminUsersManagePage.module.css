@@ -148,7 +148,12 @@
 .tableWrap {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  /* [KA2-10] `overflow: hidden` (there for the rounded corners) CLIPS instead of scrolling,
+     so once the actions column got the width its buttons need, "Deactivate" was silently
+     cut off at 1280px — a destructive verb you cannot see and cannot reach. Scrolling on x
+     keeps every action reachable; y stays hidden so the corners still clip. */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .table {
@@ -206,16 +211,31 @@
   font-size: 13px;
 }
 
+/* [KA2-10] The three row verbs stacked VERTICALLY at every width, making each row 131px
+   tall — nine admins produced a table you had to scroll to see the shape of.
+   `.rowActions` was already `flex-wrap: wrap`; the cause was the column, not the flexbox:
+   the cell measured 186px while the buttons need 84 + 94 + 87 + gaps ≈ 281px, so every row
+   wrapped three times. Giving the column the width its own contents require is the fix;
+   nowrap then keeps them honest if a label ever grows. */
+.actionsCol {
+  /* No fixed min-width: `white-space: nowrap` alone makes the table's auto layout allocate
+     what the three buttons actually need, taking slack from the roomier columns (email, hub
+     scope) instead of forcing a horizontal scroll onto a destructive verb. */
+  white-space: nowrap;
+}
 .rowActions {
   display: flex;
   gap: 8px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
+/* [KA2-10] Tightened so all three verbs fit the column without a horizontal scroll —
+   putting a DESTRUCTIVE action behind a scroll is a worse outcome than the tall rows this
+   change set out to fix. 8px padding buys ~24px across the three. */
 .resetBtn {
   height: 30px;
-  padding: 0 12px;
+  padding: 0 8px;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-md);
   background: transparent;
@@ -231,7 +251,7 @@
 
 .deactivateBtn {
   height: 30px;
-  padding: 0 12px;
+  padding: 0 8px;
   border: 1.5px solid rgba(215, 91, 91, 0.3);
   border-radius: var(--radius-md);
   background: transparent;

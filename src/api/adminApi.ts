@@ -1947,6 +1947,11 @@ export interface HubSurgeRow {
   hub_name: string | null;
   wip_total: number;
   over_sla_total: number;
+  /** [SHL-5-10] What the WIP total is made of. `over_sla_total` counts orders only — an
+      alteration has no SLA row to breach — so without the split the two numbers look like
+      they describe the same population and do not. */
+  wip_orders?: number;
+  wip_alterations?: number;
   wip_threshold: number;
   sla_breach_threshold: number;
   is_surging: boolean;
@@ -2825,6 +2830,32 @@ export interface ListingExceptions {
   below_floor: ListingBelowFloorRow[];
 }
 
+/** [DSG-9-6] One named change between two versions of a design. */
+export interface DesignVersionChange {
+  path: string;
+  from: unknown;
+  to: unknown;
+}
+
+export interface DesignVersionRow {
+  version: number;
+  note: string | null;
+  source: 'save' | 'baseline' | 'restore';
+  /** The edit touched a material field (tech-pack, fit, fabric, category, metreage). */
+  material: boolean;
+  created_at: string;
+  /** null for the automatic baseline, or an author since deleted. */
+  created_by: { id: string; name: string } | null;
+  changed: number;
+  changes: DesignVersionChange[];
+  truncated: boolean;
+}
+
+export interface DesignVersionFull extends Omit<DesignVersionRow, 'changed' | 'changes' | 'truncated'> {
+  snapshot: Record<string, unknown>;
+  diff: { changes: DesignVersionChange[]; total: number; truncated: boolean };
+}
+
 export const designsApi = {
   list: async (
     params: {
@@ -2878,6 +2909,14 @@ export const designsApi = {
     req(
       `/api/admin/designs/garment-categories/${categoryId}/fit-chart?fit=${encodeURIComponent(fit)}`,
     ),
+
+  // [DSG-9-6] The design's revision history. Same shape as the garment-template spine's
+  // (DSG-11-9), deliberately — one renderer can read either.
+  versions: async (designId: string): Promise<DesignVersionRow[]> =>
+    req(`/api/admin/designs/${designId}/versions`),
+
+  version: async (designId: string, version: number): Promise<DesignVersionFull> =>
+    req(`/api/admin/designs/${designId}/versions/${version}`),
 
   createGarmentCategory: async (
     input: CreateGarmentCategoryInput,
@@ -3499,6 +3538,9 @@ export interface RefundEntry {
   customer_id?: string | null;
   // T3-7 (W-F3): "where's my money?" — the gateway refund ref + when it should land.
   razorpay_refund_id?: string | null;
+  /** [KA8-11] Who disbursed it. NULL when the system settled it (webhook / auto-refund job)
+      or the row predates the column — the UI distinguishes those from a blank. */
+  settled_by_name?: string | null;
   expected_settlement_at?: string | null; // initiated + N business days (in-flight only)
   settlement_business_days?: number;
 }
@@ -3656,13 +3698,27 @@ export interface CreditRequest {
   customer_ref: string | null;
   requested_by_name: string | null;
   reviewed_by_name: string | null;
+  /** [KA8-9] The two numbers the automatic cap enforces on, so finance sees what the
+      machine would have said rather than deciding blind. */
+  wallet_balance?: number;
+  goodwill_in_window?: number;
 }
 export const creditApprovalsApi = {
-  list: async (status = "pending"): Promise<CreditRequest[]> => {
-    const r = await req<{ requests: CreditRequest[] }>(
-      `/api/admin/credit-requests?status=${encodeURIComponent(status)}`,
-    );
-    return r?.requests ?? [];
+  /** [KA8-9] Also returns the cap the automatic path enforces, so the page can say when an
+      approval would cross it — before the click rather than after. */
+  list: async (
+    status = "pending",
+  ): Promise<{ requests: CreditRequest[]; windowDays: number | null; cap: number | null }> => {
+    const r = await req<{
+      requests: CreditRequest[];
+      goodwill_window_days?: number;
+      goodwill_customer_cap?: number;
+    }>(`/api/admin/credit-requests?status=${encodeURIComponent(status)}`);
+    return {
+      requests: r?.requests ?? [],
+      windowDays: r?.goodwill_window_days ?? null,
+      cap: r?.goodwill_customer_cap ?? null,
+    };
   },
   approve: async (id: string, note?: string): Promise<{ message: string }> =>
     req(`/api/admin/credit-requests/${id}/approve`, {
@@ -4219,6 +4275,9 @@ export interface FabricStockRow {
   // [PRC-17-6] Held by QC — arrived, paid for, on the shelf, not available. The query did
   // not select it, so no cross-hub surface could show it.
   quarantine_meters?: string | number | null;
+  /** [CM-19-9] Pushed from the warehouse, not yet received AT THIS HUB. Hub-scoped, unlike
+      the fabrics-master rollup which sums every hub. */
+  in_transit_meters?: string | number | null;
   // [CM-19-4] Whether this shelf position has reached its reorder point, decided ONCE on
   // the server. Three surfaces used to derive it independently — the CM's page with `<=`,
   // the procurement grid with `<`, the fabrics master via low_somewhere — so a fabric
@@ -4612,9 +4671,26 @@ export interface ListingPreflight {
   can_publish: boolean;
 }
 
+export interface CmListingsPage {
+  listings: CmListing[];
+  /** Every listing in scope, not just the page. */
+  total: number;
+  /** Inactive listings in scope — the Drafts chip, correct regardless of the cap. */
+  drafts: number;
+  /** The page is a subset; the UI must say so rather than ending silently. */
+  truncated: boolean;
+}
+
 export const cmListingsApi = {
-  list: async (): Promise<CmListing[]> =>
-    req<CmListing[]>(`/api/admin/listings`),
+  /**
+   * [CM-18-9] Bounded, with the counts computed server-side.
+   *
+   * The page's chips used to count the loaded array, which was every listing in the hub. Now
+   * the list is capped, so counting it would be quietly WRONG rather than merely slow — the
+   * counts come from the server, over every row in scope.
+   */
+  list: async (): Promise<CmListingsPage> =>
+    req<CmListingsPage>(`/api/admin/listings`),
   preflight: async (p: {
     design_id: string;
     fabric_id: string;
@@ -4830,20 +4906,70 @@ export const serviceAreasApi = {
 
 // ─── Admin Auth Extended ──────────────────────────────────────────────────────
 
+export interface AdminMe {
+  id: string;
+  role: string;
+  hubId?: string | null;
+  capabilities: string[];
+  // Own-profile fields (best-effort server-side; may be null on older backends)
+  email?: string | null;
+  name?: string | null;
+  isActive?: boolean | null;
+  lastLoginAt?: string | null;
+  hasSecurityQuestion?: boolean | null;
+}
+
+/**
+ * [SHL-2-14] One page load fired `/auth/me` up to five times: AdminLayout, AdminProfilePage,
+ * AdminLoginPage, RestockQueuePage and ListingRequestsPage each ask independently, and they
+ * mount together.
+ *
+ * This COALESCES calls that are in flight at the same moment — it does NOT cache the answer.
+ * That distinction is the whole design. [SHL-2-11] exists because a stale identity had already
+ * caused a real bug: the profile page read role from a localStorage blob written once at login,
+ * so a super_admin demoted that morning still read as super_admin. A time-based cache here
+ * would reintroduce exactly that, one layer lower and harder to see.
+ *
+ * So: components mounting together share one request, and a later navigation re-asks the server
+ * and gets the truth. The promise is released as soon as it settles, successes and failures
+ * alike, so a retry after a failure is a real retry.
+ */
+let meInFlight: Promise<AdminMe> | null = null;
+// A generation counter, so the settle handler can ask "am I still the current request?"
+// without referring to the promise it is attached to. Comparing against the promise itself
+// would mean reading `p` inside its own initializer — legal, since the handlers run later,
+// but a use-before-define that static analysis rightly objects to.
+let meGeneration = 0;
+
 export const adminAuthExtApi = {
   /** Current admin identity + capabilities (drives role-based UI gating). */
-  me: async (): Promise<{
-    id: string;
-    role: string;
-    hubId?: string | null;
-    capabilities: string[];
-    // Own-profile fields (best-effort server-side; may be null on older backends)
-    email?: string | null;
-    name?: string | null;
-    isActive?: boolean | null;
-    lastLoginAt?: string | null;
-    hasSecurityQuestion?: boolean | null;
-  }> => req("/api/admin/auth/me"),
+  me: (): Promise<AdminMe> => {
+    if (meInFlight) return meInFlight;
+    // The release is attached to the REQUEST, and what callers receive is the promise
+    // derived from it. That ordering is load-bearing: a `.finally()` hung off the promise
+    // handed to callers clears one or two microtasks LATE, so a caller that re-asks
+    // immediately after its own `await` gets the settled answer back instead of a fresh
+    // request — a cache, which is the one thing this must not be ([SHL-2-11]).
+    // Registering the clear first makes it run before any caller's handler, always.
+    const mine = ++meGeneration;
+    const release = () => {
+      if (meGeneration === mine) meInFlight = null;
+    };
+    const p = (req("/api/admin/auth/me") as Promise<AdminMe>).then(
+      (v) => {
+        release();
+        return v;
+      },
+      (e) => {
+        // Released on failure too, or one failure would pin the rejected promise and
+        // every later caller would replay it instead of retrying.
+        release();
+        throw e;
+      },
+    );
+    meInFlight = p;
+    return p;
+  },
 
   setupSecurityQuestion: async (
     question: string,
@@ -5494,6 +5620,11 @@ export type BrandSummary = {
   slug: string;
   is_house_brand: boolean;
   status: string;
+  /**
+   * [FIN-36-5] Present ONLY for a `finance:read` caller — the picker is deliberately
+   * money-free for the catalog/reports roles it was widened to serve ([CM-20-1]).
+   */
+  ledger_balance?: number;
 };
 export type BrandLedgerEntry = {
   id: string;

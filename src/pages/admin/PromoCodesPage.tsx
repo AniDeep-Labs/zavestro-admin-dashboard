@@ -83,6 +83,8 @@ function PromoForm({
 
 export const PromoCodesPage: React.FC = () => {
   const [promos, setPromos] = React.useState<PromoCode[]>([]);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [query, setQuery] = React.useState('');
   const [loading, setLoading] = React.useState(true);
   const [showCreateModal, setShowCreateModal] = React.useState(false);
   const [editingPromo, setEditingPromo] = React.useState<PromoCode | null>(null);
@@ -97,7 +99,13 @@ export const PromoCodesPage: React.FC = () => {
     setToasts(t => [...t, createToast(type, title, message)]);
 
   React.useEffect(() => {
-    promosApi.list().then(r => setPromos(r.promos)).catch(() => {}).finally(() => setLoading(false));
+    promosApi
+      .list()
+      .then((r) => { setPromos(r.promos); setLoadError(null); })
+      // Not swallowed: an empty table and a failed request are different facts, and this
+      // rendered them identically — "no promo codes" for "we could not ask".
+      .catch((e) => setLoadError(e instanceof Error ? e.message : 'Could not load promo codes.'))
+      .finally(() => setLoading(false));
   }, []);
 
   // T1-25: guard the value bounds client-side (backend zod enforces the same — percent ≤ 100,
@@ -198,8 +206,26 @@ export const PromoCodesPage: React.FC = () => {
         <button className={styles.addBtn} onClick={() => setShowCreateModal(true)}><UilPlus size={15}/> Create Promo Code</button>
       </div>
 
+      {/* [KA6-4] Four rows today, but every row is identified by an opaque string, and at
+          fifty codes there is no way to find one. Only rendered once there is enough to
+          search — a filter over four rows is furniture. */}
+      {!loading && !loadError && promos.length > 8 && (
+        <input
+          className={styles.searchInput}
+          placeholder="Search codes…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search promo codes"
+        />
+      )}
+
       {loading ? (
         <div className={styles.card} style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-tertiary)' }}>Loading…</div>
+      ) : loadError ? (
+        /* An empty table and a failed request are different facts. */
+        <div className={styles.card} style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <p style={{ color: 'var(--color-error)', fontSize: '0.875rem' }}>{loadError}</p>
+        </div>
       ) : promos.length === 0 ? (
         <div className={styles.card} style={{ textAlign: 'center', padding: '48px 24px' }}>
           <UilChartBar size={36} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
@@ -212,7 +238,9 @@ export const PromoCodesPage: React.FC = () => {
               <tr><th>Code</th><th>Type</th><th>Value</th><th>Min Order</th><th>Uses</th><th>Spend</th><th>Expiry</th><th>Status</th><th>Actions</th></tr>
             </thead>
             <tbody>
-              {promos.map(p => {
+              {promos
+                .filter((p) => !query.trim() || p.code.toLowerCase().includes(query.trim().toLowerCase()))
+                .map(p => {
                 const expired = isExpired(p);
                 return (
                   <tr key={p.id}>
@@ -220,7 +248,12 @@ export const PromoCodesPage: React.FC = () => {
                       <strong style={{ fontFamily: 'monospace', letterSpacing: 1 }}>{p.code}</strong>
                     </td>
                     <td>{p.discount_type === 'percent' ? 'Percentage' : 'Flat (₹)'}</td>
-                    <td>{p.discount_type === 'percent' ? `${p.discount_value}%` : `₹${p.discount_value}`}</td>
+                    {/* [KA6-5] `10.00%` — two decimals on a percentage that is always whole,
+                        beside ₹200.00 where two decimals are right. One policy per unit type:
+                        a percentage drops trailing zeros, money keeps them. */}
+                    <td>{p.discount_type === 'percent'
+                      ? `${Number(p.discount_value)}%`
+                      : `₹${Number(p.discount_value).toLocaleString('en-IN')}`}</td>
                     <td>{p.min_order_amount > 0 ? `₹${p.min_order_amount}` : '—'}</td>
                     {/* [PM-26-4] The cap is enforced against `uses`; this cell rendered
                         `usage_count`, which is net of cancelled and refunded orders. Both
@@ -247,13 +280,32 @@ export const PromoCodesPage: React.FC = () => {
                             avg ₹{Math.round((p.total_spend ?? 0) / (p.usage_count ?? 1)).toLocaleString('en-IN')}
                           </div>
                         </>
-                      ) : '—'}
+                      ) : (
+                        /* [KA6-1] A permanently blank money column is worse than no column:
+                           it implies the number exists and is zero. It is neither — nobody
+                           has redeemed this code, so there is no spend to report yet. */
+                        <span className={styles.avgSpend}>not redeemed yet</span>
+                      )}
                     </td>
                     <td>
                       {p.valid_until ? (
-                        <span style={{ color: expired ? 'var(--color-error, #D75B5B)' : 'inherit' }}>
+                        /* [KA6-2] An already-expired code carried three redundant signals
+                           (red date + red pill + the Status column) while the ACTIVE codes —
+                           the ones a decision turns on — showed a bare date with no sense of
+                           how long is left. The dead case is stated once; the live case gets
+                           the fact that matters. */
+                        <span className={expired ? styles.expiredDate : undefined}>
                           {new Date(p.valid_until).toLocaleDateString('en-IN')}
-                          {expired && <span style={{ marginLeft: 6, fontSize: 11, background: '#D75B5B22', color: '#D75B5B', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Expired</span>}
+                          {!expired && (() => {
+                            const days = Math.ceil(
+                              (new Date(p.valid_until).getTime() - Date.now()) / 86400000,
+                            );
+                            return (
+                              <div className={days <= 7 ? styles.expirySoon : styles.avgSpend}>
+                                {days <= 0 ? 'expires today' : days === 1 ? 'expires tomorrow' : `expires in ${days} days`}
+                              </div>
+                            );
+                          })()}
                         </span>
                       ) : '—'}
                     </td>

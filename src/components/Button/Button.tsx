@@ -2,7 +2,13 @@ import React from 'react';
 import styles from './Button.module.css';
 
 export interface ButtonProps {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  /**
+   * `ghost-danger` [KA4-5]: a destructive verb that has to sit inline beside a primary one.
+   * Transparent like `ghost` so it does not shout in a table row, but in the error colour so
+   * it cannot be mistaken for the primary act. `danger` is a filled button and is far too
+   * heavy for a row action — using it here would make Cancel louder than Receive.
+   */
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'ghost-danger' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   state?: 'default' | 'loading' | 'disabled';
   icon?: React.ReactNode;

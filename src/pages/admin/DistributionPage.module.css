@@ -90,3 +90,25 @@
   font-size: 11px;
   color: var(--color-text-secondary);
 }
+
+/* [KA4-6] "Receive…" was clipped inside its own column. A verb the operator must trust
+   should never be abbreviated by layout, and the ellipsis in this label is meaningful — it
+   promises a dialog follows — so losing it to truncation also loses that promise. */
+.rowVerb {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* [KA4-8] Numeric columns right-align with tabular figures, matching Central Stock — the
+   audit's own example of the admin's best numeric table. Comparing quantities down a column
+   is the whole reason this table exists. */
+.numCol { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* [KA4-10] The message an empty section collapses to, in place of a table of column names
+   describing rows that do not exist. */
+.sectionEmpty {
+  margin: 0;
+  padding: 18px 2px;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}

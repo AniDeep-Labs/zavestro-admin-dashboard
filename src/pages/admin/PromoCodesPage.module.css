@@ -42,3 +42,30 @@
 .fieldLabel { font-size: 13px; font-weight: var(--font-weight-medium); color: var(--color-text-secondary); }
 .fieldInput, .fieldSelect { height: 40px; padding: 0 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; width: 100%; box-sizing: border-box; }
 .fieldInput:focus, .fieldSelect:focus { border-color: var(--color-primary); }
+
+/* [KA6-4] Only shown once the list is long enough to need it. */
+.searchInput {
+  width: 100%;
+  max-width: 320px;
+  height: 38px;
+  padding: 0 12px;
+  margin-bottom: var(--spacing-md);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  outline: none;
+}
+.searchInput:focus { border-color: var(--color-primary); }
+
+/* [KA6-2] The dead case, stated once — the Status column already says "Expired". */
+.expiredDate { color: var(--color-error); }
+
+/* The live case that a decision actually turns on. */
+.expirySoon {
+  font-size: var(--font-size-xs);
+  color: var(--color-warning);
+  font-weight: var(--font-weight-semibold);
+}

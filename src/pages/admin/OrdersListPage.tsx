@@ -123,6 +123,8 @@ export const OrdersListPage: React.FC = () => {
   const page = Math.max(1, Number(sp.get('page')) || 1);
   // T2-17: the stuck view is an exception inbox — default to what needs an owner (Unclaimed).
   const isStuck = view === 'stuck';
+  // [KA7-4] Does the active view already pin a stage? If so the select below cannot win.
+  const viewPinsStage = !!(VIEWS.find(v => v.key === view)?.params as { stage?: string } | undefined)?.stage;
   const ownerFilter = (isStuck ? (sp.get('owner') ?? 'unowned') : 'all') as 'unowned' | 'mine' | 'all';
   // T2-33 (F-4): the Finance P&L / settlement drill-down lands here with a hub + date window.
   const hubIdFilter = sp.get('hub_id') ?? '';
@@ -353,10 +355,28 @@ export const OrdersListPage: React.FC = () => {
           <input className={styles.searchInput} placeholder="Search order ID, customer or phone…"
             value={search} onChange={e => setParam('search', e.target.value)} />
         </div>
-        <select className={styles.filterSelect} value={stageFilter} onChange={e => setParam('stage', e.target.value)}>
+        {/* [KA7-4] Two filter systems that never said how they compose — and the truth was
+            worse than "unstated": `queryParams` spreads the view's params AFTER `stage`, so a
+            view that pins a stage silently OVERRIDES this select. Choosing a stage under
+            "Awaiting measurement" did nothing, with no indication which one had won.
+            Rather than change the precedence (the view IS the stronger intent — it is what
+            the operator clicked most recently at the top of the page), the control now says
+            so and stops accepting input it would discard. */}
+        <select
+          className={styles.filterSelect}
+          value={viewPinsStage ? (VIEWS.find(v => v.key === view)?.params as { stage?: string })?.stage ?? '' : stageFilter}
+          disabled={viewPinsStage}
+          title={viewPinsStage ? `The "${VIEWS.find(v => v.key === view)?.label}" view already fixes the stage. Switch to All to choose a different one.` : undefined}
+          onChange={e => setParam('stage', e.target.value)}
+        >
           <option value="">All Stages</option>
           {FILTER_STAGES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
         </select>
+        {viewPinsStage && (
+          <span className={styles.filterNote}>
+            stage set by the “{VIEWS.find(v => v.key === view)?.label}” view
+          </span>
+        )}
         {hasFilters && (
           <button className={styles.clearBtn} onClick={clearAll}><UilTimes size={14} /> Clear</button>
         )}
@@ -365,7 +385,13 @@ export const OrdersListPage: React.FC = () => {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead><tr>
-            <th>Ref</th><th>Order ID</th><th>Customer</th><th>Products</th>
+            {/* [KA7-3] REF and ORDER ID render identically on some rows and differently on
+                others, both in mono, adjacent — and nothing said which one the customer will
+                quote. The detail page solves this with a title plus a small chip; the list
+                cannot, so the headers carry it: REF is what the customer sees. */}
+            <th title="The reference the customer sees and will quote to support.">Ref <span className={styles.thHint}>customer-facing</span></th>
+            <th title="Our internal order number.">Order ID <span className={styles.thHint}>internal</span></th>
+            <th>Customer</th><th>Products</th>
             <th>Stage</th>
             {/* [KA7-1] "Age" measured NOW − updated_at while DATE showed created_at,
                 so the table read "4h" beside an order created 28/7 and "8d" beside
@@ -411,9 +437,16 @@ export const OrdersListPage: React.FC = () => {
                 <td>{o.reference_id ? <CopyId value={o.reference_id} /> : '—'}</td>
                 <td className={styles.orderId}>{o.id}</td>
                 <td><ContactCell order={o} /></td>
+                {/* [KA7-5] An order with no products rendered an EMPTY cell in a table that
+                    uses an em dash for absence in every other column — so "no products" and
+                    "this column is broken" looked the same. */}
                 <td className={styles.products}>
-                  {o.products?.slice(0,2).join(', ')}
-                  {(o.products?.length ?? 0) > 2 ? ` +${o.products.length - 2}` : ''}
+                  {(o.products?.length ?? 0) === 0 ? '—' : (
+                    <>
+                      {o.products.slice(0, 2).join(', ')}
+                      {o.products.length > 2 ? ` +${o.products.length - 2}` : ''}
+                    </>
+                  )}
                 </td>
                 <td><StatusBadge status={o.stage} /></td>
                 <td><AgeCell since={o.entered_stage_at ?? o.updated_at} /></td>
