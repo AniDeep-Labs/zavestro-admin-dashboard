@@ -1,0 +1,21 @@
+/* [KA4-15] The header button. Inherits the <th>'s own typography so a sortable column looks
+   like a column header, not like a control bolted onto one — the affordance is the arrow,
+   not a change of type. */
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+.sortBtn:hover { color: var(--color-primary); }
+
+/* The idle ↕ is muted so only the ACTIVE column's arrow reads as state; every other column
+   is merely offering. */
+.idle { opacity: 0.35; }

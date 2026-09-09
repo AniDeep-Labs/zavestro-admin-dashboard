@@ -57,11 +57,32 @@ export function fmtINRShort(v: number): string {
 }
 
 // ─── Sparkline — tiny gradient area chart for KPI cards ────────────────────────
-export function Sparkline({ data, up = true, height = 38, color }: { data: number[]; up?: boolean; height?: number; color?: string }) {
+export function Sparkline({
+  data, up = true, height = 38, color, label, valueFormatter,
+}: {
+  data: number[]; up?: boolean; height?: number; color?: string;
+  /**
+   * [KA9-11] What the curve measures. A sparkline is allowed to have no axis — that IS the
+   * form — but it is not allowed to say nothing: with no label, no scale and no hover these
+   * read as decoration, and GMV's and Total Orders' curves being the same shape (the same
+   * event counted twice) made that literal. A tooltip gives the value on hover; the range
+   * below gives the scale without spending pixels on an axis; the label says what it is.
+   */
+  label?: string;
+  valueFormatter?: (v: number) => string;
+}) {
   const c = useChartColors();
   const id = useId().replace(/:/g, '');
   const stroke = color ?? (up ? c.primary : c.error);
   const series = data.map((v, i) => ({ i, v }));
+  const fmt = valueFormatter ?? ((v: number) => String(v));
+  const lo = data.length ? Math.min(...data) : 0;
+  const hi = data.length ? Math.max(...data) : 0;
+  // The one string that turns a decorative curve into a readable one, for a screen reader
+  // and for a hover, without adding an axis to a 38px-tall graphic.
+  const summary = data.length
+    ? `${label ? `${label}: ` : ''}${data.length} points, ${fmt(lo)} to ${fmt(hi)}`
+    : `${label ?? 'No data'}`;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={series} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
@@ -71,10 +92,16 @@ export function Sparkline({ data, up = true, height = 38, color }: { data: numbe
             <stop offset="100%" stopColor={stroke} stopOpacity={0} />
           </linearGradient>
         </defs>
+        <Tooltip
+          cursor={false}
+          contentStyle={{ background: c.card, border: `1px solid ${c.grid}`, borderRadius: 8, fontSize: 11, padding: '4px 8px' }}
+          labelFormatter={() => summary}
+          formatter={(v: number | string) => [fmt(Number(v)), label ?? 'Value']}
+        />
         <Area
           type="monotone" dataKey="v" stroke={stroke} strokeWidth={1.8}
           fill={`url(#spark-${id})`} isAnimationActive animationDuration={900}
-          dot={false} activeDot={false}
+          dot={false} activeDot={{ r: 2.5, fill: stroke }}
         />
       </AreaChart>
     </ResponsiveContainer>
@@ -85,11 +112,21 @@ export function Sparkline({ data, up = true, height = 38, color }: { data: numbe
 type AreaPoint = Record<string, string | number>;
 export function AreaTrendChart({
   data, xKey, dataKey, height = 260, valueFormatter, color, seriesName = 'Value',
+  yLabel, xLabel,
 }: {
   data: AreaPoint[]; xKey: string; dataKey: string; height?: number;
   valueFormatter?: (v: number) => string; color?: string;
   /** [KA8-18] What the number IS. Passing '' left the tooltip with a blank line. */
   seriesName?: string;
+  /**
+   * [KA6-13] Axis titles. The Y axis carried ₹ units on its ticks and no label; the X had
+   * neither. Defensible under a card already titled "Revenue Trend" — which is why these are
+   * OPTIONAL rather than forced on every chart — but the axes become semantic the moment the
+   * series is exported, and a reader who scrolled past the card title has nothing to anchor
+   * the numbers to.
+   */
+  yLabel?: string;
+  xLabel?: string;
 }) {
   const c = useChartColors();
   const id = useId().replace(/:/g, '');
@@ -97,7 +134,7 @@ export function AreaTrendChart({
   const fmt = valueFormatter ?? ((v: number) => String(v));
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: xLabel ? 6 : 0, left: 0 }}>
         <defs>
           <linearGradient id={`area-${id}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={stroke} stopOpacity={0.22} />
@@ -108,10 +145,13 @@ export function AreaTrendChart({
         <XAxis
           dataKey={xKey} tick={{ fill: c.axis, fontSize: 11 }} tickLine={false}
           axisLine={{ stroke: c.grid }} minTickGap={24} dy={4}
+          height={xLabel ? 40 : undefined}
+          label={xLabel ? { value: xLabel, position: 'insideBottom', offset: -2, fill: c.axis, fontSize: 11 } : undefined}
         />
         <YAxis
           tick={{ fill: c.axis, fontSize: 11 }} tickLine={false} axisLine={false}
-          width={48} tickFormatter={(v) => fmt(Number(v))}
+          width={yLabel ? 62 : 48} tickFormatter={(v) => fmt(Number(v))}
+          label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', fill: c.axis, fontSize: 11, style: { textAnchor: 'middle' } } : undefined}
         />
         <Tooltip
           cursor={{ stroke: c.axis, strokeDasharray: '3 3' }}

@@ -1947,6 +1947,11 @@ export interface HubSurgeRow {
   hub_name: string | null;
   wip_total: number;
   over_sla_total: number;
+  /** [SHL-5-10] What the WIP total is made of. `over_sla_total` counts orders only — an
+      alteration has no SLA row to breach — so without the split the two numbers look like
+      they describe the same population and do not. */
+  wip_orders?: number;
+  wip_alterations?: number;
   wip_threshold: number;
   sla_breach_threshold: number;
   is_surging: boolean;
@@ -3499,6 +3504,9 @@ export interface RefundEntry {
   customer_id?: string | null;
   // T3-7 (W-F3): "where's my money?" — the gateway refund ref + when it should land.
   razorpay_refund_id?: string | null;
+  /** [KA8-11] Who disbursed it. NULL when the system settled it (webhook / auto-refund job)
+      or the row predates the column — the UI distinguishes those from a blank. */
+  settled_by_name?: string | null;
   expected_settlement_at?: string | null; // initiated + N business days (in-flight only)
   settlement_business_days?: number;
 }
@@ -3656,13 +3664,27 @@ export interface CreditRequest {
   customer_ref: string | null;
   requested_by_name: string | null;
   reviewed_by_name: string | null;
+  /** [KA8-9] The two numbers the automatic cap enforces on, so finance sees what the
+      machine would have said rather than deciding blind. */
+  wallet_balance?: number;
+  goodwill_in_window?: number;
 }
 export const creditApprovalsApi = {
-  list: async (status = "pending"): Promise<CreditRequest[]> => {
-    const r = await req<{ requests: CreditRequest[] }>(
-      `/api/admin/credit-requests?status=${encodeURIComponent(status)}`,
-    );
-    return r?.requests ?? [];
+  /** [KA8-9] Also returns the cap the automatic path enforces, so the page can say when an
+      approval would cross it — before the click rather than after. */
+  list: async (
+    status = "pending",
+  ): Promise<{ requests: CreditRequest[]; windowDays: number | null; cap: number | null }> => {
+    const r = await req<{
+      requests: CreditRequest[];
+      goodwill_window_days?: number;
+      goodwill_customer_cap?: number;
+    }>(`/api/admin/credit-requests?status=${encodeURIComponent(status)}`);
+    return {
+      requests: r?.requests ?? [],
+      windowDays: r?.goodwill_window_days ?? null,
+      cap: r?.goodwill_customer_cap ?? null,
+    };
   },
   approve: async (id: string, note?: string): Promise<{ message: string }> =>
     req(`/api/admin/credit-requests/${id}/approve`, {
@@ -4219,6 +4241,9 @@ export interface FabricStockRow {
   // [PRC-17-6] Held by QC — arrived, paid for, on the shelf, not available. The query did
   // not select it, so no cross-hub surface could show it.
   quarantine_meters?: string | number | null;
+  /** [CM-19-9] Pushed from the warehouse, not yet received AT THIS HUB. Hub-scoped, unlike
+      the fabrics-master rollup which sums every hub. */
+  in_transit_meters?: string | number | null;
   // [CM-19-4] Whether this shelf position has reached its reorder point, decided ONCE on
   // the server. Three surfaces used to derive it independently — the CM's page with `<=`,
   // the procurement grid with `<`, the fabrics master via low_somewhere — so a fabric
@@ -4612,9 +4637,26 @@ export interface ListingPreflight {
   can_publish: boolean;
 }
 
+export interface CmListingsPage {
+  listings: CmListing[];
+  /** Every listing in scope, not just the page. */
+  total: number;
+  /** Inactive listings in scope — the Drafts chip, correct regardless of the cap. */
+  drafts: number;
+  /** The page is a subset; the UI must say so rather than ending silently. */
+  truncated: boolean;
+}
+
 export const cmListingsApi = {
-  list: async (): Promise<CmListing[]> =>
-    req<CmListing[]>(`/api/admin/listings`),
+  /**
+   * [CM-18-9] Bounded, with the counts computed server-side.
+   *
+   * The page's chips used to count the loaded array, which was every listing in the hub. Now
+   * the list is capped, so counting it would be quietly WRONG rather than merely slow — the
+   * counts come from the server, over every row in scope.
+   */
+  list: async (): Promise<CmListingsPage> =>
+    req<CmListingsPage>(`/api/admin/listings`),
   preflight: async (p: {
     design_id: string;
     fabric_id: string;

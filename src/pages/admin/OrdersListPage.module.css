@@ -366,3 +366,29 @@
 }
 .revealBtn:hover:not(:disabled) { color: var(--color-text-primary); background: var(--color-bg-secondary); }
 .revealBtn:disabled { opacity: 0.6; cursor: default; }
+
+/* [KA7-3] Which of the two adjacent mono identifiers the customer actually quotes. */
+.thHint {
+  display: block;
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-tertiary);
+}
+
+/* [KA7-4] Which control won, when two of them address the same field. */
+.filterNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  align-self: center;
+}
+
+/* [SHL-6-7] A page-level subtitle for pages that still hand-roll their header (the
+   PageHeader migration is ratcheted, not done — see check-page-header.mjs). */
+.pageSubtitle {
+  margin: 4px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 68ch;
+}

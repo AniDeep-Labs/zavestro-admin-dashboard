@@ -25,6 +25,9 @@ const fmtINR = (n: number | null | undefined) => money(n);
 export const CreditApprovalsPage: React.FC = () => {
   const [status, setStatus] = React.useState("pending");
   const [allRows, setAllRows] = React.useState<CreditRequest[]>([]);
+  // [KA8-9] The cap the automatic path enforces, so an approval that would cross it says so.
+  const [cap, setCap] = React.useState<number | null>(null);
+  const [windowDays, setWindowDays] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   const [tick, setTick] = React.useState(0);
@@ -40,7 +43,7 @@ export const CreditApprovalsPage: React.FC = () => {
     setLoading(true);
     creditApprovalsApi
       .list("") // all statuses → KPIs + client-side filter
-      .then(setAllRows)
+      .then((r) => { setAllRows(r.requests); setCap(r.cap); setWindowDays(r.windowDays); })
       .catch((e) => toast("error", "Failed to load", e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [tick]);
@@ -132,7 +135,13 @@ export const CreditApprovalsPage: React.FC = () => {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Customer</th><th className="moneyCell">Amount</th><th>Reason</th><th>Requested by</th><th>Age</th><th>Status</th>
+                <th>Customer</th><th className="moneyCell">Amount</th>
+                {/* [KA8-9] The approver saw the amount and the reason but not what the
+                    customer already holds, nor what they have already been given — the exact
+                    context [SUP-30-1] showed is unguarded. Same two numbers the automatic cap
+                    enforces on, so this is what the machine would have said. */}
+                <th className="moneyCell">Wallet now</th><th className="moneyCell">Goodwill already</th>
+                <th>Reason</th><th>Requested by</th><th>Age</th><th>Status</th>
                 {status === "pending" && <th />}
               </tr>
             </thead>
@@ -144,6 +153,20 @@ export const CreditApprovalsPage: React.FC = () => {
                     <div className={d.sub}>{r.customer_ref ?? r.customer_phone}</div>
                   </td>
                   <td className={`moneyCell ${d.amount}`}>{fmtINR(r.amount)}</td>
+                  <td className="moneyCell">
+                    {r.wallet_balance == null ? '—' : fmtINR(r.wallet_balance)}
+                  </td>
+                  <td className="moneyCell">
+                    {r.goodwill_in_window == null ? '—' : fmtINR(r.goodwill_in_window)}
+                    {/* The approval is what would push them over the cap the automatic path
+                        enforces — said before the click, not discovered after it. */}
+                    {r.goodwill_in_window != null && cap != null &&
+                      r.goodwill_in_window + r.amount > cap && (
+                        <div className={d.overCap}>
+                          over the {fmtINR(cap)} / {windowDays}-day cap
+                        </div>
+                      )}
+                  </td>
                   <td className={d.reason}>{r.reason}</td>
                   <td className={d.sub}>{r.requested_by_name ?? "—"}</td>
                   <td><AgeCell since={r.created_at} warnAfterH={24} alertAfterH={72} /></td>

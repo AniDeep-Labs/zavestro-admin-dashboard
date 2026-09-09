@@ -1,6 +1,11 @@
+/* [KA3-15] `1fr` let three cards holding one number each stretch to ~500px apiece on a wide
+   screen — the low-density card system flagged in [KA2-4]. A KPI card only ever holds a
+   label and a figure, so it has a natural maximum; past that it is just a large empty box
+   with a number in the corner. */
 .kpiRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 260px));
+  justify-content: start;
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
 }

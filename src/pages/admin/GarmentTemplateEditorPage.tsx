@@ -911,9 +911,17 @@ export const GarmentTemplateEditorPage: React.FC = () => {
           {tpl.name} <span className={s.sub}>· fit recipe</span>
           {/* Name the BLOCK, not just the region: "upper body" is true of both the men's and
               the women's block, and they draft differently. [DSG-11-7] */}
+            {/* [KA3-7] This read "Upper Body · locked" while every control below it was
+                editable and Save was enabled, so "locked" looked like a state the template
+                was in — and none of it was locked. What is fixed is the DRAFTING BLOCK: it
+                follows from the garment's body region and cannot be chosen here. Naming the
+                thing that is fixed removes the implication that the template is. */}
           {tpl.body_region && (
-            <span className={s.regionChip} title={DRAFTING_BLOCK_HINTS[blockOf(tpl)]}>
-              {DRAFTING_BLOCK_LABELS[blockOf(tpl)]} · locked
+            <span
+              className={s.regionChip}
+              title={`${DRAFTING_BLOCK_HINTS[blockOf(tpl)]} The block follows from this garment type's body region and cannot be changed here; everything else on this page is editable.`}
+            >
+              {DRAFTING_BLOCK_LABELS[blockOf(tpl)]} · block fixed
             </span>
           )}
         </h1>
@@ -956,7 +964,7 @@ export const GarmentTemplateEditorPage: React.FC = () => {
         <strong>size chart</strong> (body measurements per size), the <strong>ease for each fit</strong> (slim / regular / relaxed),
         and which fields the agent measures. Every design of type “{tpl.name}” inherits all of this.
       </p>
-      <div className={base.twoCol}>
+      <div className={`${base.twoCol} ${s.editorCols}`}>
         <div className={base.main}>
 
       <h2 className={s.groupHeader}>1 · What you make</h2>
@@ -1467,7 +1475,14 @@ export const GarmentTemplateEditorPage: React.FC = () => {
           <div className={s.railCard}>
             <div className={s.railCardTitle}>Used by</div>
             <div className={s.railStat}><strong>{tpl.used_by_designs ?? 0}</strong> design{(tpl.used_by_designs ?? 0) === 1 ? '' : 's'}</div>
-            <div className={s.railStat}><strong>{tpl.used_by_orders ?? 0}</strong> order{(tpl.used_by_orders ?? 0) === 1 ? '' : 's'} cut to it</div>
+            {/* [KA3-9] A zero here is not a measurement of the same kind as a count — it is
+                the absence of one, and it was styled identically, so a template nobody has
+                ever cut to looked like one measured at zero. Muted and named. */}
+            {(tpl.used_by_orders ?? 0) > 0 ? (
+              <div className={s.railStat}><strong>{tpl.used_by_orders}</strong> order{tpl.used_by_orders === 1 ? '' : 's'} cut to it</div>
+            ) : (
+              <div className={`${s.railStat} ${s.railStatNone}`}>never used to cut an order</div>
+            )}
             {(tpl.used_by_orders ?? 0) > 0 && <p className={s.railHint}>Chart changes affect future orders only.</p>}
           </div>
         </aside>

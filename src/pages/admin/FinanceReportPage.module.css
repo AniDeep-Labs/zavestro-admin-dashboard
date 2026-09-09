@@ -4,3 +4,40 @@
 .provisionalValue {
   color: var(--color-text-secondary);
 }
+
+/* [KA8-4] Revenue attributed to no hub, in a per-hub P&L. Not a link, because there is no
+   hub to scope to — but it must not read as a hub whose name failed to load either. */
+.unassignedHub {
+  color: var(--color-text-tertiary);
+  border-bottom: 1px dotted var(--color-border);
+  cursor: help;
+}
+
+/* [KA8-14] What each table slices by — the one difference between two identical headers. */
+.sectionHint {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* [KA8-16] The ranges a monthly CA pack is actually asked for, so the most-run report in the
+   product stops costing four interactions with a browser date widget. */
+.rangePresets { display: flex; gap: 6px; flex-wrap: wrap; }
+.rangePreset {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rangePreset:hover { border-color: var(--color-primary); color: var(--color-primary); }

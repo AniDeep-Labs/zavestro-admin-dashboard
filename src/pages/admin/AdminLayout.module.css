@@ -333,12 +333,25 @@
 }
 
 /* T3-1 (S-2): hub-context switcher. */
+/* [KA1-11] The only control in the header still wearing its OS chrome. The box was already
+   themed — border, radius, background, font — so what read as "a browser default that
+   wandered in" was the native dropdown arrow. Suppressing `appearance` and drawing our own
+   chevron matches the neighbouring controls while keeping a real <select>: the native
+   element carries keyboard behaviour and screen-reader semantics that a custom listbox
+   would have to re-earn. */
 .hubSwitcher {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--color-text-tertiary) 50%),
+                    linear-gradient(135deg, var(--color-text-tertiary) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
   height: 32px;
-  padding: 0 8px;
+  padding: 0 26px 0 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-bg-primary);
+  background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: var(--font-family);
   font-size: 13px;
@@ -617,4 +630,13 @@
   color: var(--color-on-accent);
   font-weight: var(--font-weight-bold, 700);
   letter-spacing: 0.02em;
+}
+
+/* [KA9-12] The legacy full-access role. It bypasses every capability check, so it must not
+   wear the same chip as a scoped role — the one session that can do everything should be the
+   one you notice. */
+.roleBadgeLegacy {
+  background: rgba(215, 91, 91, 0.12);
+  color: var(--color-error);
+  font-weight: var(--font-weight-semibold);
 }

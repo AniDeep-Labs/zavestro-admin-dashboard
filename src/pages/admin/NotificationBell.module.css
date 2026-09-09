@@ -29,6 +29,24 @@
   align-items: center;
   justify-content: center;
 }
+/* [KA1-9] The panel is 340px wide and anchored `right: 0`, so it extends LEFT from the
+   bell and lands over the hub switcher and the + button — optically it belonged to the hub
+   selector rather than to the bell that opened it. Re-anchoring it rightward is not the fix
+   (it would overflow the viewport); tethering it is. The caret sits under the bell's centre,
+   so wherever the body extends, the panel points at its trigger. */
+.dropdown::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 14px;
+  width: 10px;
+  height: 10px;
+  background: var(--color-bg-card);
+  border-left: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+  transform: rotate(45deg);
+}
+
 .dropdown {
   position: absolute;
   top: calc(100% + 8px);
@@ -40,7 +58,8 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg, 0 8px 28px rgba(0,0,0,0.18));
   z-index: 50;
-  overflow: hidden;
+  /* `overflow: hidden` would clip the caret; the list inside scrolls on its own element. */
+  overflow: visible;
 }
 .header {
   display: flex;

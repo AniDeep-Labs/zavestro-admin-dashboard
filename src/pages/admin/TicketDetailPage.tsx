@@ -589,6 +589,18 @@ export const TicketDetailPage: React.FC = () => {
       }
       eyebrow={ticket.reference_id ? `#${ticket.reference_id}` : "Ticket"}
       title={ticket.subject}
+      /* [KA11-5] The title is the ticket's own subject, which says what the customer wrote
+         but not what this record IS. The subtitle orients: who raised it, and how long it
+         has been open — the two things that decide whether you read it now. */
+      subtitle={
+        <>
+          Support ticket
+          {/* The REF, not a name: these surfaces deliberately carry the non-PII
+              identifier, and a subtitle is not the place to reintroduce a name. */}
+          {ticket.customer_ref ? ` from ${ticket.customer_ref}` : ''}
+          {ticket.created ? ` · opened ${ticket.created}` : ''}
+        </>
+      }
       meta={
         <>
           <StatusBadge

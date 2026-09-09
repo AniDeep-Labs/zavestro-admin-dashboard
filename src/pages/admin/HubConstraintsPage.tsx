@@ -138,6 +138,18 @@ export const HubConstraintsPage: React.FC = () => {
               {h.surge_reason !== 'sla' && ` (> ${h.wip_threshold})`}, {h.over_sla_total} over SLA
               {h.surge_reason !== 'wip' && ` (> ${h.sla_breach_threshold})`}. Consider pausing new
               intake for this hub.
+              {/* [SHL-5-10] This banner recommends that a hub stop taking revenue, so the
+                  number behind it has to be checkable. Alterations count toward WIP (they
+                  consume the same tailors) but have no SLA row, so they can never appear in
+                  the over-SLA figure beside it — which made the two look like one population
+                  when they are not. Shown only when there are alterations in the total. */}
+              {(h.wip_alterations ?? 0) > 0 && (
+                <span className={s.surgeBasis}>
+                  {' '}That WIP is {h.wip_orders} order{h.wip_orders === 1 ? '' : 's'} plus{' '}
+                  {h.wip_alterations} alteration{h.wip_alterations === 1 ? '' : 's'}; alterations
+                  have no SLA, so they cannot appear in the over-SLA count.
+                </span>
+              )}
             </span>
             <Link className={s.surgeLink} to="/admin/system/service-areas">
               Pause pincodes →

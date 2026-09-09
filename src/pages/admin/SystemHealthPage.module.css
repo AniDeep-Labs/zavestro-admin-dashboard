@@ -30,3 +30,14 @@
 .rowNote { font-size: var(--font-size-sm); color: var(--color-text-tertiary); }
 .note { font-size: var(--font-size-sm); color: var(--color-text-tertiary); margin: 0 0 8px; }
 .warn { font-size: var(--font-size-sm); color: var(--status-blocked-fg); margin-top: 8px; }
+
+/* [KA2-19] `.card` carries its own `margin-bottom: 16px` and the grid adds `gap: 16px`, so a
+   card inside the grid was spaced twice — the gap should be the only thing deciding. Scoped
+   to grid children so standalone cards keep their margin.
+
+   The finding also notes the two top cards' baselines part company when the red text in
+   Worker/queue wraps. Grid items already stretch, so the CARDS are equal height; what
+   differs is the content inside one of them having an extra line. That is inherent to
+   unequal content and is not honestly fixable in CSS without rendering to check — left
+   alone rather than padded to a guessed height. */
+.grid > .card { margin-bottom: 0; }

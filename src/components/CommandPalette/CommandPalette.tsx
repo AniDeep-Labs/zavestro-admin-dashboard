@@ -182,7 +182,12 @@ export const CommandPalette: React.FC<Props> = ({
           <input
             ref={inputRef}
             className={styles.input}
-            placeholder="Search orders, customers, fabrics, designs — or run a command…"
+            // [KA1-7] Was "Search orders, customers, fabrics, designs — or run a command…",
+            // wider than the input and so rendered clipped mid-word ("…or run a c"). It was
+            // also a SECOND wording for one job — the header trigger says "Search or type a
+            // command…" — so the two affordances for the same thing described themselves
+            // differently. One wording now, short enough to fit.
+            placeholder="Search or type a command…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKeyDown}
