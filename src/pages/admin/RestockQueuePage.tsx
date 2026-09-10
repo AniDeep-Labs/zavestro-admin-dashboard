@@ -16,6 +16,46 @@ import rs from './RestockQueuePage.module.css';
 import { UilPlus } from '@iconscout/react-unicons';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
+/**
+ * [PRC-16-8]/[CM-19-8] The metres-arrived field for a partial receipt.
+ *
+ * It owns its value rather than taking it as a prop because ConfirmDialog's `message` is a
+ * ReactNode held in state — built once when the dialog opens. A controlled input reading the
+ * PAGE's state would render the value captured at that moment and never update, so the field
+ * would look frozen and empty however much you typed into it. Owning the state keeps the
+ * stored element stable while the input stays live; `onValue` hands the page a ref-backed
+ * copy for the confirm callback, which is captured the same way.
+ */
+const PartialReceiveBody: React.FC<{
+  outstanding: number;
+  already: number;
+  fabricName: string;
+  fabricCode: string | null;
+  hubLabel: string;
+  onValue: (v: string) => void;
+}> = ({ outstanding, already, fabricName, fabricCode, hubLabel, onValue }) => {
+  const [v, setV] = React.useState('');
+  return (
+    <>
+      <p>
+        <strong>{outstanding}m</strong> of <strong>{fabricName}</strong> ({fabricCode}) is
+        still owed{already > 0 ? <> — {already}m has already arrived</> : null}.
+      </p>
+      <Input
+        label="Metres that arrived"
+        type="number"
+        value={v}
+        onChange={(next) => {
+          setV(next);
+          onValue(next);
+        }}
+        placeholder={`Up to ${outstanding}`}
+        helperText={`Only these metres land in ${hubLabel}. The request stays open for the rest.`}
+      />
+    </>
+  );
+};
+
 const swatch = (keys?: string[] | null) => (keys?.[0] && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${keys[0]}` : '');
 const numv = (v: string | number | null | undefined) => (v == null ? 0 : Number(v));
 // Tone from the shared vocab key; label override keeps the restock-flow phrasing.
@@ -134,14 +174,63 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
     }
   };
 
-  const act = async (r: RestockRequest, status: 'shipped' | 'fulfilled' | 'cancelled') => {
+  // [PRC-16-8]/[CM-19-8] How much of this request is still owed. `outstanding` comes from the
+  // server; the fallback covers a row loaded before the column existed.
+  const outstandingOf = (r: RestockRequest): number =>
+    Number(r.outstanding ?? Number(r.qty) - Number(r.qty_fulfilled ?? 0));
+  const receivedOf = (r: RestockRequest): number => Number(r.qty_fulfilled ?? 0);
+
+  const act = async (
+    r: RestockRequest,
+    status: 'shipped' | 'fulfilled' | 'cancelled',
+    receivedMeters?: number,
+  ) => {
     setActingId(r.id);
     try {
-      const res = await restockApi.setStatus(r.id, status);
-      toast('success', `Marked ${status}`, status === 'fulfilled' && res.stocked_meters ? `${res.stocked_meters}m landed in ${hubName(r.hub_id)} stock.` : undefined);
+      const res = await restockApi.setStatus(r.id, status, receivedMeters);
+      // [PRC-16-8] A partial receipt does NOT close the request, so "Marked fulfilled" would
+      // be a lie. Report what actually landed and what is still owed.
+      const partial = status === 'fulfilled' && res.status === 'shipped';
+      toast(
+        'success',
+        partial ? 'Part received' : `Marked ${res.status}`,
+        status === 'fulfilled' && res.stocked_meters
+          ? partial
+            ? `${res.stocked_meters}m landed in ${hubName(r.hub_id)} stock. ${res.outstanding}m still owed.`
+            : `${res.stocked_meters}m landed in ${hubName(r.hub_id)} stock.`
+          : undefined,
+      );
       load();
     } catch (e) {
       toast('error', 'Update failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setActingId('');
+    }
+  };
+
+  // [PRC-16-8]/[CM-19-8] The age chip was rendered and unused. Chasing records that someone
+  // asked and tells the other side — it moves no metres and changes no status.
+  // [PRC-16-8] The metres being received right now. Held in a ref as well as state because
+  // ConfirmDialog's `run` is captured when the dialog opens — a closure over the state value
+  // would submit whatever was typed BEFORE the dialog appeared, i.e. nothing.
+  // The field owns its own value (see PartialReceiveBody); this ref is how the confirm
+  // callback — captured when the dialog opens — reads what was finally typed.
+  const partialQtyRef = React.useRef('');
+
+  const chase = async (r: RestockRequest) => {
+    setActingId(r.id);
+    try {
+      const res = await restockApi.chase(r.id);
+      toast(
+        'success',
+        'Chased',
+        res.chase_count > 1
+          ? `Asked for an update. That is ${res.chase_count} times on this request.`
+          : 'Asked for an update. The other side has been notified.',
+      );
+      load();
+    } catch (e) {
+      toast('error', 'Chase failed', e instanceof Error ? e.message : undefined);
     } finally {
       setActingId('');
     }
@@ -202,7 +291,17 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
         <td>{fabricCell(r)}</td>
         {!isCm && <td>{hubName(r.hub_id)}</td>}
         {!isCm && <td>{stockCell(r)}</td>}
-        <td className={styles.total}>{Number(r.qty)}</td>
+        {/* [PRC-16-8]/[CM-19-8] A part-received request still shows `shipped`, so the bare
+            quantity would read as "none of it has arrived". Say how much has. */}
+        <td className={styles.total}>
+          {receivedOf(r) > 0 ? (
+            <>
+              {receivedOf(r)} <span className={rs.dim}>of {Number(r.qty)}</span>
+            </>
+          ) : (
+            Number(r.qty)
+          )}
+        </td>
         <td className={rs.noteCell}>{r.demand_note || <span className={rs.dim}>—</span>}</td>
         <td onClick={(e) => e.stopPropagation()}><AgeCell since={r.created_at} warnAfterH={72} alertAfterH={168} /></td>
         <td><StatusBadge status={PILL[r.status]?.key ?? r.status} label={PILL[r.status]?.label} /></td>
@@ -215,13 +314,52 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
                 run: () => act(r, 'shipped'),
               })}>Ship</Button>
             )}
-            {!isCm && r.status === 'shipped' && (
+            {/* [CM-19-8] The hub may now confirm its OWN receipt, matching the rule
+                receiveDistribution already uses — so this is no longer procurement-only. */}
+            {r.status === 'shipped' && (
               <Button variant="primary" size="sm" disabled={busy} onClick={() => setConfirm({
-                title: 'Mark received?', label: 'Yes, it arrived',
-                message: <>Confirm <strong>{Number(r.qty)}m</strong> of <strong>{r.fabric_name}</strong> ({r.fabric_code}) physically arrived at <strong>{hubName(r.hub_id)}</strong>. This draws from central stock, lands it in the hub, and can't be undone.</>,
+                title: 'Mark received?', label: 'Yes, all of it arrived',
+                message: <>Confirm <strong>{outstandingOf(r)}m</strong> of <strong>{r.fabric_name}</strong> ({r.fabric_code}) physically arrived at <strong>{hubName(r.hub_id)}</strong>{receivedOf(r) > 0 ? <> — the remainder of the {Number(r.qty)}m asked for</> : null}. This draws from central stock, lands it in the hub, and can't be undone.</>,
                 run: () => act(r, 'fulfilled'),
               })}>Mark received</Button>
             )}
+            {/* [PRC-16-8]/[CM-19-8] Part of it. Before this, a half-delivery could only be
+                recorded as a whole one or left stranded — which is what the 35m Chambray
+                did for 65 days. */}
+            {r.status === 'shipped' && outstandingOf(r) > 0 && (
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => {
+                partialQtyRef.current = '';
+                setConfirm({
+                  title: 'Receive part of this restock',
+                  label: 'Record what arrived',
+                  message: (
+                    <PartialReceiveBody
+                      outstanding={outstandingOf(r)}
+                      already={receivedOf(r)}
+                      fabricName={r.fabric_name}
+                      fabricCode={r.fabric_code}
+                      hubLabel={hubName(r.hub_id)}
+                      onValue={(v) => {
+                        partialQtyRef.current = v;
+                      }}
+                    />
+                  ),
+                  run: () => {
+                    const n = Number(partialQtyRef.current);
+                    if (!n || !Number.isFinite(n) || n <= 0) {
+                      toast('error', 'Enter the metres that arrived');
+                      return Promise.resolve();
+                    }
+                    return act(r, 'fulfilled', n);
+                  },
+                });
+              }}>Receive part</Button>
+            )}
+            {/* [PRC-16-8]/[CM-19-8] The age chip was displayed and unused. Either side can
+                now act on it, and the count makes a second ask visibly a second ask. */}
+            <Button variant="ghost" size="sm" disabled={busy} onClick={() => chase(r)}>
+              {r.chase_count ? `Chase (${r.chase_count})` : 'Chase'}
+            </Button>
             {cancelBtn(r)}
           </div>
         </td>

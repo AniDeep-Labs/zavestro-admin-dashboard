@@ -4428,6 +4428,16 @@ export interface RestockRequest {
   fabric_name: string;
   fabric_code: string | null;
   fabric_image_keys: string[] | null;
+  /**
+   * [PRC-16-8]/[CM-19-8] Cumulative metres actually received at the hub, and what is still
+   * owed. A request stays `shipped` while `outstanding > 0`, so status alone no longer tells
+   * you whether any cloth has arrived.
+   */
+  qty_fulfilled?: string | number;
+  outstanding?: string | number;
+  /** How many times someone has asked about this, and when last. */
+  chase_count?: number;
+  last_chased_at?: string | null;
 }
 
 export const restockApi = {
@@ -4442,14 +4452,35 @@ export const restockApi = {
       `/api/admin/distribution/restock${s ? `?${s}` : ""}`,
     );
   },
+  /**
+   * [PRC-16-8]/[CM-19-8] `receivedMeters` records a PARTIAL receipt: only those metres move
+   * into hub stock, and the request stays open carrying its remainder. Omitted means
+   * "everything still outstanding", which is the original all-or-nothing behaviour.
+   */
   setStatus: async (
     id: string,
     status: "shipped" | "fulfilled" | "cancelled",
-  ): Promise<{ id: string; status: string; stocked_meters: number }> =>
+    receivedMeters?: number,
+  ): Promise<{
+    id: string;
+    status: string;
+    stocked_meters: number;
+    qty_fulfilled: number;
+    outstanding: number;
+  }> =>
     req(`/api/admin/distribution/restock/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(
+        receivedMeters === undefined
+          ? { status }
+          : { status, received_meters: receivedMeters },
+      ),
     }),
+  /** [PRC-16-8]/[CM-19-8] "Any news?" — recorded, and it notifies the other side. */
+  chase: async (
+    id: string,
+  ): Promise<{ id: string; chase_count: number; last_chased_at: string }> =>
+    req(`/api/admin/distribution/restock/${id}/chase`, { method: "POST" }),
   create: async (input: {
     fabric_id: string;
     hub_id: string;
