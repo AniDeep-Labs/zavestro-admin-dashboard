@@ -607,7 +607,12 @@ function BannerForm({
   // [CM-22-5] The same number is what lets a destination be checked at all: a banner
   // pointing at an empty collection sends customers to an empty page.
   const [collOpts, setCollOpts] = React.useState<{ slug: string; name: string; count: number }[]>([]);
-  const [catOpts, setCatOpts] = React.useState<{ slug: string; name: string; count: number }[]>([]);
+  // [CM-23-1] `legacy` = not mapped to a garment type. The count alone actively MISLEADS
+  // here: the canonical row is the mapped one, which is the EMPTY one, so "1 item" reads as
+  // "this is the real category" when it means the opposite. Two near-identical options
+  // (Kurta/Kurtas) and the only distinguishing number pointing the wrong way is how a hero
+  // gets linked to a shell that the storefront is about to stop filling.
+  const [catOpts, setCatOpts] = React.useState<{ slug: string; name: string; count: number; legacy: boolean }[]>([]);
   React.useEffect(() => {
     collectionsApi.list({ status: 'active' })
       .then((r) => setCollOpts(r.collections.filter((c) => c.slug)
@@ -615,7 +620,14 @@ function BannerForm({
       .catch(() => {});
     categoriesAdminApi.list()
       .then((cs) => setCatOpts(cs.filter((c) => c.is_active && c.slug)
-        .map((c) => ({ slug: c.slug, name: c.name, count: c.product_count ?? 0 }))))
+        .map((c) => ({
+          slug: c.slug,
+          name: c.name,
+          count: c.product_count ?? 0,
+          legacy: !c.garment_category_id,
+        }))
+        // Mapped categories first: the one a CM should be choosing is the one they reach.
+        .sort((a, bb) => Number(a.legacy) - Number(bb.legacy) || a.name.localeCompare(bb.name))))
       .catch(() => {});
   }, []);
   // The CTA-destination control: a real-slug picker for collection/category, free text for url.
@@ -634,6 +646,7 @@ function BannerForm({
         {opts.map((o) => (
           <option key={o.slug} value={o.slug}>
             {o.name} · {o.slug} · {o.count === 0 ? 'empty' : `${o.count} item${o.count === 1 ? '' : 's'}`}
+            {'legacy' in o && (o as { legacy?: boolean }).legacy ? ' · legacy — not a garment type' : ''}
           </option>
         ))}
       </select>
@@ -670,6 +683,13 @@ function BannerForm({
     const target = opts.find((o) => o.slug === linkValue);
     if (!target) {
       return `“${linkValue}” is not in the current ${linkType} list — it may have been archived or renamed.`;
+    }
+    // [CM-23-1] Checked BEFORE the count, because the count argues the wrong way. The legacy
+    // shells are the ones holding a product; the mapped, canonical rows are empty. So the
+    // "nothing in it" warning fires on the RIGHT choice and stays silent on the wrong one —
+    // the picker was steering a hero at the category the storefront is about to stop filling.
+    if ('legacy' in target && (target as { legacy?: boolean }).legacy) {
+      return `“${target.name}” is a legacy category — it is not mapped to a garment type, so nothing new is listed under it. Point the hero at the mapped category of the same name instead.`;
     }
     if (target.count === 0) {
       return `“${target.name}” has nothing in it, so this banner would open an empty page.`;
