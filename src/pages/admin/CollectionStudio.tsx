@@ -3,7 +3,9 @@
 import React from 'react';
 import { uploadToR2, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { BannerLayout, BannerTextPosition, BannerTextColor, BannerComposeStyle } from '../../api/adminApi';
-import { BannerHero, DeviceShell, layoutsFor } from './BannersPage';
+// [CM-22-8] The renderer, not the page that used to contain it.
+import { BannerHero, DeviceShell } from './banner/BannerHero';
+import { layoutsFor } from './banner/layouts';
 import { CanvasEditor } from './canvas/CanvasEditor';
 import { emptyCanvas, newId, DEFAULT_ELEMENT, type CanvasDoc } from './canvas/canvasTypes';
 import b from './BannersPage.module.css';

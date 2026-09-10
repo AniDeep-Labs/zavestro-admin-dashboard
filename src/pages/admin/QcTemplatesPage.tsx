@@ -7,20 +7,14 @@ import { Button } from '../../components/Button/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { fmtDate } from '../../utils/date';
 import s from './QcTemplatesPage.module.css';
-import { UilPlus, UilTrashAlt } from '@iconscout/react-unicons';
+// [CM-20-7] The rules and the row editor are shared with the other QC layer — the two are
+// meant to be comparable, so a rule drifting on one side changes what "the same check" means.
+import { blankCheck, cleanChecks, checklistError } from './qc/qcChecklist';
+import { QcChecklistEditor } from './qc/QcChecklistEditor';
+import { UilPlus } from '@iconscout/react-unicons';
 
 // T1-13b: define the inbound-QC checklist (required checks + tolerances) per garment category.
 // Phase 2 renders this on the distribution receive-QC form, resolved from the design's category.
-const blankCheck = (): QcCheck => ({
-  key: '',
-  label: '',
-  type: 'numeric',
-  required: true,
-  min: null,
-  max: null,
-  unit: '',
-});
-
 export const QcTemplatesPage: React.FC = () => {
   const [categories, setCategories] = React.useState<GarmentCategoryOption[]>([]);
   const [templates, setTemplates] = React.useState<QcTemplate[]>([]);
@@ -74,18 +68,9 @@ export const QcTemplatesPage: React.FC = () => {
   const removeCheck = (i: number) => setChecks((cs) => cs.filter((_, idx) => idx !== i));
 
   const save = async () => {
-    const cleaned = checks
-      .map((c) => ({ ...c, key: c.key.trim(), label: c.label.trim() }))
-      .filter((c) => c.key || c.label);
-    if (cleaned.length === 0) return toast('error', 'Add at least one check');
-    if (cleaned.some((c) => !c.key || !c.label))
-      return toast('error', 'Every check needs a key and a label');
-    if (cleaned.some((c) => !/^[a-z0-9_]+$/.test(c.key)))
-      return toast('error', 'Check keys must be lower_snake_case');
-    if (new Set(cleaned.map((c) => c.key)).size !== cleaned.length)
-      return toast('error', 'Check keys must be unique');
-    if (cleaned.some((c) => c.type === 'numeric' && c.min == null && c.max == null))
-      return toast('error', 'A numeric check needs a min and/or max tolerance');
+    const cleaned = cleanChecks(checks);
+    const problem = checklistError(cleaned);
+    if (problem) return toast('error', problem);
     setSaving(true);
     try {
       // Drop min/max/unit on boolean checks so the payload is clean.
@@ -188,112 +173,13 @@ export const QcTemplatesPage: React.FC = () => {
               />
             </div>
 
-            <div>
-              <table className={s.table}>
-                <thead>
-                  <tr>
-                    <th>Key</th>
-                    <th>Label</th>
-                    <th>Type</th>
-                    <th>Required</th>
-                    <th>Min</th>
-                    <th>Max</th>
-                    <th>Unit</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {checks.map((c, i) => (
-                    <tr key={i}>
-                      <td>
-                        <input
-                          className={s.cellInput}
-                          value={c.key}
-                          onChange={(e) => patchCheck(i, { key: e.target.value })}
-                          placeholder="shade"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className={s.cellInput}
-                          value={c.label}
-                          onChange={(e) => patchCheck(i, { label: e.target.value })}
-                          placeholder="Shade ΔE"
-                        />
-                      </td>
-                      <td>
-                        <select
-                          className={s.cellInput}
-                          value={c.type}
-                          onChange={(e) =>
-                            patchCheck(i, { type: e.target.value as QcCheck['type'] })
-                          }
-                        >
-                          <option value="numeric">numeric</option>
-                          <option value="boolean">pass/fail</option>
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={c.required}
-                          onChange={(e) => patchCheck(i, { required: e.target.checked })}
-                        />
-                      </td>
-                      <td className={s.numCell}>
-                        {c.type === 'numeric' ? (
-                          <input
-                            className={s.cellInput}
-                            type="number"
-                            value={c.min ?? ''}
-                            onChange={(e) =>
-                              patchCheck(i, { min: e.target.value === '' ? null : Number(e.target.value) })
-                            }
-                          />
-                        ) : (
-                          <span className={s.muted}>—</span>
-                        )}
-                      </td>
-                      <td className={s.numCell}>
-                        {c.type === 'numeric' ? (
-                          <input
-                            className={s.cellInput}
-                            type="number"
-                            value={c.max ?? ''}
-                            onChange={(e) =>
-                              patchCheck(i, { max: e.target.value === '' ? null : Number(e.target.value) })
-                            }
-                          />
-                        ) : (
-                          <span className={s.muted}>—</span>
-                        )}
-                      </td>
-                      <td>
-                        {c.type === 'numeric' ? (
-                          <input
-                            className={s.cellInput}
-                            value={c.unit ?? ''}
-                            onChange={(e) => patchCheck(i, { unit: e.target.value })}
-                            placeholder="%"
-                          />
-                        ) : (
-                          <span className={s.muted}>—</span>
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          className={s.rowBtn}
-                          onClick={() => removeCheck(i)}
-                          aria-label="Remove check"
-                        >
-                          <UilTrashAlt size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <QcChecklistEditor
+              checks={checks}
+              onPatch={patchCheck}
+              onRemove={removeCheck}
+              keyPlaceholder="shade"
+              labelPlaceholder="Shade ΔE"
+            />
 
             <div className={s.actions}>
               <button className={s.addBtn} onClick={() => setChecks((cs) => [...cs, blankCheck()])}>
