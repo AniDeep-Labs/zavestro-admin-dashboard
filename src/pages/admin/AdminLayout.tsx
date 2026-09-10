@@ -260,9 +260,12 @@ const SECTIONS: NavSection[] = [
         // REQUEST samples — sample-jobs.admin.routes §73), but the request page lived only under
         // the `designs:write` Design console → the CM couldn't reach it. Surfaced here in the
         // CM's own pipeline. (Same page; the design-only "Sample Review"/verdict stays gated.)
+        // [CM-19-7] Points at the CATALOG url now. It renders the same page, but the
+        // breadcrumb reads Admin / Catalog / … for a catalog role, and the page's own
+        // eyebrow/subtitle follow the reader rather than the design team.
         label: "Sample Requests",
         icon: <UilBox size={18} />,
-        path: "/admin/design/my-samples",
+        path: "/admin/catalog/samples",
         cap: "samples:write",
       },
       {
@@ -574,6 +577,11 @@ const NAV_LESS_CAP: { prefix: string; caps: string[] }[] = [
   // correctly; only the UI was wrong, which is the worse half: a role is shown a console
   // it cannot use and told so three times by a toast instead of once by the page.
   { prefix: "/admin/catalog/products", caps: ["catalog:write"] },
+  // [CM-19-7] `design/my-samples` was the CM's nav target; the CM now goes to
+  // `catalog/samples` so its breadcrumb reads Catalog rather than Design. The old path stays
+  // as a legacy alias for existing `?design=` deep links — which leaves it with no nav item
+  // to derive a capability from, exactly the gap NAV_LESS_CAP exists to cover.
+  { prefix: "/admin/design/my-samples", caps: ["samples:write"] },
 ];
 
 // T3-1 (S-1 + S-3): cap-gated create verbs — the single source for both the palette actions

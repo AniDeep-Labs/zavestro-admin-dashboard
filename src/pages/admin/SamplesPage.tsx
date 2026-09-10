@@ -26,10 +26,20 @@ export const SamplesPage: React.FC = () => {
 
   return (
     <div className={base.page}>
+      {/* [CM-19-7] The framing follows the SAME capability that already decides the tabs.
+          Before this, a catalog_manager reading their own "Sample Requests" nav item was shown
+          "DESIGN · SAMPLING" and a subtitle promising them a review step they cannot perform —
+          copy written for the design team, addressed to someone else. Deriving both from
+          `canReview` means the two can never disagree: whoever gets the Review tab gets the
+          reviewer's framing, and whoever does not gets the requester's. */}
       <PageHeader
-        eyebrow="Design · Sampling"
-        title="Samples"
-        subtitle="Request samples from hubs, then review what comes back before catalog lists it."
+        eyebrow={canReview ? 'Design · Sampling' : 'Catalog · Sampling'}
+        title={canReview ? 'Samples' : 'Sample requests'}
+        subtitle={
+          canReview
+            ? 'Request samples from hubs, then review what comes back before catalog lists it.'
+            : 'Ask a hub to stitch a sample of a design in a fabric. Design reviews it, and once it passes you can list it.'
+        }
       />
       <Tabs
         tabs={tabs}

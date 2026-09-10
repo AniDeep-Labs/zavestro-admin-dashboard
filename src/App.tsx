@@ -444,6 +444,9 @@ function App() {
           {/* Legacy path — the two sample pages are now one tabbed Samples page. Keep the
               route so old deep-links (?design=) + the CM nav entry still resolve. */}
           <Route path="design/my-samples" element={<SamplesPage />} />
+          {/* [CM-19-7] Same page, the CM's own URL — so the breadcrumb reads
+              Admin / Catalog / … for a catalog role rather than Admin / Design / …. */}
+          <Route path="catalog/samples" element={<SamplesPage />} />
           <Route path="procurement/fabrics" element={<FabricsMasterPage />} />
           {/* [SHL-3-10] Before :id for readability — v6 already ranks the static
               segment above the dynamic one, so "new" can never be read as a fabric id. */}
