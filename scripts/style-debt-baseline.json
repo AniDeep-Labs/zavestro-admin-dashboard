@@ -44,7 +44,6 @@
   "src/pages/admin/CollectionEditPage.tsx": 1,
   "src/pages/admin/CollectionStudio.tsx": 2,
   "src/pages/admin/CollectionsListPage.module.css": 25,
-  "src/pages/admin/ConsultationSlotsPage.module.css": 2,
   "src/pages/admin/ContentPage.module.css": 8,
   "src/pages/admin/CrossHubStockPage.module.css": 5,
   "src/pages/admin/CutSheetPage.tsx": 1,
@@ -110,6 +109,5 @@
   "src/pages/admin/canvas/Canvas.module.css": 19,
   "src/pages/admin/canvas/CanvasEditor.tsx": 9,
   "src/pages/admin/canvas/CanvasRender.tsx": 9,
-  "src/pages/admin/shared.module.css": 7,
   "src/styles/global.css": 1
 }
