@@ -120,7 +120,7 @@
 
 /* [CM-23-8] Marks the half of the taxonomy that cannot drive a fit. Warning-toned rather
    than error-toned: a legacy row is not broken, it is superseded. */
-.legacyChip {
+.unmappedChip {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   color: var(--color-warning);

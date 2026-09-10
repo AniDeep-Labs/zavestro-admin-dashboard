@@ -11,6 +11,7 @@ import {
 } from "../../api/adminApi";
 import type {
   CmListing,
+  ListingPhotoSource,
   ReadyToListSample,
   DesignSummary,
   Fabric,
@@ -86,6 +87,13 @@ type Editor = {
   description: string;
   fitNotes: string; // T3-6 (W-C2): authored fit guidance
   photos: string[];
+  /**
+   * [CM-18-6] Where each photo came from, keyed by photo key. Seeded from the server's
+   * derived provenance when editing; set locally for photos this session introduces, whose
+   * source the operator is watching them acquire — a fresh upload is an upload, and the
+   * photography `openDuplicate` carries over from another listing is copied.
+   */
+  photoSources: Record<string, ListingPhotoSource>;
   isActive: boolean;
   // T3-6 (W-C2): auto-assembled fabric facts (edit mode; read-only reference).
   fabricComposition?: string | null;
@@ -119,6 +127,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
   // [CM-18-9] What the server knows that the loaded page does not.
   const [total, setTotal] = React.useState(0);
   const [serverDrafts, setServerDrafts] = React.useState<number | null>(null);
+  const [serverOos, setServerOos] = React.useState<number | null>(null);
   const [truncated, setTruncated] = React.useState(false);
   const [ready, setReady] = React.useState<ReadyToListSample[]>([]);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
@@ -164,6 +173,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
         setListings(l.listings);
         setTotal(l.total);
         setServerDrafts(l.drafts);
+        setServerOos(l.oos);
         setTruncated(l.truncated);
         setReady(r);
       })
@@ -216,6 +226,9 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       description: "",
       fitNotes: "",
       photos: r.sample_photos ?? [],
+      photoSources: Object.fromEntries(
+        (r.sample_photos ?? []).map((k) => [k, "sample" as const]),
+      ),
       isActive: true,
     });
   // [SHL-3-10] Quick-create (+) pointed at the LIST page, leaving the operator to hunt for
@@ -246,6 +259,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       description: "",
       fitNotes: "",
       photos: [],
+      photoSources: {},
       isActive: true,
     });
   const openEdit = (l: CmListing) =>
@@ -261,6 +275,9 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       description: l.description ?? "",
       fitNotes: l.fit_notes ?? "",
       photos: l.photo_keys ?? [],
+      photoSources: Object.fromEntries(
+        (l.photo_provenance ?? []).map((p) => [p.key, p.source]),
+      ),
       isActive: l.is_active,
       pricePerMeter: l.price_per_meter,
       metersPerGarment: l.meters_per_garment,
@@ -283,7 +300,13 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       price: l.price ?? "",
       description: l.description ?? "",
       fitNotes: l.fit_notes ?? "",
+      // [CM-18-6] Whatever these were on the original, on THIS listing they are copied
+      // photography of a different design/fabric pairing — which is the case the audit
+      // named. Marked as such before it is saved, not after.
       photos: l.photo_keys ?? [],
+      photoSources: Object.fromEntries(
+        (l.photo_keys ?? []).map((k) => [k, "copied" as const]),
+      ),
       isActive: false,
       fabricComposition: l.fabric_composition,
       fabricWeightGsm: l.fabric_weight_gsm,
@@ -300,7 +323,14 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
           .slice(0, 8)
           .map((f) => uploadToR2(f, "listings")),
       );
-      setEditor({ ...editor, photos: [...editor.photos, ...keys] });
+      setEditor({
+        ...editor,
+        photos: [...editor.photos, ...keys],
+        photoSources: {
+          ...editor.photoSources,
+          ...Object.fromEntries(keys.map((k) => [k, "upload" as const])),
+        },
+      });
     } catch (e) {
       toast(
         "error",
@@ -461,15 +491,21 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
   const [searchParams, setSearchParams] = useSearchParams();
   const garmentFilter = searchParams.get("garment");
   // T2-27 (CM-1): tab-filter then garment-filter.
-  // [CM-18-9] Drafts comes from the SERVER, over every listing in scope — counting the
-  // loaded page would be quietly wrong now that the page is capped.
+  // [CM-18-9] Every chip counts over the WHOLE scope, from the server — counting the loaded
+  // array is quietly wrong now that the page is capped at CM_LISTING_MAX. "All" in particular
+  // read `listings.length`, so at a catalogue larger than the cap it announced the cap: "All
+  // (200)" with 1,500 listings behind it.
   //
-  // Out-of-stock cannot: `in_stock` is derived per row in JS from metreage and per-garment
-  // consumption, and re-deriving it in SQL would be a second definition of exactly the thing
-  // [CM-19-2]/[CM-19-4] were fixed to unify. So it counts the loaded page and the strip says
-  // so when the page is a subset.
+  // The out-of-stock count is server-side too. A previous comment here claimed `in_stock` was
+  // "derived per row in JS" and that re-deriving it in SQL would fork the definition — both
+  // wrong: `in_stock` has always BEEN SQL (the IN_STOCK_SQL EXISTS clause), so the aggregate
+  // reuses that one constant rather than restating it.
+  //
+  // The local fallbacks still stand for the first paint, before the response lands.
+  const allCount = total || listings.length;
   const draftCount = serverDrafts ?? listings.filter((l) => !l.is_active).length;
-  const oosCount = listings.filter((l) => l.is_active && l.in_stock === false).length;
+  const oosCount =
+    serverOos ?? listings.filter((l) => l.is_active && l.in_stock === false).length;
   const shownListings = React.useMemo(() => {
     let ls = listings;
     if (tab === "drafts") ls = ls.filter((l) => !l.is_active);
@@ -492,7 +528,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       {/* T2-27 (CM-1): status tabs */}
       <div className={base.viewChips}>
         {([
-          ["all", "All", listings.length],
+          ["all", "All", allCount],
           ["ready", "Ready", ready.length],
           ["drafts", "Drafts", draftCount],
           ["oos", "Out of stock", oosCount],
@@ -573,12 +609,15 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       <>
       <h2 className={s.sectionTitle}>
         {tab === "drafts" ? "Drafts" : tab === "oos" ? "Out of stock" : "Your listings"}{" "}
-        {/* [CM-18-9] A capped list that just ends looks like the whole list. Say what is
-            missing, and that the out-of-stock count is over what is loaded. */}
+        {/* [CM-18-9] A capped list that just ends looks like the whole list, so say what is
+            missing. The chips above are now server-side totals, so the caveat is about the
+            ROWS, not the counts: on a filtered tab the rows are that filter applied to the
+            newest page, which can show fewer than the chip counts. */}
         {truncated && (
           <span className={base.pagination}>
-            showing {listings.length} of {total} — newest first
-            {tab === "oos" ? "; the out-of-stock count covers only these" : ""}
+            {tab === "drafts" || tab === "oos"
+              ? `from the newest ${listings.length} of ${total} listings`
+              : `showing ${listings.length} of ${total} — newest first`}
           </span>
         )}{" "}
         {!loading && <span className={s.count}>{shownListings.length}</span>}
@@ -622,6 +661,20 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                     <SafeImg src={img} alt={l.design_name} fallback={<UilImage size={26} />} />
                   ) : (
                     <UilImage size={26} />
+                  )}
+                  {/* [CM-18-6] Flag the listings whose FIRST image — the one the customer
+                      sees — is not a photograph of this pairing's reviewed sample. Marked on
+                      the exception rather than the norm: a shelf where most heroes are real
+                      sample shots should draw the eye to the ones that are not. Only shown
+                      once the server's answer has arrived, so a loading grid is not a wall
+                      of false warnings. */}
+                  {l.hero_from_sample === false && (l.photo_keys ?? []).length > 0 && (
+                    <span
+                      className={s.heroNotSample}
+                      title="The first image is not a photograph of this design stitched in this fabric. It was uploaded by hand or carried over from another listing — so the customer is not seeing the garment they will receive."
+                    >
+                      Not a sample photo
+                    </span>
                   )}
                 </div>
                 <div className={s.cardBody}>
@@ -859,9 +912,32 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                 <p className={s.photoNudge}>Add one more — a single photo undersells the garment.</p>
               )}
               <div className={s.thumbs}>
-                {editor.photos.map((k, i) => (
+                {editor.photos.map((k, i) => {
+                  // [CM-18-6] Say what this image IS. "sample" is the model's promise — a
+                  // photograph of the garment actually stitched in this fabric; the other two
+                  // are not, and shipped indistinguishably before this.
+                  const src = editor.photoSources[k] ?? "upload";
+                  const provLabel =
+                    src === "sample"
+                      ? "Sample photo"
+                      : src === "copied"
+                        ? "Copied"
+                        : "Uploaded";
+                  const provTitle =
+                    src === "sample"
+                      ? "Photographed from the reviewed sample of this design in this fabric — the garment the customer will receive."
+                      : src === "copied"
+                        ? "Carried over from another listing. It shows a different design/fabric pairing than this one."
+                        : "Uploaded by hand. Not tied to a reviewed sample of this pairing.";
+                  return (
                   <div key={k} className={s.thumb}>
                     <SafeImg src={url(k)} alt={`photo ${i + 1}`} fallback={<UilImage size={20} />} />
+                    <span
+                      className={`${s.provBadge} ${src === "sample" ? s.provSample : s.provOther}`}
+                      title={provTitle}
+                    >
+                      {provLabel}
+                    </span>
                     <button
                       type="button"
                       onClick={() =>
@@ -874,7 +950,8 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                       <UilTimes size={12} />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
                 <label className={s.uploadBox}>
                   {uploading ? (
                     <Spinner />

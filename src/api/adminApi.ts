@@ -4428,6 +4428,16 @@ export interface RestockRequest {
   fabric_name: string;
   fabric_code: string | null;
   fabric_image_keys: string[] | null;
+  /**
+   * [PRC-16-8]/[CM-19-8] Cumulative metres actually received at the hub, and what is still
+   * owed. A request stays `shipped` while `outstanding > 0`, so status alone no longer tells
+   * you whether any cloth has arrived.
+   */
+  qty_fulfilled?: string | number;
+  outstanding?: string | number;
+  /** How many times someone has asked about this, and when last. */
+  chase_count?: number;
+  last_chased_at?: string | null;
 }
 
 export const restockApi = {
@@ -4442,14 +4452,35 @@ export const restockApi = {
       `/api/admin/distribution/restock${s ? `?${s}` : ""}`,
     );
   },
+  /**
+   * [PRC-16-8]/[CM-19-8] `receivedMeters` records a PARTIAL receipt: only those metres move
+   * into hub stock, and the request stays open carrying its remainder. Omitted means
+   * "everything still outstanding", which is the original all-or-nothing behaviour.
+   */
   setStatus: async (
     id: string,
     status: "shipped" | "fulfilled" | "cancelled",
-  ): Promise<{ id: string; status: string; stocked_meters: number }> =>
+    receivedMeters?: number,
+  ): Promise<{
+    id: string;
+    status: string;
+    stocked_meters: number;
+    qty_fulfilled: number;
+    outstanding: number;
+  }> =>
     req(`/api/admin/distribution/restock/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(
+        receivedMeters === undefined
+          ? { status }
+          : { status, received_meters: receivedMeters },
+      ),
     }),
+  /** [PRC-16-8]/[CM-19-8] "Any news?" — recorded, and it notifies the other side. */
+  chase: async (
+    id: string,
+  ): Promise<{ id: string; chase_count: number; last_chased_at: string }> =>
+    req(`/api/admin/distribution/restock/${id}/chase`, { method: "POST" }),
   create: async (input: {
     fabric_id: string;
     hub_id: string;
@@ -4586,7 +4617,26 @@ export const listingsAdminApi = {
 
 // ─── Catalog-manager listings management ──────────────────────────────────────
 
+/** [CM-18-6] Where one listing photo came from. Derived server-side, not stamped. */
+export type ListingPhotoSource = "sample" | "upload" | "copied";
+
+export interface ListingPhotoProvenance {
+  key: string;
+  source: ListingPhotoSource;
+  /** Set when source is "sample" — the reviewed sample job whose photography this is. */
+  sample_job_id: string | null;
+  /** Set when source is "copied" — the listing that already showed this image. */
+  copied_from_listing_id: string | null;
+}
+
 export interface CmListing {
+  /**
+   * [CM-18-6] Per-photo source, in photo_keys order. A mockup, a stock image and a photograph
+   * of the garment actually stitched in this fabric used to ship identically.
+   */
+  photo_provenance?: ListingPhotoProvenance[];
+  /** Is the image the customer sees FIRST an actual photograph of this pairing's sample? */
+  hero_from_sample?: boolean;
   /**
    * [CM-19-2] Garments the hub can still cut — computed server-side from worst-case metres
    * × fabric width × cutting wastage, the same figure the Fabric Stock page and the publish
@@ -4677,6 +4727,9 @@ export interface CmListingsPage {
   total: number;
   /** Inactive listings in scope — the Drafts chip, correct regardless of the cap. */
   drafts: number;
+  /** Live listings whose hub cannot cut a garment from the paired fabric — the Out-of-stock
+      chip, over every row in scope rather than the loaded page. */
+  oos: number;
   /** The page is a subset; the UI must say so rather than ending silently. */
   truncated: boolean;
 }

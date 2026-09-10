@@ -267,22 +267,25 @@ export const CategoriesPage: React.FC = () => {
               <span className={catCss.name}>{cat.name}</span>
               <span className={catCss.slug}>{cat.slug}</span>
               {!cat.is_active && <span className={catCss.inactiveChip}>Archived</span>}
-              {/* [CM-23-8] Which of a near-duplicate pair is the real one.
-                  "Kurta" and "Kurtas" sat four rows apart with identical affordances, and
-                  the only hint — "0 listings" vs the 📐 chip — pointed the WRONG way: the
-                  mapped, canonical row is the EMPTY one, because it is the new taxonomy
-                  nothing has been migrated into yet. So "has listings" reads as "this is
-                  the good one" when it means the opposite.
-                  Being mapped to a garment type is the thing that actually decides it: an
-                  unmapped category cannot drive a fit, so it can never be more than a
-                  storefront label. Say that on the row instead of leaving it to be
-                  inferred from a count that misleads. */}
+              {/* [CM-23-8] Being mapped to a garment type is what decides whether a category
+                  can carry a measurement model at all; an unmapped one can host a listing but
+                  can never be more than a storefront label. The count misleads here, so the
+                  row says it outright.
+
+                  [CM-23-5] The badge read "Legacy", with a tooltip telling the CM to "use the
+                  mapped category" — written when the unmapped rows WERE legacy duplicates
+                  (Kurta/Kurtas). Measured 2026-09-10, that is no longer what unmapped means:
+                  production has no plural shells left, and the one real unmapped category is
+                  Lehenga, for which there is no lehenga garment type to map TO. Calling it
+                  "Legacy" says superseded, and pointing at a mapped twin that does not exist
+                  is advice that cannot be followed. The badge now states the fact rather than
+                  an inference about why. */}
               {!garmentName(cat.garment_category_id) && (
                 <span
-                  className={catCss.legacyChip}
-                  title="Not mapped to a garment type, so it cannot drive a fit. Use the mapped category for new work."
+                  className={catCss.unmappedChip}
+                  title="Not mapped to a garment type, so it carries no measurement model — it can hold a listing but cannot drive a fit. Map it below if a garment type suits it; if none does, the fit engine has to gain one first."
                 >
-                  Legacy
+                  No fit model
                 </span>
               )}
             </div>
