@@ -26,9 +26,19 @@ const BASELINE = 'scripts/page-header-baseline.json';
 // Modals, panels and embedded editors are not pages and need no page header.
 const NOT_A_PAGE = /(Modal|Panel|Studio|Editor)\.tsx$/;
 
+// [SHL-5-5] Shells that render the header on their page's behalf. A page composed of one of
+// these HAS a page header — the component just is not spelled in its own file. Without this,
+// the guard pushes such a page to hand-roll a SECOND header above the shell's, which is the
+// opposite of what it exists to encourage. `OverviewExceptions` renders <PageHeader> and takes
+// a REQUIRED subtitle, so the guarantee is the same one this check is testing for.
+const HEADER_SHELLS = ['<OverviewExceptions'];
+
+const hasHeader = (src) =>
+  src.includes('<PageHeader') || HEADER_SHELLS.some((shell) => src.includes(shell));
+
 const offenders = readdirSync(PAGES_DIR)
   .filter((f) => f.endsWith('.tsx') && !NOT_A_PAGE.test(f))
-  .filter((f) => !readFileSync(join(PAGES_DIR, f), 'utf8').includes('<PageHeader'))
+  .filter((f) => !hasHeader(readFileSync(join(PAGES_DIR, f), 'utf8')))
   .sort();
 
 const update = process.argv.includes('--update');

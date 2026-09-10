@@ -155,6 +155,12 @@ const ListingsOverviewPage = lazyPage(
   () => import("./pages/admin/ListingsOverviewPage"),
   "ListingsOverviewPage",
 );
+// [SHL-5-5] The oversight shell reached design/listings/supply/hub-constraints and stopped
+// where the money starts. This carries it into orders and settlement.
+const OrdersMoneyOverviewPage = lazyPage(
+  () => import("./pages/admin/OrdersMoneyOverviewPage"),
+  "OrdersMoneyOverviewPage",
+);
 const SupplyOverviewPage = lazyPage(
   () => import("./pages/admin/SupplyOverviewPage"),
   "SupplyOverviewPage",
@@ -485,6 +491,7 @@ function App() {
           <Route path="oversight/designs" element={<DesignOverviewPage />} />
           <Route path="oversight/listings" element={<ListingsOverviewPage />} />
           <Route path="oversight/supply" element={<SupplyOverviewPage />} />
+          <Route path="oversight/orders-money" element={<OrdersMoneyOverviewPage />} />
           <Route path="oversight/hub-constraints" element={<HubConstraintsPage />} />
           <Route path="invoices" element={<InvoicesListPage />} />
           <Route

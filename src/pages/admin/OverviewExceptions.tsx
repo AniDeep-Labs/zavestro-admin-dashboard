@@ -2,7 +2,7 @@ import { useUrlTab } from '../../hooks/useOverviewFilters';
 import React from 'react';
 import type { Hub } from '../../api/adminApi';
 import { PeekDrawer } from '../../components/PeekDrawer/PeekDrawer';
-import { EmptyState } from '../../components';
+import { EmptyState, PageHeader } from '../../components';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './OrdersListPage.module.css';
 import ov from './OverviewExceptions.module.css';
@@ -42,7 +42,14 @@ export interface OvTab<T> {
 
 export interface OverviewExceptionsProps<T> {
   title: string;
-  subtitle?: string;
+  /**
+   * [KA11-5] Required here for the same reason PageHeader requires it: a subtitle is where a
+   * page says which of several similar tables this is and what it does not cover. Optional, it
+   * is the first thing dropped.
+   */
+  subtitle: string;
+  /** Small uppercase kicker — the workspace this overview belongs to. */
+  eyebrow?: React.ReactNode;
   loading: boolean;
   error?: string;
   onRetry?: () => void;
@@ -83,15 +90,19 @@ export function OverviewExceptions<T>(props: OverviewExceptionsProps<T>) {
 
   return (
     <div className={styles.page}>
-      <div className={styles.pageHeader}>
-        <div>
-          <h1 className={styles.title}>{props.title}</h1>
-          {props.subtitle && <p className={ov.subtitle}>{props.subtitle}</p>}
-        </div>
-        <button className={styles.exportBtn} onClick={exportCsv} disabled={!active?.rows.length}>
-          <UilImport size={14} /> Export CSV
-        </button>
-      </div>
+      {/* [KA11-5] The house header component, rather than a hand-rolled h1. Adopting it here
+          migrates all four overview pages at once — the ratchet exists to stop NEW pages
+          hand-rolling one, and baselining a brand-new page would defeat it. */}
+      <PageHeader
+        eyebrow={props.eyebrow ?? 'Oversight'}
+        title={props.title}
+        subtitle={props.subtitle}
+        actions={
+          <button className={styles.exportBtn} onClick={exportCsv} disabled={!active?.rows.length}>
+            <UilImport size={14} /> Export CSV
+          </button>
+        }
+      />
 
       {props.headerExtra}
 

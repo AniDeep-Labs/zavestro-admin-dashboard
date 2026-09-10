@@ -123,6 +123,15 @@ const SECTIONS: NavSection[] = [
         cap: "reports:read",
       },
       {
+        // [SHL-5-5] `reports:read` like its siblings — the settlement tab additionally needs
+        // `finance:read` and the page hides it without, so a reports-only reader gets the
+        // orders half rather than a 403 or an empty money tab.
+        label: "Orders & Money",
+        icon: <UilBox size={18} />,
+        path: "/admin/oversight/orders-money",
+        cap: "reports:read",
+      },
+      {
         // T2-7: per-hub WIP × stage bottleneck view + festival/leave calendar.
         label: "Hub Constraints",
         icon: <UilBox size={18} />,
