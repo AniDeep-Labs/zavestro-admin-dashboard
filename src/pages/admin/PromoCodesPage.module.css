@@ -69,3 +69,12 @@
   color: var(--color-warning);
   font-weight: var(--font-weight-semibold);
 }
+
+/* [PM-26-7] The hint under "Starts On". Without it the empty field is ambiguous: blank could
+   mean "starts now" or "not set yet", and those are different promises. */
+.fieldHint {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

@@ -4817,6 +4817,16 @@ export interface PromoCode {
   valid_from?: string;
   valid_until?: string;
   is_active: boolean;
+  /**
+   * [PM-26-5] Who absorbs this discount — the platform, or the brand whose goods it discounts.
+   * The column has existed with a `platform` default since the tenancy spine and nothing read
+   * or wrote it, so every promo was silently platform-funded regardless of what was agreed. On
+   * a marketplace that is a margin question, not a label.
+   */
+  funded_by?: "platform" | "brand";
+  /** [PM-26-3] Restricts the promo to a customer's first order. In the DB and the seeds all
+   *  along; the editor could not set it, so it could only arrive by seeding. */
+  first_order_only?: boolean;
   created_at: string;
   // T2-34 (F-5): actual redemptions + total ₹ discount spent (net of cancelled/refunded).
   usage_count?: number;
