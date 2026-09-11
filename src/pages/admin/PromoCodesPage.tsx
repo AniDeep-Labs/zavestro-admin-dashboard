@@ -1,6 +1,6 @@
 import React from 'react';
 import { promosApi } from '../../api/adminApi';
-import type { PromoCode } from '../../api/adminApi';
+import type { PromoCode, PromoSpendTotals } from '../../api/adminApi';
 import { istDayEnd, istDayStart } from '../../utils/dateWindow';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -157,15 +157,27 @@ export const PromoCodesPage: React.FC = () => {
   const showToast = (type: ToastData['type'], title: string, message?: string) =>
     setToasts(t => [...t, createToast(type, title, message)]);
 
+  // [PM-26-6] The console that spends the money could not say what it spent: `total_spend`
+  // rendered per row and nothing totalled it. The period bounds the MONEY, not the list —
+  // hiding codes would answer "what did the codes I can see cost, ever", which is not a
+  // period question.
+  const [period, setPeriod] = React.useState<'30d' | '90d' | 'all'>('30d');
+  const [spend, setSpend] = React.useState<PromoSpendTotals | null>(null);
+  const spendWindow = React.useCallback(() => {
+    if (period === 'all') return {};
+    const days = period === '30d' ? 30 : 90;
+    return { from: new Date(Date.now() - days * 86400000).toISOString() };
+  }, [period]);
+
   React.useEffect(() => {
     promosApi
-      .list()
-      .then((r) => { setPromos(r.promos); setLoadError(null); })
+      .list(spendWindow())
+      .then((r) => { setPromos(r.data.promos); setSpend(r.meta?.spend_totals ?? null); setLoadError(null); })
       // Not swallowed: an empty table and a failed request are different facts, and this
       // rendered them identically — "no promo codes" for "we could not ask".
       .catch((e) => setLoadError(e instanceof Error ? e.message : 'Could not load promo codes.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [spendWindow]);
 
   // T1-25: guard the value bounds client-side (backend zod enforces the same — percent ≤ 100,
   // flat ≤ 100000) so a fat-finger is caught before the server rejects it.
@@ -276,6 +288,49 @@ export const PromoCodesPage: React.FC = () => {
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search promo codes"
         />
+      )}
+
+      {/* [PM-26-6] What the programme actually cost. Per-code spend was rendered and never
+          totalled, so the console that spends the money could not answer "how much did we
+          spend on discounts this month?".
+
+          The period bounds the MONEY, not the list: every code stays visible, because hiding
+          codes would answer "what did the codes I can see cost, ever" — a different question
+          wearing the same label. The heading says which period it covers, so the figure
+          cannot be read as all-time by someone who did not set the filter. */}
+      {!loading && !loadError && spend && (
+        <div className={`${styles.card} ${styles.spendCard}`}>
+          <div className={styles.spendBar}>
+            <div>
+              <div className={styles.spendLabel}>
+                Discount spend · {period === 'all' ? 'all time' : `last ${period === '30d' ? 30 : 90} days`}
+              </div>
+              <div className={styles.spendValue}>₹{Math.round(spend.spend).toLocaleString('en-IN')}</div>
+              <div className={styles.spendSub}>
+                {spend.redemptions.toLocaleString('en-IN')} redemption{spend.redemptions === 1 ? '' : 's'}
+                {' · '}
+                {/* Codes REDEEMED, not codes that exist — 40 live codes with 3 in use is a
+                    different programme from one with 3 codes. */}
+                {spend.codes_used.toLocaleString('en-IN')} code{spend.codes_used === 1 ? '' : 's'} used
+                {spend.redemptions > 0 && <> · avg ₹{Math.round(spend.spend / spend.redemptions).toLocaleString('en-IN')}</>}
+              </div>
+            </div>
+            <select
+              className={styles.fieldSelect}
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as '30d' | '90d' | 'all')}
+              aria-label="Spend period"
+            >
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+              <option value="all">All time</option>
+            </select>
+          </div>
+          <p className={styles.spendNote}>
+            Net of reversals — a cancelled or refunded order's redemption is removed. Per-code
+            spend in the table below is lifetime, not this period.
+          </p>
+        </div>
       )}
 
       {loading ? (

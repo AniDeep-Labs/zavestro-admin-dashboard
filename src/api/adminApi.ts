@@ -4854,9 +4854,37 @@ export interface PromosResponse {
   promos: PromoCode[];
 }
 
+/** [PM-26-6] What the discount programme cost over a window. */
+export interface PromoSpendTotals {
+  /** Codes actually REDEEMED in the window — not codes that exist. */
+  codes_used: number;
+  redemptions: number;
+  spend: number;
+}
+
 export const promosApi = {
-  list: async (): Promise<PromosResponse> =>
-    req<PromosResponse>("/api/admin/promos"),
+  /**
+   * [PM-26-6] `from`/`to` bound the SPEND TOTALS, not the list. A period filter that hid codes
+   * would answer "what did the codes I can see cost, ever" — not a period question at all.
+   */
+  list: async (
+    window: { from?: string; to?: string } = {},
+  ): Promise<{
+    data: PromosResponse;
+    meta?: { spend_totals?: PromoSpendTotals; window?: { from: string | null; to: string | null } };
+  }> => {
+    const qs = new URLSearchParams();
+    if (window.from) qs.set("from", window.from);
+    if (window.to) qs.set("to", window.to);
+    const s = qs.toString();
+    return reqEnvelope<{
+      data: PromosResponse;
+      meta?: {
+        spend_totals?: PromoSpendTotals;
+        window?: { from: string | null; to: string | null };
+      };
+    }>(`/api/admin/promos${s ? `?${s}` : ""}`);
+  },
 
   create: async (data: {
     code: string;
@@ -4864,9 +4892,17 @@ export const promosApi = {
     discount_type: "percent" | "flat";
     discount_value: number;
     min_order_amount?: number;
+    max_discount?: number;
     max_uses?: number;
     uses_per_user?: number;
+    valid_from?: string;
     valid_until?: string;
+    // [PM-26-3]/[PM-26-5] Declared rather than cast through. The page reached this with
+    // `data as Parameters<typeof promosApi.create>[0]`, so these fields were sent but NOT
+    // typechecked — a misspelt key would have been dropped silently by the validator and the
+    // promo would have been created with a default nobody chose.
+    first_order_only?: boolean;
+    funded_by?: "platform" | "brand";
   }): Promise<PromoCode> =>
     req<PromoCode>("/api/admin/promos", {
       method: "POST",

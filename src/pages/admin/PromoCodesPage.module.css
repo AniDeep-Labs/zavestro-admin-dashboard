@@ -78,3 +78,13 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
+
+/* [PM-26-6] The campaign spend bar. */
+.spendCard { margin-bottom: 16px; }
+.spendBar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.spendLabel { font-size: var(--font-size-xs); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.spendValue { font-size: var(--font-size-2xl); font-weight: var(--font-weight-semibold); line-height: 1.2; color: var(--color-text-primary); }
+.spendSub { font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 2px; }
+/* The caveat is part of the number: a total that is silently net, beside per-row figures that
+   are silently lifetime, is two different measures under one heading. */
+.spendNote { margin: 8px 0 0; font-size: var(--font-size-xs); color: var(--color-text-muted); }
