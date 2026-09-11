@@ -1,5 +1,5 @@
 {
-  "count": 57,
+  "count": 53,
   "files": [
     "AdminDashboardPage.tsx",
     "AdminLayout.tsx",
@@ -21,7 +21,6 @@
     "DeadStockPage.tsx",
     "DesignEditorPage.tsx",
     "DesignLibraryPage.tsx",
-    "DesignOverviewPage.tsx",
     "DesignSampleRequestsPage.tsx",
     "FabricAtHubPage.tsx",
     "FabricPdpPage.tsx",
@@ -35,11 +34,9 @@
     "HubConstraintsPage.tsx",
     "HubsListPage.tsx",
     "ListingsManagePage.tsx",
-    "ListingsOverviewPage.tsx",
     "NotificationBell.tsx",
     "NotificationBlastPage.tsx",
     "OrdersListPage.tsx",
-    "OverviewExceptions.tsx",
     "PincodeWaitlistPage.tsx",
     "ProductEditPage.tsx",
     "ProductsListPage.tsx",
@@ -54,7 +51,6 @@
     "SampleVerificationPage.tsx",
     "ServiceAreasPage.tsx",
     "StaffManagementPage.tsx",
-    "SupplyOverviewPage.tsx",
     "SupportListPage.tsx",
     "SystemHealthPage.tsx",
     "UsersListPage.tsx"
