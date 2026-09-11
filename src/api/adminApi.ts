@@ -4176,7 +4176,17 @@ export const fabricsApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  adjustCentral: async (input: { fabric_id: string; meters: number; note: string }): Promise<CentralStockRow[]> =>
+  /**
+   * [PRC-15-10] `target` picks the column the correction lands on. Omitted = `received`, the
+   * original behaviour. `allocated` is for cloth that LEFT the pool and never landed —
+   * correcting that against `received` would record that it was never bought.
+   */
+  adjustCentral: async (input: {
+    fabric_id: string;
+    meters: number;
+    note: string;
+    target?: "received" | "allocated";
+  }): Promise<CentralStockRow[]> =>
     req<CentralStockRow[]>(`/api/admin/fabrics/central/adjust`, {
       method: "POST",
       body: JSON.stringify(input),
