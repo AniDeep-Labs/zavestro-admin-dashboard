@@ -4363,7 +4363,16 @@ export interface Distribution {
   fabric_code: string | null;
   fabric_image_keys: string[] | null;
   lot_code?: string | null; // T1-9: dye-lot shipped
-  consignment_ref?: string | null; // T3-4 (W-P3): courier docket / LR number
+  /**
+   * T3-4 (W-P3): the COURIER DOCKET / LR number — a shipping reference.
+   *
+   * [PRC-14-13] NOT consignment ownership. PRC-L6's pivot introduces `consignment` meaning
+   * cloth held on behalf of a brand rather than bought, and this field's name already spends
+   * the word on a different concept. The user-facing label now reads "Courier docket / LR no."
+   * so the two cannot be confused on screen; the COLUMN still carries the old name, and
+   * renaming it belongs with the pivot that introduces the other meaning.
+   */
+  consignment_ref?: string | null;
 }
 export interface PushDistributionInput {
   /** design-scoped push: set. Plain fabric restock: omit (fabric_id then required). */
