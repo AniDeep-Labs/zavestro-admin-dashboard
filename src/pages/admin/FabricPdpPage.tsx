@@ -325,6 +325,18 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
                               {editing && (
                                 <Button variant="outline" size="sm" state={savingReorder === st.hub_id ? 'loading' : 'default'} onClick={() => saveReorder(st.hub_id)}>Save</Button>
                               )}
+                              {/* [PRC-17-7] The ledger for THIS fabric at THIS hub. The page is
+                                  deliberately nav-less, but this table is its other natural
+                                  entry and had no link — so a procurement lead reading these
+                                  numbers had to leave for the stock grid and find the row
+                                  again to see what moved. */}
+                              <Link
+                                className={s.stockLedgerLink}
+                                to={`/admin/procurement/track/${st.hub_id}/${fabric.id}`}
+                                title={`Stock ledger for ${fabric.name} at ${st.hub_name}`}
+                              >
+                                Ledger
+                              </Link>
                               <Button variant="ghost" size="sm" onClick={() => setPush({ hub_id: st.hub_id, meters: '', lot: '', consignment: '' })}>Restock</Button>
                             </td>
                           </tr>
