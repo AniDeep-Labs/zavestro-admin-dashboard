@@ -3628,6 +3628,20 @@ export interface BlastHistoryRow {
   cta_url?: string | null;
   sent_at: string;
   sent_by_email: string | null;
+  /**
+   * [PM-26-2] Per-channel ENQUEUE outcomes — not delivery.
+   *
+   * The send path enqueues; the worker delivers and a bounce lands later still. So these are
+   * an upper bound on reach, and `enqueue_failed` a floor on loss. Calling them "delivered"
+   * would repeat the error this replaced: `users_targeted` was the size of a SELECT rendered
+   * under the heading RECIPIENTS.
+   */
+  inbox_queued?: number;
+  email_queued?: number;
+  push_queued?: number;
+  enqueue_failed?: number;
+  /** NULL while the blast is still being enqueued — zero counts then mean "not yet". */
+  counts_finalised_at?: string | null;
 }
 
 export const notificationsAdminApi = {

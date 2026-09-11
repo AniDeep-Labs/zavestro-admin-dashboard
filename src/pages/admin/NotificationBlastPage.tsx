@@ -8,6 +8,31 @@ import styles from './OrdersListPage.module.css';
 import blast from './NotificationBlastPage.module.css'; // [KA6-7/8/9]
 import { UilExclamationTriangle, UilMessage } from "@iconscout/react-unicons";
 
+/**
+ * [PM-26-2] What is actually known about a blast's fate.
+ *
+ * These are ENQUEUE outcomes, not delivery — the send path hands messages to a queue, the
+ * worker delivers them, and a bounce arrives later still. So the cell says "queued", and the
+ * title says plainly that it is not the same as delivered. Overstating it here would repeat
+ * the error this column replaced.
+ */
+const queuedCell = (h: BlastHistoryRow): React.ReactNode => {
+  // NULL finalised-at means the background loop has not finished. Zeroes then mean "not yet",
+  // not "nothing reached" — rendering them as 0 would read as total failure.
+  if (!h.counts_finalised_at) return <span title="Still being queued">sending…</span>;
+  const queued =
+    Number(h.inbox_queued ?? 0) + Number(h.email_queued ?? 0) + Number(h.push_queued ?? 0);
+  const failed = Number(h.enqueue_failed ?? 0);
+  return (
+    <span
+      title={`inbox ${h.inbox_queued ?? 0} · email ${h.email_queued ?? 0} · push ${h.push_queued ?? 0}${failed ? ` · ${failed} failed to queue` : ''}. Queued is not delivered: the worker sends these, and bounces land later.`}
+    >
+      {queued.toLocaleString('en-IN')}
+      {failed > 0 && <> · {failed} failed</>}
+    </span>
+  );
+};
+
 export const NotificationBlastPage: React.FC = () => {
   const [form, setForm] = React.useState<BlastPayload>({
     subject: '', headline: '', body: '', pushBody: '', ctaText: '', ctaUrl: '', segment: 'opted_in',
@@ -65,7 +90,14 @@ export const NotificationBlastPage: React.FC = () => {
         ctaUrl: form.ctaUrl?.trim() || undefined,
       };
       const { users_targeted } = await notificationsAdminApi.blast(payload);
-      showToast('success', 'Blast queued', `Sending to ${users_targeted} customer${users_targeted !== 1 ? 's' : ''} (in-app + email + push).`);
+      // [PM-26-2] "Sending to N customers" overstated what had happened: N is the size of the
+      // audience SELECT, and at this point nothing has been queued yet, let alone delivered.
+      // The history row carries the real tally once the background loop finishes.
+      showToast(
+        'success',
+        'Blast queued',
+        `Queueing for ${users_targeted} customer${users_targeted !== 1 ? 's' : ''} (in-app + email + push). The history below shows how many were queued once it finishes.`,
+      );
       setConfirming(false);
       setForm({ subject: '', headline: '', body: '', pushBody: '', ctaText: '', ctaUrl: '', segment: 'opted_in' });
       loadHistory(); // T2-26: reflect the just-sent blast in the history table
@@ -179,7 +211,10 @@ export const NotificationBlastPage: React.FC = () => {
       {/* T2-26 (SU-7): sent history — every blast, to whom, by whom, when. */}
       <div className={styles.tableWrap}>
         <table className={styles.table}>
-          <thead><tr><th>Sent</th><th>Headline</th><th>Audience</th><th>Recipients</th><th>By</th></tr></thead>
+          {/* [PM-26-2] "Recipients" was the size of the SELECT — the one number that cannot
+              fail — presented as people reached. It is Targeted now, with what is actually
+              known beside it. */}
+          <thead><tr><th>Sent</th><th>Headline</th><th>Audience</th><th>Targeted</th><th>Queued</th><th>By</th></tr></thead>
           <tbody>
             {history === null ? (
               Array.from({ length: 3 }).map((_, i) => (
@@ -194,6 +229,7 @@ export const NotificationBlastPage: React.FC = () => {
                   <td>{h.headline || h.subject || '—'}</td>
                   <td>{h.segment === 'all' ? 'All active' : 'Opted-in'}</td>
                   <td>{h.users_targeted.toLocaleString('en-IN')}</td>
+                  <td>{queuedCell(h)}</td>
                   <td>{h.sent_by_email ?? '—'}</td>
                 </tr>
               ))
