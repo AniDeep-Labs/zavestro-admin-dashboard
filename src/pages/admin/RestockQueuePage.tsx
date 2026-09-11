@@ -176,6 +176,26 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
 
   // [PRC-16-8]/[CM-19-8] How much of this request is still owed. `outstanding` comes from the
   // server; the fallback covers a row loaded before the column existed.
+  /**
+   * [PRC-16-10] The evidence beside the ask. Procurement saw "Running low" and had to take it
+   * on trust; these are the facts that make the demand checkable, all scoped to this fabric at
+   * this hub. Rendered only where there is something to show — a row of three zeroes would be
+   * noise on a request whose fabric simply is not listed yet.
+   */
+  const demandEvidence = (r: RestockRequest): React.ReactNode => {
+    const waiting = Number(r.waiting_customers ?? 0);
+    const live = Number(r.live_listings ?? 0);
+    const sold = Number(r.sold_30d ?? 0);
+    if (!waiting && !live && !sold) return null;
+    const bits: string[] = [];
+    if (waiting) bits.push(`${waiting} waiting`);
+    if (sold) bits.push(`${sold} sold/30d`);
+    // "0 live listings" is worth saying: it means nothing is currently sellable from this
+    // cloth, which is a different reason to ship than customers queueing for it.
+    bits.push(live === 1 ? '1 live listing' : `${live} live listings`);
+    return <span className={rs.evidence} title="Waiting customers · units sold in 30 days · live listings, all at this hub">{bits.join(' · ')}</span>;
+  };
+
   const outstandingOf = (r: RestockRequest): number =>
     Number(r.outstanding ?? Number(r.qty) - Number(r.qty_fulfilled ?? 0));
   const receivedOf = (r: RestockRequest): number => Number(r.qty_fulfilled ?? 0);
@@ -302,7 +322,10 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
             Number(r.qty)
           )}
         </td>
-        <td className={rs.noteCell}>{r.demand_note || <span className={rs.dim}>—</span>}</td>
+        <td className={rs.noteCell}>
+          {r.demand_note || <span className={rs.dim}>—</span>}
+          {demandEvidence(r)}
+        </td>
         <td onClick={(e) => e.stopPropagation()}><AgeCell since={r.created_at} warnAfterH={72} alertAfterH={168} /></td>
         <td><StatusBadge status={PILL[r.status]?.key ?? r.status} label={PILL[r.status]?.label} /></td>
         <td onClick={(e) => e.stopPropagation()}>
@@ -375,7 +398,10 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
       <td>{fabricCell(r)}</td>
       {!isCm && <td>{hubName(r.hub_id)}</td>}
       <td className={styles.total}>{Number(r.qty)}</td>
-      <td className={rs.noteCell}>{r.demand_note || <span className={rs.dim}>—</span>}</td>
+      <td className={rs.noteCell}>
+        {r.demand_note || <span className={rs.dim}>—</span>}
+        {demandEvidence(r)}
+      </td>
       <td><StatusBadge status={PILL[r.status]?.key ?? r.status} label={PILL[r.status]?.label} /></td>
       <td className={rs.dateCell}>{new Date(r.updated_at || r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
     </tr>

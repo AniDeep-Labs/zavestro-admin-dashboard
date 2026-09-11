@@ -4465,6 +4465,20 @@ export interface RestockRequest {
   /** How many times someone has asked about this, and when last. */
   chase_count?: number;
   last_chased_at?: string | null;
+  /**
+   * [PRC-16-10] The evidence behind the ask. A restock carried a free-text "Why (optional)"
+   * and nothing else, so procurement saw "Running low" and had to take it on trust.
+   *
+   * All three are scoped to this fabric AT THIS HUB — a figure that leaked across hubs would
+   * read as this hub's demand while describing somewhere else, which is worse than no
+   * evidence because it looks like evidence.
+   */
+  /** Customers waiting for this fabric here who have not yet been told it is back. */
+  waiting_customers?: number;
+  /** Live listings that need this cloth. Zero is a different kind of "low". */
+  live_listings?: number;
+  /** Units sold here in the last 30 days, cancelled orders excluded. */
+  sold_30d?: number;
 }
 
 export const restockApi = {

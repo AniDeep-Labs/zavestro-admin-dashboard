@@ -28,3 +28,12 @@
   background: var(--color-bg-section); color: var(--color-text-secondary);
   font-size: var(--font-size-base);
 }
+
+/* [PRC-16-10] The demand evidence under the free-text reason. Quiet: it supports the ask,
+   it is not the ask. */
+.evidence {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
