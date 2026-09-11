@@ -1,0 +1,81 @@
+{
+  "statusPill": {
+    "canon": "StatusBadge",
+    "count": 14,
+    "files": [
+      "AnalyticsPage.module.css",
+      "AppConfigPage.module.css",
+      "AuditLogPage.module.css",
+      "CollectionsListPage.module.css",
+      "ContentPage.module.css",
+      "HubDetailPage.module.css",
+      "HubsListPage.module.css",
+      "OrderDetailPage.module.css",
+      "OrdersListPage.module.css",
+      "ProductsListPage.module.css",
+      "SupportListPage.module.css",
+      "TicketDetailPage.module.css",
+      "UserDetailPage.module.css",
+      "UsersListPage.module.css"
+    ]
+  },
+  "pageHeader": {
+    "canon": "PageHeader",
+    "count": 20,
+    "files": [
+      "AdminDashboardPage.module.css",
+      "AdminUsersManagePage.module.css",
+      "AnalyticsPage.module.css",
+      "AppConfigPage.module.css",
+      "AuditLogPage.module.css",
+      "CollectionsListPage.module.css",
+      "ContentPage.module.css",
+      "DeadStockPage.module.css",
+      "HubConstraintsPage.module.css",
+      "HubDetailPage.module.css",
+      "HubsListPage.module.css",
+      "OrdersListPage.module.css",
+      "ProductsListPage.module.css",
+      "PromoCodesPage.module.css",
+      "QcTemplatesPage.module.css",
+      "SupportListPage.module.css",
+      "SystemHealthPage.module.css",
+      "TicketDetailPage.module.css",
+      "UserDetailPage.module.css",
+      "UsersListPage.module.css"
+    ]
+  },
+  "empty": {
+    "canon": "EmptyState",
+    "count": 27,
+    "files": [
+      "AdminUsersManagePage.module.css",
+      "AnalyticsPage.module.css",
+      "AppConfigPage.module.css",
+      "AuditLogPage.module.css",
+      "CollectionsListPage.module.css",
+      "ContentPage.module.css",
+      "CutSheetPage.module.css",
+      "DeadStockPage.module.css",
+      "DesignDetailPage.module.css",
+      "EngineTesterPage.module.css",
+      "FabricAtHubPage.module.css",
+      "FabricsMasterPage.module.css",
+      "GarmentTagsPage.module.css",
+      "HomeSectionsPage.module.css",
+      "HubConstraintsPage.module.css",
+      "HubDetailPage.module.css",
+      "HubsListPage.module.css",
+      "ListingRequestsPage.module.css",
+      "ListingsManagePage.module.css",
+      "NotificationBell.module.css",
+      "OrdersListPage.module.css",
+      "ProductsListPage.module.css",
+      "QcTemplatesPage.module.css",
+      "SupportListPage.module.css",
+      "TicketDetailPage.module.css",
+      "UserDetailPage.module.css",
+      "UsersListPage.module.css"
+    ]
+  }
+}
