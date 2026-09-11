@@ -6,7 +6,7 @@ import type { RestockRequest, Fabric, Hub, FabricStockRow } from '../../api/admi
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { StatusBadge, PageHeader, EmptyState, NoHubAssigned } from '../../components';
+import { StatusBadge, PageHeader, EmptyState, NoHubAssigned, Alert } from '../../components';
 import { AgeCell } from '../../components/DataCells';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -413,6 +413,20 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
         meta={!loading && <span className={rs.headCount}>{pending.length} open · {rows.length} total</span>}
       />
 
+      {/* [PRC-16-12] Distribution says this plainly and these queues did not, though the same
+          thing is true on both: procurement confirms physical arrival at a hub it cannot see.
+          Shown to procurement only — for the hub it is not a caveat, it is just their job.
+
+          Wording updated for [CM-19-8]: the hub can now record its own receipt here, so this
+          is no longer "procurement or nobody". Saying "until the ops app ships" alone would
+          now be false. */}
+      {!isCm && (
+        <Alert
+          type="info"
+          title="Receiving is normally the hub's job"
+          message="Hub staff confirm what physically arrived — from the ops app when it ships, and from this page today. Procurement can record receipt on their behalf, but it is the hub that can see the cloth."
+        />
+      )}
       {/* T2-38 (PR-5): a hub-less CM can't request restocks (they're hub-scoped) — show the
           honest dead-end instead of a form that fails on submit. */}
       {isCm && hubResolved && !myHubId && <NoHubAssigned action="request restocks" />}
