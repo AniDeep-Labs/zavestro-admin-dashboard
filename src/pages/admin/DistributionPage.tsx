@@ -464,10 +464,15 @@ export const DistributionPage: React.FC = () => {
         actions={<Button variant="primary" onClick={openPush}><UilPlus size={16} /> Push to hub</Button>}
       />
 
+      {/* [PRC-16-12] "Until that ships, procurement can record receipt here" implied procurement
+          was the only one who could. `receiveDistribution` has been open to the hub
+          (`restock:write`) as well as procurement all along, and [CM-19-8] widened restock the
+          same way — so the caveat is about WHO CAN SEE THE CLOTH, not about who is permitted.
+          Same wording on the two request queues, which make the identical claim. */}
       <Alert
         type="info"
         title="Receiving is normally the hub's job"
-        message="In the live flow, hub staff confirm receipt in the ops app. Until that ships, procurement can record receipt here on their behalf."
+        message="Hub staff confirm what physically arrived — from the ops app when it ships, and from this page today. Procurement can record receipt on their behalf, but it is the hub that can see the cloth."
       />
 
       <div className={s.toolbar}>

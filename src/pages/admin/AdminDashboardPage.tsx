@@ -2,6 +2,9 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UilSync, UilTruck, UilRuler, UilCheckCircle, UilReceipt, UilBox, UilExclamationTriangle, UilShoppingBag, UilHistory, UilProcess } from '@iconscout/react-unicons';
 import { dashboardApi, hasCapability, getAdminCapabilities } from '../../api/adminApi';
+// [SHL-4-8] design + procurement hold neither orders:read nor reports:read, so everything
+// below is hidden for them and their landing page answered no question about their own work.
+import { RoleLandingBlock } from '../../components/RoleLanding/RoleLandingBlock';
 import type { DashboardData } from '../../api/adminApi';
 import { clearAdminToken } from '../../api/catalogApi';
 import { Sparkline, AreaTrendChart, BarMini, stageRamp, fmtINRShort } from '../../components/charts/Charts';
@@ -308,6 +311,12 @@ export const AdminDashboardPage: React.FC = () => {
 
       {/* What needs me today (role-aware) — leads the page above the vanity stats */}
       <ActionInbox />
+
+      {/* [SHL-4-8] Shown only to the roles for which everything below is hidden. `hasDashData`
+          is the exact condition that suppresses the KPIs, funnel and charts, so keying off it
+          means this can never double up with them — the block appears precisely when the page
+          would otherwise be the inbox and nothing else. */}
+      {!hasDashData && !hasNoCapabilities && <RoleLandingBlock />}
 
       {/* Overview — dark hero panel: title + period toggle + refresh. Hidden when the
           role has no company KPIs (design/procurement) so there's no empty band. */}

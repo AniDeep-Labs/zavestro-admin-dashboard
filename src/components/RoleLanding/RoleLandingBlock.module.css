@@ -1,0 +1,66 @@
+/* [SHL-4-8] The landing block for roles with no company KPIs. Deliberately quiet: it is a
+   pointer into their own console, not a dashboard competing with one. */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+.group {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+.groupTitle {
+  margin: 0 0 var(--spacing-md);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--spacing-md);
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease;
+}
+.stat:hover,
+.stat:focus-visible {
+  border-color: var(--color-primary);
+}
+.statValue {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+.statLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+/* The sentence that says what the number MEANS — a bare 0 reads as "broken" as easily as
+   "all clear", and these roles have no other context on this page. */
+.statHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+.err {
+  margin: 0;
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}

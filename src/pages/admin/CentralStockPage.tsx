@@ -42,6 +42,10 @@ export const CentralStockPage: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   // adjust
   const [adjustTarget, setAdjustTarget] = React.useState<CentralStockRow | null>(null);
+  // [PRC-15-10] Which column the correction lands on. Received is the default because it is
+  // the common case (a mis-keyed intake); allocated exists because correcting a transit loss
+  // against received records that the cloth was never bought.
+  const [adjustColumn, setAdjustColumn] = React.useState<"received" | "allocated">("received");
   const [adjustDelta, setAdjustDelta] = React.useState("");
   const [adjustNote, setAdjustNote] = React.useState("");
   const [adjusting, setAdjusting] = React.useState(false);
@@ -161,15 +165,35 @@ export const CentralStockPage: React.FC = () => {
 
   const submitAdjust = async () => {
     if (!adjustTarget) return;
+    // Guard the same way the server does, so the operator is told before the round-trip.
     const d = Number(adjustDelta);
     // `!d` already covers NaN, 0 and "" — NaN is falsy, so it never reaches a second test.
     if (!d) return showToast("error", "Enter a non-zero adjustment (+/- metres)");
     if (!adjustNote.trim()) return showToast("error", "A reason is required");
+    // [PRC-15-10] The server enforces these; repeating them here means the operator learns
+    // before the round-trip, and the message names the number that blocks it.
+    const received = Number(adjustTarget.received_meters);
+    const allocated = Number(adjustTarget.allocated_meters);
+    if (adjustColumn === "allocated") {
+      const next = allocated + d;
+      if (next < 0)
+        return showToast("error", `Allocated would go to ${next} m — it cannot go below zero.`);
+      if (next > received)
+        return showToast(
+          "error",
+          `Allocated would go to ${next} m, but only ${received} m was ever received into the pool.`,
+        );
+    } else if (received + d < allocated) {
+      return showToast(
+        "error",
+        `Received would go to ${received + d} m, below the ${allocated} m already shipped to hubs.`,
+      );
+    }
     setAdjusting(true);
     try {
-      const next = await fabricsApi.adjustCentral({ fabric_id: adjustTarget.fabric_id, meters: d, note: adjustNote.trim() });
+      const next = await fabricsApi.adjustCentral({ fabric_id: adjustTarget.fabric_id, meters: d, note: adjustNote.trim(), target: adjustColumn });
       setRows(next);
-      showToast("success", `Adjusted ${adjustTarget.fabric_code} by ${d > 0 ? "+" : ""}${d} m`);
+      showToast("success", `Adjusted ${adjustTarget.fabric_code} ${adjustColumn} by ${d > 0 ? "+" : ""}${d} m`);
       setAdjustTarget(null); setAdjustDelta(""); setAdjustNote("");
     } catch (e) {
       showToast("error", "Adjustment failed", e instanceof Error ? e.message : undefined);
@@ -309,7 +333,7 @@ export const CentralStockPage: React.FC = () => {
                     <td className={s.numCol}><MoneyCell amount={valueOf(r)} /></td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <div className={s.rowActions}>
-                        <button className={s.linkBtn} onClick={() => { setAdjustTarget(r); setAdjustDelta(""); setAdjustNote(""); }}>
+                        <button className={s.linkBtn} onClick={() => { setAdjustTarget(r); setAdjustDelta(""); setAdjustNote(""); setAdjustColumn("received"); }}>
                           <UilSlidersV size={13} /> Adjust
                         </button>
                         <button className={s.linkBtn} onClick={() => openHistory(r)}>
@@ -384,13 +408,26 @@ export const CentralStockPage: React.FC = () => {
               <strong>{fmtM(adjustTarget.allocated_meters)}</strong> · available <strong>{fmtM(adjustTarget.available_meters)}</strong>
             </div>
           )}
+          {/* [PRC-15-10] The column, chosen explicitly. Before this the only lever was
+              received, so a transit loss had to be booked as "we bought less" — one number
+              corrected by falsifying another. */}
+          <label className={s.flbl}>What is wrong
+            <select className={s.finp} value={adjustColumn} onChange={(e) => setAdjustColumn(e.target.value as "received" | "allocated")}>
+              <option value="received">Received — what we took into the pool</option>
+              <option value="allocated">Allocated — what left for hubs</option>
+            </select>
+          </label>
           <label className={s.flbl}>Adjustment (metres, +/−)
             <input className={s.finp} type="number" value={adjustDelta} placeholder="e.g. -1800 to fix a typo, +50 found stock" onChange={(e) => setAdjustDelta(e.target.value)} />
           </label>
           <label className={s.flbl}>Reason (required)
             <input className={s.finp} value={adjustNote} placeholder="e.g. mis-keyed receive, damaged, physical count" onChange={(e) => setAdjustNote(e.target.value)} />
           </label>
-          <span className={s.fhint}>Corrects the received total. Can't reduce below what's already shipped to hubs.</span>
+          <span className={s.fhint}>
+            {adjustColumn === "received"
+              ? "Corrects what was taken into the pool — a mis-keyed intake, a physical count. Can't reduce below what's already shipped to hubs."
+              : "Corrects what left for hubs — metres lost in transit, or a push recorded that never happened. Use this instead of reducing received, which would record that the cloth was never bought."}
+          </span>
         </div>
       </Modal>
 

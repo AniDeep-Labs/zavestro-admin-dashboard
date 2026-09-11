@@ -9,7 +9,7 @@ import { Input } from '../../components/Input/Input';
 import { Modal } from '../../components/Modal/Modal';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
-import { StatusBadge, PageHeader, EmptyState, NoHubAssigned } from '../../components';
+import { StatusBadge, PageHeader, EmptyState, NoHubAssigned, Alert } from '../../components';
 import { AgeCell } from '../../components/DataCells';
 import base from './OrdersListPage.module.css';
 import ds from './DistributionPage.module.css';
@@ -359,6 +359,20 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
         meta={!loading && <span className={s.cardAge}>{openWork.length} open · {rows.length} total</span>}
       />
 
+      {/* [PRC-16-12] Distribution says this plainly and these queues did not, though the same
+          thing is true on both: procurement confirms physical arrival at a hub it cannot see.
+          Shown to procurement only — for the hub it is not a caveat, it is just their job.
+
+          Wording updated for [CM-19-8]: the hub can now record its own receipt here, so this
+          is no longer "procurement or nobody". Saying "until the ops app ships" alone would
+          now be false. */}
+      {isProc && (
+        <Alert
+          type="info"
+          title="Receiving is normally the hub's job"
+          message="Hub staff confirm what physically arrived — from the ops app when it ships, and from this page today. Procurement can record receipt on their behalf, but it is the hub that can see the cloth."
+        />
+      )}
       {/* T2-38 (PR-5): a hub-less CM can't raise listing requests (hub-scoped) — dead-end honestly. */}
       {!isProc && hubResolved && !myHubId && <NoHubAssigned action="raise listing requests" />}
       {/* CM: create a request */}
