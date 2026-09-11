@@ -4073,6 +4073,14 @@ export const fabricsApi = {
     meta?: {
       reorder_coverage?: ReorderCoverage;
       fabric_fields_visible?: FabricFieldVisibility;
+      /**
+       * [PRC-14-9] The KPI row, over every SKU in scope rather than the returned page. The
+       * list is capped, so summing the loaded array would be quietly WRONG — not merely
+       * incomplete — which is worse than the payload problem being fixed.
+       */
+      totals?: { skus: number; stock_meters: number; capital: number; low: number };
+      /** The list is a subset; say so rather than ending silently. */
+      truncated?: boolean;
     };
   }> => {
     const qs = new URLSearchParams();

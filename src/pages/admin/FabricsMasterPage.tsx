@@ -64,6 +64,9 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design'; auto
   // [PRC-14-4] How many shelf positions have a reorder point at all — the denominator
   // the "Below reorder" count needs before it means anything.
   const [coverage, setCoverage] = React.useState<ReorderCoverage | null>(null);
+  // [PRC-14-9] Server-computed KPI row + whether the list below it is a subset.
+  const [totals, setTotals] = React.useState<{ skus: number; stock_meters: number; capital: number; low: number } | null>(null);
+  const [truncated, setTruncated] = React.useState(false);
   // [PRC-14-6] Which commercial columns the server sent. A masked supplier must not read
   // as an absent one — this page's whole job is knowing who to call to buy more cloth.
   const [fieldVis, setFieldVis] = React.useState<FabricFieldVisibility | null>(null);
@@ -100,6 +103,9 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design'; auto
         setFabrics(r.data);
         setCoverage(r.meta?.reorder_coverage ?? null);
         setFieldVis(r.meta?.fabric_fields_visible ?? null);
+        // [PRC-14-9] The list is capped server-side, so the KPI row comes with it.
+        setTotals(r.meta?.totals ?? null);
+        setTruncated(!!r.meta?.truncated);
       })
       .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
@@ -306,10 +312,14 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design'; auto
     () => fabrics.filter((f) => f.width_cm == null || String(f.width_cm).trim() === ''),
     [fabrics],
   );
-  // Summary rollup (reflects the current filter set, matching the row count).
-  const totalStock = fabrics.reduce((sum, f) => sum + (f.total_available ?? 0), 0);
-  const capital = fabrics.reduce((sum, f) => sum + (f.stock_value ?? 0), 0);
-  const lowCount = fabrics.filter((f) => f.low_somewhere).length;
+  // [PRC-14-9] Summary rollup over every SKU in scope, from the server. The list is capped,
+  // so summing the loaded array would be quietly WRONG rather than merely incomplete — the
+  // same trap [CM-18-9] left behind when it capped a list and left its counter local. The
+  // local reduce stays as the pre-response fallback and is exact whenever nothing is capped.
+  const totalStock = totals?.stock_meters ?? fabrics.reduce((sum, f) => sum + (f.total_available ?? 0), 0);
+  const capital = totals?.capital ?? fabrics.reduce((sum, f) => sum + (f.stock_value ?? 0), 0);
+  const lowCount = totals?.low ?? fabrics.filter((f) => f.low_somewhere).length;
+  const skuCount = totals?.skus ?? fabrics.length;
   // Clicking a gap chip narrows the grid to exactly those rows, so the count is not just a
   // statistic — it is a way in to fixing them.
   const gapped = React.useMemo(() => {
@@ -365,14 +375,22 @@ export const FabricsMasterPage: React.FC<{ mode?: 'procurement' | 'design'; auto
             Low somewhere
           </button>
         )}
-        {!loading && <span className={s.count}>{fabrics.length} fabric{fabrics.length === 1 ? '' : 's'}</span>}
+        {!loading && (
+          <span className={s.count}>
+            {/* [PRC-14-9] When the list is capped, "250 fabrics" would read as the whole
+                master. Say which of the two it is. */}
+            {truncated
+              ? `showing ${fabrics.length} of ${skuCount} fabrics`
+              : `${skuCount} fabric${skuCount === 1 ? '' : 's'}`}
+          </span>
+        )}
       </div>
 
       {!readOnly && !loading && fabrics.length > 0 && (
         <div className={kpi.summary}>
           <div className={kpi.summaryCard}>
             <div className={kpi.summaryLabel}>Fabrics</div>
-            <div className={kpi.summaryValue}>{fabrics.length}</div>
+            <div className={kpi.summaryValue}>{skuCount}</div>
           </div>
           <div className={kpi.summaryCard}>
             <div className={kpi.summaryLabel}>Total stock</div>
