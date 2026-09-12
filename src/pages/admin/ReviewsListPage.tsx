@@ -291,7 +291,7 @@ export const ReviewsListPage: React.FC = () => {
                       className={styles.actionBtn}
                       disabled={actionId === r.id}
                       onClick={() => runModerate([r.id], true)}
-                      style={{ marginRight: 4, background: 'var(--green, #1F6B4F)', color: '#fff', border: 'none' }}
+                      style={{ marginRight: 4, background: 'var(--color-primary, #1F6B4F)', color: '#fff', border: 'none' }}
                     >
                       {actionId === r.id ? '…' : 'Approve'}
                     </button>

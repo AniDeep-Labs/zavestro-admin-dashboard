@@ -143,6 +143,30 @@
   --status-blocked-bg: rgba(215, 91, 91, 0.10);
   --status-blocked-border: rgba(215, 91, 91, 0.35);
 
+  /* GENERIC CHIP TONES — [DSA-45-5]
+     The --status-* set above is the GARMENT-STAGE vocabulary: one tone per stage meaning,
+     owned by StatusBadge. It is not a palette, and pages that needed a plain "this is good
+     / this needs attention" chip could not borrow from it without lying about what the chip
+     meant. So they hand-mixed their own — OrdersListPage alone grew THREE parallel chip
+     vocabularies (status*, stage*, action*), each with its own hand-written
+     [data-theme="dark"] block, each a copy of colours that already existed here.
+
+     That duplication is the mechanism behind [DSA-45-3]: a hex literal cannot respond to
+     the theme, and a hand-written dark override is a second place to forget. These five
+     are the generic set those chips should have had — named for what a chip SAYS, not for
+     a stage — and they are covered by scripts/check-contrast.mjs, which the copies were
+     not. */
+  --tone-positive-fg: #1E7A45;
+  --tone-positive-bg: rgba(42, 155, 91, 0.12);
+  --tone-caution-fg: #B45309;
+  --tone-caution-bg: rgba(228, 149, 42, 0.12);
+  --tone-negative-fg: #B04545;
+  --tone-negative-bg: rgba(215, 91, 91, 0.10);
+  --tone-informative-fg: #2F6699;
+  --tone-informative-bg: rgba(75, 141, 200, 0.10);
+  --tone-neutral-fg: #57534E;
+  --tone-neutral-bg: rgba(168, 162, 158, 0.14);
+
   /* SPACING SCALE */
   --spacing-xs: 0.25rem;  /* 4px */
   --spacing-sm: 0.5rem;   /* 8px */
@@ -286,6 +310,17 @@
   --status-transit-bg: rgba(42, 155, 91, 0.12);
   --status-done-fg: #6FBF8E;
   --status-blocked-fg: #E89A9A;
+
+  /* [DSA-45-5] Only the foregrounds move; the tints read correctly over the dark card. */
+  --tone-positive-fg: #6FBF8E;
+  --tone-caution-fg: #ECB269;
+  --tone-negative-fg: #E89A9A;
+  --tone-informative-fg: #8FB8DE;
+  --tone-neutral-fg: #B0AAA0;
+  --tone-caution-bg: rgba(228, 149, 42, 0.20);
+  --tone-negative-bg: rgba(215, 91, 91, 0.20);
+  --tone-informative-bg: rgba(75, 141, 200, 0.20);
+  --tone-neutral-bg: rgba(168, 162, 158, 0.20);
 
   /* DARK BACKGROUNDS — matches web dark scale */
   --color-bg-primary: #1C1A17;

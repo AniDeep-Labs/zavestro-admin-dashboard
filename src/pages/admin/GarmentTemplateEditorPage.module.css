@@ -151,7 +151,7 @@
   font-size: var(--font-size-sm);
   font-family: inherit;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-bg-primary);
 }
 .sizeInput {
   min-width: 90px;
@@ -213,7 +213,7 @@
   font-size: var(--font-size-sm);
   font-family: inherit;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-bg-primary);
 }
 .painField {
   border: 1px solid var(--color-border);
@@ -222,7 +222,7 @@
   font-size: var(--font-size-sm);
   font-family: inherit;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-bg-primary);
   text-transform: capitalize;
 }
 .painDelta {
@@ -233,7 +233,7 @@
   font-size: var(--font-size-sm);
   font-family: inherit;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-bg-primary);
 }
 
 /* [KA3-6] The save bar is `position: sticky; bottom: 0` over the page's own scroll, and the
@@ -253,7 +253,7 @@
   position: sticky;
   bottom: 0;
   padding: var(--spacing-md) 0;
-  background: linear-gradient(transparent, var(--color-bg) 40%);
+  background: linear-gradient(transparent, var(--color-bg-primary) 40%);
 }
 .noteInput {
   margin-right: auto;
@@ -265,7 +265,7 @@
   font-size: var(--font-size-sm);
   font-family: inherit;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-bg-primary);
 }
 .noteInput:focus { outline: none; border-color: var(--color-primary); }
 
@@ -291,7 +291,7 @@
 .previewControls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: var(--spacing-md); }
 .pvSelect {
   padding: 8px 11px; border: 1px solid var(--color-border); border-radius: var(--radius-md);
-  background: var(--color-bg); color: var(--color-text); font-family: inherit; font-size: var(--font-size-sm);
+  background: var(--color-bg-primary); color: var(--color-text); font-family: inherit; font-size: var(--font-size-sm);
 }
 .pvAnchor { display: flex; flex-direction: column; gap: 4px; }
 .pvAnchor span { font-size: var(--font-size-xs); color: var(--color-text-muted); text-transform: capitalize; }
@@ -309,7 +309,7 @@
 .presetParams { display: flex; flex-wrap: wrap; gap: var(--spacing-md); }
 .presetParam { display: flex; flex-direction: column; gap: 4px; }
 .presetParamLabel { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
-.presetParamInput { width: 96px; height: 36px; padding: 0 10px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; box-sizing: border-box; }
+.presetParamInput { width: 96px; height: 36px; padding: 0 10px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; box-sizing: border-box; }
 .presetParamInput:focus { border-color: var(--color-primary); }
 
 /* Grade-rule generator */
@@ -317,7 +317,7 @@
 .gradeForm { display: flex; flex-direction: column; gap: var(--spacing-md); }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .gradeLabel { font-size: var(--font-size-xs); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); }
-.gradeText { height: 40px; padding: 0 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; box-sizing: border-box; }
+.gradeText { height: 40px; padding: 0 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; box-sizing: border-box; }
 .gradeText:focus { border-color: var(--color-primary); }
 .gradeActions { display: flex; justify-content: flex-end; gap: 8px; }
 
@@ -337,7 +337,7 @@
 /* Stage group headers + collapsible advanced block (page reorg). */
 .groupHeader {
   font-family: var(--font-display, inherit);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: var(--color-text);
   margin: var(--spacing-xl) 0 var(--spacing-sm);
@@ -564,7 +564,7 @@
 .sectionHeadActions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* W-D2: paste/import textarea — monospace so pasted columns line up. */
-.importArea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.5; outline: none; resize: vertical; margin-bottom: 12px; white-space: pre; }
+.importArea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text); font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.5; outline: none; resize: vertical; margin-bottom: 12px; white-space: pre; }
 .importArea:focus { border-color: var(--color-primary); }
 
 

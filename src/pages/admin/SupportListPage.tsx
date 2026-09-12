@@ -338,23 +338,15 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Support Tickets</h1>
-        <button
-          className={styles.addBtn ?? styles.exportBtn}
-          onClick={() => setShowCreate(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "8px 14px",
-            borderRadius: 6,
-            border: "1px solid var(--border)",
-            background: "var(--green)",
-            color: "#fff",
-            cursor: "pointer",
-            fontSize: "0.8125rem",
-            fontFamily: "inherit",
-          }}
-        >
+        {/* [DSA-45-5] This button was INVISIBLE on the live page. It hand-rolled inline
+            what `.addBtn` already defines in this file's own module, and its inline fill
+            was `var(--green)` — a token that does not exist here (it is --color-primary).
+            An undefined custom property with no fallback makes the whole declaration
+            invalid, so the background was dropped to transparent while `color: "#fff"`
+            survived: white on white, on the screen whose empty state reads "Nothing here
+            — inbox zero". Nobody reports a missing control on a page that says there is
+            nothing to do. scripts/check-css-vars.mjs now fails the build on that shape. */}
+        <button className={styles.addBtn} onClick={() => setShowCreate(true)}>
           <UilPlus size={14} /> Create Ticket
         </button>
       </div>

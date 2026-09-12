@@ -335,7 +335,7 @@
   font-size: var(--font-size-sm);
   font-family: inherit;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-bg-primary);
 }
 .matchedRemove { border: none; background: none; color: var(--color-text-muted); cursor: pointer; padding: 4px; display: flex; }
 .matchedRemove:hover { color: var(--color-error); }
@@ -363,7 +363,7 @@
   font-size: var(--font-size-sm);
   font-family: inherit;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-bg-primary);
 }
 .sizeActions { display: flex; gap: 8px; margin-top: 12px; }
 .sizeAddBtn {
@@ -382,7 +382,7 @@
   font-size: var(--font-size-sm);
   font-family: inherit;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-bg-primary);
   margin-bottom: var(--spacing-sm);
 }
 .fabricPicker {

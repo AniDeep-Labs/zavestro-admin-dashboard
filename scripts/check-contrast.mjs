@@ -137,6 +137,20 @@ for (const [theme, tokens] of Object.entries({ light, dark })) {
     if (r < AA) failures.push(`${theme}: ${ink} on ${fill} is ${r.toFixed(2)}:1 (needs ${AA})`);
   }
 
+  // Generic chip tones — same flattening rule as the status vocabulary below.
+  const tones = new Set([...css.matchAll(/--tone-([a-z]+)-fg\s*:/g)].map((m) => m[1]));
+  for (const tone of tones) {
+    const fg = resolve(tokens, `--tone-${tone}-fg`);
+    const tint = resolve(tokens, `--tone-${tone}-bg`);
+    if (!fg || !tint || !card) {
+      failures.push(`${theme}: --tone-${tone}-fg/-bg is missing or not a flat colour`);
+      continue;
+    }
+    const r = contrast(fg, composite(tint, card));
+    checked++;
+    if (r < AA) failures.push(`${theme}: --tone-${tone}-fg on its own chip is ${r.toFixed(2)}:1`);
+  }
+
   // StatusBadge tones: a tinted chip, so the foreground is measured against the tint
   // FLATTENED ONTO THE CARD. Measuring it against the raw rgba() would report a ratio
   // nobody can see, which is how a chip passes a checker and fails a person.

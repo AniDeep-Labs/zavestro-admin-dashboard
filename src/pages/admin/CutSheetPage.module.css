@@ -17,7 +17,7 @@
 .label { font-size: var(--font-size-xs); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); }
 .input {
   height: 38px; padding: 0 10px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
-  background: var(--color-bg); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-base);
+  background: var(--color-bg-primary); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-base);
   outline: none; box-sizing: border-box; width: 100%;
 }
 .input:focus { border-color: var(--color-primary); }

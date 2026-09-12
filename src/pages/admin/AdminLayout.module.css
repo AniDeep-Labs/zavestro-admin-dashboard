@@ -652,11 +652,16 @@
 
 /* [KA9-12] The legacy full-access role. It bypasses every capability check, so it must not
    wear the same chip as a scoped role — the one session that can do everything should be the
-   one you notice. */
+   one you notice.
+
+   [DSA-45-3] It was measured at 3.26:1 — the least noticeable thing on the page, which is
+   the exact opposite of what the paragraph above asks for. A 12% tint is how a chip says
+   "routine". This one is not routine, so it is a SOLID fill: it reads at 5.11:1 and it is
+   the only solid badge in the header. */
 .roleBadgeLegacy {
-  background: rgba(215, 91, 91, 0.12);
-  color: var(--color-error);
-  font-weight: var(--font-weight-semibold);
+  background: var(--color-error);
+  color: var(--color-on-error);
+  font-weight: var(--font-weight-bold);
 }
 
 /* [DSA-45-4] Skip-to-content. Off-canvas rather than display:none — a hidden element is
