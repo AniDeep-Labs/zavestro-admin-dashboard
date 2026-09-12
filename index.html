@@ -15,6 +15,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script async defer src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
+    <!-- [SCA-44-5] A Simple Analytics beacon used to load here, from a public CDN, before
+         first paint. Removed, for two reasons:
+
+         1. It was on THIS surface only — not the marketing site, not the customer web —
+            which is the opposite of where public web analytics belongs. It reads as a
+            stray from a template rather than something anyone asked for. Nine internal
+            users, already covered by Datadog RUM for usage and Sentry for errors.
+         2. It reports page URLs to a third party, and [SCA-44-4] has just moved list
+            filters INTO those URLs — so `?search=<customer name or phone>` would now be
+            part of what left the building.
+
+         ⚠️ If this beacon was deliberate, restoring it is one line — but do it after
+         deciding what may be sent, because reason 2 stands either way. -->
   </body>
 </html>
