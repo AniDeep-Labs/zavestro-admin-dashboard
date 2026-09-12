@@ -36,7 +36,12 @@ const queuedCell = (h: BlastHistoryRow): React.ReactNode => {
 export const NotificationBlastPage: React.FC = () => {
   const [form, setForm] = React.useState<BlastPayload>({
     subject: '', headline: '', body: '', pushBody: '', ctaText: '', ctaUrl: '', segment: 'opted_in',
+    // [PM-26-8] All three by default — the behaviour before this, now chosen rather than
+    // assumed.
+    channels: ['inbox', 'email', 'push'],
   });
+  const [testEmail, setTestEmail] = React.useState('');
+  const [testing, setTesting] = React.useState(false);
   const [confirming, setConfirming] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const [audienceCount, setAudienceCount] = React.useState<number | null>(null);
@@ -68,7 +73,27 @@ export const NotificationBlastPage: React.FC = () => {
   React.useEffect(() => { loadHistory(); }, [loadHistory]);
 
   const set = <K extends keyof BlastPayload>(k: K, v: BlastPayload[K]) => setForm(f => ({ ...f, [k]: v }));
-  const valid = form.subject.trim() && form.headline.trim() && form.body.trim();
+  // [PM-26-8] A blast with no channels reaches nobody while reporting a targeted count — the
+  // same shape of lie [PM-26-2] removed from the recipients column. The server refuses it; so
+  // does the button, before the operator gets as far as the irreversible confirm.
+  const valid =
+    form.subject.trim() && form.headline.trim() && form.body.trim() && (form.channels ?? []).length > 0;
+
+  // [PM-26-8] The confirm says the send "cannot be recalled", and that was the only control:
+  // the first time anyone saw the message rendered was when every customer did.
+  const sendTest = async () => {
+    if (!testEmail.trim()) return;
+    setTesting(true);
+    try {
+      await notificationsAdminApi.blastTest({ ...form, to_email: testEmail.trim() });
+      showToast('success', 'Test sent', `Check ${testEmail.trim()} — the subject is prefixed [TEST].`);
+    } catch (e) {
+      // Said out loud: a test-send that fails quietly teaches the operator the message is fine.
+      showToast('error', 'Test failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const openConfirm = () => {
     setAudienceCount(null);
@@ -120,6 +145,35 @@ export const NotificationBlastPage: React.FC = () => {
       <div className={blast.composer}>
       <div className={styles.card}>
         <div className={styles.fields}>
+          {/* [PM-26-8] Every blast went to inbox AND email AND push at once, so a message
+              written for a push also landed as an email. One of these is not like the others:
+              the inbox is ours, email and push leave the building. */}
+          <div className={styles.field}>
+            <label className={styles.fieldLabel}>Channels</label>
+            <div className={blast.channelRow}>
+              {(['inbox', 'email', 'push'] as const).map(ch => (
+                <label key={ch} className={blast.channelOption}>
+                  <input
+                    type="checkbox"
+                    checked={(form.channels ?? []).includes(ch)}
+                    onChange={e =>
+                      set('channels',
+                        e.target.checked
+                          ? [...(form.channels ?? []), ch]
+                          : (form.channels ?? []).filter(c => c !== ch))
+                    }
+                  />
+                  {ch === 'inbox' ? 'In-app inbox' : ch === 'email' ? 'Email' : 'Push'}
+                </label>
+              ))}
+            </div>
+            {(form.channels ?? []).length === 0 && (
+              <span className={blast.channelWarn}>
+                Pick at least one — a blast with no channels reaches nobody.
+              </span>
+            )}
+          </div>
+
           <div className={styles.field}>
             <label className={styles.fieldLabel}>Audience</label>
             <select className={styles.fieldInput} value={form.segment} onChange={e => set('segment', e.target.value as BlastPayload['segment'])}>
@@ -175,6 +229,26 @@ export const NotificationBlastPage: React.FC = () => {
             <label className={styles.fieldLabel}>CTA URL (optional — full https:// link)</label>
             <input className={styles.fieldInput} value={form.ctaUrl} onChange={e => set('ctaUrl', e.target.value)} placeholder="https://zavestro.in/collections/monsoon" />
           </div>
+        </div>
+        {/* [PM-26-8] A preview to self, before the irrevocable one. Email only — inbox and
+            push are addressed by customer id, and an admin has no customer account; borrowing
+            one would put a real person's record on a message they never asked for. */}
+        <div className={blast.testRow}>
+          <input
+            className={styles.fieldInput}
+            type="email"
+            value={testEmail}
+            onChange={e => setTestEmail(e.target.value)}
+            placeholder="your@email.com — send yourself a test first"
+            aria-label="Test send address"
+          />
+          <button
+            className={styles.cancelModalBtn}
+            disabled={!valid || !testEmail.trim() || testing}
+            onClick={sendTest}
+          >
+            {testing ? 'Sending…' : 'Send test'}
+          </button>
         </div>
         <div className={styles.modalActions} style={{ marginTop: 18 }}>
           <button className={styles.createBtn} disabled={!valid} onClick={openConfirm}>

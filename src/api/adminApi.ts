@@ -3616,7 +3616,16 @@ export interface BlastPayload {
   ctaText?: string;
   ctaUrl?: string;
   segment: "all" | "opted_in";
+  /**
+   * [PM-26-8] Which channels to use. Every blast went to inbox AND email AND push at once, so
+   * a message written for a push also arrived as an email. Omitted = all three, so an older
+   * caller is unchanged; the server refuses an empty list rather than reporting a targeted
+   * count for a send that reaches nobody.
+   */
+  channels?: BlastChannel[];
 }
+
+export type BlastChannel = "inbox" | "email" | "push";
 
 export interface BlastHistoryRow {
   id: string;
@@ -3645,6 +3654,21 @@ export interface BlastHistoryRow {
 }
 
 export const notificationsAdminApi = {
+  /**
+   * [PM-26-8] Send this exact message to one address before it is irrevocable.
+   *
+   * Email only, and that is a real limit: inbox and push are addressed by `users.id` and an
+   * admin has no customer account. Borrowing a customer's id to preview against would put a
+   * real person's record on a message they never asked for.
+   */
+  blastTest: async (
+    payload: BlastPayload & { to_email: string },
+  ): Promise<{ sent_to: string }> =>
+    req("/api/admin/notifications/blast-test", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   blast: async (payload: BlastPayload): Promise<{ users_targeted: number }> =>
     req<{ users_targeted: number }>(`/api/admin/notifications/blast`, {
       method: "POST",
