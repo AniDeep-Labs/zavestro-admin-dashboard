@@ -113,3 +113,11 @@
   color: var(--color-text-tertiary);
 }
 .counterWarn { color: var(--color-warning); font-weight: var(--font-weight-medium); }
+
+/* [PM-26-8] Channel choice + the test send. */
+.channelRow { display: flex; gap: 16px; flex-wrap: wrap; }
+.channelOption { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); color: var(--color-text-primary); }
+.channelWarn { display: block; margin-top: 4px; font-size: var(--font-size-xs); color: var(--color-warning); }
+/* The test row sits ABOVE the send button: the point is to be reached first. */
+.testRow { display: flex; gap: 8px; align-items: center; margin-top: 18px; }
+.testRow input { flex: 1; }
