@@ -197,6 +197,19 @@ export const FabricAtHubPage: React.FC = () => {
   return (
     <div className={baseCss.page}>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
+      {/* [PRC-17-7] A real trail, not just a Back button.
+          `goBack` relies on history, so it answers "where did I come from" — and for anyone
+          who arrived by a shared link there IS no history, which is exactly when a person most
+          needs to know where they are. These are links to fixed places, so they work the same
+          whether you clicked through or pasted the URL. Back stays, because when history does
+          exist it is still the fastest way out. */}
+      <nav className={s.crumbs} aria-label="Breadcrumb">
+        <Link to="/admin/procurement/stock">Fabric Stock</Link>
+        <span aria-hidden="true"> / </span>
+        <Link to={`/admin/procurement/fabrics/${fabricId}`}>{f.name}</Link>
+        <span aria-hidden="true"> / </span>
+        <span aria-current="page">{data.hub_name}</span>
+      </nav>
       <button type="button" onClick={goBack} className={s.back}><UilArrowLeft size={16} /> Back to stock</button>
 
       <div className={s.head}>

@@ -196,3 +196,18 @@
   text-align: left;
 }
 .priceBasis:hover { color: var(--color-primary); text-decoration: underline; }
+
+/* [PRC-17-7] The per-hub ledger link, sitting with the row's other verbs. Styled as a quiet
+   link rather than a third button: it navigates, it does not act on the stock. */
+.stockLedgerLink {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  text-decoration: none;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+.stockLedgerLink:hover,
+.stockLedgerLink:focus-visible {
+  text-decoration: underline;
+}

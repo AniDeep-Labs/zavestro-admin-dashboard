@@ -3616,7 +3616,16 @@ export interface BlastPayload {
   ctaText?: string;
   ctaUrl?: string;
   segment: "all" | "opted_in";
+  /**
+   * [PM-26-8] Which channels to use. Every blast went to inbox AND email AND push at once, so
+   * a message written for a push also arrived as an email. Omitted = all three, so an older
+   * caller is unchanged; the server refuses an empty list rather than reporting a targeted
+   * count for a send that reaches nobody.
+   */
+  channels?: BlastChannel[];
 }
+
+export type BlastChannel = "inbox" | "email" | "push";
 
 export interface BlastHistoryRow {
   id: string;
@@ -3628,9 +3637,38 @@ export interface BlastHistoryRow {
   cta_url?: string | null;
   sent_at: string;
   sent_by_email: string | null;
+  /**
+   * [PM-26-2] Per-channel ENQUEUE outcomes — not delivery.
+   *
+   * The send path enqueues; the worker delivers and a bounce lands later still. So these are
+   * an upper bound on reach, and `enqueue_failed` a floor on loss. Calling them "delivered"
+   * would repeat the error this replaced: `users_targeted` was the size of a SELECT rendered
+   * under the heading RECIPIENTS.
+   */
+  inbox_queued?: number;
+  email_queued?: number;
+  push_queued?: number;
+  enqueue_failed?: number;
+  /** NULL while the blast is still being enqueued — zero counts then mean "not yet". */
+  counts_finalised_at?: string | null;
 }
 
 export const notificationsAdminApi = {
+  /**
+   * [PM-26-8] Send this exact message to one address before it is irrevocable.
+   *
+   * Email only, and that is a real limit: inbox and push are addressed by `users.id` and an
+   * admin has no customer account. Borrowing a customer's id to preview against would put a
+   * real person's record on a message they never asked for.
+   */
+  blastTest: async (
+    payload: BlastPayload & { to_email: string },
+  ): Promise<{ sent_to: string }> =>
+    req("/api/admin/notifications/blast-test", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   blast: async (payload: BlastPayload): Promise<{ users_targeted: number }> =>
     req<{ users_targeted: number }>(`/api/admin/notifications/blast`, {
       method: "POST",
@@ -4363,7 +4401,16 @@ export interface Distribution {
   fabric_code: string | null;
   fabric_image_keys: string[] | null;
   lot_code?: string | null; // T1-9: dye-lot shipped
-  consignment_ref?: string | null; // T3-4 (W-P3): courier docket / LR number
+  /**
+   * T3-4 (W-P3): the COURIER DOCKET / LR number — a shipping reference.
+   *
+   * [PRC-14-13] NOT consignment ownership. PRC-L6's pivot introduces `consignment` meaning
+   * cloth held on behalf of a brand rather than bought, and this field's name already spends
+   * the word on a different concept. The user-facing label now reads "Courier docket / LR no."
+   * so the two cannot be confused on screen; the COLUMN still carries the old name, and
+   * renaming it belongs with the pivot that introduces the other meaning.
+   */
+  consignment_ref?: string | null;
 }
 export interface PushDistributionInput {
   /** design-scoped push: set. Plain fabric restock: omit (fabric_id then required). */
@@ -4456,6 +4503,20 @@ export interface RestockRequest {
   /** How many times someone has asked about this, and when last. */
   chase_count?: number;
   last_chased_at?: string | null;
+  /**
+   * [PRC-16-10] The evidence behind the ask. A restock carried a free-text "Why (optional)"
+   * and nothing else, so procurement saw "Running low" and had to take it on trust.
+   *
+   * All three are scoped to this fabric AT THIS HUB — a figure that leaked across hubs would
+   * read as this hub's demand while describing somewhere else, which is worse than no
+   * evidence because it looks like evidence.
+   */
+  /** Customers waiting for this fabric here who have not yet been told it is back. */
+  waiting_customers?: number;
+  /** Live listings that need this cloth. Zero is a different kind of "low". */
+  live_listings?: number;
+  /** Units sold here in the last 30 days, cancelled orders excluded. */
+  sold_30d?: number;
 }
 
 export const restockApi = {
@@ -4817,6 +4878,16 @@ export interface PromoCode {
   valid_from?: string;
   valid_until?: string;
   is_active: boolean;
+  /**
+   * [PM-26-5] Who absorbs this discount — the platform, or the brand whose goods it discounts.
+   * The column has existed with a `platform` default since the tenancy spine and nothing read
+   * or wrote it, so every promo was silently platform-funded regardless of what was agreed. On
+   * a marketplace that is a margin question, not a label.
+   */
+  funded_by?: "platform" | "brand";
+  /** [PM-26-3] Restricts the promo to a customer's first order. In the DB and the seeds all
+   *  along; the editor could not set it, so it could only arrive by seeding. */
+  first_order_only?: boolean;
   created_at: string;
   // T2-34 (F-5): actual redemptions + total ₹ discount spent (net of cancelled/refunded).
   usage_count?: number;
@@ -4830,9 +4901,37 @@ export interface PromosResponse {
   promos: PromoCode[];
 }
 
+/** [PM-26-6] What the discount programme cost over a window. */
+export interface PromoSpendTotals {
+  /** Codes actually REDEEMED in the window — not codes that exist. */
+  codes_used: number;
+  redemptions: number;
+  spend: number;
+}
+
 export const promosApi = {
-  list: async (): Promise<PromosResponse> =>
-    req<PromosResponse>("/api/admin/promos"),
+  /**
+   * [PM-26-6] `from`/`to` bound the SPEND TOTALS, not the list. A period filter that hid codes
+   * would answer "what did the codes I can see cost, ever" — not a period question at all.
+   */
+  list: async (
+    window: { from?: string; to?: string } = {},
+  ): Promise<{
+    data: PromosResponse;
+    meta?: { spend_totals?: PromoSpendTotals; window?: { from: string | null; to: string | null } };
+  }> => {
+    const qs = new URLSearchParams();
+    if (window.from) qs.set("from", window.from);
+    if (window.to) qs.set("to", window.to);
+    const s = qs.toString();
+    return reqEnvelope<{
+      data: PromosResponse;
+      meta?: {
+        spend_totals?: PromoSpendTotals;
+        window?: { from: string | null; to: string | null };
+      };
+    }>(`/api/admin/promos${s ? `?${s}` : ""}`);
+  },
 
   create: async (data: {
     code: string;
@@ -4840,9 +4939,17 @@ export const promosApi = {
     discount_type: "percent" | "flat";
     discount_value: number;
     min_order_amount?: number;
+    max_discount?: number;
     max_uses?: number;
     uses_per_user?: number;
+    valid_from?: string;
     valid_until?: string;
+    // [PM-26-3]/[PM-26-5] Declared rather than cast through. The page reached this with
+    // `data as Parameters<typeof promosApi.create>[0]`, so these fields were sent but NOT
+    // typechecked — a misspelt key would have been dropped silently by the validator and the
+    // promo would have been created with a default nobody chose.
+    first_order_only?: boolean;
+    funded_by?: "platform" | "brand";
   }): Promise<PromoCode> =>
     req<PromoCode>("/api/admin/promos", {
       method: "POST",

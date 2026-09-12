@@ -101,3 +101,20 @@
 .lotsTable th { padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--color-border-light); }
 .lotsTable td { padding: 9px 12px; border-bottom: 1px solid var(--color-border-light); color: var(--color-text-primary); }
 .lotsTable tr:last-child td { border-bottom: none; }
+
+/* [PRC-17-7] The breadcrumb trail. This page is deliberately nav-less, which makes a trail
+   MORE important rather than less: nothing in the sidebar says where you are. */
+.crumbs {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+.crumbs a {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+.crumbs a:hover,
+.crumbs a:focus-visible {
+  color: var(--color-primary);
+  text-decoration: underline;
+}

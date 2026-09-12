@@ -44,7 +44,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
   const [designUsesErr, setDesignUsesErr] = React.useState(false);
   const [reorderEdits, setReorderEdits] = React.useState<Record<string, string>>({});
   const [savingReorder, setSavingReorder] = React.useState('');
-  const [push, setPush] = React.useState<{ hub_id: string; meters: string; lot: string; consignment: string } | null>(null);
+  const [push, setPush] = React.useState<{ hub_id: string; meters: string; lot: string; docket: string } | null>(null);
   const [pushing, setPushing] = React.useState(false);
 
   // design-mode: compare + request-sample
@@ -134,7 +134,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
     if (!Number.isFinite(meters) || meters <= 0) { toast('error', 'Enter metres to send'); return; }
     setPushing(true);
     try {
-      await distributionApi.push({ fabric_id: id, hub_id: push.hub_id, sellable_qty: meters, ...(push.lot.trim() ? { lot_code: push.lot.trim() } : {}), ...(push.consignment.trim() ? { consignment_ref: push.consignment.trim() } : {}) });
+      await distributionApi.push({ fabric_id: id, hub_id: push.hub_id, sellable_qty: meters, ...(push.lot.trim() ? { lot_code: push.lot.trim() } : {}), ...(push.docket.trim() ? { consignment_ref: push.docket.trim() } : {}) });
       toast('success', 'Distribution created', `${meters}m in transit to the hub.`);
       setPush(null);
       loadFabric();
@@ -212,7 +212,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
             )}
             {!isDesign && (
               <div className={s.headerActions}>
-                <Button variant="primary" size="sm" onClick={() => setPush({ hub_id: '', meters: '', lot: '', consignment: '' })}>Distribute →</Button>
+                <Button variant="primary" size="sm" onClick={() => setPush({ hub_id: '', meters: '', lot: '', docket: '' })}>Distribute →</Button>
               </div>
             )}
           </div>
@@ -290,7 +290,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
                 {(fabric.stock?.length ?? 0) === 0 ? (
                   <div className={s.stockEmpty}>
                     <p>Not stocked at any hub yet.</p>
-                    <Button variant="primary" size="sm" onClick={() => setPush({ hub_id: '', meters: '', lot: '', consignment: '' })}>
+                    <Button variant="primary" size="sm" onClick={() => setPush({ hub_id: '', meters: '', lot: '', docket: '' })}>
                       Distribute →
                     </Button>
                   </div>
@@ -325,7 +325,19 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
                               {editing && (
                                 <Button variant="outline" size="sm" state={savingReorder === st.hub_id ? 'loading' : 'default'} onClick={() => saveReorder(st.hub_id)}>Save</Button>
                               )}
-                              <Button variant="ghost" size="sm" onClick={() => setPush({ hub_id: st.hub_id, meters: '', lot: '', consignment: '' })}>Restock</Button>
+                              {/* [PRC-17-7] The ledger for THIS fabric at THIS hub. The page is
+                                  deliberately nav-less, but this table is its other natural
+                                  entry and had no link — so a procurement lead reading these
+                                  numbers had to leave for the stock grid and find the row
+                                  again to see what moved. */}
+                              <Link
+                                className={s.stockLedgerLink}
+                                to={`/admin/procurement/track/${st.hub_id}/${fabric.id}`}
+                                title={`Stock ledger for ${fabric.name} at ${st.hub_name}`}
+                              >
+                                Ledger
+                              </Link>
+                              <Button variant="ghost" size="sm" onClick={() => setPush({ hub_id: st.hub_id, meters: '', lot: '', docket: '' })}>Restock</Button>
                             </td>
                           </tr>
                         );
@@ -474,7 +486,14 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
             <Input label="Metres to send *" type="number" value={push.meters} onChange={(v) => setPush({ ...push, meters: v })} placeholder="e.g. 100" />
             <Input label="Dye-lot (optional)" value={push.lot} onChange={(v) => setPush({ ...push, lot: v })} placeholder="lot code" />
             {/* T3-4 (W-P3): the physical-world handle to chase a "never arrived". */}
-            <Input label="Consignment / LR no. (optional)" value={push.consignment} onChange={(v) => setPush({ ...push, consignment: v })} placeholder="courier docket / LR number" />
+            {/* [PRC-14-13] Was labelled "Consignment / LR no.", which is a NAMING COLLISION
+                waiting for the pivot: this field is a courier docket (T3-4), while PRC-L6's
+                `consignment` means OWNERSHIP — cloth held on behalf of a brand rather than
+                bought. Introducing the second concept beside a control already using the word
+                for the first would confuse both, and the ambiguity costs nothing to remove
+                now. The Distribution page already renders this value as "LR <ref>", so the
+                courier reading was the one in use. */}
+            <Input label="Courier docket / LR no. (optional)" value={push.docket} onChange={(v) => setPush({ ...push, docket: v })} placeholder="courier docket / LR number" />
           </div>
         )}
       </Modal>
