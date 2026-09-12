@@ -8,10 +8,40 @@ import styles from './OrdersListPage.module.css';
 import blast from './NotificationBlastPage.module.css'; // [KA6-7/8/9]
 import { UilExclamationTriangle, UilMessage } from "@iconscout/react-unicons";
 
+/**
+ * [PM-26-2] What is actually known about a blast's fate.
+ *
+ * These are ENQUEUE outcomes, not delivery — the send path hands messages to a queue, the
+ * worker delivers them, and a bounce arrives later still. So the cell says "queued", and the
+ * title says plainly that it is not the same as delivered. Overstating it here would repeat
+ * the error this column replaced.
+ */
+const queuedCell = (h: BlastHistoryRow): React.ReactNode => {
+  // NULL finalised-at means the background loop has not finished. Zeroes then mean "not yet",
+  // not "nothing reached" — rendering them as 0 would read as total failure.
+  if (!h.counts_finalised_at) return <span title="Still being queued">sending…</span>;
+  const queued =
+    Number(h.inbox_queued ?? 0) + Number(h.email_queued ?? 0) + Number(h.push_queued ?? 0);
+  const failed = Number(h.enqueue_failed ?? 0);
+  return (
+    <span
+      title={`inbox ${h.inbox_queued ?? 0} · email ${h.email_queued ?? 0} · push ${h.push_queued ?? 0}${failed ? ` · ${failed} failed to queue` : ''}. Queued is not delivered: the worker sends these, and bounces land later.`}
+    >
+      {queued.toLocaleString('en-IN')}
+      {failed > 0 && <> · {failed} failed</>}
+    </span>
+  );
+};
+
 export const NotificationBlastPage: React.FC = () => {
   const [form, setForm] = React.useState<BlastPayload>({
     subject: '', headline: '', body: '', pushBody: '', ctaText: '', ctaUrl: '', segment: 'opted_in',
+    // [PM-26-8] All three by default — the behaviour before this, now chosen rather than
+    // assumed.
+    channels: ['inbox', 'email', 'push'],
   });
+  const [testEmail, setTestEmail] = React.useState('');
+  const [testing, setTesting] = React.useState(false);
   const [confirming, setConfirming] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const [audienceCount, setAudienceCount] = React.useState<number | null>(null);
@@ -43,7 +73,27 @@ export const NotificationBlastPage: React.FC = () => {
   React.useEffect(() => { loadHistory(); }, [loadHistory]);
 
   const set = <K extends keyof BlastPayload>(k: K, v: BlastPayload[K]) => setForm(f => ({ ...f, [k]: v }));
-  const valid = form.subject.trim() && form.headline.trim() && form.body.trim();
+  // [PM-26-8] A blast with no channels reaches nobody while reporting a targeted count — the
+  // same shape of lie [PM-26-2] removed from the recipients column. The server refuses it; so
+  // does the button, before the operator gets as far as the irreversible confirm.
+  const valid =
+    form.subject.trim() && form.headline.trim() && form.body.trim() && (form.channels ?? []).length > 0;
+
+  // [PM-26-8] The confirm says the send "cannot be recalled", and that was the only control:
+  // the first time anyone saw the message rendered was when every customer did.
+  const sendTest = async () => {
+    if (!testEmail.trim()) return;
+    setTesting(true);
+    try {
+      await notificationsAdminApi.blastTest({ ...form, to_email: testEmail.trim() });
+      showToast('success', 'Test sent', `Check ${testEmail.trim()} — the subject is prefixed [TEST].`);
+    } catch (e) {
+      // Said out loud: a test-send that fails quietly teaches the operator the message is fine.
+      showToast('error', 'Test failed', e instanceof Error ? e.message : undefined);
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const openConfirm = () => {
     setAudienceCount(null);
@@ -65,7 +115,14 @@ export const NotificationBlastPage: React.FC = () => {
         ctaUrl: form.ctaUrl?.trim() || undefined,
       };
       const { users_targeted } = await notificationsAdminApi.blast(payload);
-      showToast('success', 'Blast queued', `Sending to ${users_targeted} customer${users_targeted !== 1 ? 's' : ''} (in-app + email + push).`);
+      // [PM-26-2] "Sending to N customers" overstated what had happened: N is the size of the
+      // audience SELECT, and at this point nothing has been queued yet, let alone delivered.
+      // The history row carries the real tally once the background loop finishes.
+      showToast(
+        'success',
+        'Blast queued',
+        `Queueing for ${users_targeted} customer${users_targeted !== 1 ? 's' : ''} (in-app + email + push). The history below shows how many were queued once it finishes.`,
+      );
       setConfirming(false);
       setForm({ subject: '', headline: '', body: '', pushBody: '', ctaText: '', ctaUrl: '', segment: 'opted_in' });
       loadHistory(); // T2-26: reflect the just-sent blast in the history table
@@ -88,6 +145,35 @@ export const NotificationBlastPage: React.FC = () => {
       <div className={blast.composer}>
       <div className={styles.card}>
         <div className={styles.fields}>
+          {/* [PM-26-8] Every blast went to inbox AND email AND push at once, so a message
+              written for a push also landed as an email. One of these is not like the others:
+              the inbox is ours, email and push leave the building. */}
+          <div className={styles.field}>
+            <label className={styles.fieldLabel}>Channels</label>
+            <div className={blast.channelRow}>
+              {(['inbox', 'email', 'push'] as const).map(ch => (
+                <label key={ch} className={blast.channelOption}>
+                  <input
+                    type="checkbox"
+                    checked={(form.channels ?? []).includes(ch)}
+                    onChange={e =>
+                      set('channels',
+                        e.target.checked
+                          ? [...(form.channels ?? []), ch]
+                          : (form.channels ?? []).filter(c => c !== ch))
+                    }
+                  />
+                  {ch === 'inbox' ? 'In-app inbox' : ch === 'email' ? 'Email' : 'Push'}
+                </label>
+              ))}
+            </div>
+            {(form.channels ?? []).length === 0 && (
+              <span className={blast.channelWarn}>
+                Pick at least one — a blast with no channels reaches nobody.
+              </span>
+            )}
+          </div>
+
           <div className={styles.field}>
             <label className={styles.fieldLabel}>Audience</label>
             <select className={styles.fieldInput} value={form.segment} onChange={e => set('segment', e.target.value as BlastPayload['segment'])}>
@@ -144,6 +230,26 @@ export const NotificationBlastPage: React.FC = () => {
             <input className={styles.fieldInput} value={form.ctaUrl} onChange={e => set('ctaUrl', e.target.value)} placeholder="https://zavestro.in/collections/monsoon" />
           </div>
         </div>
+        {/* [PM-26-8] A preview to self, before the irrevocable one. Email only — inbox and
+            push are addressed by customer id, and an admin has no customer account; borrowing
+            one would put a real person's record on a message they never asked for. */}
+        <div className={blast.testRow}>
+          <input
+            className={styles.fieldInput}
+            type="email"
+            value={testEmail}
+            onChange={e => setTestEmail(e.target.value)}
+            placeholder="your@email.com — send yourself a test first"
+            aria-label="Test send address"
+          />
+          <button
+            className={styles.cancelModalBtn}
+            disabled={!valid || !testEmail.trim() || testing}
+            onClick={sendTest}
+          >
+            {testing ? 'Sending…' : 'Send test'}
+          </button>
+        </div>
         <div className={styles.modalActions} style={{ marginTop: 18 }}>
           <button className={styles.createBtn} disabled={!valid} onClick={openConfirm}>
             <UilMessage size={14} /> Review & Send
@@ -179,7 +285,10 @@ export const NotificationBlastPage: React.FC = () => {
       {/* T2-26 (SU-7): sent history — every blast, to whom, by whom, when. */}
       <div className={styles.tableWrap}>
         <table className={styles.table}>
-          <thead><tr><th>Sent</th><th>Headline</th><th>Audience</th><th>Recipients</th><th>By</th></tr></thead>
+          {/* [PM-26-2] "Recipients" was the size of the SELECT — the one number that cannot
+              fail — presented as people reached. It is Targeted now, with what is actually
+              known beside it. */}
+          <thead><tr><th>Sent</th><th>Headline</th><th>Audience</th><th>Targeted</th><th>Queued</th><th>By</th></tr></thead>
           <tbody>
             {history === null ? (
               Array.from({ length: 3 }).map((_, i) => (
@@ -194,6 +303,7 @@ export const NotificationBlastPage: React.FC = () => {
                   <td>{h.headline || h.subject || '—'}</td>
                   <td>{h.segment === 'all' ? 'All active' : 'Opted-in'}</td>
                   <td>{h.users_targeted.toLocaleString('en-IN')}</td>
+                  <td>{queuedCell(h)}</td>
                   <td>{h.sent_by_email ?? '—'}</td>
                 </tr>
               ))

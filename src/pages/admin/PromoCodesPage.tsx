@@ -1,7 +1,7 @@
 import React from 'react';
 import { promosApi } from '../../api/adminApi';
-import type { PromoCode } from '../../api/adminApi';
-import { istDayEnd } from '../../utils/dateWindow';
+import type { PromoCode, PromoSpendTotals } from '../../api/adminApi';
+import { istDayEnd, istDayStart } from '../../utils/dateWindow';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -27,6 +27,15 @@ function PromoForm({
   const [minOrder, setMinOrder] = React.useState(initial.min_order_amount != null && initial.min_order_amount > 0 ? String(initial.min_order_amount) : '');
   const [maxUses, setMaxUses] = React.useState(initial.max_uses != null ? String(initial.max_uses) : '');
   const [expiry, setExpiry] = React.useState(initial.valid_until ? initial.valid_until.slice(0, 10) : '');
+  // [PM-26-3]/[PM-26-7] The fields that bound a promo's COST, which the editor could not set.
+  // The API has accepted all of these for some time; only the form was missing.
+  const [maxDiscount, setMaxDiscount] = React.useState(initial.max_discount != null ? String(initial.max_discount) : '');
+  const [usesPerUser, setUsesPerUser] = React.useState(initial.uses_per_user != null ? String(initial.uses_per_user) : '1');
+  const [firstOnly, setFirstOnly] = React.useState(!!initial.first_order_only);
+  const [startsOn, setStartsOn] = React.useState(initial.valid_from ? initial.valid_from.slice(0, 10) : '');
+  // [PM-26-5] Who absorbs the discount. The column has existed with a `platform` default and
+  // nothing ever set it, so every promo was silently platform-funded whatever had been agreed.
+  const [fundedBy, setFundedBy] = React.useState<'platform' | 'brand'>((initial.funded_by as 'platform' | 'brand') ?? 'platform');
   // Tomorrow, computed once (lazy init keeps render pure — no Date.now() in render body).
   const [minDate] = React.useState(() => new Date(Date.now() + 86400000).toISOString().slice(0, 10));
 
@@ -62,6 +71,41 @@ function PromoForm({
         <input className={styles.fieldInput} placeholder="Leave blank for unlimited"
           value={maxUses} onChange={e => setMaxUses(e.target.value)} type="number" min="1" />
       </div>
+      {/* [PM-26-3] A percentage promo with no cap is unbounded on a large order — this is the
+          field that stops "20% off" costing whatever the biggest basket happens to be. */}
+      {type === 'percent' && (
+        <div className={styles.field}>
+          <label className={styles.fieldLabel}>Max Discount (₹)</label>
+          <input className={styles.fieldInput} placeholder="Leave blank for uncapped"
+            value={maxDiscount} onChange={e => setMaxDiscount(e.target.value)} type="number" min="1" />
+        </div>
+      )}
+      <div className={styles.field}>
+        <label className={styles.fieldLabel}>Uses Per Customer</label>
+        <input className={styles.fieldInput} placeholder="1"
+          value={usesPerUser} onChange={e => setUsesPerUser(e.target.value)} type="number" min="1" />
+      </div>
+      <div className={styles.field}>
+        <label className={styles.fieldLabel}>Funded By</label>
+        <select className={styles.fieldSelect} value={fundedBy} onChange={e => setFundedBy(e.target.value as 'platform' | 'brand')}>
+          <option value="platform">Platform — we absorb it</option>
+          <option value="brand">Brand — the brand absorbs it</option>
+        </select>
+      </div>
+      <div className={styles.field}>
+        <label className={styles.fieldLabel}>
+          <input type="checkbox" checked={firstOnly} onChange={e => setFirstOnly(e.target.checked)} /> First order only
+        </label>
+      </div>
+      {/* [PM-26-7] Half the window was IST-correct: `valid_until` used istDayEnd, and there was
+          no start at all — every promo began the moment it was created, so a campaign could not
+          be prepared in advance. Anchored to IST day-start for the same reason the end is. */}
+      <div className={styles.field}>
+        <label className={styles.fieldLabel}>Starts On</label>
+        <input type="date" className={styles.fieldInput}
+          value={startsOn} onChange={e => setStartsOn(e.target.value)} />
+        <span className={styles.fieldHint}>Leave blank to start immediately.</span>
+      </div>
       <div className={styles.field}>
         <label className={styles.fieldLabel}>Expiry Date *</label>
         <input type="date" className={styles.fieldInput} required
@@ -73,7 +117,22 @@ function PromoForm({
         <button className={styles.cancelModalBtn} onClick={onCancel}>Cancel</button>
         <button className={styles.saveModalBtn}
           disabled={saving || !code.trim() || !value || !expiry}
-          onClick={() => onSave({ code: code.trim().toUpperCase(), discount_type: type, discount_value: parseFloat(value), min_order_amount: minOrder ? parseFloat(minOrder) : 0, max_uses: maxUses ? parseInt(maxUses) : undefined, valid_until: istDayEnd(expiry) })}>
+          onClick={() => onSave({
+            code: code.trim().toUpperCase(),
+            discount_type: type,
+            discount_value: parseFloat(value),
+            min_order_amount: minOrder ? parseFloat(minOrder) : 0,
+            max_uses: maxUses ? parseInt(maxUses) : undefined,
+            valid_until: istDayEnd(expiry),
+            // [PM-26-3] A cap only means anything on a percentage; sending one with a flat
+            // discount would store a bound that can never bind.
+            ...(type === 'percent' && maxDiscount ? { max_discount: parseFloat(maxDiscount) } : {}),
+            ...(usesPerUser ? { uses_per_user: parseInt(usesPerUser) } : {}),
+            first_order_only: firstOnly,
+            funded_by: fundedBy,
+            // [PM-26-7] IST day-start, mirroring istDayEnd on the other boundary.
+            ...(startsOn ? { valid_from: istDayStart(startsOn) } : {}),
+          })}>
           {saving ? 'Saving…' : initial.id ? 'Save Changes' : 'Create'}
         </button>
       </div>
@@ -98,15 +157,27 @@ export const PromoCodesPage: React.FC = () => {
   const showToast = (type: ToastData['type'], title: string, message?: string) =>
     setToasts(t => [...t, createToast(type, title, message)]);
 
+  // [PM-26-6] The console that spends the money could not say what it spent: `total_spend`
+  // rendered per row and nothing totalled it. The period bounds the MONEY, not the list —
+  // hiding codes would answer "what did the codes I can see cost, ever", which is not a
+  // period question.
+  const [period, setPeriod] = React.useState<'30d' | '90d' | 'all'>('30d');
+  const [spend, setSpend] = React.useState<PromoSpendTotals | null>(null);
+  const spendWindow = React.useCallback(() => {
+    if (period === 'all') return {};
+    const days = period === '30d' ? 30 : 90;
+    return { from: new Date(Date.now() - days * 86400000).toISOString() };
+  }, [period]);
+
   React.useEffect(() => {
     promosApi
-      .list()
-      .then((r) => { setPromos(r.promos); setLoadError(null); })
+      .list(spendWindow())
+      .then((r) => { setPromos(r.data.promos); setSpend(r.meta?.spend_totals ?? null); setLoadError(null); })
       // Not swallowed: an empty table and a failed request are different facts, and this
       // rendered them identically — "no promo codes" for "we could not ask".
       .catch((e) => setLoadError(e instanceof Error ? e.message : 'Could not load promo codes.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [spendWindow]);
 
   // T1-25: guard the value bounds client-side (backend zod enforces the same — percent ≤ 100,
   // flat ≤ 100000) so a fat-finger is caught before the server rejects it.
@@ -217,6 +288,49 @@ export const PromoCodesPage: React.FC = () => {
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search promo codes"
         />
+      )}
+
+      {/* [PM-26-6] What the programme actually cost. Per-code spend was rendered and never
+          totalled, so the console that spends the money could not answer "how much did we
+          spend on discounts this month?".
+
+          The period bounds the MONEY, not the list: every code stays visible, because hiding
+          codes would answer "what did the codes I can see cost, ever" — a different question
+          wearing the same label. The heading says which period it covers, so the figure
+          cannot be read as all-time by someone who did not set the filter. */}
+      {!loading && !loadError && spend && (
+        <div className={`${styles.card} ${styles.spendCard}`}>
+          <div className={styles.spendBar}>
+            <div>
+              <div className={styles.spendLabel}>
+                Discount spend · {period === 'all' ? 'all time' : `last ${period === '30d' ? 30 : 90} days`}
+              </div>
+              <div className={styles.spendValue}>₹{Math.round(spend.spend).toLocaleString('en-IN')}</div>
+              <div className={styles.spendSub}>
+                {spend.redemptions.toLocaleString('en-IN')} redemption{spend.redemptions === 1 ? '' : 's'}
+                {' · '}
+                {/* Codes REDEEMED, not codes that exist — 40 live codes with 3 in use is a
+                    different programme from one with 3 codes. */}
+                {spend.codes_used.toLocaleString('en-IN')} code{spend.codes_used === 1 ? '' : 's'} used
+                {spend.redemptions > 0 && <> · avg ₹{Math.round(spend.spend / spend.redemptions).toLocaleString('en-IN')}</>}
+              </div>
+            </div>
+            <select
+              className={styles.fieldSelect}
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as '30d' | '90d' | 'all')}
+              aria-label="Spend period"
+            >
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+              <option value="all">All time</option>
+            </select>
+          </div>
+          <p className={styles.spendNote}>
+            Net of reversals — a cancelled or refunded order's redemption is removed. Per-code
+            spend in the table below is lifetime, not this period.
+          </p>
+        </div>
       )}
 
       {loading ? (
