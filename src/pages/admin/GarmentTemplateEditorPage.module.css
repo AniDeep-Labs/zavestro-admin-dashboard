@@ -120,7 +120,7 @@
 .tabActive {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
 }
 
 /* chart grid */
@@ -533,7 +533,7 @@
 
 /* Fix: restore a clear active tab (a later .tab override had cancelled its background). */
 .tab { color: var(--color-text-secondary); }
-.tabActive { background: var(--color-primary); color: #fff; }
+.tabActive { background: var(--color-primary); color: var(--color-on-primary); }
 .tabActive:hover { color: #fff; }
 
 /* #4: keep the preview anchor labels exactly as written (no auto-capitalising "(Cm)"). */

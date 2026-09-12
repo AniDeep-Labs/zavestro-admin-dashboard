@@ -17,7 +17,7 @@
 
 .variant-primary {
   background-color: var(--color-primary);
-  color: #FFFFFF;
+  color: var(--color-on-primary);
 }
 
 .variant-secondary {
@@ -27,12 +27,12 @@
 
 .variant-success {
   background-color: var(--color-success);
-  color: #FFFFFF;
+  color: var(--color-on-success);
 }
 
 .variant-error {
   background-color: var(--color-error);
-  color: #FFFFFF;
+  color: var(--color-on-error);
 }
 
 .variant-warning {
@@ -42,5 +42,5 @@
 
 .variant-info {
   background-color: var(--color-info);
-  color: #FFFFFF;
+  color: var(--color-on-info);
 }

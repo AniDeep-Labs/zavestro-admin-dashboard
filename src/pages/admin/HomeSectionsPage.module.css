@@ -7,7 +7,7 @@
 
 .btnPrimary {
   display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
-  background: var(--color-primary); color: #fff; border: none; border-radius: 8px;
+  background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: 8px;
   cursor: pointer; font-size: 14px;
 }
 .btnGhost {

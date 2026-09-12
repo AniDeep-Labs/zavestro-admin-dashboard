@@ -113,7 +113,7 @@
   border: none;
   border-radius: var(--radius-lg);
   background-color: var(--color-primary);
-  color: #FFFFFF;
+  color: var(--color-on-primary);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: all var(--transition-normal);

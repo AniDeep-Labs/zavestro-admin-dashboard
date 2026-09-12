@@ -14,7 +14,7 @@
 
 .variant-primary {
   background-color: var(--color-primary);
-  color: #FFFFFF;
+  color: var(--color-on-primary);
   box-shadow: var(--shadow-md);
 }
 
@@ -77,7 +77,7 @@
 
 .variant-danger {
   background-color: var(--color-error);
-  color: #FFFFFF;
+  color: var(--color-on-error);
   box-shadow: var(--shadow-sm);
 }
 

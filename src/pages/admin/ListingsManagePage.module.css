@@ -165,13 +165,17 @@
   line-height: 1.4;
   text-align: center;
   letter-spacing: 0.02em;
-  color: var(--color-on-accent);
+  /* The badge sits on a wash over a PHOTOGRAPH, so each variant carries the ink its own
+     wash needs — see the two rules below. */
   pointer-events: none;
 }
 /* A real photograph of this pairing's sample — the model's promise kept. */
-.provSample { background: color-mix(in srgb, var(--color-success) 82%, transparent); }
+.provSample { background: color-mix(in srgb, var(--color-success) 82%, transparent); color: var(--color-on-success); }
 /* An upload or copied photography: not wrong, but not the promise either. */
-.provOther { background: color-mix(in srgb, var(--color-text-primary) 62%, transparent); }
+/* The wash is the theme's own text colour, so it INVERTS between themes — dark in light
+   mode, light in dark mode. The ink therefore has to invert with it, which is exactly what
+   the app background does. */
+.provOther { background: color-mix(in srgb, var(--color-text-primary) 62%, transparent); color: var(--color-app-bg); }
 
 /* The grid flags the EXCEPTION: a hero image the customer sees that is not a sample shot. */
 .cardImg { position: relative; }

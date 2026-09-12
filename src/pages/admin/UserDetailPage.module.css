@@ -18,7 +18,7 @@
 .clearBtn { height: 38px; padding: 0 14px; background: none; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); color: var(--color-text-secondary); cursor: pointer; }
 .exportBtn { height: 38px; padding: 0 16px; background: none; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; color: var(--color-text-secondary); }
 .exportBtn:hover { border-color: var(--color-text-primary); color: var(--color-text-primary); }
-.addBtn { height: 38px; padding: 0 16px; background: var(--color-primary); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; }
+.addBtn { height: 38px; padding: 0 16px; background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; }
 .addBtn:hover { opacity: 0.9; }
 .tableWrap { background: var(--color-bg-primary); border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--font-size-base); }
@@ -72,7 +72,7 @@
 .date { font-size: 13px; white-space: nowrap; color: var(--color-text-secondary); }
 
 .profileCard { display: flex; align-items: flex-start; gap: 16px; }
-.avatar { width: 72px; height: 72px; border-radius: var(--radius-full); background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: var(--font-weight-bold); font-size: 22px; flex-shrink: 0; }
+.avatar { width: 72px; height: 72px; border-radius: var(--radius-full); background: var(--color-primary); color: var(--color-on-primary); display: flex; align-items: center; justify-content: center; font-weight: var(--font-weight-bold); font-size: 22px; flex-shrink: 0; }
 .profileInfo { flex: 1; }
 .profileName { font-family: var(--font-display); font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); margin-bottom: 6px; }
 .profileDetails { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--color-text-secondary); }
@@ -100,9 +100,9 @@
 .credit { color: var(--color-success); font-weight: var(--font-weight-semibold); }
 .debit { color: var(--color-error); font-weight: var(--font-weight-semibold); }
 .actionList { display: flex; flex-direction: column; gap: 8px; }
-.creditsBtn { width: 100%; height: 40px; background: var(--color-secondary); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.creditsBtn { width: 100%; height: 40px; background: var(--color-secondary); color: var(--color-on-secondary); border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .deactivateBtn { width: 100%; height: 40px; background: none; border: 1.5px solid var(--color-error); color: var(--color-error); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.reactivateBtn { width: 100%; height: 40px; background: var(--color-primary); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.reactivateBtn { width: 100%; height: 40px; background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
 
 /* T2-35 (SP-6): customer value (LTV + fit strip) + DPDP erasure. */
 .valueRow { display: flex; gap: 24px; }
@@ -119,13 +119,13 @@
 .notesArea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; resize: vertical; box-sizing: border-box; }
 .saveNoteBtn { height: 36px; padding: 0 14px; background: none; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); cursor: pointer; margin-top: 8px; }
 .ticketRow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.ticketBadge { background: var(--color-error); color: #fff; font-size: 12px; font-weight: var(--font-weight-bold); padding: 2px 9px; border-radius: var(--radius-full); }
+.ticketBadge { background: var(--color-error); color: var(--color-on-error); font-size: 12px; font-weight: var(--font-weight-bold); padding: 2px 9px; border-radius: var(--radius-full); }
 .ticketTotal { font-size: 13px; color: var(--color-text-secondary); }
 .modalIcon { display: flex; justify-content: center; color: var(--color-error); }
 .modalWarning { font-size: 14px; color: var(--color-text-secondary); }
-.issueCreditBtn { height: 40px; padding: 0 20px; background: var(--color-secondary); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.issueCreditBtn { height: 40px; padding: 0 20px; background: var(--color-secondary); color: var(--color-on-secondary); border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .issueCreditBtn:disabled { opacity: 0.4; cursor: not-allowed; }
-.confirmDeactivateBtn { height: 40px; padding: 0 20px; background: var(--color-error); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.confirmDeactivateBtn { height: 40px; padding: 0 20px; background: var(--color-error); color: var(--color-on-error); border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .confirmDeactivateBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Wave 4 — credit ledger (G-39), re-measure (G-37), SoD cap */
