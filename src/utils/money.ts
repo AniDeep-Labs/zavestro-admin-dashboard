@@ -41,11 +41,19 @@ export function money(value: number | string | null | undefined, opts: MoneyOpti
   const n = typeof value === 'string' ? parseFloat(value) : value;
   if (!Number.isFinite(n)) return fallback;
   const digits = paise ? 2 : 0;
-  const formatted = n.toLocaleString('en-IN', {
+  // [UNI-43-5] Format the MAGNITUDE, then place the sign outside the symbol. Interpolating
+  // a negative straight after `₹` produced `₹-450`, which puts the one character that
+  // reverses the meaning of the row on the wrong side of the one that announces it. The
+  // brand ledger renders negative balances by design ("a brand who owes us is a real
+  // state"), so this is a column operators actually read, not a theoretical case.
+  const formatted = Math.abs(n).toLocaleString('en-IN', {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
-  return bare ? formatted : `₹${formatted}`;
+  // `n < 0` rather than a sign check: -0 is a real result of subtracting equal amounts,
+  // and `-0 < 0` is false, so it renders as ₹0 instead of a minus in front of nothing.
+  const sign = n < 0 ? '-' : '';
+  return bare ? `${sign}${formatted}` : `${sign}₹${formatted}`;
 }
 
 /**

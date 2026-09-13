@@ -1039,7 +1039,11 @@ export const UserDetailPage: React.FC = () => {
                       className={e.type === "credit" ? styles.credit : styles.debit}
                     >
                       {e.type === "credit" ? "+" : "−"}
-                      <MoneyCell amount={e.amount} />
+                      {/* [UNI-43-5] paise shown HERE and not in the stock/total columns:
+                          this is a ledger of credits and debits against a customer's
+                          balance, and rounding 58.98 to 59 makes the entries stop summing
+                          to the balance beside them. */}
+                      <MoneyCell amount={e.amount} paise />
                     </span>
                     <span className={styles.ledgerReason}>
                       {e.reason ?? "—"}

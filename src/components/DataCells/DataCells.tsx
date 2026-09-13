@@ -1,4 +1,5 @@
 import React from 'react';
+import { money } from '../../utils/money';
 import styles from './DataCells.module.css';
 import { ageLabel, HOUR_MS } from './age';
 
@@ -53,16 +54,30 @@ export const AgeCell: React.FC<AgeCellProps> = ({ since, warnAfterH = 48, alertA
   );
 };
 
-export const MoneyCell: React.FC<{ amount: number | string | null | undefined }> = ({ amount }) => {
-  const n = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return (
-    <span className={styles.money}>
-      {n == null || Number.isNaN(n)
-        ? '—'
-        : `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
-    </span>
-  );
-};
+/**
+ * [UNI-43-5] A money cell with a STABLE number of decimals.
+ *
+ * This hand-rolled `maximumFractionDigits: 2` with no minimum, so one column could show
+ * `₹31,876`, `₹58.98` and `₹2,499.5` in three consecutive rows. A money column is read by
+ * running an eye down it; when the decimal position moves per row, the alignment stops
+ * carrying magnitude and every comparison becomes a separate act of reading.
+ *
+ * Fixed by DELEGATING to the house formatter (ACP-2 `money()`) rather than by adding a
+ * minimum here — a second money formatter that merely agrees today is how the four shapes
+ * the ACP-2 note describes came about in the first place.
+ *
+ * `paise` is passed through rather than assumed: the house rule is whole rupees, because
+ * that is what the business transacts in, but every one of these columns is backed by
+ * `numeric(10,2)` and a LEDGER is the one place where rounding away 98 paise is a wrong
+ * answer rather than a tidy one.
+ */
+export const MoneyCell: React.FC<{
+  amount: number | string | null | undefined;
+  /** Show paise. Only where the underlying record genuinely has them (ACP-2). */
+  paise?: boolean;
+}> = ({ amount, paise = false }) => (
+  <span className={styles.money}>{money(amount, { paise })}</span>
+);
 
 /**
  * ACP-3 — ONE masked phone. [KA7-2] [KA8-10] [KA7-15]
