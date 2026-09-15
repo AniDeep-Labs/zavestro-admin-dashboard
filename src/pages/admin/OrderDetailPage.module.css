@@ -189,6 +189,11 @@
 
 /* ── Wave-2 repair: classes replacing the page's inline styles ──────────── */
 .journeyHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+/* [SEA-42-5] The badge and the customer's wording, stacked and right-aligned so the two
+   readings of the same stage sit together instead of competing for the same line. */
+.journeyStatus { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.customerSees { font-size: 11.5px; color: var(--color-text-tertiary); white-space: nowrap; }
+.customerSees strong { color: var(--color-text-secondary); font-weight: var(--font-weight-semibold); }
 .offPathBanner {
   margin: 8px 0 12px;
   padding: 8px 12px;
