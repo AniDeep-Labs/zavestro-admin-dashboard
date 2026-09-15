@@ -51,7 +51,9 @@
 /* A lock-screen notification: dark, rounded, tight. */
 .pushCard {
   background: rgba(28, 26, 23, 0.92);
-  color: var(--color-on-accent);
+  /* A phone's lock screen, not an admin surface — it stays dark when the console is
+     light, so its ink must NOT follow the theme. */
+  color: var(--color-on-scrim);
   border-radius: 14px;
   padding: 10px 12px;
   display: flex;
@@ -96,7 +98,7 @@
 .inAppCta {
   align-self: flex-start;
   background: var(--color-primary);
-  color: var(--color-on-accent);
+  color: var(--color-on-primary);
   font-size: 12px;
   font-weight: var(--font-weight-semibold);
   padding: 6px 14px;

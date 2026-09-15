@@ -73,7 +73,7 @@
 .seg { display: inline-flex; border: 1px solid var(--color-border); border-radius: 7px; overflow: hidden; }
 .segBtn { flex: 1; border: none; background: var(--color-bg-primary); color: var(--color-text-secondary); font-size: 12px; font-weight: 600; padding: 7px 8px; cursor: pointer; border-right: 1px solid var(--color-border); }
 .segBtn:last-child { border-right: none; }
-.segOn { background: var(--color-primary, #1F6B4F); color: #fff; }
+.segOn { background: var(--color-primary, #1F6B4F); color: var(--color-on-primary); }
 .range { width: 100%; accent-color: var(--color-primary, #1F6B4F); }
 .delBtn { margin-top: 4px; padding: 8px; border: 1px solid var(--color-error); color: var(--color-error); background: transparent; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .dupBtn { padding: 8px; border: 1px solid var(--color-border); color: var(--color-text-secondary); background: transparent; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }

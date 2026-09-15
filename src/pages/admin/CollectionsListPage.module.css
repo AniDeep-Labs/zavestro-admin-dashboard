@@ -1,7 +1,7 @@
 .page { padding: 24px; max-width: 1400px; }
 .pageHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
 .title { font-family: var(--font-display); font-size: var(--font-size-page-title); font-weight: 600; color: var(--color-text); margin: 0; }
-.addBtn { background: var(--color-primary, #1F6B4F); color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 0.875rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.addBtn { background: var(--color-primary, #1F6B4F); color: var(--color-on-primary); border: none; border-radius: 8px; padding: 8px 18px; font-size: 0.875rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .addBtn:hover { opacity: 0.9; }
 
 .filterBar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
@@ -56,7 +56,7 @@
 .pagination { margin-top: 16px; font-size: 0.8rem; color: var(--color-text-muted); }
 .skeleton { height: 16px; background: linear-gradient(90deg, var(--color-border-light, #e2e8f0) 25%, var(--color-bg-2, #FAFAFA) 50%, var(--color-border-light, #e2e8f0) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-.retryBtn { margin-top: 10px; padding: 6px 18px; background: var(--color-primary, #1F6B4F); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+.retryBtn { margin-top: 10px; padding: 6px 18px; background: var(--color-primary, #1F6B4F); color: var(--color-on-primary); border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
 
 .editorModal { max-width: 1380px !important; width: 96vw; }
 

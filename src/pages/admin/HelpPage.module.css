@@ -15,7 +15,7 @@
   transition: all var(--transition-fast);
 }
 .tab:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.tabActive { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.tabActive { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
 
 .summary {
   font-size: var(--font-size-base);

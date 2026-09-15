@@ -125,7 +125,7 @@
   font-family: inherit;
   font-weight: 400;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-bg-primary);
 }
 .useRow { display: flex; align-items: flex-end; gap: var(--spacing-md); }
 .useRow .useField { flex: 1; }

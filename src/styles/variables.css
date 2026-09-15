@@ -5,11 +5,42 @@
 :root {
   /* PRIMARY GREEN — web --color-emerald #1F6B4F */
   --color-primary: #1F6B4F;
-  /* Text/iconography sitting ON a filled primary or error surface. It was a raw #fff repeated
-     across page modules; the style-debt guard's own rule is that token files are the only
-     place raw colours may live, so it belongs here. Deliberately NOT redefined in the dark
-     block: a filled green or red button keeps a white label in both themes. */
-  --color-on-accent: #FFFFFF;
+  /* [DSA-45-3] Text/iconography sitting ON a filled accent surface — one token per fill,
+     because "white on a coloured chip" is only legible on some of these colours.
+     Measured (WCAG AA needs 4.5:1 for text under 18.66px), white vs. near-black ink:
+
+       fill                      white   ink
+       --color-primary  light    6.41    3.02   -> white
+       --color-primary  dark     2.91    6.66   -> ink
+       --color-secondary light   2.23    8.71   -> ink
+       --color-secondary dark    1.75   11.06   -> ink
+       --color-success           3.54    5.48   -> ink
+       --color-error             3.79    5.11   -> ink
+       --color-warning           2.43    7.97   -> ink
+       --color-info              3.53    5.49   -> ink
+
+     An earlier note here said a filled green or red button "keeps a white label in both
+     themes". That was the intent, and it is the bug: the dark theme BRIGHTENS the green to
+     #4EA87A so it can be read as foreground text, which drops a white label on it to
+     **2.91:1** — the active worklist tab, the one control that tells an agent which bucket
+     of a queue they are looking at. The same white sits at 2.23:1 on the gold in the LIGHT
+     theme, so this was never only a dark-mode problem.
+
+     Dark ink on a saturated mid-tone is the deliberate choice over darkening the fills,
+     which would cost the brand green and gold their identity. */
+  --color-on-primary: #FFFFFF;
+  --color-on-secondary: #1A1A1A;
+  --color-on-success: #0F0D0B;
+  --color-on-error: #0F0D0B;
+  --color-on-warning: #0F0D0B;
+  --color-on-info: #0F0D0B;
+  /* Kept as the alias its existing callers use; it follows --color-on-primary. */
+  --color-on-accent: var(--color-on-primary);
+  /* Ink on a surface that is dark in BOTH themes and does not follow them — an image
+     scrim, or a device preview drawing someone else's lock screen. Deliberately not
+     redefined in the dark block, and this time the comment is measured: the surfaces it
+     names are fixed dark, so the ink on them is fixed light. */
+  --color-on-scrim: #FFFEF9;
   /* [KA10-9] Ink on PAPER. Deliberately true black rather than a theme colour: a printed
      sheet has no theme, and the screen's greys lose most of their contrast in toner. Only
      ever used inside `@media print`. */
@@ -42,11 +73,23 @@
   --color-bg-hover: #F1EEE8;
   --color-app-bg: #FFFEF9;         /* web body canvas = warm-white #FFFEF9 (cards lift via border+shadow) */
 
-  /* LIGHT MODE TEXT — web --color-text scale */
+  /* LIGHT MODE TEXT — web --color-text scale
+     [DSA-45-3] Re-spaced so all four tiers clear AA (4.5:1) on the WORST surface they are
+     drawn on, which is --color-bg-hover (a hovered table row) and not the card. The old
+     scale failed there from the third tier down: tertiary 4.14 (every table header, at
+     12px) and muted 2.18.
+
+     The three lower tiers had to move together. They cannot all fit above 4.5 while
+     staying below the old secondary at 4.96, so keeping secondary where it was would have
+     forced tertiary and muted to collapse into each other. The band is narrower than it
+     was — that is what an accessible four-step grey scale costs — and the hierarchy still
+     reads because the steps are even. Ratios on hover / card:
+       primary   15.03 / 17.24    secondary  6.59 / 7.56
+       tertiary   5.67 /  6.50    muted      4.73 / 5.42 */
   --color-text-primary: #1A1A1A;
-  --color-text-secondary: #6B6560;  /* web --color-text-2 */
-  --color-text-tertiary: #78716C;   /* web --color-neutral-500 */
-  --color-text-muted: #A8A29E;      /* web --color-neutral-400 */
+  --color-text-secondary: #57534E;  /* web --color-neutral-600 */
+  --color-text-tertiary: #635C57;
+  --color-text-muted: #6F6863;
 
   /* LIGHT MODE BORDERS — web --color-border */
   --color-border: #EEEBE6;
@@ -72,14 +115,19 @@
   --color-warning: #E4952A;
   --color-info: #4B8DC8;
   --color-disabled: #A8A59F;
-  --color-on-accent: #FFFFFF; /* text/icon on solid accent fills (badges, primary buttons) */
+  /* (--color-on-accent and its siblings are defined once, with the primary palette above.) */
 
   /* STATUS VOCABULARY TONES (StatusBadge — FABLE-ADMIN-UIUX §2.1)
      One tone per meaning: fit / making / qc / transit / done / blocked. */
-  --status-fit-fg: #3674AE;
+  /* [DSA-45-3] fit and making were the two tones whose FOREGROUND missed AA once the
+     chip's translucent tint is flattened onto the card — 4.38 and 3.92. `Fabric sourced`
+     is the `making` chip, and it is a stage a hub reads off a worklist all day. Both are
+     one step darker in the same hue; the tints and borders are untouched, so the chips
+     look the same colour and merely have readable labels. */
+  --status-fit-fg: #2F6699;
   --status-fit-bg: rgba(75, 141, 200, 0.10);
   --status-fit-border: rgba(75, 141, 200, 0.30);
-  --status-making-fg: #9E7340;
+  --status-making-fg: #8A6337;
   --status-making-bg: #FBF6EF;
   --status-making-border: rgba(212, 165, 116, 0.45);
   --status-qc-fg: #B45309;
@@ -94,6 +142,30 @@
   --status-blocked-fg: #B04545;
   --status-blocked-bg: rgba(215, 91, 91, 0.10);
   --status-blocked-border: rgba(215, 91, 91, 0.35);
+
+  /* GENERIC CHIP TONES — [DSA-45-5]
+     The --status-* set above is the GARMENT-STAGE vocabulary: one tone per stage meaning,
+     owned by StatusBadge. It is not a palette, and pages that needed a plain "this is good
+     / this needs attention" chip could not borrow from it without lying about what the chip
+     meant. So they hand-mixed their own — OrdersListPage alone grew THREE parallel chip
+     vocabularies (status*, stage*, action*), each with its own hand-written
+     [data-theme="dark"] block, each a copy of colours that already existed here.
+
+     That duplication is the mechanism behind [DSA-45-3]: a hex literal cannot respond to
+     the theme, and a hand-written dark override is a second place to forget. These five
+     are the generic set those chips should have had — named for what a chip SAYS, not for
+     a stage — and they are covered by scripts/check-contrast.mjs, which the copies were
+     not. */
+  --tone-positive-fg: #1E7A45;
+  --tone-positive-bg: rgba(42, 155, 91, 0.12);
+  --tone-caution-fg: #B45309;
+  --tone-caution-bg: rgba(228, 149, 42, 0.12);
+  --tone-negative-fg: #B04545;
+  --tone-negative-bg: rgba(215, 91, 91, 0.10);
+  --tone-informative-fg: #2F6699;
+  --tone-informative-bg: rgba(75, 141, 200, 0.10);
+  --tone-neutral-fg: #57534E;
+  --tone-neutral-bg: rgba(168, 162, 158, 0.14);
 
   /* SPACING SCALE */
   --spacing-xs: 0.25rem;  /* 4px */
@@ -239,6 +311,17 @@
   --status-done-fg: #6FBF8E;
   --status-blocked-fg: #E89A9A;
 
+  /* [DSA-45-5] Only the foregrounds move; the tints read correctly over the dark card. */
+  --tone-positive-fg: #6FBF8E;
+  --tone-caution-fg: #ECB269;
+  --tone-negative-fg: #E89A9A;
+  --tone-informative-fg: #8FB8DE;
+  --tone-neutral-fg: #B0AAA0;
+  --tone-caution-bg: rgba(228, 149, 42, 0.20);
+  --tone-negative-bg: rgba(215, 91, 91, 0.20);
+  --tone-informative-bg: rgba(75, 141, 200, 0.20);
+  --tone-neutral-bg: rgba(168, 162, 158, 0.20);
+
   /* DARK BACKGROUNDS — matches web dark scale */
   --color-bg-primary: #1C1A17;
   --color-bg-secondary: #181614;
@@ -247,11 +330,17 @@
   --color-bg-hover: #2A2722;
   --color-app-bg: #0F0D0B;
 
-  /* DARK TEXT */
+  /* DARK TEXT
+     [DSA-45-3] The dark scale was consistently worse than light for the same elements.
+     tertiary sat at 3.15:1 on a card — that is the customer's phone number, the string a
+     support agent reads back to a caller — and muted at 1.94:1 was decorative, not text.
+     Ratios on hover (#2A2722) / card (#1C1A17):
+       primary  12.29 / 14.35    secondary  6.45 / 7.53
+       tertiary  5.02 /  5.86    muted      4.72 / 5.51 */
   --color-text-primary: #EDE9E2;
   --color-text-secondary: #B0AAA0;
-  --color-text-tertiary: #6E6860;
-  --color-text-muted: #504840;
+  --color-text-tertiary: #9C958C;
+  --color-text-muted: #979088;
 
   /* DARK BORDERS */
   --color-border: #2A2722;
@@ -270,6 +359,12 @@
   --color-neutral-700: #E7E5E4;
   --color-neutral-800: #F5F5F4;
   --color-neutral-900: #FAFAFA;
+
+  /* [DSA-45-3] The dark green is brightened below so it can be READ as foreground text;
+     that same brightness is what makes a white label on a filled green unreadable, so the
+     ink on a primary fill flips with it. Nothing else in the on-* set changes: those fills
+     already wanted dark ink in the light theme. */
+  --color-on-primary: #0F0D0B;
 
   /* DARK PRIMARY — web --color-emerald dark #4EA87A */
   --color-primary: #4EA87A;

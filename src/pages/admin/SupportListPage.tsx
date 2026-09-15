@@ -1,5 +1,6 @@
 import React from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useListParams } from "../../hooks/useListParams";
 import { supportApi, usersApi } from "../../api/adminApi";
 import type { SupportTicket, AdminUser, SupportInbox } from "../../api/adminApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
@@ -49,9 +50,18 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
   const navigate = useNavigate();
   // G-43: seed search from ?search= so "View All Tickets" from a customer profile
   // lands filtered to that customer.
-  const [searchParams] = useSearchParams();
-  const [search, setSearch] = React.useState(searchParams.get("search") ?? "");
-  const [page, setPage] = React.useState(1);
+  // [SCA-44-4] Search, bucket and page live in the URL. This page already READ `?search=`
+  // on mount — that is how "View All Tickets →" deep-links from a customer profile — and
+  // never wrote it, so the phone seat could arrive at a filtered inbox and not leave with
+  // one. The BUCKET is here too: which lane of the inbox you are working is the single most
+  // useful thing to be able to send someone.
+  const {
+    get: qp,
+    set: setQp,
+    page,
+    setPage,
+  } = useListParams<"search" | "bucket" | "page">();
+  const search = qp("search");
   const [tickets, setTickets] = React.useState<SupportTicket[]>([]);
   const [total, setTotal] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
@@ -64,10 +74,18 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
   // falls back to the flat cross-status results table below.
   const [inbox, setInbox] = React.useState<SupportInbox | null>(null);
   const [inboxError, setInboxError] = React.useState("");
-  const [bucket, setBucket] = React.useState<
-    "all" | "needs_reply" | "waiting" | "resolved"
-  >("all");
+  const BUCKETS = ["all", "needs_reply", "waiting", "resolved"] as const;
+  type Bucket = (typeof BUCKETS)[number];
+  // An unknown ?bucket= falls back to "all" rather than rendering an inbox with every lane
+  // switched off, which is what a typo in a pasted link would otherwise produce.
+  const bucket: Bucket =
+    (BUCKETS as readonly string[]).includes(qp("bucket")) ? (qp("bucket") as Bucket) : "all";
+  const setBucket = (b: Bucket) => setQp("bucket", b === "all" ? "" : b);
   const searching = debouncedSearch.trim().length > 0;
+  // Same dead-Retry fix as the customers list: setPage(1) while already on page 1 changes
+  // nothing, so the button did nothing in exactly the case it exists for — a failed first
+  // load. A counter always refires the fetch.
+  const [reloadKey, setReloadKey] = React.useState(0);
 
   const [showCreate, setShowCreate] = React.useState(false);
   // [SHL-3-10] Quick-create (+) pointed at the LIST page, leaving the operator to hunt for
@@ -151,7 +169,7 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
         showToast("error", "Load failed", msg);
       })
       .finally(() => setLoading(false));
-  }, [searching, debouncedSearch, page]);
+  }, [searching, debouncedSearch, page, reloadKey]);
 
   // The inbox worklist — loaded when not searching.
   const loadInbox = React.useCallback(() => {
@@ -170,7 +188,7 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
   React.useEffect(() => {
     if (searching) return;
     loadInbox();
-  }, [searching, loadInbox]);
+  }, [searching, loadInbox, reloadKey]);
 
   const handleCreate = async () => {
     if (!form.customerName || !form.subject || !form.message) {
@@ -338,23 +356,15 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>Support Tickets</h1>
-        <button
-          className={styles.addBtn ?? styles.exportBtn}
-          onClick={() => setShowCreate(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "8px 14px",
-            borderRadius: 6,
-            border: "1px solid var(--border)",
-            background: "var(--green)",
-            color: "#fff",
-            cursor: "pointer",
-            fontSize: "0.8125rem",
-            fontFamily: "inherit",
-          }}
-        >
+        {/* [DSA-45-5] This button was INVISIBLE on the live page. It hand-rolled inline
+            what `.addBtn` already defines in this file's own module, and its inline fill
+            was `var(--green)` — a token that does not exist here (it is --color-primary).
+            An undefined custom property with no fallback makes the whole declaration
+            invalid, so the background was dropped to transparent while `color: "#fff"`
+            survived: white on white, on the screen whose empty state reads "Nothing here
+            — inbox zero". Nobody reports a missing control on a page that says there is
+            nothing to do. scripts/check-css-vars.mjs now fails the build on that shape. */}
+        <button className={styles.addBtn} onClick={() => setShowCreate(true)}>
           <UilPlus size={14} /> Create Ticket
         </button>
       </div>
@@ -366,19 +376,13 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
             className={styles.searchInput}
             placeholder="Search ticket ID or customer…"
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setQp("search", e.target.value)}
           />
         </div>
         {searching && (
           <button
             className={styles.clearBtn}
-            onClick={() => {
-              setSearch("");
-              setPage(1);
-            }}
+            onClick={() => setQp("search", "")}
           >
             <UilTimes size={14} /> Clear search
           </button>
@@ -420,7 +424,7 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
                       <br />
                       <button
                         className={styles.retryBtn}
-                        onClick={() => setPage(1)}
+                        onClick={() => setReloadKey((k) => k + 1)}
                       >
                         Retry
                       </button>
@@ -486,7 +490,7 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
               <button
                 className={styles.pageBtn}
                 disabled={page <= 1 || loading}
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => setPage(page - 1)}
               >
                 <UilAngleLeft size={15} /> Prev
               </button>
@@ -496,7 +500,7 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
               <button
                 className={styles.pageBtn}
                 disabled={page >= totalPages || loading}
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => setPage(page + 1)}
               >
                 Next <UilAngleRight size={15} />
               </button>

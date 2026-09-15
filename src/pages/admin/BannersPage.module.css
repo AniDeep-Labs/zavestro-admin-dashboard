@@ -106,7 +106,7 @@
 
 .deviceToggle { display: inline-flex; background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 999px; padding: 2px; }
 .deviceBtn { border: none; background: transparent; color: var(--color-text-secondary); font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
-.deviceBtnActive { background: var(--color-primary, #1F6B4F); color: #fff; }
+.deviceBtnActive { background: var(--color-primary, #1F6B4F); color: var(--color-on-primary); }
 
 /* Phone frame */
 /* Portrait phone with real app context so the banner reads as a home-screen hero */
@@ -160,7 +160,7 @@
 .segmented { display: inline-flex; border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; }
 .seg { border: none; background: var(--color-bg-primary); color: var(--color-text-secondary); font-size: 12px; font-weight: 600; padding: 7px 12px; cursor: pointer; border-right: 1px solid var(--color-border); }
 .seg:last-child { border-right: none; }
-.segActive { background: var(--color-primary, #1F6B4F); color: #fff; }
+.segActive { background: var(--color-primary, #1F6B4F); color: var(--color-on-primary); }
 .slider { width: 100%; accent-color: var(--color-primary); }
 .sizePresets { display: flex; gap: 6px; margin-top: 6px; }
 .sizePreset { flex: 1; padding: 5px 4px; font-size: 11px; font-weight: 600; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg-primary); color: var(--color-text-secondary); cursor: pointer; }

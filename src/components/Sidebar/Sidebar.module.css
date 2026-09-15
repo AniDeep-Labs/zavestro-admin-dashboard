@@ -89,7 +89,7 @@
 
 .badge {
   background-color: var(--color-primary);
-  color: #FFFFFF;
+  color: var(--color-on-primary);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   padding: 2px 8px;

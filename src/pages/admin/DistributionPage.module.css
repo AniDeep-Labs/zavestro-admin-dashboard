@@ -44,8 +44,8 @@
   background: var(--color-bg-card); color: var(--color-text-secondary); font-size: 0.78rem;
   cursor: pointer; text-transform: capitalize;
 }
-.qcChipOn { background: var(--color-warning, #b7791f); color: #fff; border-color: var(--color-warning, #b7791f); }
-.qcChipFail { background: var(--color-error, #c0392b); color: #fff; border-color: var(--color-error, #c0392b); }
+.qcChipOn { background: var(--color-warning); color: var(--color-on-warning); border-color: var(--color-warning); }
+.qcChipFail { background: var(--color-error); color: var(--color-on-error); border-color: var(--color-error); }
 
 /* T1-13b: per-category checklist inside the receive-QC box */
 .qcChecklist { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; border-top: 1px dashed var(--color-border); border-bottom: 1px dashed var(--color-border); }

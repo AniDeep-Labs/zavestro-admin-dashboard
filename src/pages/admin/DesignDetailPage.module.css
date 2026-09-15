@@ -71,7 +71,7 @@
 .stepDone .stepDot {
   background: var(--color-success);
   border-color: var(--color-success);
-  color: #fff;
+  color: var(--color-on-success);
 }
 .stepCurrent { color: var(--color-text); font-weight: 600; }
 .stepCurrent .stepDot {

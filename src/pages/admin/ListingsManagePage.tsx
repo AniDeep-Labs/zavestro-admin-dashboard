@@ -809,7 +809,20 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                 ) : (
                   <>
                     {([
-                      ['Reviewed sample at this hub', preflight!.sample.ok, preflight!.sample.detail, true],
+                      // [DSG-12-7] A cross-fabric sample passes the gate but is not clean,
+                      // so it renders as a WARNING rather than a tick. A ✓ beside "…but in
+                      // Indigo Denim, not this fabric" is the concealment the finding is
+                      // about: the eye takes the tick and never reads the sentence.
+                      [
+                        preflight!.sample.ok && preflight!.sample.fabric_matched === false
+                          ? 'Sample reviewed — in a DIFFERENT fabric'
+                          : 'Reviewed sample at this hub',
+                        preflight!.sample.ok && preflight!.sample.fabric_matched !== false,
+                        preflight!.sample.detail,
+                        // Not a hard failure: D13 genuinely allows it. Hard would claim
+                        // the publish is blocked, which would be its own lie.
+                        preflight!.sample.fabric_matched === false ? false : true,
+                      ],
                       ['Design passed sew-validation', preflight!.sew_validated.ok, preflight!.sew_validated.detail, true],
                       ['Price at or above the cost floor', preflight!.price.ok, preflight!.price.detail, false],
                       ['Fabric at this hub', preflight!.stock.ok, preflight!.stock.detail, false],
