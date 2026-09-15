@@ -4793,7 +4793,17 @@ export interface CmListingInput {
  * things the system allows.
  */
 export interface ListingPreflight {
-  sample: { ok: boolean; detail: string };
+  sample: {
+    ok: boolean;
+    detail: string;
+    /**
+     * [DSG-12-7] Whether the sample anyone actually stitched was in THIS fabric. `ok` is
+     * the design × hub gate; this is the design × fabric × hub question the gate does not
+     * ask. `null` when the backend was not given a fabric.
+     */
+    fabric_matched: boolean | null;
+    sampled_fabrics: string[];
+  };
   sew_validated: { ok: boolean; detail: string };
   price: { ok: boolean; cost_floor: number; detail: string };
   stock: { ok: boolean; garments_left: number | null; detail: string };
