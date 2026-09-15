@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { designsApi, fabricsApi } from '../../api/adminApi';
+import { designsApi, fabricsApi, type EngineTestBody } from '../../api/adminApi';
 import { ENTERED, provenanceFor } from '../../constants/provenance';
 import { blockOf, DRAFTING_BLOCK_LABELS } from '../../constants/draftingBlock';
 import { measurementLabel } from '../../utils/measurements';
@@ -99,13 +99,27 @@ const LENGTH_SOURCES = [
 ] as const;
 type LengthSource = (typeof LENGTH_SOURCES)[number]['key'];
 
-type SavedBody = { name: string; body: Record<string, string> };
-const BODIES_KEY = 'zav-engine-test-bodies';
+// [DSG-13-12] Test bodies now live on the SERVER — they are the design team's shared
+// regression suite ("the five bodies every new chart must survive"), and a suite that
+// lives in one browser's cache is a habit that ends the day someone clears it.
+const LEGACY_BODIES_KEY = 'zav-engine-test-bodies';
 
-function loadBodies(): SavedBody[] {
+/**
+ * Whatever this browser already had, offered for upload once.
+ *
+ * Not migrated silently: these are somebody's named fixtures and pushing them into a
+ * table the whole team sees should be a decision, not a side effect of deploying. Read
+ * defensively — the value predates any schema and may be anything.
+ */
+function legacyLocalBodies(): { name: string; body: Record<string, string> }[] {
   try {
-    const raw = localStorage.getItem(BODIES_KEY);
-    return raw ? (JSON.parse(raw) as SavedBody[]) : [];
+    const raw = localStorage.getItem(LEGACY_BODIES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (b) => b && typeof b.name === 'string' && b.body && typeof b.body === 'object',
+    );
   } catch {
     return [];
   }
@@ -127,7 +141,10 @@ export const EngineTesterPage: React.FC = () => {
   const [appliedFabric, setAppliedFabric] = React.useState<{ name: string; stretch: number; shrink: number } | null>(null);
   const [running, setRunning] = React.useState(false);
   const [triedRun, setTriedRun] = React.useState(false);
-  const [bodies, setBodies] = React.useState<SavedBody[]>(loadBodies);
+  const [bodies, setBodies] = React.useState<EngineTestBody[]>([]);
+  const [bodiesErr, setBodiesErr] = React.useState<unknown>(null);
+  const [legacy, setLegacy] = React.useState<{ name: string; body: Record<string, string> }[]>([]);
+  const [importing, setImporting] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   const dismiss = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
@@ -242,35 +259,82 @@ export const EngineTesterPage: React.FC = () => {
     }
   };
 
-  const persist = (next: SavedBody[]) => {
-    setBodies(next);
+  const reloadBodies = React.useCallback(async () => {
     try {
-      localStorage.setItem(BODIES_KEY, JSON.stringify(next));
-    } catch {
-      /* storage full / disabled — non-fatal */
+      setBodies(await designsApi.testBodies());
+      setBodiesErr(null);
+    } catch (e) {
+      // [RC-3]: an empty chip row must not stand in for "we could not load them".
+      setBodiesErr(e);
     }
-  };
+  }, []);
 
-  const saveBody = () => {
+  React.useEffect(() => {
+    void reloadBodies();
+    setLegacy(legacyLocalBodies());
+  }, [reloadBodies]);
+
+  const saveBody = async () => {
     const filled = Object.values(body).some((v) => v.trim() !== '');
     if (!filled) {
       toast('error', 'Nothing to save', 'Enter some measurements first.');
       return;
     }
-    const name = window.prompt('Save these measurements as (e.g. "my body"):')?.trim();
+    const name = window.prompt('Save these measurements as (e.g. "Tall slim"):')?.trim();
     if (!name) return;
-    const next = [...bodies.filter((b) => b.name !== name), { name, body: { ...body } }];
-    persist(next);
-    toast('success', `Saved "${name}"`, 'Reuse it across garments from the chips above.');
+    try {
+      await designsApi.saveTestBody(name, { ...body });
+      await reloadBodies();
+      toast('success', `Saved "${name}"`, 'The whole design team can run this one.');
+    } catch (e) {
+      toast('error', 'Could not save', e instanceof Error ? e.message : undefined);
+    }
   };
 
-  const applyBody = (b: SavedBody) => {
+  const applyBody = (b: EngineTestBody) => {
     setBody({ ...b.body });
     setResult(null);
-    toast('info', `Loaded "${b.name}"`);
+    toast('info', `Loaded "${b.name}"`, b.created_by_name ? `Added by ${b.created_by_name}` : undefined);
   };
 
-  const deleteBody = (name: string) => persist(bodies.filter((b) => b.name !== name));
+  const deleteBody = async (b: EngineTestBody) => {
+    try {
+      await designsApi.deleteTestBody(b.id);
+      await reloadBodies();
+    } catch (e) {
+      toast('error', 'Could not delete', e instanceof Error ? e.message : undefined);
+    }
+  };
+
+  /** Upload whatever this browser was holding, once, on request. */
+  const importLegacy = async () => {
+    setImporting(true);
+    let ok = 0;
+    for (const b of legacy) {
+      try {
+        await designsApi.saveTestBody(b.name, b.body);
+        ok++;
+      } catch {
+        /* reported in the summary below rather than per row */
+      }
+    }
+    await reloadBodies();
+    setImporting(false);
+    if (ok > 0) {
+      // Only clear what was actually uploaded — a failed import must stay recoverable.
+      if (ok === legacy.length) {
+        try {
+          localStorage.removeItem(LEGACY_BODIES_KEY);
+        } catch {
+          toast('info', 'Uploaded', 'The local copy could not be cleared; it is harmless.');
+        }
+        setLegacy([]);
+      }
+      toast('success', `Uploaded ${ok} of ${legacy.length}`, 'They are shared with the team now.');
+    } else {
+      toast('error', 'Nothing could be uploaded', 'The local copies are untouched.');
+    }
+  };
 
   if (loading) return <div className={base.page}><div className={s.center}><Spinner /></div></div>;
 
@@ -457,17 +521,58 @@ export const EngineTesterPage: React.FC = () => {
             </div>
           )}
 
-          {bodies.length > 0 && (
+          {/* [DSG-13-12] Shared, so the label says so — a chip row that looks personal
+              invites someone to delete the suite everyone else is testing against. */}
+          {bodiesErr ? (
             <div className={s.saved}>
-              <span className={s.savedLabel}>Saved bodies:</span>
+              <span className={s.savedLabel}>
+                Saved bodies couldn&apos;t be loaded — this is not &ldquo;none saved&rdquo;.
+              </span>
+              <button className={s.chipMain} type="button" onClick={() => void reloadBodies()}>
+                Retry
+              </button>
+            </div>
+          ) : bodies.length > 0 ? (
+            <div className={s.saved}>
+              <span className={s.savedLabel}>Team test bodies:</span>
               {bodies.map((b) => (
-                <span key={b.name} className={s.chip}>
-                  <button className={s.chipMain} onClick={() => applyBody(b)} type="button">{b.name}</button>
-                  <button className={s.chipX} onClick={() => deleteBody(b.name)} type="button" aria-label={`Delete ${b.name}`}>
+                <span key={b.id} className={s.chip}>
+                  <button
+                    className={s.chipMain}
+                    onClick={() => applyBody(b)}
+                    type="button"
+                    title={b.created_by_name ? `Added by ${b.created_by_name}` : undefined}
+                  >
+                    {b.name}
+                  </button>
+                  <button
+                    className={s.chipX}
+                    onClick={() => void deleteBody(b)}
+                    type="button"
+                    aria-label={`Delete ${b.name} for everyone`}
+                  >
                     <UilTrashAlt size={12} />
                   </button>
                 </span>
               ))}
+            </div>
+          ) : null}
+
+          {/* Offered once, never silent: these are somebody's named fixtures, and pushing
+              them into a table the whole team sees should be a decision. */}
+          {legacy.length > 0 && (
+            <div className={s.saved}>
+              <span className={s.savedLabel}>
+                {legacy.length} body{legacy.length === 1 ? '' : 's'} saved in this browser only
+              </span>
+              <button
+                className={s.chipMain}
+                type="button"
+                disabled={importing}
+                onClick={() => void importLegacy()}
+              >
+                {importing ? 'Uploading…' : 'Share with the team'}
+              </button>
             </div>
           )}
         </div>
