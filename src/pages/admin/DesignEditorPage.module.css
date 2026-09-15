@@ -617,3 +617,20 @@
 .tagChip button { border: none; background: none; cursor: pointer; font-size: 15px; line-height: 1; color: var(--color-text-secondary); padding: 0 3px; }
 .tagChip button:hover { color: var(--color-error); }
 .tagInput { flex: 1; min-width: 120px; border: none; outline: none; background: transparent; font: inherit; font-size: var(--font-size-sm); color: var(--color-text-primary); padding: 2px 0; }
+
+/* [DSG-10-2] Both units, in one cell. The inches carry the engine's own number and the cm
+   carry what the floor cuts to; the metric value is muted and on its own line so a column
+   of inches still scans vertically as one column. */
+.unitTag {
+  font-weight: var(--font-weight-regular);
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.cmValue {
+  display: block;
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}

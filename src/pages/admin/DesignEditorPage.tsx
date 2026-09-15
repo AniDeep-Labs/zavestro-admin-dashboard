@@ -15,6 +15,7 @@ import s from './DesignEditorPage.module.css';
 import { UilTimes, UilPlus, UilImage, UilUpload, UilFileAlt, UilCheck } from '@iconscout/react-unicons';
 import { SafeImg } from '../../components/Image/SafeImg';
 import { Alert } from '../../components/Alert/Alert';
+import { inchesWithCm, isMeasurementColumn } from '../../utils/units';
 
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 
@@ -650,7 +651,16 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                 <>
                   <p className={s.fitChartCaption}>
                     Standard finished-garment chart — <strong>{category?.name}</strong> · <strong>{fitPreset}</strong>
-                    <span> (inches; what the engine stitches to before per-customer ease)</span>
+                    {/* [DSG-10-2] The unit used to live HERE and nowhere else — one word
+                        above a table of bare numbers, in a product that stocks, cuts and
+                        measures in centimetres. It is now on every column and every cell,
+                        because a unit stated once per section is one you have stopped
+                        reading by the third row. */}
+                    <span>
+                      {' '}— what the engine stitches to before per-customer ease. The engine
+                      works in <strong>inches</strong>; the floor cuts in <strong>cm</strong>,
+                      so both are shown.
+                    </span>
                   </p>
                   {(() => {
                     const ORDER = ['size', 'waist', 'hip', 'thigh', 'knee', 'leg_opening', 'rise', 'inseam'];
@@ -661,12 +671,43 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                       <div className={s.fitChartScroll}>
                         <table className={s.fitChartTable}>
                           <thead>
-                            <tr>{cols.map((c) => <th key={c}>{head(c)}</th>)}</tr>
+                            <tr>
+                              {cols.map((c) => {
+                                // A column is a measurement iff its values are numeric.
+                                // `size` is a LABEL — "32" is a name, not a length, and
+                                // giving it a unit would invent a dimension.
+                                const numeric =
+                                  isMeasurementColumn(c) &&
+                                  fitChart.some((r) => inchesWithCm(r[c]) !== null);
+                                return (
+                                  <th key={c}>
+                                    {head(c)}
+                                    {numeric && <span className={s.unitTag}> in / cm</span>}
+                                  </th>
+                                );
+                              })}
+                            </tr>
                           </thead>
                           <tbody>
                             {fitChart.map((row, i) => (
                               <tr key={i}>
-                                {cols.map((c) => <td key={c}>{String(row[c] ?? '—')}</td>)}
+                                {cols.map((c) => {
+                                  const both = isMeasurementColumn(c)
+                                    ? inchesWithCm(row[c])
+                                    : null;
+                                  return (
+                                    <td key={c}>
+                                      {both ? (
+                                        <>
+                                          {both.inches}
+                                          <span className={s.cmValue}>{both.cm}</span>
+                                        </>
+                                      ) : (
+                                        String(row[c] ?? '—')
+                                      )}
+                                    </td>
+                                  );
+                                })}
                               </tr>
                             ))}
                           </tbody>
