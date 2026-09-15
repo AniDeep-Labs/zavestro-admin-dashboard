@@ -617,3 +617,21 @@
 .tagChip button { border: none; background: none; cursor: pointer; font-size: 15px; line-height: 1; color: var(--color-text-secondary); padding: 0 3px; }
 .tagChip button:hover { color: var(--color-error); }
 .tagInput { flex: 1; min-width: 120px; border: none; outline: none; background: transparent; font: inherit; font-size: var(--font-size-sm); color: var(--color-text-primary); padding: 2px 0; }
+
+/* [DSG-10-4] The recovered-draft offer. Actions sit BELOW the alert rather than inside it,
+   because Alert is a message primitive with no action slot and widening it for one caller
+   would make every other alert carry an unused prop. */
+.draftBanner { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.draftActions { display: flex; gap: 8px; }
+.draftRestore {
+  height: 32px; padding: 0 14px; border: none; border-radius: var(--radius-md);
+  background: var(--color-primary); color: var(--color-on-primary);
+  font-family: var(--font-family); font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium); cursor: pointer;
+}
+.draftDiscard {
+  height: 32px; padding: 0 14px; border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md); background: none; color: var(--color-text-secondary);
+  font-family: var(--font-family); font-size: var(--font-size-sm); cursor: pointer;
+}
+.draftDiscard:hover { border-color: var(--color-text-primary); color: var(--color-text-primary); }
