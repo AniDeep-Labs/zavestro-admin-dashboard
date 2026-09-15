@@ -18,7 +18,7 @@
 .clearBtn { height: 38px; padding: 0 14px; background: none; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); color: var(--color-text-secondary); cursor: pointer; }
 .exportBtn { height: 38px; padding: 0 16px; background: none; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; color: var(--color-text-secondary); }
 .exportBtn:hover { border-color: var(--color-text-primary); color: var(--color-text-primary); }
-.addBtn { height: 38px; padding: 0 16px; background: var(--color-primary); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; }
+.addBtn { height: 38px; padding: 0 16px; background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-medium); cursor: pointer; }
 .addBtn:hover { opacity: 0.9; }
 .tableWrap { background: var(--color-bg-primary); border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--font-size-base); }
@@ -80,9 +80,9 @@
 .configRowDirty { background: rgba(212, 165, 116,0.05); margin: 0 -20px; padding-left: 20px; padding-right: 20px; border-radius: var(--radius-md); }
 .configLabel { display: flex; flex-direction: column; gap: 3px; font-size: var(--font-size-base); font-weight: var(--font-weight-medium); color: var(--color-text-primary); min-width: 0; }
 .configLabel > span:first-child { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.unsavedBadge { background: var(--color-secondary); color: #fff; font-size: 10px; font-weight: var(--font-weight-bold); padding: 2px 6px; border-radius: var(--radius-full); }
+.unsavedBadge { background: var(--color-secondary); color: var(--color-on-secondary); font-size: 10px; font-weight: var(--font-weight-bold); padding: 2px 6px; border-radius: var(--radius-full); }
 /* T2-25 */
-.dangerBadge { background: var(--color-error); color: #fff; font-size: 10px; font-weight: var(--font-weight-bold); padding: 2px 6px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.03em; }
+.dangerBadge { background: var(--color-error); color: var(--color-on-error); font-size: 10px; font-weight: var(--font-weight-bold); padding: 2px 6px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.03em; }
 .configDesc { font-size: var(--font-size-sm); font-weight: 400; color: var(--color-text-secondary); }
 .configMeta { font-size: 11px; color: var(--color-text-tertiary); font-weight: 400; }
 .configKey { font-family: monospace; font-size: 11px; color: var(--color-text-tertiary); }
@@ -108,10 +108,10 @@
 .saveBar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; justify-content: flex-end; padding: 14px 20px; background: var(--color-bg-primary); border-top: 1px solid var(--color-border-light); box-shadow: var(--shadow-md); border-radius: var(--radius-lg); }
 .dirtyCount { font-size: 13px; color: var(--color-text-secondary); flex: 1; }
 .cancelChangesBtn { height: 38px; padding: 0 16px; background: none; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); cursor: pointer; color: var(--color-text-secondary); }
-.saveBtn { height: 38px; padding: 0 20px; background: var(--color-primary); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.saveBtn { height: 38px; padding: 0 20px; background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; }
 .auditLink { padding-top: 4px; }
 .modalText { font-size: 14px; color: var(--color-text-secondary); line-height: 1.6; }
-.confirmBtn { height: 40px; padding: 0 20px; background: var(--color-primary); color: #fff; border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.confirmBtn { height: 40px; padding: 0 20px; background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: var(--radius-md); font-family: var(--font-family); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); cursor: pointer; }
 
 /* [SHL-7-16] Text config values — GSTIN, GST state, cancellation cutoff. These rendered in a
    number input, which a browser silently refuses to fill, so a legally-required value showed as
@@ -132,7 +132,7 @@
    the two read as the same class of label, in the warning colour rather than the error one. */
 .inertBadge {
   background: var(--color-warning);
-  color: var(--color-on-accent);
+  color: var(--color-on-warning);
   font-size: 10px;
   font-weight: var(--font-weight-bold);
   padding: 2px 6px;

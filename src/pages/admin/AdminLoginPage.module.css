@@ -155,7 +155,7 @@
   gap: 8px;
   height: 48px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
   border: none;
   border-radius: var(--radius-md);
   font-family: var(--font-family);

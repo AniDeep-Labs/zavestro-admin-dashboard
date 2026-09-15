@@ -975,6 +975,20 @@ const AdminLayoutInner: React.FC = () => {
 
   return (
     <div className={`${styles.layout} ${collapsed ? styles.collapsed : ""}`}>
+      {/* [DSA-45-4] Skip to content. From a cold load the first focusable element inside
+          <main> was 17 Tab presses away, because the whole sidebar is traversed first —
+          and a phone-seat agent opens a customer, acts and comes back dozens of times a
+          shift. Keyboard operation was technically possible and practically not.
+
+          It is the FIRST element in the DOM and visually hidden until focused, which is
+          the point: it costs a mouse user nothing and the keyboard user one Tab. The
+          target is the <main> element itself with tabIndex={-1}, so focus actually moves
+          (a bare href="#id" jumps the viewport but leaves focus in the sidebar, and the
+          next Tab drops the user straight back into the nav). */}
+      <a href="#admin-content" className={styles.skipLink}>
+        Skip to content
+      </a>
+
       {/* Sidebar */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarTop}>
@@ -1212,7 +1226,7 @@ const AdminLayoutInner: React.FC = () => {
         </header>
 
         {/* Page content */}
-        <main className={styles.content}>
+        <main id="admin-content" tabIndex={-1} className={styles.content}>
           <ErrorBoundary>
             {accessDenied ? (
               /* ACP-1 [KA9-1..KA9-7]: ONE refusal screen, and it NAMES the

@@ -52,7 +52,7 @@
 .primary {
   padding: 10px 24px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;

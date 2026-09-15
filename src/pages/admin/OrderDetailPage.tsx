@@ -24,6 +24,7 @@ import { Can } from "../../components/Can/Can";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DispositionPanel } from "../../components/DispositionPanel/DispositionPanel";
 import { StatusBadge, statusLabel } from "../../components/StatusBadge";
+import { customerStageLabel } from "../../constants/customerStageLabels";
 import { PageHeader, DetailShell } from "../../components";
 import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
 import styles from "./OrderDetailPage.module.css";
@@ -1296,7 +1297,21 @@ export const OrderDetailPage: React.FC = () => {
       <div className={styles.card}>
         <div className={styles.journeyHeader}>
           <h3 className={styles.sectionTitle}>Order Journey</h3>
-          <StatusBadge status={order.stage} />
+          <div className={styles.journeyStatus}>
+            <StatusBadge status={order.stage} />
+            {/* [SEA-42-5] The customer's screen does NOT say what this badge says. Seven
+                internal stages read to them as "In Production", and `shipped` reads as
+                "Dispatched". An agent on a call had no way to know which words the person
+                on the other end is looking at, so the two of them described the same order
+                in different languages. Rendered from the mirrored contract, and omitted
+                entirely when the contract has no answer — a guess would be read as fact
+                mid-call. */}
+            {customerStageLabel(order.stage) && (
+              <span className={styles.customerSees}>
+                Customer sees: <strong>{customerStageLabel(order.stage)}</strong>
+              </span>
+            )}
+          </div>
         </div>
         {offPath && (
           <div className={styles.offPathBanner}>

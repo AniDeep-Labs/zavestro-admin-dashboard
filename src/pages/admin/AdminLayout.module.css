@@ -66,7 +66,7 @@
   font-size: 10px;
   font-weight: var(--font-weight-semibold);
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
   padding: 2px 7px;
   border-radius: var(--radius-full);
   letter-spacing: 0.5px;
@@ -555,7 +555,7 @@
   height: 32px;
   border-radius: var(--radius-full);
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -613,7 +613,7 @@
   padding: 0 5px;
   border-radius: 999px;
   background: var(--color-error);
-  color: var(--color-on-accent);
+  color: var(--color-on-error);
   font-size: 11px;
   font-weight: 600;
   line-height: 18px;
@@ -632,7 +632,7 @@
 /* Non-production banner */
 .envBanner {
   background: var(--color-warning);
-  color: var(--color-on-accent);
+  color: var(--color-on-warning);
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
   text-align: center;
@@ -645,16 +645,51 @@
    banner actively misreported — it said "LOCAL DEV" while every write hit the live business. */
 .envBannerDanger {
   background: var(--color-error);
-  color: var(--color-on-accent);
+  color: var(--color-on-error);
   font-weight: var(--font-weight-bold, 700);
   letter-spacing: 0.02em;
 }
 
 /* [KA9-12] The legacy full-access role. It bypasses every capability check, so it must not
    wear the same chip as a scoped role — the one session that can do everything should be the
-   one you notice. */
+   one you notice.
+
+   [DSA-45-3] It was measured at 3.26:1 — the least noticeable thing on the page, which is
+   the exact opposite of what the paragraph above asks for. A 12% tint is how a chip says
+   "routine". This one is not routine, so it is a SOLID fill: it reads at 5.11:1 and it is
+   the only solid badge in the header. */
 .roleBadgeLegacy {
-  background: rgba(215, 91, 91, 0.12);
-  color: var(--color-error);
+  background: var(--color-error);
+  color: var(--color-on-error);
+  font-weight: var(--font-weight-bold);
+}
+
+/* [DSA-45-4] Skip-to-content. Off-canvas rather than display:none — a hidden element is
+   not focusable, so it has to occupy the layout and simply sit outside the viewport until
+   it is focused. */
+.skipLink {
+  position: absolute;
+  top: 8px;
+  left: -9999px;
+  z-index: 1000;
+  padding: 10px 18px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+}
+
+.skipLink:focus,
+.skipLink:focus-visible {
+  left: 8px;
+}
+
+/* The target takes focus programmatically; it must not draw a focus ring around the whole
+   page the way a real control would. */
+.content:focus {
+  outline: none;
 }

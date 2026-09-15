@@ -25,17 +25,17 @@ export class ErrorBoundary extends React.Component<Props, State> {
           minHeight: 360, padding: '48px 32px', textAlign: 'center',
         }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
-          <h2 style={{ marginBottom: 8, fontSize: '1.125rem', fontWeight: 600, color: 'var(--ink)' }}>
+          <h2 style={{ marginBottom: 8, fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
             Something went wrong
           </h2>
-          <p style={{ color: 'var(--ink-3)', marginBottom: 24, fontSize: '0.875rem', maxWidth: 400 }}>
+          <p style={{ color: 'var(--color-text-tertiary)', marginBottom: 24, fontSize: '0.875rem', maxWidth: 400 }}>
             {this.state.error?.message ?? 'An unexpected error occurred on this page.'}
           </p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
             style={{
-              padding: '8px 20px', borderRadius: 6, border: '1px solid var(--border)',
-              background: 'var(--bg-card)', color: 'var(--ink)', cursor: 'pointer',
+              padding: '8px 20px', borderRadius: 6, border: '1px solid var(--color-border)',
+              background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer',
               fontSize: '0.875rem', fontFamily: 'inherit',
             }}
           >

@@ -34,7 +34,7 @@
   padding: 8px 10px;
   border: 1px solid var(--color-border, #e5e7eb);
   border-radius: 8px;
-  background: var(--color-surface, #fff);
+  background: var(--color-bg-primary, #fff);
   color: var(--color-text, #1a1a1a);
   min-width: 180px;
 }
