@@ -1,5 +1,6 @@
 import React from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { useListParams } from "../../hooks/useListParams";
 import { usersApi } from "../../api/adminApi";
 import type { AdminUser } from "../../api/adminApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
@@ -32,10 +33,13 @@ export const UsersListPage: React.FC = () => {
   const navigate = useNavigate();
   // G-43: seed search from ?search= so deep-links (e.g. "View Full Profile" from a
   // ticket) land filtered to the right customer instead of the bare list.
-  const [searchParams] = useSearchParams();
-  const [search, setSearch] = React.useState(searchParams.get("search") ?? "");
-  const [statusFilter, setStatusFilter] = React.useState("");
-  const [page, setPage] = React.useState(1);
+  // [SCA-44-4] The filters live in the URL, not in useState. This page already READ
+  // `?search=` on mount — that is how "View Full Profile" deep-links into it — and never
+  // wrote it, so an agent mid-call who refreshed lost the caller and could not send a
+  // colleague a link to what they were looking at.
+  const { get, set, clear, page, setPage } = useListParams<"search" | "status" | "page">();
+  const search = get("search");
+  const statusFilter = get("status");
   const [users, setUsers] = React.useState<AdminUser[]>([]);
   const [total, setTotal] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
@@ -45,6 +49,10 @@ export const UsersListPage: React.FC = () => {
   const [exporting, setExporting] = React.useState(false);
   const [confirmExport, setConfirmExport] = React.useState(false);
   const debouncedSearch = useDebounce(search, 350);
+  // Retry used to call setPage(1). On page 1 — which is where a first-load failure
+  // almost always happens — that is a no-op, so the button did nothing at all. A counter
+  // in the dependency list always refires the fetch.
+  const [reloadKey, setReloadKey] = React.useState(0);
 
   const dismissToast = (id: string) =>
     setToasts((t) => t.filter((x) => x.id !== id));
@@ -72,7 +80,7 @@ export const UsersListPage: React.FC = () => {
         showToast("error", "Load failed", msg);
       })
       .finally(() => setLoading(false));
-  }, [debouncedSearch, statusFilter, page]);
+  }, [debouncedSearch, statusFilter, page, reloadKey]);
 
   // Exports ALL customers matching the current filters (not just the current page).
   // full=true pulls UNMASKED contact PII — the server audits this as a deliberate
@@ -136,19 +144,13 @@ export const UsersListPage: React.FC = () => {
             className={styles.searchInput}
             placeholder="Search by name, phone, or email…"
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => set("search", e.target.value)}
           />
         </div>
         <select
           className={styles.filterSelect}
           value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => set("status", e.target.value)}
         >
           <option value="">All Status</option>
           <option value="Active">Active</option>
@@ -156,11 +158,7 @@ export const UsersListPage: React.FC = () => {
         </select>
         <button
           className={styles.clearBtn}
-          onClick={() => {
-            setSearch("");
-            setStatusFilter("");
-            setPage(1);
-          }}
+          onClick={() => clear(["search", "status"])}
         >
           <UilTimes size={14} /> Clear
         </button>
@@ -210,7 +208,7 @@ export const UsersListPage: React.FC = () => {
                   <br />
                   <button
                     className={styles.retryBtn}
-                    onClick={() => setPage(1)}
+                    onClick={() => setReloadKey((k) => k + 1)}
                   >
                     Retry
                   </button>
@@ -270,7 +268,7 @@ export const UsersListPage: React.FC = () => {
           <button
             className={styles.pageBtn}
             disabled={page <= 1 || loading}
-            onClick={() => setPage((p) => p - 1)}
+            onClick={() => setPage(page - 1)}
           >
             <UilAngleLeft size={15} /> Prev
           </button>
@@ -280,7 +278,7 @@ export const UsersListPage: React.FC = () => {
           <button
             className={styles.pageBtn}
             disabled={page >= totalPages || loading}
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => setPage(page + 1)}
           >
             Next <UilAngleRight size={15} />
           </button>
