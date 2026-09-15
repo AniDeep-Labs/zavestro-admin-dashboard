@@ -708,21 +708,10 @@ export const usersApi = {
   eraseData: (id: string): Promise<Record<string, unknown>> =>
     req<Record<string, unknown>>(`/api/admin/users/${id}/data`, { method: "DELETE" }),
 
-  create: async (data: {
-    phone: string;
-    name?: string;
-    email?: string;
-    generate_password?: boolean;
-  }): Promise<AdminUser & { temp_password?: string }> => {
-    const raw = await req<Record<string, unknown>>("/api/admin/users", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    return {
-      ...mapUser(raw),
-      temp_password: raw.temp_password as string | undefined,
-    };
-  },
+  // [SUP-30-8] `create` removed with its endpoint. It minted a customer and returned a
+  // plaintext temp password, and NO page ever called it — there was no "add customer"
+  // affordance anywhere in this console. Building the verb needs a way to deliver that
+  // password, which does not exist; until it does, the endpoint is surface without a use.
 
   issueCredits: async (
     id: string,
