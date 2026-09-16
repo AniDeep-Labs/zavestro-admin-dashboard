@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { hubPlanningApi, hubsApi } from '../../api/adminApi';
-import type { HubConstraintRow, HubCalendarEvent, HubCalendarInput, Hub, HubSurgeRow } from '../../api/adminApi';
+import { hubPlanningApi } from '../../api/adminApi';
+import type { HubConstraintRow, HubCalendarEvent, HubCalendarInput, HubSurgeRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Can } from '../../components/Can/Can';
@@ -10,6 +10,8 @@ import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import { fmtDuration } from '../../utils/date';
 import { statusLabel } from '../../components/StatusBadge/vocab';
 import s from './HubConstraintsPage.module.css';
+import { useHubOptions } from '../../hooks/useHubOptions';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 
 // T2-7 (O-11): where is each hub backed up (WIP × stage + SLA breach), read alongside the
 // festival demand-spike / staff-leave calendar.
@@ -27,7 +29,8 @@ const blankEvent = (): HubCalendarInput => ({
 });
 
 export const HubConstraintsPage: React.FC = () => {
-  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  // [RC-3] Was a swallowed `.catch(() => {})` duplicated in six consoles.
+  const { hubs, error: hubsErr, retry: retryHubs } = useHubOptions();
   const [hubId, setHubId] = React.useState('');
   const [rows, setRows] = React.useState<HubConstraintRow[]>([]);
   const [surge, setSurge] = React.useState<HubSurgeRow[]>([]);
@@ -63,10 +66,6 @@ export const HubConstraintsPage: React.FC = () => {
       .catch((err) => toast('error', 'Load failed', err instanceof Error ? err.message : undefined))
       .finally(() => setLoading(false));
   }, [hubId]);
-
-  React.useEffect(() => {
-    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
-  }, []);
   React.useEffect(() => {
     load();
   }, [load]);
@@ -126,6 +125,7 @@ export const HubConstraintsPage: React.FC = () => {
             </option>
           ))}
         </select>
+          <PickerNote error={hubsErr} noun="hubs" onRetry={retryHubs} />
       </div>
 
       {/* T2-11: per-hub intake surge alert — throttle intake before promises break. */}
@@ -321,6 +321,7 @@ export const HubConstraintsPage: React.FC = () => {
                     </option>
                   ))}
                 </select>
+          <PickerNote error={hubsErr} noun="hubs" onRetry={retryHubs} />
               </div>
             </div>
             <div className={s.field}>

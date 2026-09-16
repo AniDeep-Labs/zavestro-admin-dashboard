@@ -1,27 +1,25 @@
 import { useOverviewFilters } from '../../hooks/useOverviewFilters';
 import React from 'react';
-import { designsApi, hubsApi } from '../../api/adminApi';
-import type { DesignExceptions, DesignExceptionRow, Hub } from '../../api/adminApi';
+import { designsApi } from '../../api/adminApi';
+import type { DesignExceptions, DesignExceptionRow } from '../../api/adminApi';
 import { OverviewExceptions } from './OverviewExceptions';
 import type { OvTab } from './OverviewExceptions';
 
 // ACP-6 [KA11-6]: one date formatter for the admin.
 import { fmtDate } from '../../utils/date';
+import { useHubOptions } from '../../hooks/useHubOptions';
 
 // T2-21 (SU-1): exceptions-first Design overview — the money leaks super needs to see without
 // entering the Design console: published designs no one listed, and published designs no one buys.
 export const DesignOverviewPage: React.FC = () => {
-  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  // [RC-3] Was a swallowed `.catch(() => {})` duplicated in six consoles.
+  const { hubs, error: hubsErr, retry: retryHubs } = useHubOptions();
   const [data, setData] = React.useState<DesignExceptions | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   // [SHL-5-2] Hub + date window live in the URL, so refresh keeps them, browser-back out
   // of a record returns to the same filtered view, and the view can be SENT to someone.
   const { hubId, startDate, endDate, applyFilter } = useOverviewFilters();
-
-  React.useEffect(() => {
-    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
-  }, []);
 
   const load = React.useCallback(() => {
     setLoading(true);
@@ -101,6 +99,8 @@ export const DesignOverviewPage: React.FC = () => {
       error={error}
       onRetry={load}
       hubs={hubs}
+      hubsError={hubsErr}
+      onRetryHubs={retryHubs}
       hubId={hubId}
       startDate={startDate}
       endDate={endDate}

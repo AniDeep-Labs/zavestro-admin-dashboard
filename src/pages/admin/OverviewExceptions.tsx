@@ -6,6 +6,7 @@ import { EmptyState, PageHeader } from '../../components';
 import { downloadCsv, datedFilename } from '../../utils/csv';
 import styles from './OrdersListPage.module.css';
 import ov from './OverviewExceptions.module.css';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 import { UilImport, UilTimes } from '@iconscout/react-unicons';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 import { UilAngleRight } from '@iconscout/react-unicons'; // [KA2-5]
@@ -54,6 +55,9 @@ export interface OverviewExceptionsProps<T> {
   error?: string;
   onRetry?: () => void;
   hubs: Hub[];
+  /** [RC-3] Why the hub list is empty, when it is. Five consoles share this filter. */
+  hubsError?: unknown;
+  onRetryHubs?: () => void;
   hubId: string;
   startDate: string;
   endDate: string;
@@ -68,7 +72,7 @@ export interface OverviewExceptionsProps<T> {
 
 // A single generic that TS is happy to erase per-tab.
 export function OverviewExceptions<T>(props: OverviewExceptionsProps<T>) {
-  const { tabs, hubs, hubId, startDate, endDate, onFilter, loading, error } = props;
+  const { tabs, hubs, hubsError, onRetryHubs, hubId, startDate, endDate, onFilter, loading, error } = props;
   // [SHL-5-2] The tab is part of "where I am", so it belongs in the URL with the filters.
   // A shared oversight link should open on the tab the sender was looking at.
   const [activeKey, setActiveKey] = useUrlTab(tabs.map((t) => t.key));
@@ -121,6 +125,7 @@ export function OverviewExceptions<T>(props: OverviewExceptionsProps<T>) {
             </option>
           ))}
         </select>
+        <PickerNote error={hubsError} noun="hubs" onRetry={onRetryHubs} />
         <input
           className={ov.control}
           type="date"
