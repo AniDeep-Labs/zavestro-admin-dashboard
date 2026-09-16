@@ -1,4 +1,5 @@
 import React from "react";
+import { isDenied } from '../../components/EmptyState/asyncState';
 import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA11-3]
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -137,21 +138,34 @@ export const TicketDetailPage: React.FC = () => {
   const [requestingRemeasure, setRequestingRemeasure] = React.useState(false);
 
   // T1-23: the support credit cap is single-sourced from the server (not hardcoded 500).
+  // [RC-3] T1-23 single-sourced this cap from the server precisely so it would stop being
+  // a hardcoded 500 — and a swallowed failure put it straight back to the hardcoded 500
+  // with nobody told. The number is then wrong on screen AND in the client-side check, and
+  // it is a money limit. Keep the failure and say the cap is unconfirmed.
   const [creditCap, setCreditCap] = React.useState(500);
+  const [capErr, setCapErr] = React.useState<unknown>(null);
   React.useEffect(() => {
     fetchMoneyConfig()
-      .then((c) => setCreditCap(c.support_credit_cap))
-      .catch(() => {});
+      .then((c) => { setCreditCap(c.support_credit_cap); setCapErr(null); })
+      .catch(setCapErr);
   }, []);
 
   // T1-21b Phase 2: repeat-rescue signal so support isn't blind before issuing.
+  // [RC-3] The repeat-rescue signal exists "so support isn't blind before issuing". A
+  // swallowed failure left them blind AND unaware of it — the audit's own archetype, a
+  // fraud-adjacent signal that renders as an absence of concern.
+  //
+  // `isDenied` matters here rather than being boilerplate: FINANCE can open a ticket
+  // (`/support/:id` allows refunds:approve) but is 403 on the rescue summary
+  // (`customers:read`). A plain error banner would fire on every ticket they open.
   const [rescueSig, setRescueSig] = React.useState<RescueSummary | null>(null);
+  const [rescueErr, setRescueErr] = React.useState<unknown>(null);
   React.useEffect(() => {
     if (ticket?.user_id)
       usersApi
         .rescueSummary(ticket.user_id)
-        .then(setRescueSig)
-        .catch(() => {});
+        .then((r) => { setRescueSig(r); setRescueErr(null); })
+        .catch(setRescueErr);
   }, [ticket?.user_id]);
 
   // T1-21: inline goodwill credit (≤₹500, per-order capped server-side)
@@ -1386,6 +1400,20 @@ export const TicketDetailPage: React.FC = () => {
               {ticket.order_id ? " (tied to the linked order)" : ""}. More than
               that must be escalated to finance.
             </p>
+            {capErr != null && (
+              <p className={styles.fieldLabel}>
+                ⚠ The configured cap couldn&apos;t be read, so ₹{creditCap} above is this
+                console&apos;s fallback rather than the live setting. The server enforces the
+                real one, so a credit may be refused at a figure shown here as allowed.
+              </p>
+            )}
+            {rescueErr != null && (
+              <p className={styles.fieldLabel}>
+                {isDenied(rescueErr)
+                  ? "Your role cannot see this customer's rescue history — this is not a clean record."
+                  : "The rescue history couldn't be loaded — this is not a clean record. Issue with that in mind."}
+              </p>
+            )}
             {rescueSig && (
               <p
                 className={`${styles.fieldLabel} ${rescueSig.flagged ? styles.rescueFlag : ""}`}
