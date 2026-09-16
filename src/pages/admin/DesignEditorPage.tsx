@@ -10,11 +10,13 @@ import { Modal } from '../../components';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useDirtyGuard } from '../../hooks/useDirtyGuard';
+import { useLocalDraft, clearDraft, draftAge, type StoredDraft } from '../../hooks/useLocalDraft';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import s from './DesignEditorPage.module.css';
 import { UilTimes, UilPlus, UilImage, UilUpload, UilFileAlt, UilCheck } from '@iconscout/react-unicons';
 import { SafeImg } from '../../components/Image/SafeImg';
 import { Alert } from '../../components/Alert/Alert';
+import { inchesWithCm, isMeasurementColumn } from '../../utils/units';
 
 const url = (key?: string) => (key && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '');
 
@@ -81,6 +83,43 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
   const dirty = !loading && baseline !== '' && baseline !== snap();
   useDirtyGuard(dirty);
 
+  // [DSG-10-4] The dirty guard prevents SILENT loss; it preserves nothing. A six-step
+  // wizard interrupted by a crash, by the 8h token expiring, or by "Discard & leave"
+  // clicked in haste used to lose everything typed. The draft is keyed per design so two
+  // tabs on two designs cannot overwrite each other.
+  const draftKey = designId ? `design:${designId}` : 'design:new';
+  const draft = useLocalDraft(draftKey, snap(), baseline, step, open && !loading);
+  const [draftDismissed, setDraftDismissed] = React.useState(false);
+
+  /** Replay a stored snapshot into the form. Mirrors the shape `snap()` writes. */
+  const restoreDraft = (d: StoredDraft) => {
+    try {
+      const v = JSON.parse(d.snapshot) as Record<string, unknown>;
+      setName((v.name as string) ?? '');
+      setCategoryId((v.categoryId as string) ?? '');
+      setGarmentType((v.garmentType as string) ?? '');
+      setGender((v.gender as string) ?? 'men');
+      setFitPreset((v.fitPreset as string) ?? '');
+      setMeters((v.meters as string) ?? '');
+      setMetersBySize((v.metersBySize as { size: string; meters: string }[]) ?? []);
+      setMatched((v.matched as string[]) ?? []);
+      setCaptureSet((v.captureSet as string[]) ?? []);
+      setPainPoints((v.painPoints as string[]) ?? []);
+      setTechRows((v.techRows as { k: string; v: string }[]) ?? []);
+      setRefKeys((v.refKeys as string[]) ?? []);
+      setSpecSheetKey((v.specSheetKey as string) ?? '');
+      setTags((v.tags as string[]) ?? []);
+      setStep(d.step ?? 0);
+      setDraftDismissed(true);
+      toast('success', 'Draft restored', 'Your unsaved changes are back. Nothing has been saved yet.');
+    } catch {
+      // A corrupt draft must not take the editor down with it.
+      draft.discard();
+      setDraftDismissed(true);
+      toast('error', 'That draft could not be read', 'It has been cleared; the saved version is shown.');
+    }
+  };
+
   const category = categories.find((c) => c.id === categoryId);
   const presetOptions = category?.available_fit_presets ?? [];
   // The fit→standard-chart binding is the LOWER-garment engine (jeans/trousers/…). Upper garments
@@ -104,6 +143,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
     if (!open) return;
     setStep(0);
     setFieldErrors({});
+    setDraftDismissed(false);
     setBaseline('');
     setLockedBy(null);
     if (designId) {
@@ -307,6 +347,10 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
         : await designsApi.create(input);
       if (publish) await designsApi.setStatus(saved.id, 'published');
       setBaseline(snap()); // clears the dirty guard so closing doesn't prompt
+      // [DSG-10-4] The work is on the server now, so the local draft is not just
+      // redundant — keeping it would offer to "recover" an older copy next time.
+      clearDraft(draftKey);
+      if (!isEdit) clearDraft('design:new'); // a new design also frees the shared new-key
       toast('success', publish ? 'Design published' : 'Saved as draft');
       setTimeout(() => { onSaved?.(); onClose(); }, 600);
     } catch (e) {
@@ -458,6 +502,49 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                 'saves normally.'
               }
             />
+          )}
+
+          {/* [DSG-10-4] Offered, never applied automatically. Replaying a draft over a
+              design someone else has since edited would quietly destroy their change, so
+              this states what it is, how old it is, and — when the design has moved on —
+              says so plainly and leaves the choice with a person. */}
+          {draft.found && !draftDismissed && (
+            <div className={s.draftBanner}>
+              <Alert
+                type={draft.stale ? 'warning' : 'info'}
+                title={
+                  draft.stale
+                    ? 'Unsaved draft found — but this design has changed since'
+                    : 'Resume your unsaved draft?'
+                }
+                message={
+                  (draft.stale
+                    ? 'Someone saved a change to this design after this draft was left here. ' +
+                      'Restoring replaces what is on screen with your older copy, and loses theirs. '
+                    : 'Work you left unsaved in this browser. Nothing has been saved to the server. ') +
+                  `Left ${draftAge(draft.found.savedAt)}, on step ${(draft.found.step ?? 0) + 1}.`
+                }
+              />
+              <div className={s.draftActions}>
+                <button
+                  type="button"
+                  className={s.draftRestore}
+                  onClick={() => restoreDraft(draft.found as StoredDraft)}
+                >
+                  {draft.stale ? 'Restore anyway' : 'Restore it'}
+                </button>
+                <button
+                  type="button"
+                  className={s.draftDiscard}
+                  onClick={() => {
+                    draft.discard();
+                    setDraftDismissed(true);
+                  }}
+                >
+                  Discard draft
+                </button>
+              </div>
+            </div>
           )}
 
           <div className={s.wizBody}>
@@ -650,7 +737,16 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                 <>
                   <p className={s.fitChartCaption}>
                     Standard finished-garment chart — <strong>{category?.name}</strong> · <strong>{fitPreset}</strong>
-                    <span> (inches; what the engine stitches to before per-customer ease)</span>
+                    {/* [DSG-10-2] The unit used to live HERE and nowhere else — one word
+                        above a table of bare numbers, in a product that stocks, cuts and
+                        measures in centimetres. It is now on every column and every cell,
+                        because a unit stated once per section is one you have stopped
+                        reading by the third row. */}
+                    <span>
+                      {' '}— what the engine stitches to before per-customer ease. The engine
+                      works in <strong>inches</strong>; the floor cuts in <strong>cm</strong>,
+                      so both are shown.
+                    </span>
                   </p>
                   {(() => {
                     const ORDER = ['size', 'waist', 'hip', 'thigh', 'knee', 'leg_opening', 'rise', 'inseam'];
@@ -661,12 +757,43 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                       <div className={s.fitChartScroll}>
                         <table className={s.fitChartTable}>
                           <thead>
-                            <tr>{cols.map((c) => <th key={c}>{head(c)}</th>)}</tr>
+                            <tr>
+                              {cols.map((c) => {
+                                // A column is a measurement iff its values are numeric.
+                                // `size` is a LABEL — "32" is a name, not a length, and
+                                // giving it a unit would invent a dimension.
+                                const numeric =
+                                  isMeasurementColumn(c) &&
+                                  fitChart.some((r) => inchesWithCm(r[c]) !== null);
+                                return (
+                                  <th key={c}>
+                                    {head(c)}
+                                    {numeric && <span className={s.unitTag}> in / cm</span>}
+                                  </th>
+                                );
+                              })}
+                            </tr>
                           </thead>
                           <tbody>
                             {fitChart.map((row, i) => (
                               <tr key={i}>
-                                {cols.map((c) => <td key={c}>{String(row[c] ?? '—')}</td>)}
+                                {cols.map((c) => {
+                                  const both = isMeasurementColumn(c)
+                                    ? inchesWithCm(row[c])
+                                    : null;
+                                  return (
+                                    <td key={c}>
+                                      {both ? (
+                                        <>
+                                          {both.inches}
+                                          <span className={s.cmValue}>{both.cm}</span>
+                                        </>
+                                      ) : (
+                                        String(row[c] ?? '—')
+                                      )}
+                                    </td>
+                                  );
+                                })}
                               </tr>
                             ))}
                           </tbody>

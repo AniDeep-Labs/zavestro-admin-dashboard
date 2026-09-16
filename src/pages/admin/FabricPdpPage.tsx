@@ -1,4 +1,5 @@
 import React from 'react';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 import { useParams, Link } from 'react-router-dom';
 import { fabricsApi, designsApi, hubsApi, sampleJobsApi, distributionApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { Fabric, DesignSummary, Hub, FabricLedgerEntry, FabricDesignUse } from '../../api/adminApi';
@@ -65,12 +66,22 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
   React.useEffect(() => { loadFabric(); }, [loadFabric]);
 
   // Procurement: hubs (for the distribute picker) + lazy movement/design data per tab.
+  // [RC-3] The distribute picker. An empty hub list here reads as "nowhere to send this",
+  // on the page whose purpose is sending it somewhere.
+  const [hubsErr, setHubsErr] = React.useState<unknown>(null);
+  const [designsErr, setDesignsErr] = React.useState<unknown>(null);
+  const [pickerReload, setPickerReload] = React.useState(0);
+  const retryPickers = () => setPickerReload((n) => n + 1);
+
   React.useEffect(() => {
     if (isDesign) {
-      designsApi.list({ status: 'published' }).then(setDesigns).catch(() => {});
+      designsApi
+        .list({ status: 'published' })
+        .then((d) => { setDesigns(d); setDesignsErr(null); })
+        .catch(setDesignsErr);
     }
-    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
-  }, [isDesign]);
+    hubsApi.list().then((r) => { setHubs(r.hubs); setHubsErr(null); }).catch(setHubsErr);
+  }, [isDesign, pickerReload]);
   React.useEffect(() => {
     if (isDesign || !id) return;
     // [RC-3 class] These used to `.catch(() => setX([]))`, which renders the panel's
@@ -426,6 +437,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
               <option value="">Select a published design…</option>
               {designs.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.garment_type}</option>)}
             </select>
+              <PickerNote error={designsErr} noun="designs" onRetry={retryPickers} />
           </label>
 
           {selDesign && (
@@ -450,6 +462,7 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
                 <option value="">Select a hub…</option>
                 {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
               </select>
+              <PickerNote error={hubsErr} noun="hubs" onRetry={retryPickers} />
             </label>
             <Button variant="primary" state={requesting ? 'loading' : 'default'} disabled={!selDesign || !selHub} onClick={requestSample}>
               Request sample
