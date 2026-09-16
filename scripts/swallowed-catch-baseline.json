@@ -8,7 +8,6 @@
   "src/pages/admin/AdminLayout.tsx": 2,
   "src/pages/admin/AdminLoginPage.tsx": 1,
   "src/pages/admin/AdminUsersManagePage.tsx": 1,
-  "src/pages/admin/AnalyticsPage.tsx": 2,
   "src/pages/admin/AuditLogPage.tsx": 1,
   "src/pages/admin/BannersPage.tsx": 2,
   "src/pages/admin/CentralStockPage.tsx": 1,
