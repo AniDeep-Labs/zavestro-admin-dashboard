@@ -55,9 +55,15 @@ function* walk(dir) {
 const counts = {};
 for (const file of walk(SRC)) {
   const rel = relative(ROOT, file).replace(/\\/g, '/');
+  // Comments are replaced with a TOKEN, not deleted. Deleting them turned
+  // `catch { /* why this is safe */ }` into `catch {}` and counted a DOCUMENTED decision
+  // as debt — the guard was penalising the one thing that makes a no-op legitimate. It
+  // also erased explanatory comments that quote the pattern, so a fix's own note scored
+  // against it. With a token in place: an EMPTY catch is debt; a catch that says why is a
+  // decision; and a pattern quoted inside a comment is neither.
   const src = readFileSync(file, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+    .replace(/\/\*[\s\S]*?\*\//g, 'C')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1C');
   const n = (src.match(SWALLOW_RE) ?? []).length;
   if (n > 0) counts[rel] = n;
 }
