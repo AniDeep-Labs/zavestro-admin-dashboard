@@ -708,21 +708,10 @@ export const usersApi = {
   eraseData: (id: string): Promise<Record<string, unknown>> =>
     req<Record<string, unknown>>(`/api/admin/users/${id}/data`, { method: "DELETE" }),
 
-  create: async (data: {
-    phone: string;
-    name?: string;
-    email?: string;
-    generate_password?: boolean;
-  }): Promise<AdminUser & { temp_password?: string }> => {
-    const raw = await req<Record<string, unknown>>("/api/admin/users", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    return {
-      ...mapUser(raw),
-      temp_password: raw.temp_password as string | undefined,
-    };
-  },
+  // [SUP-30-8] `create` removed with its endpoint. It minted a customer and returned a
+  // plaintext temp password, and NO page ever called it — there was no "add customer"
+  // affordance anywhere in this console. Building the verb needs a way to deliver that
+  // password, which does not exist; until it does, the endpoint is surface without a use.
 
   issueCredits: async (
     id: string,
@@ -2856,7 +2845,30 @@ export interface DesignVersionFull extends Omit<DesignVersionRow, 'changed' | 'c
   diff: { changes: DesignVersionChange[]; total: number; truncated: boolean };
 }
 
+export interface EngineTestBody {
+  id: string;
+  name: string;
+  body: Record<string, string>;
+  notes: string | null;
+  created_by_name: string | null;
+  updated_at: string;
+}
+
 export const designsApi = {
+  // [DSG-13-12] The design team's shared engine test bodies. These were localStorage
+  // entries in one browser — not shared, not exportable, gone on a cache clear — for what
+  // is meant to be the regression suite every new chart must survive.
+  testBodies: (): Promise<EngineTestBody[]> =>
+    req<{ bodies: EngineTestBody[] }>("/api/admin/designs/test-bodies").then((r) => r.bodies),
+  saveTestBody: (name: string, body: Record<string, string>, notes?: string | null): Promise<EngineTestBody> =>
+    req<EngineTestBody>("/api/admin/designs/test-bodies", {
+      method: "POST",
+      body: JSON.stringify({ name, body, notes: notes ?? null }),
+    }),
+  deleteTestBody: (id: string): Promise<void> =>
+    req<{ deleted: boolean }>(`/api/admin/designs/test-bodies/${id}`, { method: "DELETE" }).then(
+      () => undefined,
+    ),
   list: async (
     params: {
       status?: string;

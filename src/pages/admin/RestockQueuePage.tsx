@@ -6,7 +6,7 @@ import type { RestockRequest, Fabric, Hub, FabricStockRow } from '../../api/admi
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { StatusBadge, PageHeader, EmptyState, NoHubAssigned, Alert } from '../../components';
+import { StatusBadge, PageHeader, EmptyState, NoHubAssigned, Alert, PickerNote } from '../../components';
 import { AgeCell } from '../../components/DataCells';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -119,10 +119,20 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
 
   React.useEffect(() => { load(); }, [load]);
 
+  // [RC-3] A picker that failed to load renders as one with nothing in it, which reads as
+  // "there are none" — and on this page that means a hub with no fabrics to restock, which
+  // is precisely the wrong conclusion to hand somebody whose job is restocking.
+  const [hubsErr, setHubsErr] = React.useState<unknown>(null);
+  const [fabricsErr, setFabricsErr] = React.useState<unknown>(null);
+  const [pickerReload, setPickerReload] = React.useState(0);
+  const retryPickers = () => setPickerReload((n) => n + 1);
+
   React.useEffect(() => {
-    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
+    hubsApi.list().then((r) => { setHubs(r.hubs); setHubsErr(null); }).catch(setHubsErr);
     if (isCm) {
-      fabricsApi.list({ active: true }).then(setFabrics).catch(() => {});
+      fabricsApi.list({ active: true })
+        .then((f) => { setFabrics(f); setFabricsErr(null); })
+        .catch(setFabricsErr);
       adminAuthExtApi.me()
         .then((m) => setMyHubId(m.hubId ?? null))
         .catch(() => {})
@@ -137,7 +147,7 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
         })
         .catch(() => {});
     }
-  }, [isCm]);
+  }, [isCm, pickerReload]);
 
   // Prefill from the origin context (CM's out-of-stock nudge: ?fabric=&qty=).
   React.useEffect(() => {
@@ -463,6 +473,7 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
               <option value="">Select…</option>
               {fabrics.map((f) => <option key={f.id} value={f.id}>{f.name} ({f.code})</option>)}
             </select>
+              <PickerNote error={fabricsErr} noun="fabrics" onRetry={retryPickers} />
           </label>
           <label className={styles.fieldLabel}>Hub
             <span className={rs.lockedHub} title="You can only request for your own hub">{myHubName || 'your hub'}</span>
@@ -479,6 +490,7 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
             <option value="">All hubs</option>
             {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
           </select>
+          <PickerNote error={hubsErr} noun="hubs" onRetry={retryPickers} />
         </div>
       )}
 
