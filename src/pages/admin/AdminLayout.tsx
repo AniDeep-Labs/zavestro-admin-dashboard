@@ -9,9 +9,8 @@ import {
   setAdminCapabilities,
   adminAuthExtApi,
   navCountsApi,
-  hubsApi,
 } from "../../api/adminApi";
-import type { NavCounts, Hub } from "../../api/adminApi";
+import type { NavCounts } from "../../api/adminApi";
 import { getAdminHubContext, setAdminHubContext } from "../../utils/hubContext";
 import { isProductionApi, apiHost } from "../../api/apiBase"; // [SHL-2-13]
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary";
@@ -27,6 +26,7 @@ import { CommandPalette } from "../../components/CommandPalette";
 import type { NavTarget, PaletteAction } from "../../components/CommandPalette";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { hasUnsavedChanges } from "../../hooks/useDirtyGuard";
+import { useHubOptions } from "../../hooks/useHubOptions";
 import {
   UilAngleDoubleLeft,
   UilAngleDoubleRight,
@@ -848,11 +848,11 @@ const AdminLayoutInner: React.FC = () => {
   // told something false. The eight pages with a hub filter now take it from
   // `useHubContextFilter()`, which reads this selection and follows it as it changes.
   const hubAgnostic = ["super_admin", "finance", "procurement", "admin"].includes(adminRole);
-  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  // [RC-3] Was a swallowed catch. A failed hub read made the switcher VANISH — the
+  // `hubs.length > 1` guard is indistinguishable from "this business has one hub", and a
+  // control that disappears explains nothing.
+  const { hubs, error: hubsErr, retry: retryHubs } = useHubOptions(hubAgnostic);
   const [hubCtx, setHubCtx] = React.useState<string>(getAdminHubContext());
-  React.useEffect(() => {
-    if (hubAgnostic) hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
-  }, [hubAgnostic]);
 
   // Route guard: block the content area if the current path needs a capability the
   // role lacks (deep-link protection). Backend also 403s the APIs.
@@ -1133,7 +1133,17 @@ const AdminLayoutInner: React.FC = () => {
 
           <div className={styles.topActions}>
             {/* T3-1 (S-2): global hub-context switcher (hub-agnostic roles, only with >1 hub). */}
-            {hubAgnostic && hubs.length > 1 && (
+            {hubAgnostic && Boolean(hubsErr) && (
+              <button
+                type="button"
+                className={styles.hubSwitcherUnavailable}
+                onClick={retryHubs}
+                title="The hub list could not be read, so hub context cannot be changed. Click to retry."
+              >
+                Hub context unavailable — retry
+              </button>
+            )}
+            {hubAgnostic && !hubsErr && hubs.length > 1 && (
               <select
                 className={styles.hubSwitcher}
                 value={hubCtx}

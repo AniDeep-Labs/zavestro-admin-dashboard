@@ -1,10 +1,11 @@
 import { useOverviewFilters } from '../../hooks/useOverviewFilters';
 import React from 'react';
 import { money } from '../../utils/money'; // ACP-2 [KA11-2]
-import { listingsAdminApi, hubsApi } from '../../api/adminApi';
-import type { ListingExceptions, ListingOosRow, ListingBelowFloorRow, Hub } from '../../api/adminApi';
+import { listingsAdminApi } from '../../api/adminApi';
+import type { ListingExceptions, ListingOosRow, ListingBelowFloorRow } from '../../api/adminApi';
 import { OverviewExceptions } from './OverviewExceptions';
 import type { OvTab } from './OverviewExceptions';
+import { useHubOptions } from '../../hooks/useHubOptions';
 
 // ACP-2 [KA11-2]: one money formatter (was a local copy).
 const inr = (n: number) => money(n);
@@ -12,17 +13,14 @@ const inr = (n: number) => money(n);
 // T2-21 (SU-1): exceptions-first Listings overview — live listings that can't be fulfilled
 // (out of stock) or that lose money (priced below the cost floor).
 export const ListingsOverviewPage: React.FC = () => {
-  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  // [RC-3] Was a swallowed `.catch(() => {})` duplicated in six consoles.
+  const { hubs, error: hubsErr, retry: retryHubs } = useHubOptions();
   const [data, setData] = React.useState<ListingExceptions | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   // [SHL-5-2] Hub + date window live in the URL, so refresh keeps them, browser-back out
   // of a record returns to the same filtered view, and the view can be SENT to someone.
   const { hubId, startDate, endDate, applyFilter } = useOverviewFilters();
-
-  React.useEffect(() => {
-    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
-  }, []);
 
   const load = React.useCallback(() => {
     setLoading(true);
@@ -108,6 +106,8 @@ export const ListingsOverviewPage: React.FC = () => {
       error={error}
       onRetry={load}
       hubs={hubs}
+      hubsError={hubsErr}
+      onRetryHubs={retryHubs}
       hubId={hubId}
       startDate={startDate}
       endDate={endDate}

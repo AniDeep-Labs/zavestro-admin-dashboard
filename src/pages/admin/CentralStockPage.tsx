@@ -14,6 +14,7 @@ import { UilPlus, UilSlidersV, UilHistory, UilImport } from "@iconscout/react-un
 import { FabricSwatch } from '../../components/Image/FabricSwatch';
 import { useTableSort } from '../../hooks/useTableSort';
 import { SortableTh } from '../../components/Table/SortableTh';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const num = (v: string | number | null | undefined) => (v == null ? 0 : Number(v));
@@ -27,6 +28,8 @@ const fmtM = (v: string | number | null | undefined) => `${num(v).toLocaleString
 export const CentralStockPage: React.FC = () => {
   const [rows, setRows] = React.useState<CentralStockRow[]>([]);
   const [fabrics, setFabrics] = React.useState<Fabric[]>([]);
+  const [fabricsErr, setFabricsErr] = React.useState<unknown>(null);
+  const fabricsRetry = React.useRef<() => void>(() => {});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -69,7 +72,12 @@ export const CentralStockPage: React.FC = () => {
   }, []);
   React.useEffect(load, [load]);
   React.useEffect(() => {
-    fabricsApi.list({ active: true }).then(setFabrics).catch(() => {});
+    // [RC-3] This drives the fabric FILTER; empty reads as "no fabrics", not "not loaded".
+    const loadFabrics = () => fabricsApi.list({ active: true })
+      .then((f) => { setFabrics(f); setFabricsErr(null); })
+      .catch(setFabricsErr);
+    loadFabrics();
+    fabricsRetry.current = loadFabrics;
   }, []);
 
   // Handoff from Fabrics Master ("Receive stock →" after creating a SKU): open the
@@ -368,6 +376,7 @@ export const CentralStockPage: React.FC = () => {
               <option value="">Select a fabric…</option>
               {fabrics.map((f) => <option key={f.id} value={f.id}>{f.name}{f.code ? ` · ${f.code}` : ""}</option>)}
             </select>
+            <PickerNote error={fabricsErr} noun="fabrics" onRetry={() => fabricsRetry.current()} />
           </label>
           <label className={s.flbl}>Quantity received (metres)
             <input className={s.finp} type="number" min={1} value={meters} placeholder="e.g. 200" onChange={(e) => setMeters(e.target.value)} />

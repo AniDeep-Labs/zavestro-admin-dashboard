@@ -65,3 +65,11 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
 }
+/* [RC-3] Not an error colour: the panel still works, it just cannot vouch for the
+   numbers. Alarm-red here would outrank the real queue items below it. */
+.unknown {
+  margin: 6px 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}

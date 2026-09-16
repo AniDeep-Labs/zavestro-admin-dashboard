@@ -153,3 +153,11 @@
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
+
+/* [RC-3] "No orders found" vs "the search failed" — support decides whether a ticket can
+   be linked to an order on this line. Secondary weight: the search still works. */
+.searchUnavailable {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}

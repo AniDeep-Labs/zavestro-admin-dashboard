@@ -1,7 +1,7 @@
 import React from 'react';
 import { money } from '../../utils/money'; // ACP-2 [KA11-2]
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { designsApi, R2_PUBLIC_URL } from '../../api/adminApi';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { designsApi, R2_PUBLIC_URL, hasCapability } from '../../api/adminApi';
 import type { DesignDetail, DesignStatus, DesignVersionRow } from '../../api/adminApi';
 import DesignEditorModal from './DesignEditorPage';
 import CutSheetModal from './CutSheetPage';
@@ -40,6 +40,7 @@ import { fmtDate, fmtDateTime } from '../../utils/date';
 import { isDenied } from '../../components/EmptyState/asyncState';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 import { SafeImg } from '../../components/Image/SafeImg';
+import { inchesWithCm, isMeasurementColumn } from '../../utils/units';
 
 export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boolean }> = ({ autoEdit, autoCutSheet }) => {
   const { id } = useParams<{ id: string }>();
@@ -429,10 +430,43 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
     </table>
   );
 
+  // [DSG-9-7] The calibration loop is VISIBLE here, not CLOSED — and the difference
+  // decides whether a designer trusts this tab to tell them a block is wrong.
+  //
+  // What this tab holds is the customer's OVERALL fit rating on a delivered order. It is
+  // not per-POM, so it cannot say WHICH measurement is off; and the two records that
+  // would explain a misfit — the QC deviation caught before dispatch, and the alteration
+  // someone actually performed — do not feed it. A designer reading three 3/5 ratings
+  // sees calibration data, which this is not.
+  //
+  // Shown in BOTH states on purpose: the populated tab is the more misleading of the two,
+  // because it looks like the loop is working.
+  const fitLoopNote = (
+    <p className={dd.loopNote}>
+      This is the customer&apos;s overall rating of a delivered order — not a per-measurement
+      deviation. QC deviations and alterations are recorded separately and do <strong>not</strong>{' '}
+      feed this number, so it can say a design fits badly but not which measurement is wrong.
+      {(hasCapability('fit:read') || hasCapability('orders:write')) && (
+        <>
+          {' '}Evidence lives in{' '}
+          {/* Gated on the same capabilities the nav uses, so this never points a role at a
+              page it will be refused — the dead-verb shape the audit flags elsewhere. */}
+          {hasCapability('fit:read') && <Link to="/admin/fit-feedback">Fit Complaints</Link>}
+          {hasCapability('fit:read') && hasCapability('orders:write') && ' and '}
+          {hasCapability('orders:write') && <Link to="/admin/alterations">Alterations</Link>}.
+        </>
+      )}
+    </p>
+  );
+
   const fitTab = design.fit.responded === 0 ? (
-    <div className={dd.empty}>Fit data appears as delivered orders for this design are rated.</div>
+    <>
+      <div className={dd.empty}>Fit data appears as delivered orders for this design are rated.</div>
+      {fitLoopNote}
+    </>
   ) : (
     <>
+      {fitLoopNote}
       <div className={dd.fitKpis}>
         <div className={dd.fitKpi}><div className={dd.fitKpiValue}>{design.fit.ftr ?? '—'}%</div><div className={dd.fitKpiLabel}>First-time-right</div></div>
         <div className={dd.fitKpi}><div className={dd.fitKpiValue}>{design.fit.avg_fit ?? '—'}</div><div className={dd.fitKpiLabel}>Avg fit (1–5)</div></div>
@@ -534,14 +568,49 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
           return (
             <section className={s.panel}>
               <h3 className={s.panelTitle}>
-                Standard size chart <span className={dd.fabricMeta}>· {design.garment_type} · {design.fit_preset} (inches)</span>
+                Standard size chart{' '}
+                <span className={dd.fabricMeta}>
+                  · {design.garment_type} · {design.fit_preset}
+                </span>
               </h3>
               <div className={dd.chartScroll}>
                 <table className={dd.table}>
-                  <thead><tr>{cols.map((c) => <th key={c}>{c.replace(/_/g, ' ')}</th>)}</tr></thead>
+                  <thead>
+                    <tr>
+                      {cols.map((c) => {
+                        // Only a column that actually holds a measurement gets a unit. `size`
+                        // is a label, not a length — giving it one would invent a dimension.
+                        const numeric =
+                          isMeasurementColumn(c) &&
+                          fitChart.some((r) => inchesWithCm(r[c]) !== null);
+                        return (
+                          <th key={c}>
+                            {c.replace(/_/g, ' ')}
+                            {numeric && <span className={dd.unitTag}> in / cm</span>}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
                   <tbody>
                     {fitChart.map((row, i) => (
-                      <tr key={i}>{cols.map((c) => <td key={c}>{String(row[c] ?? '—')}</td>)}</tr>
+                      <tr key={i}>
+                        {cols.map((c) => {
+                          const both = isMeasurementColumn(c) ? inchesWithCm(row[c]) : null;
+                          return (
+                            <td key={c}>
+                              {both ? (
+                                <>
+                                  {both.inches}
+                                  <span className={dd.cmValue}>{both.cm}</span>
+                                </>
+                              ) : (
+                                String(row[c] ?? '—')
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
                     ))}
                   </tbody>
                 </table>

@@ -655,6 +655,12 @@ export const OrderDetailPage: React.FC = () => {
     order ? `Order ${order.reference_id ?? order.id}` : undefined,
   );
 
+  // [RC-3] `reload()` runs after every write on this page — cancel an item, place a hold,
+  // change a delivery date. A swallowed failure left the screen showing the state from
+  // BEFORE the act, which is the one moment it is guaranteed wrong, and invites the
+  // operator to do it again. Rather than add a second indicator, the failure feeds the
+  // freshness chip this page already has, so "not refreshing" means what it says.
+  const [reloadErr, setReloadErr] = React.useState<unknown>(null);
   const reload = React.useCallback(() => {
     if (!id) return;
     ordersApi
@@ -663,8 +669,9 @@ export const OrderDetailPage: React.FC = () => {
         setOrder(o);
         setDeliveryDate(toDateInput(o.estimated_delivery_date));
         setHoldReason(o.on_hold_reason ?? "");
+        setReloadErr(null);
       })
-      .catch(() => {});
+      .catch(setReloadErr);
   }, [id]);
 
   // T2-8: cancel one item in a multi-item order (+ partial refund of its line).
@@ -737,6 +744,8 @@ export const OrderDetailPage: React.FC = () => {
   const { lastUpdatedAt, refreshing, lastError, refreshNow } = useLiveRefresh(refetchOrder, {
     enabled: !!id,
   });
+  // Either source of staleness drives the same chip.
+  const staleErr = lastError ?? reloadErr;
   // Re-render the "as of" label as it ages, so it cannot itself go stale on screen.
   const [nowTick, setNowTick] = React.useState(() => Date.now());
   React.useEffect(() => {
@@ -1239,17 +1248,17 @@ export const OrderDetailPage: React.FC = () => {
             <button
               type="button"
               className={styles.freshness}
-              onClick={refreshNow}
+              onClick={() => { setReloadErr(null); refreshNow(); }}
               disabled={refreshing}
               title={
-                lastError
+                staleErr
                   ? "The last refresh failed, so this may be out of date by more than the time shown. Click to try again."
                   : "This page re-reads itself every 15 seconds while the tab is open. Click to refresh now."
               }
             >
               {refreshing
                 ? "Refreshing…"
-                : lastError
+                : staleErr
                   ? `Updated ${freshnessLabel(lastUpdatedAt, nowTick)} · not refreshing`
                   : `Updated ${freshnessLabel(lastUpdatedAt, nowTick)} · refresh`}
             </button>

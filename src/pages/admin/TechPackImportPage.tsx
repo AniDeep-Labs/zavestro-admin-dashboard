@@ -12,6 +12,7 @@ import { PageHeader, Button, EmptyState } from "../../components";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
 import { rowActivation } from "../../utils/rowActivation";
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 import styles from "./TechPackImportPage.module.css";
 
 /**
@@ -46,6 +47,11 @@ export const TechPackImportPage: React.FC = () => {
   const [coverage, setCoverage] = React.useState<ChartCoverageRow[] | null>(null);
   const [coverageErr, setCoverageErr] = React.useState("");
   const [status, setStatus] = React.useState<DesignChartStatus | null>(null);
+  // [RC-3] `setStatus(null)` made the chart-source pill VANISH. It asserts nothing false —
+  // "no chart at all" is a real value of `source`, so the pill is not lying — but a reader
+  // cannot tell "this design has no chart" from "we could not ask", and that is the
+  // judgement the import screen exists to inform.
+  const [statusErr, setStatusErr] = React.useState<unknown>(null);
 
   const [text, setText] = React.useState("");
   const [unit, setUnit] = React.useState<"in" | "cm">("in");
@@ -78,12 +84,13 @@ export const TechPackImportPage: React.FC = () => {
   React.useEffect(() => {
     if (!designId) {
       setStatus(null);
+      setStatusErr(null);
       return;
     }
     designsApi
       .chartStatus(designId)
-      .then(setStatus)
-      .catch(() => setStatus(null));
+      .then((st) => { setStatus(st); setStatusErr(null); })
+      .catch((e) => { setStatus(null); setStatusErr(e); });
   }, [designId]);
 
   const selectDesign = (id: string) => {
@@ -236,6 +243,13 @@ export const TechPackImportPage: React.FC = () => {
         <section className={styles.section}>
           <div className={styles.designHead}>
             <h2 className={styles.sectionTitle}>{status?.design_name ?? "Design"}</h2>
+            {Boolean(statusErr) && (
+              <span className={styles.pillFallback}>
+                {isDenied(statusErr)
+                  ? 'chart status unreadable by your role — not "no chart"'
+                  : `chart status didn't load${errorMessage(statusErr) ? ` — ${errorMessage(statusErr)}` : ''} — not "no chart"`}
+              </span>
+            )}
             {status && (
               <span
                 className={status.source === "own" ? styles.pillOwn : styles.pillFallback}

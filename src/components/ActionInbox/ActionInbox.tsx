@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { navCountsApi, getAdminCapabilities } from '../../api/adminApi';
 import type { NavCounts } from '../../api/adminApi';
 import styles from './ActionInbox.module.css';
+import { isDenied, errorMessage } from '../EmptyState/asyncState';
 
 /**
  * The role-aware "what needs me today" inbox (FABLE-ADMIN-UIUX §1.3).
@@ -66,14 +67,35 @@ const ITEMS: InboxItem[] = [
 export const ActionInbox: React.FC = () => {
   const navigate = useNavigate();
   const [counts, setCounts] = React.useState<NavCounts | null>(null);
+  // [RC-3] The panel whose whole job is saying what needs you must not say "All clear"
+  // because it could not ask. The swallowed catch left `counts` null forever — skeleton
+  // rows on every role's dashboard — and a failure AFTER a good load silently froze the
+  // last numbers, which is worse, because frozen numbers look current.
+  const [err, setErr] = React.useState<unknown>(null);
 
   React.useEffect(() => {
     let alive = true;
-    const load = () => navCountsApi.get().then(c => { if (alive) setCounts(c); }).catch(() => {});
+    const load = () => navCountsApi.get()
+      .then(c => { if (alive) { setCounts(c); setErr(null); } })
+      .catch(e => { if (alive) setErr(e); });
     load();
     const t = setInterval(load, 60_000);
     return () => { alive = false; clearInterval(t); };
   }, []);
+
+  // No retry offered on a denial: retrying a 403 is theatre.
+  if (counts === null && err) {
+    return (
+      <div className={styles.card}>
+        <div className={styles.header}>Needs you today</div>
+        <div className={styles.unknown}>
+          {isDenied(err)
+            ? 'Your role cannot read the work queue — this is not an empty queue.'
+            : `Couldn't load what needs you${errorMessage(err) ? ` — ${errorMessage(err)}` : ''}. This is not an all-clear.`}
+        </div>
+      </div>
+    );
+  }
 
   if (counts === null) {
     return (
@@ -136,6 +158,14 @@ export const ActionInbox: React.FC = () => {
             <span className={`${styles.dot} ${styles['dot-fit']}`} /> needs a decision
             <span className={`${styles.dot} ${styles['dot-pending']}`} /> queued, not yet late
           </p>
+        </div>
+      )}
+      {/* A refresh that fails after a good load leaves numbers that LOOK current.
+          Reaching here means `counts` is non-null — both null cases returned above — so
+          `err` here can only be a FAILED REFRESH, never a failed first load. */}
+      {Boolean(err) && !hasNoRole && (
+        <div className={styles.unknown}>
+          These counts are from an earlier check and may be out of date.
         </div>
       )}
     </div>

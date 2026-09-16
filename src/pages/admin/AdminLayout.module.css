@@ -703,3 +703,15 @@
   line-height: 1.45;
   color: var(--color-text-tertiary);
 }
+
+/* [RC-3] The hub switcher used to vanish on a failed read. This takes its place and says
+   so — quiet, but present, because a missing control explains nothing. */
+.hubSwitcherUnavailable {
+  padding: 5px 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}

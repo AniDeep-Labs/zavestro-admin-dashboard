@@ -2,6 +2,7 @@ import React from 'react';
 import { dispositionApi } from '../../api/adminApi';
 import type { DispositionResponse, DispositionKind } from '../../api/adminApi';
 import { Can } from '../Can/Can';
+import { isDenied, errorMessage } from '../EmptyState/asyncState';
 import s from './DispositionPanel.module.css';
 
 // T2-12 (O-17): disposition + write-off for a returned / RTO'd made-for-one garment. Shared by
@@ -19,6 +20,11 @@ export const DispositionPanel: React.FC<{ orderId: string; source: 'return' | 'r
   source,
 }) => {
   const [data, setData] = React.useState<DispositionResponse | null>(null);
+  // [RC-3] A swallowed failure left `data` null, so the "Suggested write-off ₹X"
+  // line VANISHED and the amount field stayed blank — finance then records a ₹ figure
+  // against a garment with no server suggestion and no sign one was ever unavailable.
+  // Same shape as T1-23: a money value single-sourced from the server, quietly absent.
+  const [loadErr, setLoadErr] = React.useState<unknown>(null);
   const [disposition, setDisposition] = React.useState<DispositionKind>('pending');
   const [writeOff, setWriteOff] = React.useState('');
   const [note, setNote] = React.useState('');
@@ -38,7 +44,8 @@ export const DispositionPanel: React.FC<{ orderId: string; source: 'return' | 'r
           setWriteOff(String(d.suggested_write_off));
         }
       })
-      .catch(() => {});
+      .then(() => setLoadErr(null))
+      .catch(setLoadErr);
   }, [orderId]);
   React.useEffect(() => { load(); }, [load]);
 
@@ -68,6 +75,13 @@ export const DispositionPanel: React.FC<{ orderId: string; source: 'return' | 'r
       <p className={s.hint}>
         A made-for-one garment can't be resold — record what happens to it and the ₹ written off.
       </p>
+      {Boolean(loadErr) && (
+        <p className={s.cost}>
+          {isDenied(loadErr)
+            ? 'Your role cannot read the suggested write-off — the figure below is not a server suggestion.'
+            : `Couldn't load the suggested write-off${errorMessage(loadErr) ? ` — ${errorMessage(loadErr)}` : ''}. The figure below is not a server suggestion.`}
+        </p>
+      )}
       {data && (
         <p className={s.cost}>
           Suggested write-off <strong>₹{data.suggested_write_off.toLocaleString('en-IN')}</strong>{' '}

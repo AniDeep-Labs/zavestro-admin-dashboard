@@ -1,0 +1,18 @@
+/* [RC-3] The dropdown around this is still inline-styled (pre-existing style debt, left
+   alone). This module carries the one state that must NOT be mistaken for an answer: a
+   denied or failed search, rendered where "No customers found" used to sit. */
+.note {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  line-height: 1.45;
+}
