@@ -21,6 +21,8 @@ import { money } from '../../utils/money';
 const fmtINR = (n: number | null | undefined) => money(n);
 // ACP-6 [KA11-6]: one date formatter for the admin.
 import { fmtDate } from '../../utils/date';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 const lagHours = (d: CodDeposit) =>
   ((d.finance_confirmed_at ? new Date(d.finance_confirmed_at) : new Date()).getTime() - new Date(d.created_at).getTime()) / 3_600_000;
 
@@ -60,7 +62,13 @@ export const CodReconciliationPage: React.FC = () => {
   });
 
   React.useEffect(() => {
-    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
+    // A silently empty HUB FILTER is worse than a silently empty picker: the reader
+    // keeps "All Hubs" selected and believes they are looking at everything.
+    const loadHubs = () => hubsApi.list()
+      .then((r) => { setHubs(r.hubs); setHubsErr(null); })
+      .catch((e) => setHubsErr(e));
+    loadHubs();
+    hubsRetry.current = loadHubs;
   }, []);
 
   const load = React.useCallback(() => {
@@ -85,6 +93,10 @@ export const CodReconciliationPage: React.FC = () => {
     } finally { setExporting(false); }
   };
 
+  const [ordersErr, setOrdersErr] = React.useState<Record<string, unknown>>({});
+  const [hubsErr, setHubsErr] = React.useState<unknown>(null);
+  const hubsRetry = React.useRef<() => void>(() => {});
+
   const clearFilters = () => { setHubId(''); setStartDate(''); setEndDate(''); };
 
   const toggleOrders = (d: CodDeposit) => {
@@ -95,8 +107,14 @@ export const CodReconciliationPage: React.FC = () => {
         next.add(d.id);
         if (!ordersById[d.id]) {
           codReconciliationApi.orders(d.id)
-            .then((o) => setOrdersById((m) => ({ ...m, [d.id]: o })))
-            .catch(() => setOrdersById((m) => ({ ...m, [d.id]: [] })));
+            .then((o) => {
+              setOrdersById((m) => ({ ...m, [d.id]: o }));
+              setOrdersErr((m) => ({ ...m, [d.id]: null }));
+            })
+            // [RC-3] This wrote an EMPTY LIST on failure, which the row then reported as
+            // "No orders linked to this deposit" — a reconciliation claim about somebody's
+            // cash, manufactured out of a failed request.
+            .catch((e) => setOrdersErr((m) => ({ ...m, [d.id]: e })));
         }
       }
       return next;
@@ -154,11 +172,18 @@ export const CodReconciliationPage: React.FC = () => {
   const ordersRow = (d: CodDeposit, cols: number) => {
     if (!expanded.has(d.id)) return null;
     const list = ordersById[d.id];
+    const listErr = ordersErr[d.id];
     return (
       <tr key={`${d.id}-orders`} className={s.orderList}>
         <td colSpan={cols}>
           <div className={s.orderInner}>
-            {!list ? <span className={s.orderRowMuted}>Loading orders…</span>
+            {listErr ? (
+              <span className={s.orderRowMuted}>
+                {isDenied(listErr)
+                  ? 'Your role cannot read the orders behind this deposit — this is not "none linked".'
+                  : `Couldn't load the orders for this deposit${errorMessage(listErr) ? ` — ${errorMessage(listErr)}` : ''}. This is not "none linked".`}
+              </span>
+            ) : !list ? <span className={s.orderRowMuted}>Loading orders…</span>
               : list.length === 0 ? <span className={s.orderRowMuted}>No orders linked to this deposit.</span>
               : list.map((o) => (
                 <div key={o.id} className={s.orderRow}>
@@ -323,6 +348,7 @@ export const CodReconciliationPage: React.FC = () => {
           <option value="">All Hubs</option>
           {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
         </select>
+        <PickerNote error={hubsErr} noun="hubs" onRetry={() => hubsRetry.current()} />
         <span className={s.dateWrap}><input className={s.dateInput} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} aria-label="Start date" /></span>
         <span className={s.dateWrap}><input className={s.dateInput} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} aria-label="End date" /></span>
         {(hubId || startDate || endDate) && (

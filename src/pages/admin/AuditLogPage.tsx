@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { auditApi } from '../../api/adminApi';
 import type { AuditEntry } from '../../api/adminApi';
 import { downloadCsv, datedFilename } from '../../utils/csv';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 import styles from './AuditLogPage.module.css';
 import { UilAngleDown, UilAngleLeft, UilAngleRight, UilAngleUp, UilImport, UilSearch, UilTimes } from "@iconscout/react-unicons";
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
@@ -80,6 +81,8 @@ export const AuditLogPage: React.FC = () => {
   const [page, setPage] = React.useState(1);
 
   const [facets, setFacets] = React.useState<{ actors: string[]; entity_types: string[]; actions: string[] }>({ actors: [], entity_types: [], actions: [] });
+  const [facetsErr, setFacetsErr] = React.useState<unknown>(null);
+  const facetsRetry = React.useRef<() => void>(() => {});
   const [entries, setEntries] = React.useState<AuditEntry[]>([]);
   const [total, setTotal] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
@@ -91,7 +94,13 @@ export const AuditLogPage: React.FC = () => {
   const debouncedEntityId = useDebounce(entityId, 350);
 
   React.useEffect(() => {
-    auditApi.facets().then(setFacets).catch(() => {});
+    // [RC-3] The facets ARE the audit filters. Empty reads as "nobody has done anything of
+    // this kind" — on the page whose entire purpose is showing who did what.
+    const loadFacets = () => auditApi.facets()
+      .then((f) => { setFacets(f); setFacetsErr(null); })
+      .catch(setFacetsErr);
+    loadFacets();
+    facetsRetry.current = loadFacets;
   }, []);
 
   // [SHL-7-13] How many rows the default is holding back. Fetched once with limit 1 — only
@@ -261,6 +270,7 @@ export const AuditLogPage: React.FC = () => {
           <option value="">All actors</option>
           {facets.actors.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
+        <PickerNote error={facetsErr} noun="audit filters" onRetry={() => facetsRetry.current()} />
         <select className={styles.filterSelect} value={entityType} onChange={e => { setEntityType(e.target.value); setPage(1); }} aria-label="Entity type">
           <option value="">All entities</option>
           {facets.entity_types.map(t => <option key={t} value={t}>{t}</option>)}

@@ -10,6 +10,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Button } from '../../components/Button/Button';
 import { AccessDenied } from '../../components/AccessDenied/AccessDenied';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 // Same layout as QC Templates (the house QC-1 editor) — this is its brand QC-2 sibling.
 import s from './QcTemplatesPage.module.css';
 // [CM-20-7] The rules and the row editor are shared with the other QC layer — the two are
@@ -24,6 +25,11 @@ export const BrandQcPage: React.FC = () => {
   const [brands, setBrands] = React.useState<BrandSummary[]>([]);
   const [categories, setCategories] = React.useState<GarmentCategoryOption[]>([]);
   const [configs, setConfigs] = React.useState<BrandQcConfig[]>([]);
+  // [RC-3] `.catch(() => setConfigs([]))` rendered "No QC-2 checks yet" — a claim that
+  // this BRAND has authored no second-stage QC, and an invitation to author a duplicate
+  // set. On a QC surface, "none configured" and "we could not read them" are opposite
+  // instructions.
+  const [configsErr, setConfigsErr] = React.useState<unknown>(null);
   const [loading, setLoading] = React.useState(true);
   const [brandId, setBrandId] = React.useState('');
   const [catId, setCatId] = React.useState('');
@@ -67,11 +73,11 @@ export const BrandQcPage: React.FC = () => {
   }, []);
 
   const loadConfigs = React.useCallback((id: string) => {
-    if (!id) return setConfigs([]);
+    if (!id) { setConfigsErr(null); return setConfigs([]); }
     brandQcApi
       .list(id)
-      .then(setConfigs)
-      .catch(() => setConfigs([]));
+      .then((c) => { setConfigs(c); setConfigsErr(null); })
+      .catch(setConfigsErr);
   }, []);
 
   const selectBrand = (id: string) => {
@@ -210,7 +216,13 @@ export const BrandQcPage: React.FC = () => {
       {brandId && (
         <div className={s.card}>
           <h2 className={s.cardTitle}>{brandName(brandId)} — categories with QC-2</h2>
-          {configs.length === 0 ? (
+          {configsErr ? (
+            <p className={s.empty}>
+              {isDenied(configsErr)
+                ? 'Your role cannot read this brand\u2019s QC-2 checks — this is not "none configured".'
+                : `Couldn't load this brand's QC-2 checks${errorMessage(configsErr) ? ` — ${errorMessage(configsErr)}` : ''}. This is not "none configured" — do not author a duplicate set.`}
+            </p>
+          ) : configs.length === 0 ? (
             <p className={s.empty}>
               No QC-2 checks yet — pick a category above and add this brand's checks.
             </p>

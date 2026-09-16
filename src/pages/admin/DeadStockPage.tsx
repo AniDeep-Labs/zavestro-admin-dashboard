@@ -1,11 +1,13 @@
 import React from 'react';
 import { money } from '../../utils/money'; // ACP-2 [KA11-2]
-import { fabricsApi, hubsApi } from '../../api/adminApi';
-import type { DeadStock, DeadStockRow, Hub } from '../../api/adminApi';
+import { fabricsApi } from '../../api/adminApi';
+import type { DeadStock, DeadStockRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Can } from '../../components/Can/Can';
 import s from './DeadStockPage.module.css';
+import { useHubOptions } from '../../hooks/useHubOptions';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 
 // T2-15 (O-9): fabric stock that hasn't moved (by last ledger movement) in 30/60/90 days, the
 // capital ₹ tied up, and a "flag for markdown" action that surfaces to the CM inbox.
@@ -13,7 +15,8 @@ import s from './DeadStockPage.module.css';
 const inr = (n: number) => money(n);
 
 export const DeadStockPage: React.FC = () => {
-  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  // [RC-3] Was a swallowed `.catch(() => {})` duplicated in six consoles.
+  const { hubs, error: hubsErr, retry: retryHubs } = useHubOptions();
   const [hubId, setHubId] = React.useState('');
   const [data, setData] = React.useState<DeadStock | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -30,8 +33,6 @@ export const DeadStockPage: React.FC = () => {
       .catch((e) => toast('error', 'Load failed', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
   }, [hubId]);
-
-  React.useEffect(() => { hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {}); }, []);
   React.useEffect(() => { load(); }, [load]);
 
   const toggleFlag = async (row: DeadStockRow) => {
@@ -69,6 +70,7 @@ export const DeadStockPage: React.FC = () => {
             <option key={h.id} value={h.id}>{h.name}</option>
           ))}
         </select>
+          <PickerNote error={hubsErr} noun="hubs" onRetry={retryHubs} />
       </div>
 
       <div className={s.cards}>

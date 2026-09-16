@@ -13,6 +13,7 @@ import { Modal } from '../../components/Modal/Modal';
 import { Button } from '../../components/Button/Button';
 import { Textarea } from '../../components/Textarea/Textarea';
 import { CustomerQuickLookup } from '../../components/CustomerQuickLookup/CustomerQuickLookup';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 import styles from './OrdersListPage.module.css';
 import d from './AlterationsListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilSearch, UilTimes, UilPlus } from "@iconscout/react-unicons";
@@ -126,6 +127,10 @@ export const AlterationsListPage: React.FC = () => {
   const [refreshTick, setRefreshTick] = React.useState(0);
   const [selCustomer, setSelCustomer] = React.useState<CustomerLookupResult | null>(null);
   const [custOrders, setCustOrders] = React.useState<AdminOrder[]>([]);
+  // [RC-3] `.catch(() => setCustOrders([]))` told the agent "This customer has no
+  // delivered orders" — a claim about the CUSTOMER, made from a failed request, which
+  // stops a alteration the customer may be entitled to.
+  const [custOrdersErr, setCustOrdersErr] = React.useState<unknown>(null);
   const [loadingOrders, setLoadingOrders] = React.useState(false);
   const [selOrderId, setSelOrderId] = React.useState("");
   const [createDesc, setCreateDesc] = React.useState("");
@@ -158,8 +163,8 @@ export const AlterationsListPage: React.FC = () => {
     if (!selCustomer) { setCustOrders([]); setSelOrderId(""); return; }
     setLoadingOrders(true);
     ordersApi.list({ userId: selCustomer.id, limit: 20 })
-      .then(r => setCustOrders(r.orders.filter(o => o.stage === 'delivered')))
-      .catch(() => setCustOrders([]))
+      .then(r => { setCustOrders(r.orders.filter(o => o.stage === 'delivered')); setCustOrdersErr(null); })
+      .catch(setCustOrdersErr)
       .finally(() => setLoadingOrders(false));
   }, [selCustomer]);
 
@@ -451,6 +456,12 @@ export const AlterationsListPage: React.FC = () => {
               <label className={d.createLabel}>Delivered order</label>
               {loadingOrders ? (
                 <p className={d.createHint}>Loading orders…</p>
+              ) : custOrdersErr ? (
+                <p className={d.createHint}>
+                  {isDenied(custOrdersErr)
+                    ? 'Your role cannot read this customer\u2019s orders — this is not "they have none".'
+                    : `Couldn't load this customer's orders${errorMessage(custOrdersErr) ? ` — ${errorMessage(custOrdersErr)}` : ''}. This is not "they have none" — retry before telling them they are not eligible.`}
+                </p>
               ) : custOrders.length === 0 ? (
                 <p className={d.createHint}>
                   This customer has no delivered orders — an alteration needs one.

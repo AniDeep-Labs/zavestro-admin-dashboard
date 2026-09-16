@@ -7,6 +7,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { Alert } from '../../components/Alert';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 import styles from './ProductEditPage.module.css';
 import { UilAngleLeft, UilCheck, UilImage, UilPlus } from "@iconscout/react-unicons";
 
@@ -68,6 +69,10 @@ export const ProductEditPage: React.FC = () => {
 
   // Meta
   const [categories, setCategories] = React.useState<ApiCategory[]>([]);
+  // [RC-3] An empty CATEGORY picker on the product editor reads as "this catalogue has
+  // no categories", and the product gets saved uncategorised.
+  const [categoriesErr, setCategoriesErr] = React.useState<unknown>(null);
+  const categoriesRetry = React.useRef<() => void>(() => {});
   const [newCatName, setNewCatName] = React.useState('');
   const [showNewCat, setShowNewCat] = React.useState(false);
   const [creatingCat, setCreatingCat] = React.useState(false);
@@ -97,12 +102,15 @@ export const ProductEditPage: React.FC = () => {
   // ─── Load categories ──────────────────────────────────────────────────────
 
   React.useEffect(() => {
-    catalogApi.getCategories()
+    const loadCats = () => catalogApi.getCategories()
       .then(res => {
         const list = Array.isArray(res) ? res : (res as { categories: ApiCategory[] }).categories;
         setCategories(list ?? []);
+        setCategoriesErr(null);
       })
-      .catch(() => setCategories([]));
+      .catch(setCategoriesErr);
+    loadCats();
+    categoriesRetry.current = loadCats;
   }, []);
 
   // ─── Load product (edit mode) ─────────────────────────────────────────────
@@ -471,6 +479,7 @@ export const ProductEditPage: React.FC = () => {
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
+                    <PickerNote error={categoriesErr} noun="categories" onRetry={() => categoriesRetry.current()} />
                     {submitted && !categoryId && <span className={styles.fieldHint}>Please select a category</span>}
                   </>
                 )}

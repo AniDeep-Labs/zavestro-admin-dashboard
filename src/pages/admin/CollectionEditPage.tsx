@@ -12,6 +12,7 @@ import styles from './CollectionEditPage.module.css';
 import { UilAngleLeft, UilImage } from "@iconscout/react-unicons";
 import { CollectionStudio, DEFAULT_DESIGN, type CollectionDesign } from './CollectionStudio';
 import type { BannerLayout, BannerTextPosition, BannerTextColor, BannerComposeStyle } from '../../api/adminApi';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 
 function useDebounce<T>(value: T, delay: number): T {
   const [dv, setDv] = React.useState(value);
@@ -54,6 +55,10 @@ export const CollectionEditPage: React.FC<{
   const [productSearch, setProductSearch] = React.useState('');
   const [selectedProducts, setSelectedProducts] = React.useState<{id: string; name: string}[]>([]);
   const [searchResults, setSearchResults] = React.useState<ApiProduct[]>([]);
+  // [RC-3] The dropdown renders only when there are results, so a failed search was
+  // indistinguishable from "no such product" — the curator concludes the product is
+  // not in the catalogue and leaves it out of the collection.
+  const [searchErr, setSearchErr] = React.useState<unknown>(null);
   const [coverImageKey, setCoverImageKey] = React.useState('');
   // [DSG-12-12 class] "key recorded but object missing" is its own state. Reset whenever the
   // key changes, or replacing a dead image would keep showing the missing-state tile.
@@ -135,10 +140,10 @@ export const CollectionEditPage: React.FC<{
   }, [id, isNew]);
 
   React.useEffect(() => {
-    if (debouncedProductSearch.length < 2) { setSearchResults([]); return; }
+    if (debouncedProductSearch.length < 2) { setSearchResults([]); setSearchErr(null); return; }
     catalogApi.getProducts({ search: debouncedProductSearch, limit: 10 })
-      .then(res => setSearchResults((res.products ?? []).filter(p => !selectedProducts.some(sp => sp.id === p.id))))
-      .catch(() => setSearchResults([]));
+      .then(res => { setSearchResults((res.products ?? []).filter(p => !selectedProducts.some(sp => sp.id === p.id))); setSearchErr(null); })
+      .catch(e => { setSearchResults([]); setSearchErr(e); });
   }, [debouncedProductSearch, selectedProducts]);
 
   const handleNameChange = (val: string) => {
@@ -470,6 +475,15 @@ export const CollectionEditPage: React.FC<{
                 onChange={e => setProductSearch(e.target.value)}
                 placeholder="Search to add products…"
               />
+              {Boolean(searchErr) && debouncedProductSearch.length >= 2 && (
+                <div className={styles.searchDropdown}>
+                  <span className={styles.resultMeta}>
+                    {isDenied(searchErr)
+                      ? 'Your role cannot search products — this is not "no such product".'
+                      : `Couldn't search products${errorMessage(searchErr) ? ` — ${errorMessage(searchErr)}` : ''}. This is not "no such product".`}
+                  </span>
+                </div>
+              )}
               {searchResults.length > 0 && (
                 <div className={styles.searchDropdown}>
                   {searchResults.map(p => (

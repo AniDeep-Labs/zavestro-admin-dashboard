@@ -106,12 +106,15 @@ export const DistributionPage: React.FC = () => {
       const m: Record<string, number> = {};
       cs.forEach((c) => { m[c.fabric_id] = numv(c.available_meters); });
       setCentral(m);
-    }).catch(() => {});
+      setStockErr(null);
+    // [RC-3] An empty stock map renders as "not centrally tracked" / no hub row — a claim
+    // about what cloth EXISTS, on the screen that decides where cloth is sent.
+    }).catch(setStockErr);
     fabricsApi.stock().then((st: FabricStockRow[]) => {
       const m: Record<string, FabricStockRow> = {};
       st.forEach((r) => { m[`${r.hub_id}-${r.fabric_id}`] = r; });
       setHubStock(m);
-    }).catch(() => {});
+    }).catch(setStockErr);
     fabricsApi.list({ active: true })
       .then((f) => { setAllFabrics(f); setFabricsErr(null); })
       .catch(setFabricsErr);
@@ -134,11 +137,17 @@ export const DistributionPage: React.FC = () => {
   }, [sp, hubs, setSp]);
 
   const hubName = (id: string) => hubs.find((h) => h.id === id)?.name ?? '—';
+  const [designFabricsErr, setDesignFabricsErr] = React.useState<unknown>(null);
+
   const restockMode = designId === NO_DESIGN;
 
   React.useEffect(() => {
     if (!designId || designId === NO_DESIGN) { setFabrics([]); if (designId !== NO_DESIGN) setFabricId(''); return; }
-    designsApi.get(designId).then((d) => { setFabrics(d.fabrics); setFabricId(d.fabrics[0]?.id ?? ''); }).catch(() => setFabrics([]));
+    // [RC-3] `.catch(() => setFabrics([]))` made the picker read "No matched fabrics" — a
+    // claim that this DESIGN has no fabric pairings, which stops the cloth going out.
+    designsApi.get(designId)
+      .then((d) => { setFabrics(d.fabrics); setFabricId(d.fabrics[0]?.id ?? ''); setDesignFabricsErr(null); })
+      .catch((e) => { setFabrics([]); setDesignFabricsErr(e); });
   }, [designId]);
 
   const openPush = () => {
@@ -148,6 +157,9 @@ export const DistributionPage: React.FC = () => {
 
   // ── push validation against central (caught here, not at the hub's receive) ──
   const shipTotal = (Number(sellableQty) || 0) + (Number(sampleQty) || 0);
+  const [stockErr, setStockErr] = React.useState<unknown>(null);
+  const [qcErr, setQcErr] = React.useState<unknown>(null);
+
   const centralAvail = fabricId in central ? central[fabricId] : null; // null = not centrally tracked
   const overPush = centralAvail != null && shipTotal > centralAvail;
   const gapRow = fabricId && hubId ? hubStock[`${hubId}-${fabricId}`] : undefined;
@@ -160,12 +172,16 @@ export const DistributionPage: React.FC = () => {
     setVarianceReason('');
     setRejectedMeters(''); setHeldMeters(''); setQcNotes(''); setQcDefects([]);
     // T1-13b: load the category's QC checklist (if any) so the inspector fills it in.
-    setQcChecks([]); setQcAnswers({});
+    setQcChecks([]); setQcAnswers({}); setQcErr(null);
     if (r.garment_category_id) {
       qcTemplatesApi
         .forCategory(r.garment_category_id)
-        .then((t) => setQcChecks(t?.checks ?? []))
-        .catch(() => {});
+        .then((t) => { setQcChecks(t?.checks ?? []); setQcErr(null); })
+        // [RC-3] The worst of the three: a failed template load leaves `qcChecks` empty, so
+        // the checklist renders NOTHING and the required-answer gate below passes vacuously.
+        // "No checks for this category" and "we could not fetch the checks" are opposite
+        // instructions to someone inspecting cloth.
+        .catch(setQcErr);
     }
   };
   const setAnswer = (key: string, val: number | boolean | null) =>
@@ -541,7 +557,17 @@ export const DistributionPage: React.FC = () => {
               </select>
             ) : (
               <select className={styles.filterSelect} value={fabricId} onChange={(e) => setFabricId(e.target.value)} disabled={!designId}>
-                <option value="">{designId ? (fabrics.length ? 'Hub already stocks the SKU' : 'No matched fabrics') : 'Pick a design first'}</option>
+                <option value="">
+                  {!designId
+                    ? 'Pick a design first'
+                    : designFabricsErr
+                      ? (isDenied(designFabricsErr)
+                          ? 'Your role cannot read this design — not "no fabrics"'
+                          : "Couldn't load this design's fabrics — not \"no fabrics\"")
+                      : fabrics.length
+                        ? 'Hub already stocks the SKU'
+                        : 'No matched fabrics'}
+                </option>
                 {fabrics.map((f) => <option key={f.id} value={f.id}>{f.name}{f.code ? ` (${f.code})` : ''}</option>)}
               </select>
             )}
@@ -551,9 +577,19 @@ export const DistributionPage: React.FC = () => {
               <PickerNote error={fabricsErr} noun="fabrics" onRetry={retryPickers} />
             )}
           </label>
+          {/* [RC-3] "not tracked centrally" is a claim about the fabric. If the stock read
+              failed it is a claim about the REQUEST, and the two send cloth to different
+              places — so say which happened before the number is read as a fact. */}
+          {fabricId && Boolean(stockErr) && (
+            <p className={s.qcMissing}>
+              {isDenied(stockErr)
+                ? 'Your role cannot read stock levels, so the figures below are unknown — not zero.'
+                : `Stock levels didn't load${errorMessage(stockErr) ? ` — ${errorMessage(stockErr)}` : ''}. Treat the figures below as unknown, not as zero.`}
+            </p>
+          )}
           {fabricId && (
             <p className={s.hint}>
-              Central available: <strong>{centralAvail != null ? `${centralAvail.toLocaleString('en-IN')} m` : 'not tracked centrally'}</strong>
+              Central available: <strong>{stockErr ? 'unknown — the stock read failed' : centralAvail != null ? `${centralAvail.toLocaleString('en-IN')} m` : 'not tracked centrally'}</strong>
             </p>
           )}
           <label className={styles.fieldLabel}>Hub
@@ -628,6 +664,13 @@ export const DistributionPage: React.FC = () => {
             <div className={s.qcBox}>
               <div className={s.qcTitle}>Inbound QC — check width / GSM / shade / defects</div>
               {/* T1-13b: the design's category checklist (required checks + tolerances). */}
+              {Boolean(qcErr) && (
+                <div className={s.qcMissing}>
+                  {isDenied(qcErr)
+                    ? 'Your role cannot read this category\u2019s QC checklist — this is not "no checks required".'
+                    : `Couldn't load this category's QC checklist${errorMessage(qcErr) ? ` — ${errorMessage(qcErr)}` : ''}. This is not "no checks required" — the required items cannot be enforced here until it loads.`}
+                </div>
+              )}
               {qcChecks.length > 0 && (
                 <div className={s.qcChecklist}>
                   {qcChecks.map((c) => {

@@ -2,6 +2,8 @@ import React from 'react';
 import { customerLookupApi } from '../../api/adminApi';
 import type { CustomerLookupResult } from '../../api/adminApi';
 import { UilMapMarker, UilPhone, UilSearch, UilShoppingBag, UilTimes, UilUser } from "@iconscout/react-unicons";
+import { isDenied, errorMessage } from '../EmptyState/asyncState';
+import ql from './CustomerQuickLookup.module.css';
 
 interface Props {
   onSelect: (customer: CustomerLookupResult) => void;
@@ -42,6 +44,10 @@ export const CustomerQuickLookup: React.FC<Props> = ({
 }) => {
   const [query, setQuery] = React.useState(initialQuery ?? '');
   const [results, setResults] = React.useState<CustomerLookupResult[]>([]);
+  // [RC-3] "No customers found" is a claim about the CUSTOMER BASE. A swallowed failure
+  // let an agent on a live call read it as one — or, because setOpen(true) sat inside the
+  // try, showed nothing at all and left them typing into a field that never answered.
+  const [err, setErr] = React.useState<unknown>(null);
   const [loading, setLoading] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -55,8 +61,15 @@ export const CustomerQuickLookup: React.FC<Props> = ({
       try {
         const data = await customerLookupApi.search(query.trim(), masked);
         setResults(data);
+        setErr(null);
         setOpen(true);
-      } catch { /* ignore */ }
+      } catch (e) {
+        // Drop the stale rows: results from an older query sitting under a newer one is
+        // the worst of the three states, because it looks like an answer.
+        setResults([]);
+        setErr(e);
+        setOpen(true);
+      }
       finally { setLoading(false); }
     }, 300);
   }, [query, masked]);
@@ -198,7 +211,15 @@ export const CustomerQuickLookup: React.FC<Props> = ({
         </div>
       )}
 
-      {open && !loading && query.trim() && results.length === 0 && (
+      {open && !loading && query.trim() && results.length === 0 && Boolean(err) && (
+        <div className={ql.note}>
+          {isDenied(err)
+            ? 'Your role cannot look customers up — this is not an empty result.'
+            : `Lookup failed${errorMessage(err) ? ` — ${errorMessage(err)}` : ''}. This does not mean there is no such customer.`}
+        </div>
+      )}
+
+      {open && !loading && query.trim() && results.length === 0 && !err && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 200,
           background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-light)',

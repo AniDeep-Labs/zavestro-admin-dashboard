@@ -1,12 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { serviceAreasApi, hubsApi } from '../../api/adminApi';
-import type { ServicePincode, Hub } from '../../api/adminApi';
+import { serviceAreasApi } from '../../api/adminApi';
+import type { ServicePincode } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
 import styles from './PromoCodesPage.module.css';
+import { useHubOptions } from '../../hooks/useHubOptions';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 import { UilPlus, UilSearch, UilToggleOff, UilToggleOn, UilTrashAlt } from "@iconscout/react-unicons";
 
 function EmptyState({ message }: { message: string }) {
@@ -24,7 +26,8 @@ export const ServiceAreasPage: React.FC = () => {
   const [search, setSearch] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
-  const [hubs, setHubs] = React.useState<Hub[]>([]);
+  // [RC-3] Was a swallowed `.catch(() => {})` duplicated in six consoles.
+  const { hubs, error: hubsErr, retry: retryHubs } = useHubOptions();
 
   const [showModal, setShowModal] = React.useState(false);
   const [bulkInput, setBulkInput] = React.useState('');
@@ -54,10 +57,6 @@ export const ServiceAreasPage: React.FC = () => {
   }, [search, page]);
 
   React.useEffect(() => { load(); }, [load]);
-
-  React.useEffect(() => {
-    hubsApi.list().then(r => setHubs(r.hubs)).catch(() => {});
-  }, []);
 
   const handleAdd = async () => {
     // T3-9 (§2.4): Indian pincodes are exactly 6 digits (was /^\d{4,6}$/, which let typos in).
@@ -241,6 +240,7 @@ export const ServiceAreasPage: React.FC = () => {
                   <option value="">— No hub —</option>
                   {hubs.map(h => <option key={h.id} value={h.id}>{h.name} ({h.city})</option>)}
                 </select>
+          <PickerNote error={hubsErr} noun="hubs" onRetry={retryHubs} />
               </div>
             </div>
             <div className={styles.modalActions}>
