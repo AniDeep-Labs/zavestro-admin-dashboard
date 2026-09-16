@@ -11,6 +11,7 @@ import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { StatusBadge, PageHeader, EmptyState, NoHubAssigned, Alert, PickerNote } from '../../components';
 import { AgeCell } from '../../components/DataCells';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 import base from './OrdersListPage.module.css';
 import ds from './DistributionPage.module.css';
 import s from './ListingRequestsPage.module.css';
@@ -62,6 +63,7 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
 
   // CM form (hub locked to the signed-in CM's own hub)
   const [myHubId, setMyHubId] = React.useState<string | null>(null);
+  const [whoErr, setWhoErr] = React.useState<unknown>(null);
   const [hubResolved, setHubResolved] = React.useState(false); // T2-38: me() has answered
   const [fDesign, setFDesign] = React.useState('');
   const [fFabric, setFFabric] = React.useState('');
@@ -126,8 +128,12 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
         // Kept: an unknown availability must read as unknown, not as zero.
         .catch(() => setCentralUnavailable(true));
       adminAuthExtApi.me()
-        .then((m) => setMyHubId(m.hubId ?? null))
-        .catch(() => {})
+        .then((m) => { setMyHubId(m.hubId ?? null); setWhoErr(null); })
+        // [RC-3] Identical to the RestockQueue defect: swallowing this leaves `myHubId`
+        // null with `hubResolved` true, so the page tells a catalogue manager
+        // "No hub assigned to your account" — a statement about WHO THEY ARE, built from
+        // a failed request, which then blocks them raising any listing request.
+        .catch(setWhoErr)
         .finally(() => setHubResolved(true));
     }
   }, [isProc, pickerReload]);
@@ -389,7 +395,18 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
         />
       )}
       {/* T2-38 (PR-5): a hub-less CM can't raise listing requests (hub-scoped) — dead-end honestly. */}
-      {!isProc && hubResolved && !myHubId && <NoHubAssigned action="raise listing requests" />}
+      {!isProc && hubResolved && !myHubId && Boolean(whoErr) && (
+        <Alert
+          type="warning"
+          title="Couldn't confirm which hub you belong to"
+          message={
+            isDenied(whoErr)
+              ? 'Your role cannot read your own hub assignment. This does not mean you have no hub.'
+              : `${errorMessage(whoErr) ?? 'The request failed.'} This does not mean you have no hub — retry before asking for one.`
+          }
+        />
+      )}
+      {!isProc && hubResolved && !myHubId && !whoErr && <NoHubAssigned action="raise listing requests" />}
       {/* CM: create a request */}
       {!isProc && (!hubResolved || myHubId) && (
         <section className={s.form}>
