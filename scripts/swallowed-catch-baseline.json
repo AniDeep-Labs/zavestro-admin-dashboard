@@ -15,7 +15,6 @@
   "src/pages/admin/DistributionPage.tsx": 1,
   "src/pages/admin/EngineTesterPage.tsx": 2,
   "src/pages/admin/ListingRequestsPage.tsx": 1,
-  "src/pages/admin/NotificationBlastPage.tsx": 1,
   "src/pages/admin/OrderDetailPage.tsx": 1,
   "src/pages/admin/OrdersListPage.tsx": 1,
   "src/pages/admin/ProductEditPage.tsx": 1,
