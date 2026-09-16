@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import styles from './ProductsListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilPlus, UilSearch, UilTimes } from "@iconscout/react-unicons";
 import { StatusBadge, Alert } from '../../components';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 
 const LIMIT = 20;
@@ -34,6 +35,10 @@ export const ProductsListPage: React.FC = () => {
 
   const [products, setProducts] = React.useState<ApiProduct[]>([]);
   const [categories, setCategories] = React.useState<ApiCategory[]>([]);
+  // [RC-3] A failed FILTER is worse than a failed picker: the reader keeps "All Categories"
+  // and believes they are looking at everything.
+  const [categoriesErr, setCategoriesErr] = React.useState<unknown>(null);
+  const categoriesRetry = React.useRef<() => void>(() => {});
   const [total, setTotal] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
   const [loading, setLoading] = React.useState(true);
@@ -55,12 +60,15 @@ export const ProductsListPage: React.FC = () => {
   }, [location.state, navigate, location.pathname]);
 
   React.useEffect(() => {
-    catalogApi.getCategories()
+    const load = () => catalogApi.getCategories()
       .then(res => {
         const list = Array.isArray(res) ? res : (res as { categories: ApiCategory[] }).categories;
         setCategories(list);
+        setCategoriesErr(null);
       })
-      .catch(() => {});
+      .catch(e => setCategoriesErr(e));
+    load();
+    categoriesRetry.current = load;
   }, []);
 
   React.useEffect(() => {
@@ -167,10 +175,24 @@ export const ProductsListPage: React.FC = () => {
           onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
         >
           <option value="">All Categories</option>
-          {categories.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
+          {/* [LGC-24-7] These come from `/api/catalog/categories` — the LEGACY storefront
+              `categories` table, every row of it. Offered unlabelled beside the rest of the
+              console, the filter reads as "the" taxonomy and quietly deepens the split
+              CM-23-1 wants merged: designs and listings are organised by GARMENT TYPE
+              (`garment_categories`), which is a different set of rows entirely.
+              The group label is the cheap, honest half — naming which taxonomy you are
+              merchandising in. Merging them is the catalogue cutover ([CM-21-1]). */}
+          <optgroup label="Legacy catalogue categories — not garment types">
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </optgroup>
         </select>
+        <PickerNote
+          error={categoriesErr}
+          noun="legacy categories"
+          onRetry={() => categoriesRetry.current()}
+        />
         <select
           className={styles.filterSelect}
           value={statusFilter}
