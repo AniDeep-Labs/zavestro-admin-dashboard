@@ -137,11 +137,17 @@ export const DistributionPage: React.FC = () => {
   }, [sp, hubs, setSp]);
 
   const hubName = (id: string) => hubs.find((h) => h.id === id)?.name ?? '—';
+  const [designFabricsErr, setDesignFabricsErr] = React.useState<unknown>(null);
+
   const restockMode = designId === NO_DESIGN;
 
   React.useEffect(() => {
     if (!designId || designId === NO_DESIGN) { setFabrics([]); if (designId !== NO_DESIGN) setFabricId(''); return; }
-    designsApi.get(designId).then((d) => { setFabrics(d.fabrics); setFabricId(d.fabrics[0]?.id ?? ''); }).catch(() => setFabrics([]));
+    // [RC-3] `.catch(() => setFabrics([]))` made the picker read "No matched fabrics" — a
+    // claim that this DESIGN has no fabric pairings, which stops the cloth going out.
+    designsApi.get(designId)
+      .then((d) => { setFabrics(d.fabrics); setFabricId(d.fabrics[0]?.id ?? ''); setDesignFabricsErr(null); })
+      .catch((e) => { setFabrics([]); setDesignFabricsErr(e); });
   }, [designId]);
 
   const openPush = () => {
@@ -551,7 +557,17 @@ export const DistributionPage: React.FC = () => {
               </select>
             ) : (
               <select className={styles.filterSelect} value={fabricId} onChange={(e) => setFabricId(e.target.value)} disabled={!designId}>
-                <option value="">{designId ? (fabrics.length ? 'Hub already stocks the SKU' : 'No matched fabrics') : 'Pick a design first'}</option>
+                <option value="">
+                  {!designId
+                    ? 'Pick a design first'
+                    : designFabricsErr
+                      ? (isDenied(designFabricsErr)
+                          ? 'Your role cannot read this design — not "no fabrics"'
+                          : "Couldn't load this design's fabrics — not \"no fabrics\"")
+                      : fabrics.length
+                        ? 'Hub already stocks the SKU'
+                        : 'No matched fabrics'}
+                </option>
                 {fabrics.map((f) => <option key={f.id} value={f.id}>{f.name}{f.code ? ` (${f.code})` : ''}</option>)}
               </select>
             )}
