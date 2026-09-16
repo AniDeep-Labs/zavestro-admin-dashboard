@@ -112,3 +112,16 @@
   color: var(--color-text-tertiary);
   font-size: var(--font-size-sm);
 }
+
+/* [RC-3] A QC checklist that could not be fetched is not an empty checklist. Warning
+   weight, not error: the inbound form still works, but its required items cannot be
+   enforced here until the template loads. */
+.qcMissing {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--status-qc-border);
+  background: var(--status-qc-bg);
+  color: var(--status-qc-fg);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
