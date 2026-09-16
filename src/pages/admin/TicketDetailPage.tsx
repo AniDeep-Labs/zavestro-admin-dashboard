@@ -1,5 +1,5 @@
 import React from "react";
-import { isDenied } from '../../components/EmptyState/asyncState';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA11-3]
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -130,6 +130,9 @@ export const TicketDetailPage: React.FC = () => {
   // Order lookup
   const [orderQuery, setOrderQuery] = React.useState("");
   const [orderResults, setOrderResults] = React.useState<AdminOrder[]>([]);
+  // [RC-3] "No orders found." is how support decides a ticket cannot be linked to an
+  // order — a claim about the customer's history, made from a failed search.
+  const [orderSearchErr, setOrderSearchErr] = React.useState<unknown>(null);
   const [orderSearching, setOrderSearching] = React.useState(false);
 
   // G-37 re-measure quick-action (Fit-Promise lever on the ticket)
@@ -415,8 +418,8 @@ export const TicketDetailPage: React.FC = () => {
       setOrderSearching(true);
       ordersApi
         .list({ search: orderQuery.trim(), limit: 6 })
-        .then((r) => setOrderResults(r.orders))
-        .catch(() => setOrderResults([]))
+        .then((r) => { setOrderResults(r.orders); setOrderSearchErr(null); })
+        .catch((e) => { setOrderResults([]); setOrderSearchErr(e); })
         .finally(() => setOrderSearching(false));
     }, 300);
     return () => clearTimeout(t);
@@ -983,13 +986,15 @@ export const TicketDetailPage: React.FC = () => {
             Searching…
           </div>
         )}
-        {!orderSearching &&
-          orderQuery.length >= 3 &&
-          orderResults.length === 0 && (
-            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
-              No orders found.
-            </div>
-          )}
+        {!orderSearching && orderQuery.length >= 3 && orderResults.length === 0 && (
+          <div className={styles.searchUnavailable}>
+            {!orderSearchErr
+              ? 'No orders found.'
+              : isDenied(orderSearchErr)
+                ? 'Your role cannot search orders — this is not "no such order".'
+                : `Couldn't search orders${errorMessage(orderSearchErr) ? ` — ${errorMessage(orderSearchErr)}` : ''}. This is not "no such order".`}
+          </div>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {orderResults.map((o) => (
             <div

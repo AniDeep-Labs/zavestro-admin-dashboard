@@ -14,7 +14,6 @@
   "src/pages/admin/DesignSampleRequestsPage.tsx": 1,
   "src/pages/admin/DistributionPage.tsx": 1,
   "src/pages/admin/EngineTesterPage.tsx": 2,
-  "src/pages/admin/HubDetailPage.tsx": 1,
   "src/pages/admin/ListingRequestsPage.tsx": 1,
   "src/pages/admin/NotificationBlastPage.tsx": 1,
   "src/pages/admin/OrderDetailPage.tsx": 1,
@@ -24,6 +23,6 @@
   "src/pages/admin/StaffManagementPage.tsx": 1,
   "src/pages/admin/SupportListPage.tsx": 1,
   "src/pages/admin/TechPackImportPage.tsx": 1,
-  "src/pages/admin/TicketDetailPage.tsx": 2,
+  "src/pages/admin/TicketDetailPage.tsx": 1,
   "src/pages/admin/canvas/CanvasEditor.tsx": 1
 }

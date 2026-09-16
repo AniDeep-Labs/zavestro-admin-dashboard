@@ -44,6 +44,9 @@ export const HubDetailPage: React.FC = () => {
   const [stockErr, setStockErr] = React.useState(false);
   // T2-24: recent orders + activity feed + deactivate confirmation
   const [recentOrders, setRecentOrders] = React.useState<HubRecentOrder[] | null>(null);
+  // [RC-3] Third instance in this file: `.catch(() => setRecentOrders([]))` rendered
+  // "No orders at this hub yet" — read by someone judging whether a hub is working.
+  const [recentOrdersErr, setRecentOrdersErr] = React.useState<unknown>(null);
   const [activity, setActivity] = React.useState<HubActivityItem[] | null>(null);
   // [RC-3] The initial load did something worse than swallow: it wrote an EMPTY ARRAY on
   // failure, so the panel stated "No activity recorded at this hub yet" — a claim about the
@@ -72,7 +75,9 @@ export const HubDetailPage: React.FC = () => {
       .stock({ hub_id: id })
       .then((r) => { setStock(r); setStockErr(false); })
       .catch(() => setStockErr(true));
-    hubsApi.recentOrders(id).then(setRecentOrders).catch(() => setRecentOrders([]));
+    hubsApi.recentOrders(id)
+      .then((o) => { setRecentOrders(o); setRecentOrdersErr(null); })
+      .catch(setRecentOrdersErr);
     hubsApi.activity(id)
       .then((a) => { setActivity(a); setActivityErr(null); })
       .catch(setActivityErr);
@@ -362,7 +367,13 @@ export const HubDetailPage: React.FC = () => {
   const ordersContent = (
     <div className={styles.card}>
       <h3 className={styles.sectionTitle}>Recent orders</h3>
-      {recentOrders === null ? (
+      {recentOrdersErr ? (
+        <div className={styles.empty}>
+          {isDenied(recentOrdersErr)
+            ? 'Your role cannot read this hub\u2019s orders — this is not "no orders here".'
+            : `Couldn't load this hub's orders${errorMessage(recentOrdersErr) ? ` — ${errorMessage(recentOrdersErr)}` : ''}. This is not "no orders here".`}
+        </div>
+      ) : recentOrders === null ? (
         <div className={styles.empty}>Loading orders…</div>
       ) : recentOrders.length === 0 ? (
         <div className={styles.empty}>No orders at this hub yet.</div>
