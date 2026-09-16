@@ -4,7 +4,7 @@ import { sampleJobsApi, hubsApi, designsApi, R2_PUBLIC_URL } from '../../api/adm
 import type { SampleJob, Hub, DesignSummary, DesignFabricRef } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
-import { Modal, AgeCell } from '../../components';
+import { Modal, AgeCell, PickerNote } from '../../components';
 import { Button } from '../../components/Button/Button';
 import { SampleProgress, isTerminalSample } from './SampleProgress';
 import base from './OrdersListPage.module.css';
@@ -47,7 +47,16 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
   }, [statusFilter]);
 
   React.useEffect(() => { load(); }, [load]);
-  React.useEffect(() => { hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {}); }, []);
+  // [RC-3] A sample cannot be requested against a design list or a hub list that came
+  // back empty because the call failed — and an empty picker gives no hint which it was.
+  const [hubsErr, setHubsErr] = React.useState<unknown>(null);
+  const [designsErr, setDesignsErr] = React.useState<unknown>(null);
+  const [pickerReload, setPickerReload] = React.useState(0);
+  const retryPickers = () => setPickerReload((n) => n + 1);
+
+  React.useEffect(() => {
+    hubsApi.list().then((r) => { setHubs(r.hubs); setHubsErr(null); }).catch(setHubsErr);
+  }, [pickerReload]);
 
   // Deep-link into the request modal, pre-filled.
   //   ?design=<id>                     — from a design's detail page
@@ -64,7 +73,7 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
     const fabricId = searchParams.get('fabric') ?? undefined;
     const hubId = searchParams.get('hub');
     setShowRequest(true);
-    designsApi.list().then(setDesigns).catch(() => {});
+    designsApi.list().then((d) => { setDesigns(d); setDesignsErr(null); }).catch(setDesignsErr);
     pickDesign(designId, fabricId);
     if (hubId) setReqHub(hubId);
     searchParams.delete('design');
@@ -76,7 +85,8 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
 
   const openRequest = () => {
     setShowRequest(true);
-    if (designs.length === 0) designsApi.list().then(setDesigns).catch(() => {});
+    if (designs.length === 0)
+      designsApi.list().then((d) => { setDesigns(d); setDesignsErr(null); }).catch(setDesignsErr);
   };
   const resetRequest = () => {
     setShowRequest(false);
@@ -255,6 +265,7 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
                 <option key={d.id} value={d.id}>{d.name} · {d.garment_type}</option>
               ))}
             </select>
+            <PickerNote error={designsErr} noun="designs" onRetry={retryPickers} />
           </div>
           <div className={s.reqField}>
             <label className={s.reqLabel}>Fabric</label>
@@ -275,6 +286,7 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
                 </option>
               ))}
             </select>
+            <PickerNote error={hubsErr} noun="hubs" onRetry={retryPickers} />
             {reqHubStock === 0 && (
               <div className={s.stockWarn}>
                 ⚠ This hub has 0m of the selected fabric — the sample will stall at cutting until stock is distributed here. You can still request it.

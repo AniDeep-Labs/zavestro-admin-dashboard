@@ -1,6 +1,8 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { analyticsApi, hubsApi, fitAnalyticsApi } from '../../api/adminApi';
+import { isDenied } from '../../components/EmptyState/asyncState';
+import { Alert } from '../../components/Alert/Alert';
 import type { AnalyticsData, Hub, FitAnalyticsData, RetentionData } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -73,14 +75,22 @@ export const AnalyticsPage: React.FC = () => {
   const [hubsLoading, setHubsLoading] = React.useState(false);
   const [hubsError, setHubsError] = React.useState('');
   const [retention, setRetention] = React.useState<RetentionData | null>(null);
+  const [retentionErr, setRetentionErr] = React.useState<unknown>(null);
+  const [analyticsErr, setAnalyticsErr] = React.useState<unknown>(null);
   const [retentionLoading, setRetentionLoading] = React.useState(true);
 
   const dismissToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
   const showToast = (type: ToastData['type'], title: string, msg?: string) =>
     setToasts(t => [...t, createToast(type, title, msg)]);
 
+  // [RC-3] This is the company's revenue and order numbers. A swallowed failure leaves the
+  // KPIs blank, which on a page headed "Analytics" reads as a quiet quarter rather than a
+  // failed request.
   React.useEffect(() => {
-    analyticsApi.get(PERIOD_MAP[period] ?? 'month').then(setAnalyticsData).catch(() => {});
+    analyticsApi
+      .get(PERIOD_MAP[period] ?? 'month')
+      .then((d) => { setAnalyticsData(d); setAnalyticsErr(null); })
+      .catch(setAnalyticsErr);
   }, [period]);
 
   React.useEffect(() => {
@@ -101,8 +111,11 @@ export const AnalyticsPage: React.FC = () => {
   React.useEffect(() => {
     setRetentionLoading(true);
     analyticsApi.retention()
-      .then(setRetention)
-      .catch(() => {})
+      .then((r) => { setRetention(r); setRetentionErr(null); })
+      // [RC-3] The empty state below says "once customers have delivered orders" — a
+      // statement about the business. A swallowed failure made the page say it out of an
+      // error, which is the defect this rule is named for.
+      .catch(setRetentionErr)
       .finally(() => setRetentionLoading(false));
   }, []);
 
@@ -149,6 +162,26 @@ export const AnalyticsPage: React.FC = () => {
       {/* Revenue */}
       {isKnownSection && validSection === 'revenue' && (
         <>
+          {/* [RC-3] Every KPI below falls back to `₹0` / `0` when the payload is missing,
+              so a failed request renders as ZERO REVENUE AND ZERO ORDERS on the company's
+              analytics page — the most confident possible way to be wrong. Say so before
+              the numbers, not after. */}
+          {analyticsErr != null && (
+            <Alert
+              type={isDenied(analyticsErr) ? 'info' : 'error'}
+              title={
+                isDenied(analyticsErr)
+                  ? 'Your role cannot read these figures'
+                  : "These figures couldn't be loaded"
+              }
+              message={
+                'The zeroes below are placeholders, not results. ' +
+                (isDenied(analyticsErr)
+                  ? 'Nothing here reflects the business.'
+                  : 'Reload before drawing anything from this page.')
+              }
+            />
+          )}
           <div className={styles.kpiGrid}>
             {[
               { label: 'Total GMV',        value: gmvKpi  ? fmtMoney(gmvKpi.value)  : '₹0', trend: gmvKpi?.trend  ?? '', up: gmvKpi?.up  ?? true },
@@ -302,6 +335,14 @@ export const AnalyticsPage: React.FC = () => {
       {validSection === 'retention' && (
         retentionLoading ? (
           <EmptyState message="Loading retention…" />
+        ) : retentionErr != null ? (
+          <EmptyState
+            message={
+              isDenied(retentionErr)
+                ? 'Your role cannot read retention — this is not an absence of repeat customers.'
+                : "Retention couldn't be loaded — this is not an absence of repeat customers."
+            }
+          />
         ) : !retention || retention.total_customers === 0 ? (
           <EmptyState message="Retention metrics will appear once customers have delivered orders." />
         ) : (

@@ -9,7 +9,7 @@ import { Input } from '../../components/Input/Input';
 import { Modal } from '../../components/Modal/Modal';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
-import { StatusBadge, PageHeader, EmptyState, NoHubAssigned, Alert } from '../../components';
+import { StatusBadge, PageHeader, EmptyState, NoHubAssigned, Alert, PickerNote } from '../../components';
 import { AgeCell } from '../../components/DataCells';
 import base from './OrdersListPage.module.css';
 import ds from './DistributionPage.module.css';
@@ -94,12 +94,27 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
       .finally(() => setLoading(false));
   }, [hubFilter]);
 
+  // [RC-3] One error slot per picker — a failed design list and a failed hub list are
+  // different facts and must not share a banner.
+  const [hubsErr, setHubsErr] = React.useState<unknown>(null);
+  const [designsErr, setDesignsErr] = React.useState<unknown>(null);
+  const [fabricsErr, setFabricsErr] = React.useState<unknown>(null);
+  const [pickerReload, setPickerReload] = React.useState(0);
+  const retryPickers = () => setPickerReload((n) => n + 1);
+
   React.useEffect(() => { load(); }, [load]);
   React.useEffect(() => {
-    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
+    // [RC-3] A picker that fails renders as a picker with nothing in it, which reads as
+    // "there are none" and sends someone hunting for a record they know exists. Keep the
+    // error and let the control say which kind of empty it is.
+    hubsApi.list().then((r) => { setHubs(r.hubs); setHubsErr(null); }).catch(setHubsErr);
     if (!isProc) {
-      designsApi.list({ status: 'published' }).then(setDesigns).catch(() => {});
-      fabricsApi.list({ active: true }).then(setFabrics).catch(() => {});
+      designsApi.list({ status: 'published' })
+        .then((d) => { setDesigns(d); setDesignsErr(null); })
+        .catch(setDesignsErr);
+      fabricsApi.list({ active: true })
+        .then((f) => { setFabrics(f); setFabricsErr(null); })
+        .catch(setFabricsErr);
       // [CM-19-5] Central availability, so an option can say whether it is fulfillable.
       // The dropdown listed every active fabric with no hint — including ones with no
       // stock at any hub and no central pool record at all. Per [PRC-16-2] a request for
@@ -115,7 +130,7 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
         .catch(() => {})
         .finally(() => setHubResolved(true));
     }
-  }, [isProc]);
+  }, [isProc, pickerReload]);
 
   // Prefill from the origin context (SampleVerification "ready to list": ?design=&fabric=).
   React.useEffect(() => {
@@ -385,6 +400,7 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
                 <option value="">Select…</option>
                 {designs.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.garment_type}</option>)}
               </select>
+              <PickerNote error={designsErr} noun="designs" onRetry={retryPickers} />
             </label>
             <label className={s.field}>Fabric
               <select value={fFabric} onChange={(e) => setFFabric(e.target.value)}>
@@ -408,6 +424,7 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
                     );
                   })}
               </select>
+              <PickerNote error={fabricsErr} noun="fabrics" onRetry={retryPickers} />
               {/* [CM-19-5] The label is easy to skim past; this is not. Requesting a
                   fabric with no central stock is accepted, marked shipped without a check,
                   and only fails at fulfil — so the warning belongs before the ask, not
@@ -437,6 +454,7 @@ export const ListingRequestsPage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({
             <option value="">All hubs</option>
             {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
           </select>
+          <PickerNote error={hubsErr} noun="hubs" onRetry={retryPickers} />
         </div>
       )}
 
