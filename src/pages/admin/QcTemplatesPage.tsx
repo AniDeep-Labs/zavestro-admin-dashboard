@@ -6,6 +6,7 @@ import type { ToastData } from '../../components/Toast/Toast';
 import { Button } from '../../components/Button/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { fmtDate } from '../../utils/date';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 import s from './QcTemplatesPage.module.css';
 // [CM-20-7] The rules and the row editor are shared with the other QC layer — the two are
 // meant to be comparable, so a rule drifting on one side changes what "the same check" means.
@@ -31,8 +32,13 @@ export const QcTemplatesPage: React.FC = () => {
     setToasts((t) => [...t, createToast(type, title, msg)]);
   const dismiss = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
 
+  // [RC-3] "No templates yet" is a claim that NOTHING in the catalogue has QC checks —
+  // an invitation to start authoring, offered to someone whose read simply failed.
+  const [templatesErr, setTemplatesErr] = React.useState<unknown>(null);
   const loadTemplates = React.useCallback(() => {
-    qcTemplatesApi.list().then(setTemplates).catch(() => {});
+    qcTemplatesApi.list()
+      .then((t) => { setTemplates(t); setTemplatesErr(null); })
+      .catch(setTemplatesErr);
   }, []);
 
   React.useEffect(() => {
@@ -41,7 +47,12 @@ export const QcTemplatesPage: React.FC = () => {
         setCategories(cats);
         setTemplates(tpls);
       })
-      .catch((e) => toast('error', 'Failed to load', e instanceof Error ? e.message : undefined))
+      .catch((e) => {
+        // [RC-3] A toast disappears; the panel keeps claiming "No templates yet" long after
+        // it has gone. The error is recorded so the panel itself says what happened.
+        setTemplatesErr(e);
+        toast('error', 'Failed to load', e instanceof Error ? e.message : undefined);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -200,7 +211,13 @@ export const QcTemplatesPage: React.FC = () => {
 
       <div className={s.card}>
         <h2 className={s.cardTitle}>Categories with a template</h2>
-        {templates.length === 0 ? (
+        {templates.length === 0 && templatesErr ? (
+          <p className={s.empty}>
+            {isDenied(templatesErr)
+              ? 'Your role cannot list QC templates — this is not "no templates exist".'
+              : `Couldn't load the QC templates${errorMessage(templatesErr) ? ` — ${errorMessage(templatesErr)}` : ''}. This is not "no templates exist" — do not author a duplicate.`}
+          </p>
+        ) : templates.length === 0 ? (
           <p className={s.empty}>No templates yet — pick a category above and add its checks.</p>
         ) : (
           <div>
