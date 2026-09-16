@@ -220,6 +220,7 @@
   font-size: 10.5px;
   color: var(--color-text-tertiary);
   font-variant-numeric: tabular-nums;
+}
 
 /* [DSG-9-7] Says what the fit signal is NOT. Quiet by design — it qualifies the numbers
    above it rather than competing with them. */
