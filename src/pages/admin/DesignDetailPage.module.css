@@ -204,3 +204,19 @@
 .historyTo {
   font-weight: var(--font-weight-medium);
 }
+
+/* [DSG-9-7] Says what the fit signal is NOT. Quiet by design — it qualifies the numbers
+   above it rather than competing with them. */
+.loopNote {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--color-border-light);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.loopNote a {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
