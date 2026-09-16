@@ -701,10 +701,22 @@ const AdminLayoutInner: React.FC = () => {
   // Nav badge counts (FABLE-ADMIN-UIUX §1.2) — "what needs me" per nav item.
   // Keyed by item path; the endpoint already returns only cap-allowed keys.
   const [navCounts, setNavCounts] = React.useState<NavCounts>({});
+  // [RC-3] No badge and "nothing needs you" look identical in a sidebar. A swallowed
+  // failure therefore rendered the most reassuring possible state — on every page — out of
+  // an error. This is the same distinction the zero-capability dashboard already makes:
+  // the nav is empty because nothing loaded, NOT because there is nothing to do.
+  //
+  // Only ever complains when the counts have NEVER arrived: this polls every 60s, and one
+  // failed tick against numbers already on screen is not worth a line in the shell.
+  const [countsErr, setCountsErr] = React.useState(false);
+  const [countsLoaded, setCountsLoaded] = React.useState(false);
   React.useEffect(() => {
     let alive = true;
     const load = () =>
-      navCountsApi.get().then((c) => { if (alive) setNavCounts(c); }).catch(() => {});
+      navCountsApi
+        .get()
+        .then((c) => { if (alive) { setNavCounts(c); setCountsLoaded(true); setCountsErr(false); } })
+        .catch(() => { if (alive) setCountsErr(true); });
     load();
     const t = setInterval(load, 60_000);
     return () => { alive = false; clearInterval(t); };
@@ -1018,6 +1030,11 @@ const AdminLayoutInner: React.FC = () => {
                 {section.items.map(renderItem)}
               </div>
             ))}
+            {countsErr && !countsLoaded && !collapsed && (
+              <span className={styles.navCountsUnknown}>
+                Counts unavailable — an empty badge here does not mean nothing needs you.
+              </span>
+            )}
           </nav>
         </div>
 

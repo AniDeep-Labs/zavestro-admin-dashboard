@@ -693,3 +693,13 @@
 .content:focus {
   outline: none;
 }
+
+/* [RC-3] The nav's own "I don't know" state. Quiet on purpose: it sits in the shell on
+   every page, so it must be readable without competing with the navigation itself. */
+.navCountsUnknown {
+  display: block;
+  margin: 10px 12px 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-text-tertiary);
+}

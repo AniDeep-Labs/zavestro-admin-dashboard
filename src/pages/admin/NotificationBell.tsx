@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isDenied } from '../../components/EmptyState/asyncState';
 import { adminInboxApi } from '../../api/adminApi';
 import type { AdminNotification } from '../../api/adminApi';
 import s from './NotificationBell.module.css';
@@ -33,8 +34,21 @@ export const NotificationBell: React.FC = () => {
   const [showAll, setShowAll] = React.useState(false); // T3-1 (S-5): view-all overflow
   const ref = React.useRef<HTMLDivElement>(null);
 
+  // [RC-3] "You're all caught up." is a statement about the business. A swallowed failure
+  // made the bell say it without knowing — the archetype this rule exists for, and here it
+  // sits in the shell on every page.
+  //
+  // The error is only kept when the inbox has never loaded. This polls every 30s, so a
+  // single blip on an inbox that HAS loaded should not replace a good list with a warning;
+  // the next tick fixes it. Only "we have never managed to read this" is worth saying.
+  const [loadErr, setLoadErr] = React.useState<unknown>(null);
+  const [everLoaded, setEverLoaded] = React.useState(false);
+
   const load = React.useCallback(() => {
-    adminInboxApi.list().then(setItems).catch(() => {});
+    adminInboxApi
+      .list()
+      .then((xs) => { setItems(xs); setEverLoaded(true); setLoadErr(null); })
+      .catch((e) => setLoadErr(e));
   }, []);
 
   React.useEffect(() => {
@@ -55,16 +69,24 @@ export const NotificationBell: React.FC = () => {
 
   const openItem = async (n: AdminNotification) => {
     if (!n.is_read) {
-      adminInboxApi.markRead(n.id).catch(() => {});
+      // Optimistic, but reverted if the server refused — otherwise the badge drops, the
+      // row greys out, and the notification comes back on the next poll with no
+      // explanation for why it returned.
       setItems((xs) => xs.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
+      adminInboxApi.markRead(n.id).catch(() => {
+        setItems((xs) => xs.map((x) => (x.id === n.id ? { ...x, is_read: false } : x)));
+      });
     }
     setOpen(false);
     if (n.deep_link && n.deep_link.startsWith('/admin')) navigate(n.deep_link);
   };
 
   const markAll = async () => {
-    await adminInboxApi.markAllRead().catch(() => {});
+    const before = items;
     setItems((xs) => xs.map((x) => ({ ...x, is_read: true })));
+    // Same reversal: "mark all read" that silently did not is worse than one that failed
+    // visibly, because the count is the only thing telling anyone there is work waiting.
+    await adminInboxApi.markAllRead().catch(() => setItems(before));
   };
 
   return (
@@ -80,7 +102,14 @@ export const NotificationBell: React.FC = () => {
             {unread > 0 && <button className={s.markAll} onClick={markAll}><UilCheck size={13} /> Mark all read</button>}
           </div>
           <div className={s.list}>
-            {items.length === 0 ? (
+            {loadErr != null && !everLoaded ? (
+              <div className={s.empty}>
+                {isDenied(loadErr)
+                  ? 'Your role cannot read the notification inbox — this is not an empty inbox.'
+                  : "Notifications couldn't be loaded — this is not an empty inbox."}
+                <button className={s.markAll} onClick={load}>Retry</button>
+              </div>
+            ) : items.length === 0 ? (
               <div className={s.empty}>You're all caught up.</div>
             ) : (
               (() => {
