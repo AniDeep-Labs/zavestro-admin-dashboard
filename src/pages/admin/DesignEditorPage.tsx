@@ -10,6 +10,7 @@ import { Modal } from '../../components';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useDirtyGuard } from '../../hooks/useDirtyGuard';
+import { useLocalDraft, clearDraft, draftAge, type StoredDraft } from '../../hooks/useLocalDraft';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import s from './DesignEditorPage.module.css';
 import { UilTimes, UilPlus, UilImage, UilUpload, UilFileAlt, UilCheck } from '@iconscout/react-unicons';
@@ -82,6 +83,43 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
   const dirty = !loading && baseline !== '' && baseline !== snap();
   useDirtyGuard(dirty);
 
+  // [DSG-10-4] The dirty guard prevents SILENT loss; it preserves nothing. A six-step
+  // wizard interrupted by a crash, by the 8h token expiring, or by "Discard & leave"
+  // clicked in haste used to lose everything typed. The draft is keyed per design so two
+  // tabs on two designs cannot overwrite each other.
+  const draftKey = designId ? `design:${designId}` : 'design:new';
+  const draft = useLocalDraft(draftKey, snap(), baseline, step, open && !loading);
+  const [draftDismissed, setDraftDismissed] = React.useState(false);
+
+  /** Replay a stored snapshot into the form. Mirrors the shape `snap()` writes. */
+  const restoreDraft = (d: StoredDraft) => {
+    try {
+      const v = JSON.parse(d.snapshot) as Record<string, unknown>;
+      setName((v.name as string) ?? '');
+      setCategoryId((v.categoryId as string) ?? '');
+      setGarmentType((v.garmentType as string) ?? '');
+      setGender((v.gender as string) ?? 'men');
+      setFitPreset((v.fitPreset as string) ?? '');
+      setMeters((v.meters as string) ?? '');
+      setMetersBySize((v.metersBySize as { size: string; meters: string }[]) ?? []);
+      setMatched((v.matched as string[]) ?? []);
+      setCaptureSet((v.captureSet as string[]) ?? []);
+      setPainPoints((v.painPoints as string[]) ?? []);
+      setTechRows((v.techRows as { k: string; v: string }[]) ?? []);
+      setRefKeys((v.refKeys as string[]) ?? []);
+      setSpecSheetKey((v.specSheetKey as string) ?? '');
+      setTags((v.tags as string[]) ?? []);
+      setStep(d.step ?? 0);
+      setDraftDismissed(true);
+      toast('success', 'Draft restored', 'Your unsaved changes are back. Nothing has been saved yet.');
+    } catch {
+      // A corrupt draft must not take the editor down with it.
+      draft.discard();
+      setDraftDismissed(true);
+      toast('error', 'That draft could not be read', 'It has been cleared; the saved version is shown.');
+    }
+  };
+
   const category = categories.find((c) => c.id === categoryId);
   const presetOptions = category?.available_fit_presets ?? [];
   // The fit→standard-chart binding is the LOWER-garment engine (jeans/trousers/…). Upper garments
@@ -105,6 +143,7 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
     if (!open) return;
     setStep(0);
     setFieldErrors({});
+    setDraftDismissed(false);
     setBaseline('');
     setLockedBy(null);
     if (designId) {
@@ -308,6 +347,10 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
         : await designsApi.create(input);
       if (publish) await designsApi.setStatus(saved.id, 'published');
       setBaseline(snap()); // clears the dirty guard so closing doesn't prompt
+      // [DSG-10-4] The work is on the server now, so the local draft is not just
+      // redundant — keeping it would offer to "recover" an older copy next time.
+      clearDraft(draftKey);
+      if (!isEdit) clearDraft('design:new'); // a new design also frees the shared new-key
       toast('success', publish ? 'Design published' : 'Saved as draft');
       setTimeout(() => { onSaved?.(); onClose(); }, 600);
     } catch (e) {
@@ -459,6 +502,49 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({ open, desi
                 'saves normally.'
               }
             />
+          )}
+
+          {/* [DSG-10-4] Offered, never applied automatically. Replaying a draft over a
+              design someone else has since edited would quietly destroy their change, so
+              this states what it is, how old it is, and — when the design has moved on —
+              says so plainly and leaves the choice with a person. */}
+          {draft.found && !draftDismissed && (
+            <div className={s.draftBanner}>
+              <Alert
+                type={draft.stale ? 'warning' : 'info'}
+                title={
+                  draft.stale
+                    ? 'Unsaved draft found — but this design has changed since'
+                    : 'Resume your unsaved draft?'
+                }
+                message={
+                  (draft.stale
+                    ? 'Someone saved a change to this design after this draft was left here. ' +
+                      'Restoring replaces what is on screen with your older copy, and loses theirs. '
+                    : 'Work you left unsaved in this browser. Nothing has been saved to the server. ') +
+                  `Left ${draftAge(draft.found.savedAt)}, on step ${(draft.found.step ?? 0) + 1}.`
+                }
+              />
+              <div className={s.draftActions}>
+                <button
+                  type="button"
+                  className={s.draftRestore}
+                  onClick={() => restoreDraft(draft.found as StoredDraft)}
+                >
+                  {draft.stale ? 'Restore anyway' : 'Restore it'}
+                </button>
+                <button
+                  type="button"
+                  className={s.draftDiscard}
+                  onClick={() => {
+                    draft.discard();
+                    setDraftDismissed(true);
+                  }}
+                >
+                  Discard draft
+                </button>
+              </div>
+            </div>
           )}
 
           <div className={s.wizBody}>
