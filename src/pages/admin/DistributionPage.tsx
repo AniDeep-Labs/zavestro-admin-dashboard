@@ -7,7 +7,7 @@ import type { Distribution, DesignSummary, DesignFabricRef, Hub, CentralStockRow
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { Modal } from '../../components/Modal/Modal';
-import { StatusBadge, PageHeader, EmptyState, Alert } from '../../components';
+import { StatusBadge, PageHeader, EmptyState, Alert, PickerNote } from '../../components';
 import { AgeCell } from '../../components/DataCells';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
@@ -93,6 +93,12 @@ export const DistributionPage: React.FC = () => {
   }, [hubFilter]);
 
   React.useEffect(() => { load(); }, [load]);
+  // [RC-3] The fabric picker joins the hub and design ones, which already keep their
+  // error. An empty fabric list on a DISTRIBUTION page reads as "this hub stocks nothing".
+  const [fabricsErr, setFabricsErr] = React.useState<unknown>(null);
+  const [pickerReload, setPickerReload] = React.useState(0);
+  const retryPickers = () => setPickerReload((n) => n + 1);
+
   React.useEffect(() => {
     hubsApi.list().then((r) => setHubs(r.hubs)).catch(setHubsErr);
     designsApi.list({ status: 'published' }).then(setDesigns).catch(setDesignsErr);
@@ -106,8 +112,10 @@ export const DistributionPage: React.FC = () => {
       st.forEach((r) => { m[`${r.hub_id}-${r.fabric_id}`] = r; });
       setHubStock(m);
     }).catch(() => {});
-    fabricsApi.list({ active: true }).then(setAllFabrics).catch(() => {});
-  }, []);
+    fabricsApi.list({ active: true })
+      .then((f) => { setAllFabrics(f); setFabricsErr(null); })
+      .catch(setFabricsErr);
+  }, [pickerReload]);
 
   // Deep-link from Cross-hub Stock "Create distribution →": open the push modal with the hub
   // preset and, for a plain restock, the fabric preselected (no design needed — G-29 close).
@@ -536,6 +544,11 @@ export const DistributionPage: React.FC = () => {
                 <option value="">{designId ? (fabrics.length ? 'Hub already stocks the SKU' : 'No matched fabrics') : 'Pick a design first'}</option>
                 {fabrics.map((f) => <option key={f.id} value={f.id}>{f.name}{f.code ? ` (${f.code})` : ''}</option>)}
               </select>
+            )}
+            {/* [RC-3] Only for the restock picker: the other branch is derived from the
+                chosen design and its own empty state already explains itself. */}
+            {restockMode && (
+              <PickerNote error={fabricsErr} noun="fabrics" onRetry={retryPickers} />
             )}
           </label>
           {fabricId && (
