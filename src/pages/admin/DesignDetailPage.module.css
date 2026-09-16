@@ -204,3 +204,20 @@
 .historyTo {
   font-weight: var(--font-weight-medium);
 }
+
+/* [DSG-10-2] The read-only chart states its unit per FIELD, matching the editor. The
+   caption used to say "(inches)" once for the whole table, which is the shape that let a
+   cm-reading tailor and an inch-reading engine disagree without either noticing. */
+.unitTag {
+  font-weight: var(--font-weight-regular);
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  text-transform: none;
+}
+
+.cmValue {
+  display: block;
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}

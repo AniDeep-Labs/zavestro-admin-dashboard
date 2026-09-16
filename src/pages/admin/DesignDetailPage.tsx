@@ -40,6 +40,7 @@ import { fmtDate, fmtDateTime } from '../../utils/date';
 import { isDenied } from '../../components/EmptyState/asyncState';
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
 import { SafeImg } from '../../components/Image/SafeImg';
+import { inchesWithCm, isMeasurementColumn } from '../../utils/units';
 
 export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boolean }> = ({ autoEdit, autoCutSheet }) => {
   const { id } = useParams<{ id: string }>();
@@ -534,14 +535,49 @@ export const DesignDetailPage: React.FC<{ autoEdit?: boolean; autoCutSheet?: boo
           return (
             <section className={s.panel}>
               <h3 className={s.panelTitle}>
-                Standard size chart <span className={dd.fabricMeta}>· {design.garment_type} · {design.fit_preset} (inches)</span>
+                Standard size chart{' '}
+                <span className={dd.fabricMeta}>
+                  · {design.garment_type} · {design.fit_preset}
+                </span>
               </h3>
               <div className={dd.chartScroll}>
                 <table className={dd.table}>
-                  <thead><tr>{cols.map((c) => <th key={c}>{c.replace(/_/g, ' ')}</th>)}</tr></thead>
+                  <thead>
+                    <tr>
+                      {cols.map((c) => {
+                        // Only a column that actually holds a measurement gets a unit. `size`
+                        // is a label, not a length — giving it one would invent a dimension.
+                        const numeric =
+                          isMeasurementColumn(c) &&
+                          fitChart.some((r) => inchesWithCm(r[c]) !== null);
+                        return (
+                          <th key={c}>
+                            {c.replace(/_/g, ' ')}
+                            {numeric && <span className={dd.unitTag}> in / cm</span>}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
                   <tbody>
                     {fitChart.map((row, i) => (
-                      <tr key={i}>{cols.map((c) => <td key={c}>{String(row[c] ?? '—')}</td>)}</tr>
+                      <tr key={i}>
+                        {cols.map((c) => {
+                          const both = isMeasurementColumn(c) ? inchesWithCm(row[c]) : null;
+                          return (
+                            <td key={c}>
+                              {both ? (
+                                <>
+                                  {both.inches}
+                                  <span className={dd.cmValue}>{both.cm}</span>
+                                </>
+                              ) : (
+                                String(row[c] ?? '—')
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
                     ))}
                   </tbody>
                 </table>
