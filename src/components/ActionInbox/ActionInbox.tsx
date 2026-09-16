@@ -160,8 +160,10 @@ export const ActionInbox: React.FC = () => {
           </p>
         </div>
       )}
-      {/* A refresh that fails after a good load leaves numbers that LOOK current. */}
-      {counts !== null && Boolean(err) && !hasNoRole && (
+      {/* A refresh that fails after a good load leaves numbers that LOOK current.
+          Reaching here means `counts` is non-null — both null cases returned above — so
+          `err` here can only be a FAILED REFRESH, never a failed first load. */}
+      {Boolean(err) && !hasNoRole && (
         <div className={styles.unknown}>
           These counts are from an earlier check and may be out of date.
         </div>
