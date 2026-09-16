@@ -13,6 +13,7 @@ import { StatusBadge } from '../../components';
 import { Can } from '../../components/Can/Can';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 
 const url = (k?: string) => (k && R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${k}` : '');
 
@@ -61,9 +62,15 @@ export const FabricAtHubPage: React.FC = () => {
 
   // T2-13: per-lot wash-test / pre-shrunk QC.
   const [lots, setLots] = React.useState<FabricLots | null>(null);
+  // [RC-3] The whole Dye-lots section is rendered behind `lots.lots.length > 0`, so a failed
+  // read made it VANISH — and this is the section that says whether a shrink-prone cotton
+  // has been wash-tested before it is cut. An absent panel reads as "no lots to check".
+  const [lotsErr, setLotsErr] = React.useState<unknown>(null);
   const loadLots = React.useCallback(() => {
     if (!fabricId) return;
-    fabricsApi.lots(fabricId).then(setLots).catch(() => {});
+    fabricsApi.lots(fabricId)
+      .then((l) => { setLots(l); setLotsErr(null); })
+      .catch(setLotsErr);
   }, [fabricId]);
   React.useEffect(() => { loadLots(); }, [loadLots]);
 
@@ -342,7 +349,17 @@ export const FabricAtHubPage: React.FC = () => {
       </div>
 
       {/* T2-13: per-lot wash-test / pre-shrunk QC + shrink-risk before cutting. */}
-      {lots && lots.lots.length > 0 && (
+      {Boolean(lotsErr) && (
+        <section className={s.lotsSection}>
+          <h3 className={s.sectionTitle}>Dye-lots</h3>
+          <p className={s.sectionHint}>
+            {isDenied(lotsErr)
+              ? 'Your role cannot read dye-lots — this is not "no lots recorded". Do not treat this cloth as wash-tested.'
+              : `Couldn't load the dye-lots${errorMessage(lotsErr) ? ` — ${errorMessage(lotsErr)}` : ''}. This is not "no lots recorded" — do not treat this cloth as wash-tested.`}
+          </p>
+        </section>
+      )}
+      {!lotsErr && lots && lots.lots.length > 0 && (
         <section className={s.lotsSection}>
           <h3 className={s.sectionTitle}>
             Dye-lots{' '}
