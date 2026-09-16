@@ -1,4 +1,5 @@
 import React from 'react';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 import { useNavigate, Link } from 'react-router-dom';
 import { designAnalyticsApi, hubsApi, designsApi } from '../../api/adminApi';
 import type {
@@ -40,10 +41,18 @@ export const DesignAnalyticsPage: React.FC = () => {
     setToasts((t) => [...t, createToast(type, title, msg)]);
 
   // filter option lists (once)
+  // [RC-3] These two FILTER an analytics page. An empty filter list reads as "there are no
+  // hubs / no categories", and worse, it silently narrows what the reader believes they are
+  // looking at — they think they have seen everything.
+  const [hubsErr, setHubsErr] = React.useState<unknown>(null);
+  const [catsErr, setCatsErr] = React.useState<unknown>(null);
+  const [pickerReload, setPickerReload] = React.useState(0);
+  const retryPickers = () => setPickerReload((n) => n + 1);
+
   React.useEffect(() => {
-    hubsApi.list().then((r) => setHubs(r.hubs)).catch(() => {});
-    designsApi.garmentCategories().then(setCategories).catch(() => {});
-  }, []);
+    hubsApi.list().then((r) => { setHubs(r.hubs); setHubsErr(null); }).catch(setHubsErr);
+    designsApi.garmentCategories().then((c) => { setCategories(c); setCatsErr(null); }).catch(setCatsErr);
+  }, [pickerReload]);
 
   React.useEffect(() => {
     setLoading(true);
@@ -103,10 +112,12 @@ export const DesignAnalyticsPage: React.FC = () => {
           <option value="">All garment types</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+          <PickerNote error={catsErr} noun="garment types" onRetry={retryPickers} />
         <select className={local.sel} value={hubId} onChange={(e) => setHubId(e.target.value)}>
           <option value="">All hubs</option>
           {hubs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
         </select>
+          <PickerNote error={hubsErr} noun="hubs" onRetry={retryPickers} />
         <label className={local.dateGroup}>
           <span className={local.dateLbl}>From</span>
           <input className={local.dateField} type="date" value={startDate} max={endDate || undefined} onChange={(e) => setStartDate(e.target.value)} aria-label="From date" />
