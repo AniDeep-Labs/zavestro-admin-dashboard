@@ -21,6 +21,7 @@ import type {
 } from "../../api/adminApi";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
+import { PickerNote } from "../../components/EmptyState/PickerNote";
 import { Textarea } from "../../components/Textarea";
 import { Modal } from "../../components/Modal/Modal";
 import { Spinner } from "../../components/Spinner";
@@ -135,11 +136,16 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
   const [hubs, setHubs] = React.useState<Hub[]>([]);
   const [loading, setLoading] = React.useState(true);
   // T1-23: single-source cost-floor constants from the server (fallback to the defaults).
+  // [RC-3] T1-23 single-sourced these from the server so the cost floor would stop being
+  // two hardcoded constants — and a swallowed failure restored exactly those constants,
+  // silently. Every margin on this page is then computed against a floor that is not the
+  // business's floor, and "▼ priced ₹80 below cost" is a sentence a merchant acts on.
   const [money, setMoney] = React.useState({ make: MAKE_COST, overhead: OVERHEAD });
+  const [moneyErr, setMoneyErr] = React.useState<unknown>(null);
   React.useEffect(() => {
     fetchMoneyConfig()
-      .then((c) => setMoney({ make: c.listing_make_cost, overhead: c.listing_overhead }))
-      .catch(() => {});
+      .then((c) => { setMoney({ make: c.listing_make_cost, overhead: c.listing_overhead }); setMoneyErr(null); })
+      .catch(setMoneyErr);
   }, []);
   const [editor, setEditor] = React.useState<Editor | null>(null);
   // T2-27 (CM-1): status tabs. T2-27 (CM-2): live hub stock for the chosen fabric while picking.
@@ -198,20 +204,28 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
     fabricsApi.stock({ hub_id: editorHub }).then((rows) => { if (alive) setEditorStock(rows); }).catch(() => { if (alive) setEditorStock([]); });
     return () => { alive = false; };
   }, [editorHub]);
+  // [RC-3] Three pickers that build a listing. An empty one reads as "there are none",
+  // and a CM cannot publish against a design list that quietly failed to arrive.
+  const [designsErr, setDesignsErr] = React.useState<unknown>(null);
+  const [fabricsErr, setFabricsErr] = React.useState<unknown>(null);
+  const [hubsErr, setHubsErr] = React.useState<unknown>(null);
+  const [pickerReload, setPickerReload] = React.useState(0);
+  const retryPickers = () => setPickerReload((n) => n + 1);
+
   React.useEffect(() => {
     designsApi
       .list({ status: "published" })
-      .then(setDesigns)
-      .catch(() => {});
+      .then((d) => { setDesigns(d); setDesignsErr(null); })
+      .catch(setDesignsErr);
     fabricsApi
       .list({ active: true })
-      .then(setFabrics)
-      .catch(() => {});
+      .then((f) => { setFabrics(f); setFabricsErr(null); })
+      .catch(setFabricsErr);
     hubsApi
       .list()
-      .then((r) => setHubs(r.hubs))
-      .catch(() => {});
-  }, []);
+      .then((r) => { setHubs(r.hubs); setHubsErr(null); })
+      .catch(setHubsErr);
+  }, [pickerReload]);
 
   const openFromSample = (r: ReadyToListSample) =>
     setEditor({
@@ -712,7 +726,15 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                     const m = marginPct(Number(l.price), floor);
                     const cls = Number(l.price) < floor ? s.marginBad : m < 25 ? s.marginThin : s.marginOk;
                     return (
-                      <div className={cls} title={`Cost floor ≈ ₹${floor} (fabric + make ₹${money.make} + overhead ₹${money.overhead})`}>
+                      <div
+                        className={cls}
+                        title={
+                          `Cost floor ≈ ₹${floor} (fabric + make ₹${money.make} + overhead ₹${money.overhead})` +
+                          (moneyErr != null
+                            ? ' — UNCONFIRMED: the make/overhead configuration could not be read, so this floor uses this console\'s fallback constants.'
+                            : '')
+                        }
+                      >
                         {Number(l.price) < floor ? `▼ priced ₹${floor - Number(l.price)} below cost` : `margin ${m}%`}
                       </div>
                     );
@@ -858,6 +880,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                       </option>
                     ))}
                   </select>
+                  <PickerNote error={designsErr} noun="designs" onRetry={retryPickers} />
                 </label>
                 <label className={s.field}>
                   Fabric
@@ -874,6 +897,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                       </option>
                     ))}
                   </select>
+                  <PickerNote error={fabricsErr} noun="fabrics" onRetry={retryPickers} />
                 </label>
                 <label className={s.field}>
                   Hub
@@ -890,6 +914,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                       </option>
                     ))}
                   </select>
+                  <PickerNote error={hubsErr} noun="hubs" onRetry={retryPickers} />
                 </label>
               </>
             ) : (

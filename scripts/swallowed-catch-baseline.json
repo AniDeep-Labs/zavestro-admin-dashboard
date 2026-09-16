@@ -28,7 +28,6 @@
   "src/pages/admin/HubDetailPage.tsx": 1,
   "src/pages/admin/InvoicesListPage.tsx": 2,
   "src/pages/admin/ListingRequestsPage.tsx": 1,
-  "src/pages/admin/ListingsManagePage.tsx": 4,
   "src/pages/admin/ListingsOverviewPage.tsx": 1,
   "src/pages/admin/NotificationBell.tsx": 3,
   "src/pages/admin/OrderDetailPage.tsx": 1,
