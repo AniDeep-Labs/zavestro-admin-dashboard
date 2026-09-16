@@ -334,3 +334,16 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
 }
+
+/* [DSG-9-4] Deliberately the same stamp as the cut sheet: a border and weight rather than
+   a colour, so it reads as a stamp on the document and survives a greyscale print. */
+.calibrationStamp {
+  display: block;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 2px solid var(--color-text);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  line-height: 1.45;
+}
