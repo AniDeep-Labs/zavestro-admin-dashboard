@@ -14,6 +14,7 @@ import { Modal } from "../../components/Modal/Modal";
 import { Spinner } from "../../components/Spinner";
 import styles from "./AppConfigPage.module.css";
 import catCss from "./CategoriesPage.module.css";
+import { isDenied, errorMessage } from "../../components/EmptyState/asyncState";
 import {
   UilTimes,
   UilUpload,
@@ -73,10 +74,15 @@ export const CategoriesPage: React.FC = () => {
   }, []);
   React.useEffect(load, [load]);
 
-  // Garment types power the optional "size chart" link. A failure here is non-fatal
-  // (the dropdown just stays empty) — categories still load and save.
+  // [RC-3] The old note here said a failure was "non-fatal — the dropdown just stays
+  // empty". That was wrong: `garmentName()` also drives the "No fit model" chip, so an
+  // empty list makes EVERY category claim it carries no measurement model. One failed
+  // request, and the page asserts the whole taxonomy is unmapped.
+  const [garmentCatsErr, setGarmentCatsErr] = React.useState<unknown>(null);
   React.useEffect(() => {
-    designsApi.garmentCategories().then(setGarmentCats).catch(() => setGarmentCats([]));
+    designsApi.garmentCategories()
+      .then((g) => { setGarmentCats(g); setGarmentCatsErr(null); })
+      .catch(setGarmentCatsErr);
   }, []);
   const garmentName = (id: string | null | undefined) =>
     id ? (garmentCats.find((g) => g.id === id)?.name ?? null) : null;
@@ -280,7 +286,9 @@ export const CategoriesPage: React.FC = () => {
                   "Legacy" says superseded, and pointing at a mapped twin that does not exist
                   is advice that cannot be followed. The badge now states the fact rather than
                   an inference about why. */}
-              {!garmentName(cat.garment_category_id) && (
+              {/* Suppressed while the garment types are unknown: the chip would be a
+                  guess about every row. The note above says why instead. */}
+              {!garmentCatsErr && !garmentName(cat.garment_category_id) && (
                 <span
                   className={catCss.unmappedChip}
                   title="Not mapped to a garment type, so it carries no measurement model — it can hold a listing but cannot drive a fit. Map it below if a garment type suits it; if none does, the fit engine has to gain one first."
@@ -364,6 +372,14 @@ export const CategoriesPage: React.FC = () => {
             Main categories &amp; their sub-categories, each with a cover icon. Shown in the
             customer app’s “Shop by Category” (drag order = display order).
           </p>
+          {Boolean(garmentCatsErr) && (
+            <p className={catCss.intro}>
+              ⚠{' '}
+              {isDenied(garmentCatsErr)
+                ? 'Your role cannot read garment types, so whether a category has a fit model is unknown here — the "No fit model" badge is hidden rather than guessed.'
+                : `Garment types didn't load${errorMessage(garmentCatsErr) ? ` — ${errorMessage(garmentCatsErr)}` : ''}, so whether a category has a fit model is unknown here. The "No fit model" badge is hidden rather than guessed.`}
+            </p>
+          )}
         </div>
         <Can cap="catalog:write">
           <button className={styles.addBtn} onClick={() => openCreate(null)}>
