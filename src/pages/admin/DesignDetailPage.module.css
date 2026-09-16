@@ -204,3 +204,36 @@
 .historyTo {
   font-weight: var(--font-weight-medium);
 }
+
+/* [DSG-10-2] The read-only chart states its unit per FIELD, matching the editor. The
+   caption used to say "(inches)" once for the whole table, which is the shape that let a
+   cm-reading tailor and an inch-reading engine disagree without either noticing. */
+.unitTag {
+  font-weight: var(--font-weight-regular);
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  text-transform: none;
+}
+
+.cmValue {
+  display: block;
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* [DSG-9-7] Says what the fit signal is NOT. Quiet by design — it qualifies the numbers
+   above it rather than competing with them. */
+.loopNote {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--color-border-light);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.loopNote a {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}

@@ -15,6 +15,8 @@ import kpi from './CodReconciliationPage.module.css';
 import iv from './InvoicesListPage.module.css';
 import { UilAngleLeft, UilAngleRight, UilImport, UilPlus, UilRefresh, UilSearch, UilTimes, UilEye } from '@iconscout/react-unicons';
 import { money } from '../../utils/money';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 
 // ACP-2 [KA8-15]: one money formatter for the whole admin (src/utils/money.ts).
 // This page declared its own; five pages did, every one different, producing four
@@ -52,6 +54,10 @@ export const InvoicesListPage: React.FC = () => {
   const [showGenerate, setShowGenerate] = React.useState(false);
   const [orderSearch, setOrderSearch] = React.useState('');
   const [orderResults, setOrderResults] = React.useState<AdminOrder[]>([]);
+  // [RC-3] "No orders found" decides whether an invoice is raised at all.
+  const [orderErr, setOrderErr] = React.useState<unknown>(null);
+  const [hubsErr, setHubsErr] = React.useState<unknown>(null);
+  const hubsRetry = React.useRef<() => void>(() => {});
   const [generatingId, setGeneratingId] = React.useState<string | null>(null);
   const debouncedOrderSearch = useDebounce(orderSearch, 350);
 
@@ -90,13 +96,19 @@ export const InvoicesListPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [debouncedSearch, statusFilter, hubFilter, month, page, refreshTick]);
 
-  React.useEffect(() => { hubsApi.list().then(r => setHubs(r.hubs)).catch(() => {}); }, []);
+  React.useEffect(() => {
+    const loadHubs = () => hubsApi.list()
+      .then(r => { setHubs(r.hubs); setHubsErr(null); })
+      .catch(e => setHubsErr(e));
+    loadHubs();
+    hubsRetry.current = loadHubs;
+  }, []);
 
   React.useEffect(() => {
     if (!showGenerate || debouncedOrderSearch.trim().length < 2) { setOrderResults([]); return; }
     ordersApi.list({ search: debouncedOrderSearch.trim(), limit: 6 })
-      .then(r => setOrderResults(r.orders))
-      .catch(() => {});
+      .then(r => { setOrderResults(r.orders); setOrderErr(null); })
+      .catch(e => { setOrderResults([]); setOrderErr(e); });
   }, [showGenerate, debouncedOrderSearch]);
 
   const handleGenerate = async (order: AdminOrder) => {
@@ -207,6 +219,7 @@ export const InvoicesListPage: React.FC = () => {
           <option value="">All hubs</option>
           {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
         </select>
+        <PickerNote error={hubsErr} noun="hubs" onRetry={() => hubsRetry.current()} />
         <select className={ds.hubSel} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="">All statuses</option>
           <option value="generated">Generated</option>
@@ -327,7 +340,14 @@ export const InvoicesListPage: React.FC = () => {
                   ))}
                 </div>
               )}
-              {debouncedOrderSearch.trim().length >= 2 && orderResults.length === 0 && (
+              {debouncedOrderSearch.trim().length >= 2 && orderResults.length === 0 && Boolean(orderErr) && (
+                <div className={iv.searchUnavailable}>
+                  {isDenied(orderErr)
+                    ? 'Your role cannot search orders — this is not "no such order".'
+                    : `Couldn't search orders${errorMessage(orderErr) ? ` — ${errorMessage(orderErr)}` : ''}. This is not "no such order".`}
+                </div>
+              )}
+              {debouncedOrderSearch.trim().length >= 2 && orderResults.length === 0 && !orderErr && (
                 <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)', marginTop: 8 }}>
                   No orders found for "{orderSearch}".
                 </div>

@@ -16,6 +16,7 @@ import { startableFrom, assetReuse, type BannerAssetSource } from './canvas/bann
 import { emptyCanvas, newId, DEFAULT_ELEMENT, type CanvasDoc } from './canvas/canvasTypes';
 import { UilEye, UilEyeSlash, UilPen, UilPlus, UilTrashAlt } from "@iconscout/react-unicons";
 import { SafeImg } from '../../components/Image/SafeImg';
+import { PickerNote } from '../../components/EmptyState/PickerNote';
 // [CM-22-8] The shared renderer now lives in its own module; this page is a consumer of it
 // like the Collection Studio is, rather than the file both of them reach into.
 import { BannerHero, DeviceShell } from './banner/BannerHero';
@@ -172,11 +173,19 @@ function BannerForm({
   // (Kurta/Kurtas) and the only distinguishing number pointing the wrong way is how a hero
   // gets linked to a shell that the storefront is about to stop filling.
   const [catOpts, setCatOpts] = React.useState<{ slug: string; name: string; count: number; legacy: boolean }[]>([]);
+  // [RC-3] These two feed the banner's DESTINATION. A silently empty list makes the CM
+  // choose from nothing — and the "not in the current list" warning below actively blamed
+  // their slug ("archived or renamed") for what was really a failed request.
+  const [optsReload, setOptsReload] = React.useState(0);
+  const [collErr, setCollErr] = React.useState<unknown>(null);
+  const [catErr, setCatErr] = React.useState<unknown>(null);
+
   React.useEffect(() => {
     collectionsApi.list({ status: 'active' })
       .then((r) => setCollOpts(r.collections.filter((c) => c.slug)
         .map((c) => ({ slug: c.slug, name: c.name, count: c.products ?? 0 }))))
-      .catch(() => {});
+      .then(() => setCollErr(null))
+      .catch(setCollErr);
     categoriesAdminApi.list()
       .then((cs) => setCatOpts(cs.filter((c) => c.is_active && c.slug)
         .map((c) => ({
@@ -187,8 +196,9 @@ function BannerForm({
         }))
         // Mapped categories first: the one a CM should be choosing is the one they reach.
         .sort((a, bb) => Number(a.legacy) - Number(bb.legacy) || a.name.localeCompare(bb.name))))
-      .catch(() => {});
-  }, []);
+      .then(() => setCatErr(null))
+      .catch(setCatErr);
+  }, [optsReload]);
   // The CTA-destination control: a real-slug picker for collection/category, free text for url.
   // The unknown current slug (e.g. an archived collection) is preserved as an extra option so
   // editing an old banner never silently drops its link.
@@ -199,6 +209,7 @@ function BannerForm({
     const opts = linkType === 'collection' ? collOpts : catOpts;
     const known = opts.some((o) => o.slug === linkValue);
     return (
+      <>
       <select className={b.input} value={linkValue} onChange={(e) => setLinkValue(e.target.value)}>
         <option value="">{linkType === 'category' ? 'All categories' : 'Select a collection…'}</option>
         {!known && linkValue && <option value={linkValue}>{linkValue} (current)</option>}
@@ -209,6 +220,12 @@ function BannerForm({
           </option>
         ))}
       </select>
+        <PickerNote
+          error={linkType === 'collection' ? collErr : catErr}
+          noun={linkType === 'collection' ? 'collections' : 'categories'}
+          onRetry={() => setOptsReload((n) => n + 1)}
+        />
+      </>
     );
   })();
 
@@ -241,6 +258,12 @@ function BannerForm({
     const opts = linkType === 'collection' ? collOpts : catOpts;
     const target = opts.find((o) => o.slug === linkValue);
     if (!target) {
+      // [RC-3] "archived or renamed" is a claim about the DATA. If the list never loaded,
+      // the slug may be perfectly valid and this sentence sends the CM to fix nothing.
+      const listErr = linkType === 'collection' ? collErr : catErr;
+      if (listErr) {
+        return `The ${linkType} list didn't load, so “${linkValue}” could not be checked — this does not mean it is missing.`;
+      }
       return `“${linkValue}” is not in the current ${linkType} list — it may have been archived or renamed.`;
     }
     // [CM-23-1] Checked BEFORE the count, because the count argues the wrong way. The legacy

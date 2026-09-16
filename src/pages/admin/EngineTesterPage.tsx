@@ -580,6 +580,21 @@ export const EngineTesterPage: React.FC = () => {
         {/* ── Result panel ── */}
         <div className={`${s.panel} ${s.resultPanel}`}>
           <h3 className={s.panelTitle}>Finished garment spec</h3>
+          {/* [DSG-9-4 / DSG-L1] What authority these numbers carry.
+              [DSG-9-5] put this on the cut sheet. The tester needs it for the same reason and
+              was the only other surface rendering engine output: this panel is titled
+              "Finished garment spec" and promises "the cut-to measurements appear here", which
+              is an implication of engine-driven cutting — and `ENGINE_DRIVES_CUTS` is off
+              precisely so that never happens before the sew test passes.
+              Same rule as the cut sheet: the flag is SERVED (app-config, changeable without a
+              deploy), and an ABSENT answer is treated as NOT live. An unknown must never read
+              as approval. */}
+          {result && result.engine_drives_cuts !== true && (
+            <div className={s.calibrationStamp}>
+              NOT AUTHORISED FOR CUTTING — engine-driven cutting is not live. These finished
+              measurements are for calibration review only; cut from the approved pattern.
+            </div>
+          )}
           {!result ? (
             <div className={s.empty}>
               <div className={s.emptyIcon}><UilRulerCombined size={26} /></div>

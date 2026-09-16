@@ -150,7 +150,14 @@ export const FabricPdpPage: React.FC<{ mode?: 'procurement' | 'design' }> = ({ m
       setPush(null);
       loadFabric();
       // id is guaranteed non-null by the early return above; refresh the ledger.
-      fabricsApi.movements(id).then(setMovements).catch(() => {});
+      // [RC-3] The page already distinguishes a failed ledger read from an empty one
+      // (line ~398) — this REFRESH, straight after cloth was pushed, did not. A silent
+      // failure here leaves the ledger showing the state from BEFORE the push, which is
+      // the one moment it is guaranteed to be wrong.
+      fabricsApi
+        .movements(id)
+        .then((m) => { setMovements(m); setMovementsErr(false); })
+        .catch(() => setMovementsErr(true));
     } catch (e) {
       toast('error', 'Distribute failed', e instanceof Error ? e.message : undefined);
     } finally {

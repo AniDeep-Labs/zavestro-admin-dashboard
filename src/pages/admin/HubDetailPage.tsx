@@ -9,6 +9,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { PageHeader, Tabs } from '../../components';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import { useBreadcrumbTitle } from '../../contexts/BreadcrumbContext';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 import styles from './HubDetailPage.module.css';
 import { UilAngleLeft, UilPlus, UilPower, UilSave } from "@iconscout/react-unicons";
 import { rowActivation } from "../../utils/rowActivation"; // [DSA-45-1]
@@ -32,6 +33,10 @@ export const HubDetailPage: React.FC = () => {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
   // G-41: real staff roster (replacing the dead "Recent Orders" placeholder)
   const [roster, setRoster] = React.useState<StaffMember[] | null>(null);
+  // [RC-3] Same manufactured-empty shape as the activity feed: a failed roster read wrote
+  // `[]`, so the field offered to send someone to Staff Management to appoint a manager
+  // this hub may already have.
+  const [rosterErr, setRosterErr] = React.useState<unknown>(null);
   // W-18: per-hub fabric stock for the Capacity & Stock tab.
   const [stock, setStock] = React.useState<FabricStockRow[] | null>(null);
   // [RC-3 class] `.catch(() => setStock([]))` rendered "No fabric stock recorded at this
@@ -39,7 +44,14 @@ export const HubDetailPage: React.FC = () => {
   const [stockErr, setStockErr] = React.useState(false);
   // T2-24: recent orders + activity feed + deactivate confirmation
   const [recentOrders, setRecentOrders] = React.useState<HubRecentOrder[] | null>(null);
+  // [RC-3] Third instance in this file: `.catch(() => setRecentOrders([]))` rendered
+  // "No orders at this hub yet" — read by someone judging whether a hub is working.
+  const [recentOrdersErr, setRecentOrdersErr] = React.useState<unknown>(null);
   const [activity, setActivity] = React.useState<HubActivityItem[] | null>(null);
+  // [RC-3] The initial load did something worse than swallow: it wrote an EMPTY ARRAY on
+  // failure, so the panel stated "No activity recorded at this hub yet" — a claim about the
+  // hub's history, manufactured from a failed request.
+  const [activityErr, setActivityErr] = React.useState<unknown>(null);
   const [confirmDeactivate, setConfirmDeactivate] = React.useState(false);
   const [statusSaving, setStatusSaving] = React.useState(false);
 
@@ -56,13 +68,19 @@ export const HubDetailPage: React.FC = () => {
       .then(h => { setHub(h); setForm(h); })
       .catch(e => showToast('error', 'Failed to load hub', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-    staffApi.list(id).then(setRoster).catch(() => setRoster([]));
+    staffApi.list(id)
+      .then((r) => { setRoster(r); setRosterErr(null); })
+      .catch(setRosterErr);
     fabricsApi
       .stock({ hub_id: id })
       .then((r) => { setStock(r); setStockErr(false); })
       .catch(() => setStockErr(true));
-    hubsApi.recentOrders(id).then(setRecentOrders).catch(() => setRecentOrders([]));
-    hubsApi.activity(id).then(setActivity).catch(() => setActivity([]));
+    hubsApi.recentOrders(id)
+      .then((o) => { setRecentOrders(o); setRecentOrdersErr(null); })
+      .catch(setRecentOrdersErr);
+    hubsApi.activity(id)
+      .then((a) => { setActivity(a); setActivityErr(null); })
+      .catch(setActivityErr);
   }, [id, isNew]);
 
   // [SHL-6-4] "What is this hub's situation?" answered on the hub's own page.
@@ -116,7 +134,9 @@ export const HubDetailPage: React.FC = () => {
       );
       setHub(updated); setForm(updated);
       showToast('success', `Hub ${updated.status.toLowerCase()}`);
-      hubsApi.activity(hub.id).then(setActivity).catch(() => {});
+      hubsApi.activity(hub.id)
+        .then((a) => { setActivity(a); setActivityErr(null); })
+        .catch(setActivityErr);
     } catch (e) {
       showToast('error', 'Failed', e instanceof Error ? e.message : undefined);
     } finally { setStatusSaving(false); setConfirmDeactivate(false); }
@@ -232,7 +252,13 @@ export const HubDetailPage: React.FC = () => {
         {/* T2-24: manager is a select over the hub's hub_manager staff (no more free-text). */}
         <div className={styles.formField}>
           <label className={styles.metaLabel}>Hub Manager</label>
-          {roster === null ? (
+          {rosterErr ? (
+            <span className={styles.fieldHint}>
+              {isDenied(rosterErr)
+                ? 'Your role cannot read this hub\u2019s staff — this is not "no manager here".'
+                : `Couldn't load this hub's staff${errorMessage(rosterErr) ? ` — ${errorMessage(rosterErr)}` : ''}. This is not "no manager here".`}
+            </span>
+          ) : roster === null ? (
             <input type="text" className={styles.fieldInput} value="Loading…" readOnly disabled />
           ) : managers.length === 0 ? (
             <span className={styles.fieldHint}>
@@ -341,7 +367,13 @@ export const HubDetailPage: React.FC = () => {
   const ordersContent = (
     <div className={styles.card}>
       <h3 className={styles.sectionTitle}>Recent orders</h3>
-      {recentOrders === null ? (
+      {recentOrdersErr ? (
+        <div className={styles.empty}>
+          {isDenied(recentOrdersErr)
+            ? 'Your role cannot read this hub\u2019s orders — this is not "no orders here".'
+            : `Couldn't load this hub's orders${errorMessage(recentOrdersErr) ? ` — ${errorMessage(recentOrdersErr)}` : ''}. This is not "no orders here".`}
+        </div>
+      ) : recentOrders === null ? (
         <div className={styles.empty}>Loading orders…</div>
       ) : recentOrders.length === 0 ? (
         <div className={styles.empty}>No orders at this hub yet.</div>
@@ -368,7 +400,13 @@ export const HubDetailPage: React.FC = () => {
   const activityContent = (
     <div className={styles.card}>
       <h3 className={styles.sectionTitle}>Activity</h3>
-      {activity === null ? (
+      {activityErr ? (
+        <div className={styles.empty}>
+          {isDenied(activityErr)
+            ? 'Your role cannot read this hub\u2019s activity — this is not "nothing has happened here".'
+            : `Couldn't load this hub's activity${errorMessage(activityErr) ? ` — ${errorMessage(activityErr)}` : ''}. This is not "nothing has happened here".`}
+        </div>
+      ) : activity === null ? (
         <div className={styles.empty}>Loading activity…</div>
       ) : activity.length === 0 ? (
         <div className={styles.empty}>No activity recorded at this hub yet.</div>

@@ -4,6 +4,7 @@ import type { BlastPayload, BlastHistoryRow } from '../../api/adminApi';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import { useDialog } from '../../components/Modal/useDialog'; // [DSA-45-2]
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 import styles from './OrdersListPage.module.css';
 import blast from './NotificationBlastPage.module.css'; // [KA6-7/8/9]
 import { UilExclamationTriangle, UilMessage } from "@iconscout/react-unicons";
@@ -50,6 +51,7 @@ export const NotificationBlastPage: React.FC = () => {
   // two — this is the confirm for an irreversible, customer-facing send.
   const [audienceState, setAudienceState] = React.useState<'loading' | 'ok' | 'failed'>('loading');
   const [history, setHistory] = React.useState<BlastHistoryRow[] | null>(null); // T2-26 SU-7
+  const [historyErr, setHistoryErr] = React.useState<unknown>(null);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
   // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
@@ -66,9 +68,15 @@ export const NotificationBlastPage: React.FC = () => {
     setToasts(t => [...t, createToast(type, title, msg)]);
 
   const loadHistory = React.useCallback(() => {
-    // Kept a benign default deliberately: an empty history panel is not a claim about the
-    // business, and this page's decision — who receives the blast — does not rest on it.
-    notificationsAdminApi.history().then(setHistory).catch(() => setHistory([]));
+    // [RC-3] An earlier pass kept `setHistory([])` deliberately, reasoning that an empty
+    // history is not a claim about the business and that the TARGETING decision does not
+    // rest on it. The targeting half of that is right; the conclusion is not. The panel
+    // renders "No blasts sent yet." to someone composing a message TO CUSTOMERS, and the
+    // question it actually answers is "have we already sent this?". A failed read that
+    // says "no" invites a duplicate blast — outward-facing and unrecallable.
+    notificationsAdminApi.history()
+      .then((h) => { setHistory(h); setHistoryErr(null); })
+      .catch(setHistoryErr);
   }, []);
   React.useEffect(() => { loadHistory(); }, [loadHistory]);
 
@@ -290,7 +298,15 @@ export const NotificationBlastPage: React.FC = () => {
               known beside it. */}
           <thead><tr><th>Sent</th><th>Headline</th><th>Audience</th><th>Targeted</th><th>Queued</th><th>By</th></tr></thead>
           <tbody>
-            {history === null ? (
+            {/* The error branch must come BEFORE the null check: `history` stays null on a
+                failure, so a later branch renders skeleton rows forever. */}
+            {historyErr ? (
+              <tr><td colSpan={5} className={styles.empty}>
+                {isDenied(historyErr)
+                  ? 'Your role cannot read the blast history — this is not "nothing has been sent". Check before sending.'
+                  : `Couldn't load the blast history${errorMessage(historyErr) ? ` — ${errorMessage(historyErr)}` : ''}. This is not "nothing has been sent" — check before sending, or you may send it twice.`}
+              </td></tr>
+            ) : history === null ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <tr key={i}>{Array.from({ length: 5 }).map((__, j) => <td key={j}><div className={styles.skeleton} /></td>)}</tr>
               ))

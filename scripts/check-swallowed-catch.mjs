@@ -30,9 +30,19 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SRC = join(ROOT, 'src');
 const BASELINE_PATH = join(ROOT, 'scripts', 'swallowed-catch-baseline.json');
 
-// `catch(() => {})`, `.catch(() => {})`, `catch {}` and `catch { }` — the forms that keep
-// nothing. A catch that stores the error, toasts, or logs is not debt and is not matched.
-const SWALLOW_RE = /\.catch\(\s*\(\s*\)\s*=>\s*\{\s*\}\s*\)|catch\s*\{\s*\}/g;
+// TWO shapes, because the second is worse than the first.
+//
+// 1. KEEPS NOTHING — `catch(() => {})`, `.catch(() => {})`, `catch {}`. A catch that stores
+//    the error, toasts, or logs is not debt and is not matched.
+//
+// 2. FABRICATES AN ANSWER — `.catch(() => setRows([]))`, `setX({})`, `setX(null)`, `setX(0)`.
+//    This one was invisible to the ratchet until 2026-09-16, when `HubDetailPage` was found
+//    rendering "No activity recorded at this hub yet" and "No hub-manager staff at this hub"
+//    straight out of failed requests. Swallowing leaves a screen ambiguous; writing `[]`
+//    makes it assert something false, which is the actual finding RC-3 is about. A guard
+//    that measured only shape 1 was measuring the syntax, not the defect.
+const SWALLOW_RE =
+  /\.catch\(\s*\(\s*\)\s*=>\s*\{\s*\}\s*\)|catch\s*\{\s*\}|\.catch\(\s*\(\s*\)\s*=>\s*set[A-Za-z0-9_]+\(\s*(?:\[\s*\]|\{\s*\}|null|0)\s*\)\s*\)/g;
 
 function* walk(dir) {
   for (const name of readdirSync(dir)) {
@@ -45,9 +55,15 @@ function* walk(dir) {
 const counts = {};
 for (const file of walk(SRC)) {
   const rel = relative(ROOT, file).replace(/\\/g, '/');
+  // Comments are replaced with a TOKEN, not deleted. Deleting them turned
+  // `catch { /* why this is safe */ }` into `catch {}` and counted a DOCUMENTED decision
+  // as debt — the guard was penalising the one thing that makes a no-op legitimate. It
+  // also erased explanatory comments that quote the pattern, so a fix's own note scored
+  // against it. With a token in place: an EMPTY catch is debt; a catch that says why is a
+  // decision; and a pattern quoted inside a comment is neither.
   const src = readFileSync(file, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+    .replace(/\/\*[\s\S]*?\*\//g, 'C')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1C');
   const n = (src.match(SWALLOW_RE) ?? []).length;
   if (n > 0) counts[rel] = n;
 }

@@ -10,6 +10,7 @@ import { StatusBadge, PageHeader, EmptyState, NoHubAssigned, Alert, PickerNote }
 import { AgeCell } from '../../components/DataCells';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
+import { isDenied, errorMessage } from '../../components/EmptyState/asyncState';
 import styles from './OrdersListPage.module.css';
 import ds from './DistributionPage.module.css';
 import rs from './RestockQueuePage.module.css';
@@ -134,8 +135,12 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
         .then((f) => { setFabrics(f); setFabricsErr(null); })
         .catch(setFabricsErr);
       adminAuthExtApi.me()
-        .then((m) => setMyHubId(m.hubId ?? null))
-        .catch(() => {})
+        .then((m) => { setMyHubId(m.hubId ?? null); setWhoErr(null); })
+        // [RC-3] Swallowing this left `myHubId` null with `hubResolved` true, so the page
+        // told a CM "No hub assigned to your account" — a statement about WHO THEY ARE,
+        // manufactured from a failed request. They cannot act on it and nothing they do
+        // fixes it.
+        .catch(setWhoErr)
         .finally(() => setHubResolved(true));
     } else {
       fabricsApi
@@ -144,8 +149,11 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
           const m: Record<string, FabricStockRow> = {};
           srows.forEach((x) => { m[`${x.hub_id}-${x.fabric_id}`] = x; });
           setHubStock(m);
+          setStockErr(null);
         })
-        .catch(() => {});
+        // [RC-3] Procurement reads this column to decide whether a restock is needed. An
+        // empty map renders "—" on every row, which is indistinguishable from "we hold none".
+        .catch(setStockErr);
     }
   }, [isCm, pickerReload]);
 
@@ -165,6 +173,9 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
   };
 
   const hubName = (id: string) => hubs.find((h) => h.id === id)?.name ?? '—';
+  const [whoErr, setWhoErr] = React.useState<unknown>(null);
+  const [stockErr, setStockErr] = React.useState<unknown>(null);
+
   const myHubName = myHubId ? hubName(myHubId) : '';
 
   const submit = async () => {
@@ -286,7 +297,15 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
   // Procurement context: the requesting hub's current on-hand for this fabric.
   const stockCell = (r: RestockRequest) => {
     const st = hubStock[`${r.hub_id}-${r.fabric_id}`];
-    if (!st) return <span className={rs.dim}>—</span>;
+    if (!st) {
+      return stockErr ? (
+        <span className={rs.dim} title={errorMessage(stockErr) ?? 'The stock read failed.'}>
+          stock unknown
+        </span>
+      ) : (
+        <span className={rs.dim}>—</span>
+      );
+    }
     const avail = numv(st.available_meters);
     const reorder = st.reorder_meters != null ? numv(st.reorder_meters) : null;
     const low = reorder != null && avail < reorder;
@@ -465,7 +484,19 @@ export const RestockQueuePage: React.FC<{ mode?: 'cm' | 'procurement' }> = ({ mo
       )}
       {/* T2-38 (PR-5): a hub-less CM can't request restocks (they're hub-scoped) — show the
           honest dead-end instead of a form that fails on submit. */}
-      {isCm && hubResolved && !myHubId && <NoHubAssigned action="request restocks" />}
+      {/* A failed identity read is NOT "no hub assigned" — say which one happened. */}
+      {isCm && hubResolved && !myHubId && Boolean(whoErr) && (
+        <Alert
+          type="warning"
+          title="Couldn't confirm which hub you belong to"
+          message={
+            isDenied(whoErr)
+              ? 'Your role cannot read your own hub assignment. This does not mean you have no hub.'
+              : `${errorMessage(whoErr) ?? 'The request failed.'} This does not mean you have no hub — retry before asking for one.`
+          }
+        />
+      )}
+      {isCm && hubResolved && !myHubId && !whoErr && <NoHubAssigned action="request restocks" />}
       {isCm && (!hubResolved || myHubId) && (
         <section className={`${styles.modalGrid} ${rs.requestCard}`}>
           <label className={styles.fieldLabel}>Fabric
