@@ -1,8 +1,1 @@
-{
-  "src/pages/admin/CutSheetPage.tsx": 1,
-  "src/pages/admin/DesignLibraryPage.tsx": 1,
-  "src/pages/admin/DesignSampleRequestsPage.tsx": 1,
-  "src/pages/admin/EngineTesterPage.tsx": 1,
-  "src/pages/admin/SupportListPage.tsx": 1,
-  "src/pages/admin/TicketDetailPage.tsx": 1
-}
+{}
