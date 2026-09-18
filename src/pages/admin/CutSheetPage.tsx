@@ -3,7 +3,7 @@ import { designsApi, fabricsApi, R2_PUBLIC_URL } from '../../api/adminApi';
 import type { DesignDetail, GarmentTemplate, SizePreviewResult, Fabric } from '../../api/adminApi';
 import { Button } from '../../components/Button/Button';
 import { Spinner } from '../../components/Spinner';
-import { Modal } from '../../components';
+import { Modal, PickerNote } from '../../components';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
 import type { ToastData } from '../../components/Toast/Toast';
 import s from './CutSheetPage.module.css';
@@ -28,6 +28,12 @@ export const CutSheetModal: React.FC<{ open: boolean; designId?: string; onClose
   const [design, setDesign] = React.useState<DesignDetail | null>(null);
   const [tpl, setTpl] = React.useState<GarmentTemplate | null>(null);
   const [fabrics, setFabrics] = React.useState<Fabric[]>([]);
+  // [RC-3] A cut sheet is computed AGAINST a fabric — its stretch and shrinkage move the
+  // cut-to numbers. A silently empty fabric list reads as "this design has no fabrics",
+  // which on this page means falling back to "No fabric (rigid)" and printing a sheet cut
+  // to the wrong measurements. Say it failed instead.
+  const [fabricsErr, setFabricsErr] = React.useState<unknown>(null);
+  const [fabricsReload, setFabricsReload] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [preset, setPreset] = React.useState('');
   const [fabricId, setFabricId] = React.useState('');
@@ -62,9 +68,12 @@ export const CutSheetModal: React.FC<{ open: boolean; designId?: string; onClose
       })
       .catch((e) => toast('error', 'Failed to load', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-    fabricsApi.list({ active: true }).then(setFabrics).catch(() => {});
+    fabricsApi
+      .list({ active: true })
+      .then((f) => { setFabrics(f); setFabricsErr(null); })
+      .catch(setFabricsErr);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, id]);
+  }, [open, id, fabricsReload]);
 
   const region = tpl?.body_region ?? null;
   const fields = region ? FIELDS_BY_REGION[region] ?? FIELDS_BY_REGION.upper : [];
@@ -137,6 +146,11 @@ export const CutSheetModal: React.FC<{ open: boolean; designId?: string; onClose
               <option value="">No fabric (rigid)</option>
               {fabrics.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
+            <PickerNote
+              error={fabricsErr}
+              noun="fabrics"
+              onRetry={() => setFabricsReload((n) => n + 1)}
+            />
           </label>
         </div>
         {region && (

@@ -30,6 +30,11 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
   const [showRequest, setShowRequest] = React.useState(false);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
   const [designFabrics, setDesignFabrics] = React.useState<DesignFabricRef[]>([]);
+  // [RC-3] The pairing list decides which fabrics may be sampled. Swallowed, a failed
+  // fetch left "Select a paired fabric…" over nothing, which reads as "this design has no
+  // paired fabrics" — a statement about the DESIGN, manufactured from a failed request,
+  // and one the reviewer cannot act on because no amount of picking fixes it.
+  const [designFabricsErr, setDesignFabricsErr] = React.useState<unknown>(null);
   const [reqDesign, setReqDesign] = React.useState('');
   const [reqFabric, setReqFabric] = React.useState('');
   const [reqHub, setReqHub] = React.useState('');
@@ -93,7 +98,7 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
     setReqDesign(''); setReqFabric(''); setReqHub(''); setDesignFabrics([]);
   };
   const pickDesign = (designId: string, preselectFabric?: string) => {
-    setReqDesign(designId); setReqFabric(''); setDesignFabrics([]);
+    setReqDesign(designId); setReqFabric(''); setDesignFabrics([]); setDesignFabricsErr(null);
     if (designId)
       designsApi
         .get(designId)
@@ -105,7 +110,7 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
           if (preselectFabric && d.fabrics.some((f) => f.id === preselectFabric))
             setReqFabric(preselectFabric);
         })
-        .catch(() => {});
+        .catch(setDesignFabricsErr);
   };
   // [DSG-12-5] Check before the cloth is committed, not after.
   //
@@ -275,6 +280,11 @@ export const DesignSampleRequestsPage: React.FC<{ embedded?: boolean }> = ({ emb
                 <option key={f.id} value={f.id}>{f.name}{f.code ? ` · ${f.code}` : ''}</option>
               ))}
             </select>
+            <PickerNote
+              error={designFabricsErr}
+              noun="paired fabrics"
+              onRetry={() => pickDesign(reqDesign)}
+            />
           </div>
           <div className={s.reqField}>
             <label className={s.reqLabel}>Hub</label>
