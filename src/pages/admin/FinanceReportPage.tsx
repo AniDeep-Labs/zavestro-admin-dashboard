@@ -380,6 +380,13 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                 estimated or missing, and it names which. */}
             {(() => {
               const missing: string[] = [];
+              // [CHN-39-3] The double count goes FIRST — it is a wrong number, not a gap in
+              // one. Revenue counts a 3P sale's full ticket and its commission on top, and
+              // most of that ticket is owed to the brand rather than earned.
+              if (pnl?.gross_vs_net_unresolved)
+                missing.push(
+                  "a third-party sale is counted TWICE (full ticket + commission) until the gross-vs-net treatment is decided",
+                );
               if (pnl && pnl.totals.fabric_cost === 0) missing.push("fabric cost is ₹0 (no receipts ingested)");
               // Guarantee and delivery are rendered `est` above — an estimate under a
               // derived figure makes the derived figure an estimate too.

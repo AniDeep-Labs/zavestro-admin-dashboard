@@ -3454,6 +3454,9 @@ export interface PnlReport {
   // creation, so these orders were counted as revenue while the garment was still
   // uncut and, on COD, before the money existed. They belong here.
   backlog: { orders: number; unearned: number };
+  // [CHN-39-3] True when this period contains a third-party sale and the gross-vs-net
+  // (principal-vs-agent) treatment has not been decided — profit then double-counts it.
+  gross_vs_net_unresolved: boolean;
   // T1-19: outstanding wallet credits — a current liability, not part of period profit.
   wallet_liability: number;
   // T1-23: fit-promise reserve to hold for the period (memo/provision, not in profit).
