@@ -5,7 +5,7 @@ import { supportApi, usersApi } from "../../api/adminApi";
 import type { SupportTicket, AdminUser, SupportInbox } from "../../api/adminApi";
 import { ToastContainer, createToast } from "../../components/Toast/Toast";
 import type { ToastData } from "../../components/Toast/Toast";
-import { StatusBadge } from "../../components";
+import { StatusBadge, PickerNote } from "../../components";
 import { useDialog } from "../../components/Modal/useDialog"; // [DSA-45-2]
 import styles from "./SupportListPage.module.css";
 import { PhoneCell } from "../../components/DataCells"; // ACP-3 [KA7-2]: masked by default
@@ -114,6 +114,10 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
   // Customer search in create modal
   const [customerSearch, setCustomerSearch] = React.useState("");
   const [customerResults, setCustomerResults] = React.useState<AdminUser[]>([]);
+  // [RC-3] This one reaches a CUSTOMER. Swallowed, a failed lookup renders exactly like a
+  // search that found nobody — so an agent with the customer on the phone tells them they
+  // are not in the system, and creates a duplicate record for someone who already exists.
+  const [customerSearchErr, setCustomerSearchErr] = React.useState<unknown>(null);
 
   // [DSA-45-2] Hand-rolled overlays get <Modal>'s behaviour without its markup: focus moves
   // in, Tab is trapped, Escape closes, focus returns to whatever opened it, and a screen
@@ -139,12 +143,13 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
   React.useEffect(() => {
     if (debouncedCustomerSearch.length < 2) {
       setCustomerResults([]);
+      setCustomerSearchErr(null);
       return;
     }
     usersApi
       .list({ search: debouncedCustomerSearch, limit: 6 })
-      .then((r) => setCustomerResults(r.users))
-      .catch(() => {});
+      .then((r) => { setCustomerResults(r.users); setCustomerSearchErr(null); })
+      .catch(setCustomerSearchErr);
   }, [debouncedCustomerSearch]);
 
   // Flat search-results table — only while a search term is active.
@@ -643,6 +648,7 @@ export const SupportListPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) =>
                         value={customerSearch}
                         onChange={(e) => setCustomerSearch(e.target.value)}
                       />
+                      <PickerNote error={customerSearchErr} noun="customers" />
                       {customerResults.length > 0 && (
                         <div
                           style={{

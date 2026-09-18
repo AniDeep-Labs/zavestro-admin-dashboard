@@ -3431,6 +3431,10 @@ export interface PnlHub {
   delivery_cost: number;
   payment_fees: number;
   refunds: number;
+  // [CHN-39-4] Decided write-offs (scrapped/donated garments) — IN the profit line.
+  write_offs: number;
+  // [CHN-39-3] Platform commission on brand sales — revenue, not a seller deduction.
+  commission_revenue: number;
   profit: number;
 }
 export interface PnlReport {
@@ -3442,12 +3446,17 @@ export interface PnlReport {
     delivery_cost: number;
     payment_fees: number;
     refunds: number;
+    write_offs: number;
+    commission_revenue: number;
     profit: number;
   };
   // [CHN-39-1] Ordered but not yet EARNED. Revenue used to be booked at order
   // creation, so these orders were counted as revenue while the garment was still
   // uncut and, on COD, before the money existed. They belong here.
   backlog: { orders: number; unearned: number };
+  // [CHN-39-3] True when this period contains a third-party sale and the gross-vs-net
+  // (principal-vs-agent) treatment has not been decided — profit then double-counts it.
+  gross_vs_net_unresolved: boolean;
   // T1-19: outstanding wallet credits — a current liability, not part of period profit.
   wallet_liability: number;
   // T1-23: fit-promise reserve to hold for the period (memo/provision, not in profit).
@@ -4744,6 +4753,10 @@ export interface CmListing {
   fit_notes: string | null; // T3-6 (W-C2): authored fit guidance
   photo_keys: string[];
   is_active: boolean;
+  // [DSG-9-2] Set when this listing went live with no reviewed sample at its hub. Sample
+  // review is advisory, so this is allowed — but it is visible, not buried in the audit log.
+  published_without_sample_at: string | null;
+  published_without_sample_reason: string | null;
   created_at: string;
   design_name: string;
   garment_type: string;
@@ -4795,6 +4808,12 @@ export interface CmListingInput {
   photo_keys?: string[];
   is_active?: boolean;
   allow_below_cost?: boolean; // G-26: confirm an intentional below-cost price
+  /**
+   * [DSG-9-2] Publish although this design has no reviewed sample at this hub.
+   * A stated REASON is the override — there is no bare flag, so review can be skipped
+   * but never silently. Recorded on the listing and sent to the design team.
+   */
+  publish_without_sample_reason?: string;
 }
 
 /**
@@ -4877,6 +4896,7 @@ export const cmListingsApi = {
       fit_notes?: string | null; // T3-6 (W-C2)
       is_active?: boolean;
       allow_below_cost?: boolean;
+      publish_without_sample_reason?: string; // [DSG-9-2]
     },
   ): Promise<{ listing_id: string; reused: boolean }> =>
     req(`/api/admin/sample-jobs/${sampleId}/list`, {

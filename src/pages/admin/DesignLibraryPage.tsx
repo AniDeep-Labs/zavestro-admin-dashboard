@@ -11,7 +11,7 @@ import styles from './DesignLibraryPage.module.css';
 import { UilImage, UilAngleRightB, UilLayerGroup, UilPlus } from '@iconscout/react-unicons';
 import { Button } from '../../components/Button/Button';
 import { StatusBadge } from '../../components/StatusBadge';
-import { EmptyState } from '../../components';
+import { EmptyState, PickerNote } from '../../components';
 
 // G-34 lifecycle chip: where is this design in its life? (sampled → reviewed → live)
 function lifecycle(d: DesignSummary): { status: string; label: string } | null {
@@ -67,6 +67,11 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
   const [samplePending, setSamplePending] = useUrlFlag('sample_pending'); // §4C: not yet sample-reviewed
   const [tag, setTag] = useUrlParam('tag'); // T3-5 (W-D3): active tag/drop filter
   const [tagOptions, setTagOptions] = React.useState<{ tag: string; count: number }[]>([]);
+  // [RC-3] The tag filter is hidden entirely when the list is empty, so a swallowed failure
+  // does not render an empty dropdown — it removes the control. The reader concludes the
+  // library has no drops or tags, and there is nothing on screen to suggest otherwise.
+  const [tagsErr, setTagsErr] = React.useState<unknown>(null);
+  const [tagsReload, setTagsReload] = React.useState(0);
   const [designs, setDesigns] = React.useState<DesignSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
@@ -106,8 +111,11 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
   // (a save may add a new tag).
   React.useEffect(() => {
     if (editorOpen) return;
-    designsApi.tags().then(setTagOptions).catch(() => {});
-  }, [editorOpen]);
+    designsApi
+      .tags()
+      .then((t) => { setTagOptions(t); setTagsErr(null); })
+      .catch(setTagsErr);
+  }, [editorOpen, tagsReload]);
 
   return (
     <div className={base.page}>
@@ -152,6 +160,7 @@ export const DesignLibraryPage: React.FC<{ autoNew?: boolean }> = ({ autoNew }) 
             ))}
           </select>
         )}
+        <PickerNote error={tagsErr} noun="tags" onRetry={() => setTagsReload((n) => n + 1)} />
         <select className={styles.sel} value={sort} onChange={(e) => setSort(e.target.value as 'newest' | 'best_fit')}>
           <option value="newest">Sort: Newest</option>
           <option value="best_fit">Sort: Best fit</option>

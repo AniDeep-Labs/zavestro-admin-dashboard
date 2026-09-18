@@ -361,6 +361,10 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
   // design × fabric × hub. The backend now refuses instead of overwriting, so
   // the only thing left to get right is the way out: offer the existing row.
   const [clash, setClash] = React.useState<{ id: string; message: string } | null>(null);
+  // [DSG-9-2] Sample review is advisory — publishing without one is allowed, but it is a
+  // decision someone makes on the record, so the reason is required before Publish proceeds.
+  const [showSampleWarn, setShowSampleWarn] = React.useState(false);
+  const [sampleReason, setSampleReason] = React.useState("");
   const [showBelowCostWarn, setShowBelowCostWarn] = React.useState(false);
   const [belowCostMsg, setBelowCostMsg] = React.useState("");
   const [pendingPublish, setPendingPublish] = React.useState(false);
@@ -389,7 +393,12 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
     return () => { alive = false; };
   }, [pfDesign, pfFabric, pfHub, pfPrice]);
 
-  const save = async (publish: boolean, publishAnyway = false, belowCostOk = false) => {
+  const save = async (
+    publish: boolean,
+    publishAnyway = false,
+    belowCostOk = false,
+    noSampleReason = "",
+  ) => {
     if (!editor) return;
     if (
       editor.mode === "direct" &&
@@ -429,6 +438,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
           fit_notes,
           is_active,
           allow_below_cost: belowCostOk,
+          publish_without_sample_reason: noSampleReason || undefined,
         });
       } else if (editor.mode === "edit" && editor.listingId) {
         await cmListingsApi.update(editor.listingId, {
@@ -438,6 +448,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
           fit_notes: fit_notes ?? null,
           is_active,
           allow_below_cost: belowCostOk,
+          publish_without_sample_reason: noSampleReason || undefined,
         });
       } else {
         await cmListingsApi.create({
@@ -450,6 +461,7 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
           fit_notes,
           is_active,
           allow_below_cost: belowCostOk,
+          publish_without_sample_reason: noSampleReason || undefined,
         });
       }
       toast("success", publish ? "Listing published" : "Saved as draft");
@@ -460,7 +472,12 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
       const { status, details } = (e ?? {}) as { status?: number; details?: unknown };
       const existingId = (details as { existing_listing_id?: string } | undefined)
         ?.existing_listing_id;
-      if (msg?.includes("cost floor") && !belowCostOk) {
+      if (msg?.includes("no reviewed sample") && !noSampleReason) {
+        // [DSG-9-2] Not a dead end any more: the CM may publish, with a reason on the record.
+        setPendingPublish(publish);
+        setSampleReason("");
+        setShowSampleWarn(true);
+      } else if (msg?.includes("cost floor") && !belowCostOk) {
         // G-26: below the cost floor — let the CM confirm an intentional loss-leader.
         setPendingPublish(publish);
         setBelowCostMsg(msg);
@@ -771,6 +788,21 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
                     >
                       <UilCopy size={14} />
                     </button>
+                    {/* [DSG-9-2] Published with no sample reviewed at this hub. Advisory
+                        means the CM may do it — not that it disappears afterwards. Whoever
+                        tracks a remake back to this listing can see it here. */}
+                    {l.published_without_sample_at && (
+                      <span
+                        className={s.noSampleFlag}
+                        title={
+                          l.published_without_sample_reason
+                            ? `Published without a reviewed sample — "${l.published_without_sample_reason}"`
+                            : "Published without a reviewed sample at this hub"
+                        }
+                      >
+                        no sample
+                      </span>
+                    )}
                     <span className={s.toggleWrap} onClick={(e) => toggleActive(l, e)}>
                       <StatusBadge status={l.is_active ? "live" : "draft"} />
                     </span>
@@ -1119,6 +1151,47 @@ export const ListingsManagePage: React.FC<{ autoNew?: boolean }> = ({ autoNew })
           }
         }}
         onCancel={() => setClash(null)}
+      />
+
+      {/* [DSG-9-2] No reviewed sample — advisory, so the CM decides, with a reason recorded. */}
+      <ConfirmDialog
+        open={showSampleWarn}
+        title="Publish without a reviewed sample?"
+        message={
+          <>
+            <p className={s.noSampleIntro}>
+              This hub has not made this design before, so nobody has checked a finished
+              garment here. Publishing is allowed — the design team will be notified, and
+              this listing will be marked as published without review.
+            </p>
+            <label htmlFor="no-sample-reason" className={s.noSampleLabel}>
+              Why are you publishing now?
+            </label>
+            <textarea
+              id="no-sample-reason"
+              value={sampleReason}
+              onChange={(e) => setSampleReason(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="e.g. Festive drop — the sample slot is three weeks out"
+              className={s.noSampleInput}
+            />
+          </>
+        }
+        confirmLabel="Publish anyway"
+        variant="danger"
+        loading={saving}
+        onConfirm={() => {
+          // Kept open on a too-short reason: an override with no stated reason is not an
+          // override, it is a silent bypass — which is the thing this replaces.
+          if (sampleReason.trim().length < 3) {
+            toast("error", "A reason is required", "The design team sees this.");
+            return;
+          }
+          setShowSampleWarn(false);
+          save(pendingPublish, true, true, sampleReason.trim());
+        }}
+        onCancel={() => setShowSampleWarn(false)}
       />
 
       {/* G-26: price below the cost floor — confirm an intentional loss-leader */}
