@@ -4753,6 +4753,10 @@ export interface CmListing {
   fit_notes: string | null; // T3-6 (W-C2): authored fit guidance
   photo_keys: string[];
   is_active: boolean;
+  // [DSG-9-2] Set when this listing went live with no reviewed sample at its hub. Sample
+  // review is advisory, so this is allowed — but it is visible, not buried in the audit log.
+  published_without_sample_at: string | null;
+  published_without_sample_reason: string | null;
   created_at: string;
   design_name: string;
   garment_type: string;
@@ -4804,6 +4808,12 @@ export interface CmListingInput {
   photo_keys?: string[];
   is_active?: boolean;
   allow_below_cost?: boolean; // G-26: confirm an intentional below-cost price
+  /**
+   * [DSG-9-2] Publish although this design has no reviewed sample at this hub.
+   * A stated REASON is the override — there is no bare flag, so review can be skipped
+   * but never silently. Recorded on the listing and sent to the design team.
+   */
+  publish_without_sample_reason?: string;
 }
 
 /**
@@ -4886,6 +4896,7 @@ export const cmListingsApi = {
       fit_notes?: string | null; // T3-6 (W-C2)
       is_active?: boolean;
       allow_below_cost?: boolean;
+      publish_without_sample_reason?: string; // [DSG-9-2]
     },
   ): Promise<{ listing_id: string; reused: boolean }> =>
     req(`/api/admin/sample-jobs/${sampleId}/list`, {
