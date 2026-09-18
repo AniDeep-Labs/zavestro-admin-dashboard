@@ -334,16 +334,24 @@ const NextStepCard: React.FC<NextStepProps> = ({
             placeholder="Assign craftsperson…"
           />
         </div>
+        {/* [E2E-2] This was a "Start Tailoring →" button calling onAdvance("in_tailoring"),
+            which ALWAYS failed: `measurement_complete` may only go to `cutting` or
+            `fabric_sourcing` (order-transitions.ts), so the server answered
+            INVALID_TRANSITION every time. Verified by driving it on staging.
+
+            It cannot be repointed at `cutting` either, and that is the design rather than an
+            omission: the V7 map calls cutting "the engine→physical, irreversible bridge
+            (engine plan → cutting_master/tailor approves + cuts)", and the admin's
+            ADVANCE_ALLOWED deliberately excludes it. An irreversible physical act is approved
+            on the floor, not from an office console.
+
+            So the honest thing is to say whose move it is — the same voice the `cutting` card
+            already uses — instead of offering a verb that cannot work. */}
         {order.craftsperson_id && (
-          <button
-            className={styles.nextStepPrimary}
-            disabled={advancingStage}
-            onClick={() =>
-              onAdvance("in_tailoring", "Garment sent to tailoring")
-            }
-          >
-            {advancingStage ? "Advancing…" : "Start Tailoring →"}
-          </button>
+          <div className={styles.nextStepDesc}>
+            Assigned. The hub approves the cutting plan in the ops app, which moves this order
+            into cutting — there is nothing further to do here.
+          </div>
         )}
       </div>
     );
