@@ -5,7 +5,7 @@ import { ENTERED, provenanceFor } from '../../constants/provenance';
 import { blockOf, DRAFTING_BLOCK_LABELS } from '../../constants/draftingBlock';
 import { measurementLabel } from '../../utils/measurements';
 import type { GarmentCategoryOption, SizePreviewResult, Fabric } from '../../api/adminApi';
-import { PageHeader } from '../../components';
+import { PageHeader, PickerNote } from '../../components';
 import { Button } from '../../components/Button/Button';
 import { Spinner } from '../../components/Spinner';
 import { ToastContainer, createToast } from '../../components/Toast/Toast';
@@ -133,6 +133,13 @@ export const EngineTesterPage: React.FC = () => {
   const [body, setBody] = React.useState<Record<string, string>>({});
   const [shapeIntensity, setShapeIntensity] = React.useState<Record<string, number>>({});
   const [fabrics, setFabrics] = React.useState<Fabric[]>([]);
+  // [RC-3] The fabric is what makes this a TEST of the real garment — it applies the
+  // stretch and shrinkage. An empty list silently reads as "no fabrics exist", so the
+  // tester falls back to "No fabric (rigid, no shrink)" and reports numbers for a garment
+  // nobody will cut. Saying the list failed is the difference between a null result and a
+  // wrong one.
+  const [fabricsErr, setFabricsErr] = React.useState<unknown>(null);
+  const [fabricsReload, setFabricsReload] = React.useState(0);
   const [fabricId, setFabricId] = React.useState('');
   const [result, setResult] = React.useState<SizePreviewResult | null>(null);
   // What fabric (if any) was actually folded into the LAST run — so the result meta
@@ -157,8 +164,11 @@ export const EngineTesterPage: React.FC = () => {
       .then(setCats)
       .catch((e) => toast('error', 'Could not load garment types', e instanceof Error ? e.message : undefined))
       .finally(() => setLoading(false));
-    fabricsApi.list({ active: true }).then(setFabrics).catch(() => {});
-  }, []);
+    fabricsApi
+      .list({ active: true })
+      .then((f) => { setFabrics(f); setFabricsErr(null); })
+      .catch(setFabricsErr);
+  }, [fabricsReload]);
 
   const cat = cats.find((c) => c.id === catId) ?? null;
   const region = cat?.body_region ?? null;
@@ -401,6 +411,11 @@ export const EngineTesterPage: React.FC = () => {
                 return <option key={f.id} value={f.id}>{f.name}{tags ? ` (${tags})` : ''}</option>;
               })}
             </select>
+            <PickerNote
+              error={fabricsErr}
+              noun="fabrics"
+              onRetry={() => setFabricsReload((n) => n + 1)}
+            />
           </label>
 
           {cat && presets.length === 0 && (

@@ -232,10 +232,21 @@ export const TicketDetailPage: React.FC = () => {
       );
       setShowEscalate(false);
       setEscalateReason("");
+      // [RC-3] The escalation itself already SUCCEEDED and was reported above — this is only
+      // the re-read. Swallowing it left the ticket showing its old priority and no
+      // escalation note, which invites the agent to escalate a second time. It is not an
+      // error state (nothing failed that the agent must fix), so it does not replace the
+      // success message — it sits after it and says the screen, not the ticket, is stale.
       supportApi
         .get(ticket.id)
         .then(setTicket)
-        .catch(() => {});
+        .catch(() =>
+          showToast(
+            "info",
+            "Escalated — screen not refreshed",
+            "The escalation went through. Reload to see the updated priority.",
+          ),
+        );
     } catch (e) {
       showToast(
         "error",
