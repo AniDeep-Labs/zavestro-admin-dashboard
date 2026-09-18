@@ -3431,6 +3431,10 @@ export interface PnlHub {
   delivery_cost: number;
   payment_fees: number;
   refunds: number;
+  // [CHN-39-4] Decided write-offs (scrapped/donated garments) — IN the profit line.
+  write_offs: number;
+  // [CHN-39-3] Platform commission on brand sales — revenue, not a seller deduction.
+  commission_revenue: number;
   profit: number;
 }
 export interface PnlReport {
@@ -3442,6 +3446,8 @@ export interface PnlReport {
     delivery_cost: number;
     payment_fees: number;
     refunds: number;
+    write_offs: number;
+    commission_revenue: number;
     profit: number;
   };
   // [CHN-39-1] Ordered but not yet EARNED. Revenue used to be booked at order

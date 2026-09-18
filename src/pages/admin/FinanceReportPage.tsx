@@ -217,6 +217,8 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
           { header: "Delivery (est)", value: (h) => h.delivery_cost },
           { header: "Payment fees", value: (h) => h.payment_fees },
           { header: "Refunds", value: (h) => h.refunds },
+          { header: "Write-offs", value: (h) => h.write_offs },
+          { header: "Commission", value: (h) => h.commission_revenue },
           { header: "Profit", value: (h) => h.profit },
         ],
         pnl.hubs,
@@ -248,7 +250,7 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
   const title = mode === "settlement" ? "Online Settlement" : "Per-Hub P&L";
   const subtitle = mode === "settlement"
     ? "Captured online payments per hub and per day (gross − refunds = net settled), reconciled from our books."
-    : "Per-hub revenue minus fabric/procurement cost and refunds. Cost lines fill in as the data lands.";
+    : "Per-hub revenue and commission, minus fabric, refunds and write-offs. Cost lines fill in as the data lands.";
 
   const settlementEmpty = !settlement || (settlement.hubs.length === 0 && (settlement.by_day?.length ?? 0) === 0);
   const pnlEmpty = !pnl || pnl.hubs.length === 0;
@@ -354,6 +356,22 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
             <SummaryCard label="Delivery" value={pnl?.totals.delivery_cost} loading={loading} est />
             <SummaryCard label="Payment fees" value={pnl?.totals.payment_fees} loading={loading} />
             <SummaryCard label="Refunds" value={pnl?.totals.refunds} loading={loading} accent />
+            {/* [CHN-39-4] The destroyed garment. Refunds reverse the sale; this is the cost
+                that does NOT come back — without it a return looked cheaper than it is. */}
+            <SummaryCard
+              label="Write-offs"
+              value={pnl?.totals.write_offs}
+              loading={loading}
+              accent
+              zeroNote="₹0 because no garment has been written off in this window — pending dispositions are not counted until they are decided."
+            />
+            {/* [CHN-39-3] Platform revenue on a brand's sale. */}
+            <SummaryCard
+              label="Commission"
+              value={pnl?.totals.commission_revenue}
+              loading={loading}
+              zeroNote="₹0 because brand orders are not live yet — this fills in once orders carry a brand."
+            />
             {/* [KA8-2] Profit is only as good as the costs under it.
                 [FIN-37-4] …and it carried no marker of its own. The page labelled the
                 estimated lines honestly and then printed Profit to the paisa, so the one
@@ -597,7 +615,7 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
           </>
         )
       ) : loading ? (
-        <div className={styles.tableWrap}><table className={styles.table}><tbody>{skeletonRows(9)}</tbody></table></div>
+        <div className={styles.tableWrap}><table className={styles.table}><tbody>{skeletonRows(11)}</tbody></table></div>
       ) : pnlEmpty ? (
         <EmptyState title="No P&L data in this window" body="Per-hub revenue and cost lines will appear here once there are orders in range." />
       ) : (
@@ -608,7 +626,10 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
               <th title="Estimate: free/waived alterations × configured per-alteration cost">Guarantee<span className={s.estTag}>est.</span></th>
               <th title="Estimate: delivered orders × configured per-order delivery cost">Delivery<span className={s.estTag}>est.</span></th>
               <th title="Razorpay fee rate on captured online payments">Payment fees</th>
-              <th>Refunds</th><th>Profit</th>
+              <th>Refunds</th>
+              <th title="Decided write-offs: garments that cannot be resold. Pending dispositions are excluded.">Write-offs</th>
+              <th title="Platform commission on brand sales — counted as revenue">Commission</th>
+              <th>Profit</th>
             </tr></thead>
             <tbody>
               {pnl!.hubs.map((h, i) => (
@@ -621,6 +642,8 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                   <td className="moneyCell">{fmtINR(h.delivery_cost)}</td>
                   <td className="moneyCell">{fmtINR(h.payment_fees)}</td>
                   <td className="moneyCell">{fmtINR(h.refunds)}</td>
+                  <td className="moneyCell">{fmtINR(h.write_offs)}</td>
+                  <td className="moneyCell">{fmtINR(h.commission_revenue)}</td>
                   <td className={`moneyCell ${styles.total}`}>{fmtINR(h.profit)}</td>
                 </tr>
               ))}
@@ -632,6 +655,8 @@ export const FinanceReportPage: React.FC<{ mode?: "settlement" | "pnl" }> = ({ m
                 <td className="moneyCell">{fmtINR(pnl!.totals.delivery_cost)}</td>
                 <td className="moneyCell">{fmtINR(pnl!.totals.payment_fees)}</td>
                 <td className="moneyCell">{fmtINR(pnl!.totals.refunds)}</td>
+                <td className="moneyCell">{fmtINR(pnl!.totals.write_offs)}</td>
+                <td className="moneyCell">{fmtINR(pnl!.totals.commission_revenue)}</td>
                 <td className={`moneyCell ${styles.total}`}>{fmtINR(pnl!.totals.profit)}</td>
               </tr>
             </tbody>
