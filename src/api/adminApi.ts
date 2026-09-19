@@ -1296,6 +1296,9 @@ export interface AnalyticsData {
   kpis: { label: string; value: number; trend: string; up: boolean }[];
   revenue: { label: string; simplified: number }[];
   period: string;
+  // [FIN-37-6] True when the server withheld the ₹ KPIs because this role holds
+  // reports:read but not finance:read. Distinguishes "not yours to see" from "zero".
+  revenue_masked?: boolean;
 }
 
 export interface RetentionData {

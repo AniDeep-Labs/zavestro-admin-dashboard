@@ -108,9 +108,9 @@ const kpis: { label: string; key: string; format: (v: number) => string; icon: I
   // it was. Both are defensible definitions; showing one without its name is what
   // made them irreconcilable. The card now states its basis (from the server, so
   // the label cannot drift from the SQL) and the booked figure sits beside it.
-  { label: 'GMV',              key: 'gmv',             format: v => '₹' + v.toLocaleString('en-IN'), icon: 'IndianRupee',   accent: 'Emerald', navPath: '/admin/analytics/revenue', cap: 'reports:read' },
-  { label: 'Revenue booked',   key: 'bookedRevenue',   format: v => '₹' + v.toLocaleString('en-IN'), icon: 'IndianRupee',   accent: 'Gold',    navPath: '/admin/finance/pnl', cap: 'reports:read' },
-  { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders?stage=pending_payment', cap: 'orders:read' },
+  { label: 'GMV',              key: 'gmv',             format: v => '₹' + v.toLocaleString('en-IN'), icon: 'IndianRupee',   accent: 'Emerald', navPath: '/admin/analytics/revenue', cap: 'finance:read' },
+  { label: 'Revenue booked',   key: 'bookedRevenue',   format: v => '₹' + v.toLocaleString('en-IN'), icon: 'IndianRupee',   accent: 'Gold',    navPath: '/admin/finance/pnl', cap: 'finance:read' },
+  { label: 'Pending Payments', key: 'pendingPayments', format: v => v.toLocaleString(),                   icon: 'Clock',         accent: 'Amber',   navPath: '/admin/orders?stage=pending_payment', cap: 'finance:read' },
   { label: 'Open Tickets',     key: 'openTickets',     format: v => v.toLocaleString(),                   icon: 'Headphones',    accent: 'Red',     navPath: '/admin/support', cap: 'customers:write' },
   { label: 'New Customers',    key: 'newCustomers',    format: v => v.toLocaleString(),                   icon: 'UserPlus',      accent: 'Emerald', navPath: '/admin/users', cap: 'customers:read' },
 ];
@@ -201,9 +201,19 @@ export const AdminDashboardPage: React.FC = () => {
   );
   const [perfTab, setPerfTab] = React.useState<'Revenue' | 'Hubs'>('Revenue');
 
+  // [FIN-37-6] Two filters, and the second is the important one. `cap` says which cards
+  // this role is meant to see; the response says what the SERVER actually sent. The server
+  // now withholds ₹ figures from a reports:read-only role, and `renderMetricCell` formats
+  // `stat?.value ?? 0` — so a withheld GMV would print "₹0", turning a deliberate absence
+  // into "we sold nothing". The server is the authority: if the key is gone, so is the card.
   const visibleKpis = React.useMemo(
-    () => kpis.filter(k => !k.cap || hasCapability(k.cap)),
-    [],
+    () =>
+      kpis.filter(
+        (k) =>
+          (!k.cap || hasCapability(k.cap)) &&
+          (!data?.stats || data.stats[k.key] !== undefined),
+      ),
+    [data],
   );
 
   // One metric cell inside the unified instrument panel: label + tinted icon,

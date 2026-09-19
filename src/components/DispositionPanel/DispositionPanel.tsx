@@ -1,7 +1,7 @@
 import React from 'react';
 import { dispositionApi } from '../../api/adminApi';
 import type { DispositionResponse, DispositionKind } from '../../api/adminApi';
-import { Can } from '../Can/Can';
+import { Can, hasCapability } from '../Can/Can';
 import { isDenied, errorMessage } from '../EmptyState/asyncState';
 import s from './DispositionPanel.module.css';
 
@@ -49,14 +49,21 @@ export const DispositionPanel: React.FC<{ orderId: string; source: 'return' | 'r
   }, [orderId]);
   React.useEffect(() => { load(); }, [load]);
 
+  // Finance owns the money half of this write; ops owns the garment half.
+  const canSetAmount = hasCapability('refunds:approve');
+
   const save = async () => {
     setSaving(true);
     setMsg(null);
     try {
+      // [SHL-1-6] Ops records what happens to the garment; the write-off is the system's
+      // suggested cost. Only finance may send an AMOUNT — sending one without
+      // `refunds:approve` is a 403 from the API, so the field is read-only for ops and the
+      // value is omitted rather than echoed back as if they had chosen it.
       const body = {
         source,
         disposition,
-        write_off_amount: writeOff.trim() === '' ? undefined : Number(writeOff),
+        write_off_amount: canSetAmount && writeOff.trim() !== '' ? Number(writeOff) : undefined,
         note: note.trim() || undefined,
       };
       const d = await dispositionApi.set(orderId, body);
@@ -113,8 +120,15 @@ export const DispositionPanel: React.FC<{ orderId: string; source: 'return' | 'r
             type="number"
             min="0"
             value={writeOff}
+            readOnly={!canSetAmount}
+            title={canSetAmount ? undefined : 'Finance sets the write-off amount'}
             onChange={(e) => setWriteOff(e.target.value)}
           />
+          {!canSetAmount && (
+            <span className={s.fieldHint}>
+              The suggested cost. Finance can change it — you don&apos;t need to.
+            </span>
+          )}
         </label>
       </div>
       <label className={s.field}>
@@ -126,9 +140,16 @@ export const DispositionPanel: React.FC<{ orderId: string; source: 'return' | 'r
           placeholder="e.g. donated to shelter / fabric reclaimed for order #…"
         />
       </label>
+      {/* [SHL-1-6] Either capability records the garment decision. It was `refunds:approve`
+          alone, so the people handling the RTO could read this panel and do nothing with
+          it. The amount stays finance's — see the field above. */}
       <Can
-        cap="refunds:approve"
-        fallback={<p className={s.hint}>Finance (refunds:approve) records the disposition + write-off.</p>}
+        cap={['orders:write', 'refunds:approve']}
+        fallback={
+          <p className={s.hint}>
+            Your role cannot record a disposition — support or finance does this.
+          </p>
+        }
       >
         <button className={s.saveBtn} onClick={save} disabled={saving}>
           {saving ? 'Saving…' : data?.disposition ? 'Update disposition' : 'Record disposition'}

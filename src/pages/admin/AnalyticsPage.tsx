@@ -141,6 +141,15 @@ export const AnalyticsPage: React.FC = () => {
   const custKpi   = analyticsData?.kpis.find(k => k.label === 'Customers');
   const aovKpi    = analyticsData?.kpis.find(k => k.label === 'Avg Order Value');
 
+  // [FIN-37-6] The server withholds ₹ KPIs from a reports:read-only role — GMV and AOV
+  // simply are not in the list. Every card below falls back to '₹0', which would turn that
+  // deliberate absence into "we sold nothing": a false statement, and a worse one than the
+  // gap it papers over. So a money card whose KPI is missing is DROPPED, not zeroed.
+  // `revenue_masked` says the withholding was deliberate rather than a failed request.
+  const moneyMasked = analyticsData?.revenue_masked === true;
+  const dropMasked = <T extends { label: string }>(cards: T[]): T[] =>
+    moneyMasked ? cards.filter((c) => !/GMV|Order Value/.test(c.label)) : cards;
+
   return (
     <div className={styles.page}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -183,12 +192,12 @@ export const AnalyticsPage: React.FC = () => {
             />
           )}
           <div className={styles.kpiGrid}>
-            {[
+            {dropMasked([
               { label: 'Total GMV',        value: gmvKpi  ? fmtMoney(gmvKpi.value)  : '₹0', trend: gmvKpi?.trend  ?? '', up: gmvKpi?.up  ?? true },
               { label: 'Total Orders',     value: ordersKpi ? ordersKpi.value.toLocaleString('en-IN') : '0', trend: ordersKpi?.trend ?? '', up: ordersKpi?.up ?? true, to: '/admin/orders' },
               { label: 'New Customers',    value: custKpi ? custKpi.value.toLocaleString('en-IN') : '0', trend: custKpi?.trend ?? '', up: custKpi?.up ?? true },
               { label: 'Avg. Order Value', value: aovKpi  ? `₹${aovKpi.value.toLocaleString('en-IN')}` : '₹0', trend: aovKpi?.trend  ?? '', up: aovKpi?.up  ?? true },
-            ].map(k => (
+            ]).map(k => (
               <KpiCard key={k.label} k={k} navigate={navigate} />
             ))}
           </div>
@@ -214,12 +223,12 @@ export const AnalyticsPage: React.FC = () => {
       {validSection === 'orders' && (
         <>
           <div className={styles.kpiGrid}>
-            {[
+            {dropMasked([
               { label: 'Total Orders',      value: ordersKpi ? ordersKpi.value.toLocaleString('en-IN') : '0', trend: ordersKpi?.trend ?? '', up: ordersKpi?.up ?? true, to: '/admin/orders' },
               { label: 'GMV',               value: gmvKpi   ? fmtMoney(gmvKpi.value) : '₹0',                  trend: gmvKpi?.trend  ?? '', up: gmvKpi?.up  ?? true },
               { label: 'New Customers',     value: custKpi  ? custKpi.value.toLocaleString('en-IN') : '0',     trend: custKpi?.trend ?? '', up: custKpi?.up ?? true },
               { label: 'Avg. Order Value',  value: aovKpi   ? `₹${aovKpi.value.toLocaleString('en-IN')}` : '₹0', trend: aovKpi?.trend ?? '', up: aovKpi?.up ?? true },
-            ].map(k => (
+            ]).map(k => (
               <KpiCard key={k.label} k={k} navigate={navigate} />
             ))}
           </div>
