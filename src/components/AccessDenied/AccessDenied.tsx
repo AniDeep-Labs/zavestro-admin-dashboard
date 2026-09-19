@@ -90,10 +90,15 @@ export const AccessDenied: React.FC<AccessDeniedProps> = ({
       {requires && requires.length > 0 && (
         <p className={styles.requires}>
           Viewing this requires one of:{' '}
-          {requires.map((c) => (
-            <code key={c} className={styles.cap}>
-              {c}
-            </code>
+          {/* Separated, because they were not. Adjacent <code> elements render flush, so a
+              two-capability route read "orders:writerefunds:approve" — one capability that
+              does not exist, in the one message whose whole job is telling an operator what
+              to ask for. It looked correct for every single-capability route. */}
+          {requires.map((c, i) => (
+            <React.Fragment key={c}>
+              {i > 0 && ', '}
+              <code className={styles.cap}>{c}</code>
+            </React.Fragment>
           ))}
         </p>
       )}

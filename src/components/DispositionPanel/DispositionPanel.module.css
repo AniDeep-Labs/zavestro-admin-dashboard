@@ -13,3 +13,13 @@
 .saveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 .ok { font-size: 13px; color: var(--color-success); margin: 0; }
 .err { font-size: 13px; color: var(--color-error); margin: 0; }
+
+/* [SHL-1-6] Sits under the read-only write-off field for ops, saying whose number it is.
+   `.hint` is a <p> style (margin:0) — on a <span> inside a <label> it would run inline
+   against the input. */
+.fieldHint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
