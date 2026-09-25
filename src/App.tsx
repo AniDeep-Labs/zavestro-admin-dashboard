@@ -17,9 +17,15 @@ import { AdminResetPasswordPage } from "./pages/admin/AdminResetPasswordPage";
 // one ~1.3 MB bundle. These modules use NAMED exports, so map to the { default }
 // shape React.lazy expects. The <Suspense> boundary lives in AdminLayout (around
 // its <Outlet/>), so the sidebar stays put while a page chunk loads.
-function lazyPage<M extends Record<string, ComponentType<object>>>(
+// The constraint names only the export being loaded. It used to be
+// `M extends Record<string, ComponentType<object>>`, which demanded that EVERY
+// export of a page module be a prop-less component — so a page could not export
+// a helper, a type, or one of its own sub-components without breaking the type
+// build, for a rule the loader never needed. Narrowing it to `K` keeps the real
+// guarantee (the thing routed to IS a component) and drops the rest.
+function lazyPage<K extends string, M extends Record<K, ComponentType<object>>>(
   loader: () => Promise<M>,
-  name: keyof M,
+  name: K,
 ) {
   return lazy(async () => ({ default: (await loader())[name] }));
 }

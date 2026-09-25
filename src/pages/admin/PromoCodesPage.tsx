@@ -13,7 +13,9 @@ function isExpired(p: PromoCode) {
   return !!p.valid_until && new Date(p.valid_until) < new Date();
 }
 
-function PromoForm({
+// Exported ONLY so the dev render harness (src/main-preview.tsx) can mount
+// this form on its own. Nothing in the app imports it from outside this file.
+export function PromoForm({
   initial, onSave, onCancel, saving,
 }: {
   initial: Partial<PromoCode>;
@@ -24,7 +26,10 @@ function PromoForm({
   const [code, setCode] = React.useState(initial.code ?? '');
   const [type, setType] = React.useState<'percent' | 'flat'>((initial.discount_type as 'percent' | 'flat') ?? 'percent');
   const [value, setValue] = React.useState(initial.discount_value != null ? String(initial.discount_value) : '');
-  const [minOrder, setMinOrder] = React.useState(initial.min_order_amount != null && initial.min_order_amount > 0 ? String(initial.min_order_amount) : '');
+  // Shows an existing 0 as "0" rather than blank. Blanking it was fine while
+  // the field was optional and would now block editing any coupon that
+  // legitimately has no minimum.
+  const [minOrder, setMinOrder] = React.useState(initial.min_order_amount != null ? String(initial.min_order_amount) : '');
   const [maxUses, setMaxUses] = React.useState(initial.max_uses != null ? String(initial.max_uses) : '');
   const [expiry, setExpiry] = React.useState(initial.valid_until ? initial.valid_until.slice(0, 10) : '');
   // [PM-26-3]/[PM-26-7] The fields that bound a promo's COST, which the editor could not set.
@@ -62,9 +67,10 @@ function PromoForm({
           max={type === 'percent' ? 100 : 100000} />
       </div>
       <div className={styles.field}>
-        <label className={styles.fieldLabel}>Min Order Amount (₹)</label>
-        <input className={styles.fieldInput} placeholder="e.g., 500 (optional)"
+        <label className={styles.fieldLabel}>Min Order Amount (₹) *</label>
+        <input className={styles.fieldInput} placeholder="e.g., 500 — enter 0 for no minimum"
           value={minOrder} onChange={e => setMinOrder(e.target.value)} type="number" min="0" />
+        {!minOrder.trim() && <span className={styles.fieldRequired}>Required. Enter 0 to allow this coupon on any order.</span>}
       </div>
       <div className={styles.field}>
         <label className={styles.fieldLabel}>Max Uses (total)</label>
@@ -111,17 +117,17 @@ function PromoForm({
         <input type="date" className={styles.fieldInput} required
           min={minDate}
           value={expiry} onChange={e => setExpiry(e.target.value)} />
-        {!expiry && <span style={{ fontSize: 12, color: 'var(--color-danger, #D75B5B)' }}>An expiry date is required.</span>}
+        {!expiry && <span className={styles.fieldRequired}>An expiry date is required.</span>}
       </div>
       <div className={styles.modalActions}>
         <button className={styles.cancelModalBtn} onClick={onCancel}>Cancel</button>
         <button className={styles.saveModalBtn}
-          disabled={saving || !code.trim() || !value || !expiry}
+          disabled={saving || !code.trim() || !value || !expiry || !minOrder.trim()}
           onClick={() => onSave({
             code: code.trim().toUpperCase(),
             discount_type: type,
             discount_value: parseFloat(value),
-            min_order_amount: minOrder ? parseFloat(minOrder) : 0,
+            min_order_amount: parseFloat(minOrder),
             max_uses: maxUses ? parseInt(maxUses) : undefined,
             valid_until: istDayEnd(expiry),
             // [PM-26-3] A cap only means anything on a percentage; sending one with a flat

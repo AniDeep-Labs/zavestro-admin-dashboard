@@ -642,7 +642,7 @@ export const ProductEditPage: React.FC = () => {
               Images
               <span
                 className={styles.imageCount}
-                style={allImages.length < MIN_IMAGES ? { color: 'var(--color-danger, #D75B5B)' } : undefined}
+                style={allImages.length < MIN_IMAGES ? { color: 'var(--color-error)' } : undefined}
               >
                 {allImages.length}/{MAX_IMAGES}
               </span>
