@@ -39,6 +39,9 @@
 /* Form fields */
 .fields { display: flex; flex-direction: column; gap: 14px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
+/* A required-field warning. Distinct from .fieldHint, which is muted
+   guidance — this one has to read as "you must act". */
+.fieldRequired { display: block; margin-top: 2px; font-size: var(--font-size-xs); color: var(--color-error); }
 .fieldLabel { font-size: 13px; font-weight: var(--font-weight-medium); color: var(--color-text-secondary); }
 .fieldInput, .fieldSelect { height: 40px; padding: 0 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-family); font-size: var(--font-size-base); outline: none; width: 100%; box-sizing: border-box; }
 .fieldInput:focus, .fieldSelect:focus { border-color: var(--color-primary); }
