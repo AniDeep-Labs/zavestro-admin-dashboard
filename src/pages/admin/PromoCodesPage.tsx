@@ -13,7 +13,9 @@ function isExpired(p: PromoCode) {
   return !!p.valid_until && new Date(p.valid_until) < new Date();
 }
 
-function PromoForm({
+// Exported ONLY so the dev render harness (src/main-preview.tsx) can mount
+// this form on its own. Nothing in the app imports it from outside this file.
+export function PromoForm({
   initial, onSave, onCancel, saving,
 }: {
   initial: Partial<PromoCode>;
