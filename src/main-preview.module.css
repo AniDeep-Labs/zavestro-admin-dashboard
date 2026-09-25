@@ -1,0 +1,21 @@
+/* Styles for the dev render harness only (src/main-preview.tsx).
+   Kept out of PromoCodesPage.module.css so nothing harness-shaped leaks into
+   a production stylesheet. Tokens only — the style-debt guard counts inline
+   style={{}} and raw hex anywhere under src/. */
+
+/* The page's .modalOverlay is `position: fixed` so it covers the app. On a
+   standalone page there is nothing to cover, and fixed positioning stops the
+   form scrolling when it is taller than the viewport. */
+.overlay {
+  position: static;
+}
+
+.payload {
+  margin-top: 4px;
+  padding: 12px;
+  overflow-x: auto;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}

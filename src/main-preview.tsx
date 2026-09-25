@@ -25,6 +25,7 @@ import { PromoForm } from './pages/admin/PromoCodesPage';
 // that is wider than the thing it stands in reports overflow that does not
 // happen, and hides overflow that does.
 import styles from './pages/admin/PromoCodesPage.module.css';
+import harness from './main-preview.module.css';
 import type { PromoCode } from './api/adminApi';
 import { initTheme } from './utils/theme';
 
@@ -44,7 +45,7 @@ const initial: Partial<PromoCode> = editing
 export function Harness() {
   const [saved, setSaved] = useState<string | null>(null);
   return (
-    <div className={styles.modalOverlay} style={{ position: 'static' }}>
+    <div className={`${styles.modalOverlay} ${harness.overlay}`}>
       <div className={styles.modal}>
         <h3 className={styles.modalTitle}>
           {editing ? 'Edit: ANYORDER' : 'Create Promo Code'}
@@ -56,10 +57,7 @@ export function Harness() {
           onSave={(d) => setSaved(JSON.stringify(d, null, 2))}
         />
         {saved && (
-          <pre style={{ marginTop: 4, padding: 12, overflowX: 'auto',
-                        border: '1px dashed var(--color-border)' }}>
-            {saved}
-          </pre>
+          <pre className={harness.payload}>{saved}</pre>
         )}
       </div>
     </div>
