@@ -17,7 +17,35 @@ const fitTone = (n: number) => (n >= 4 ? 'done' : n <= 2 ? 'blocked' : 'qc');
 import { fmtDate } from '../../utils/date';
 import { isDenied } from '../../components/EmptyState/asyncState';
 
-const areaLabel = (k: string, v: number) => `${k.replace(/_/g, ' ')} ${v < 0 ? 'tight' : 'loose'}`;
+/** A fit signal in either shape the API stores.
+ *
+ * `fit_areas` values are a bare direction (-1/0/1) OR `{direction, cm}` — the
+ * richer form added by SUP-34-5 so "1 cm tight" and "5 cm tight" stop being the
+ * same number. The backend accepts, stores and calibrates from both
+ * (`fit-signal.ts: readFitAreas`); this page assumed the number.
+ *
+ * The consequence was not a blank cell, it was a WRONG one. `v !== 0` is true
+ * for any object, so an area recorded as `{direction: 0}` — perfect — would be
+ * listed as a complaint; and `v < 0` is false for an object, so a customer who
+ * said TIGHT would be shown to support as "loose". */
+const readSignal = (v: unknown): { direction: number; cm?: number } | null => {
+  if (typeof v === 'number') return Number.isFinite(v) ? { direction: v } : null;
+  if (v && typeof v === 'object') {
+    const d = (v as { direction?: unknown }).direction;
+    if (typeof d !== 'number' || !Number.isFinite(d)) return null;
+    const raw = (v as { cm?: unknown }).cm;
+    const cm = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : undefined;
+    return { direction: d, cm };
+  }
+  return null;
+};
+
+const areaLabel = (k: string, sig: { direction: number; cm?: number }) => {
+  const word = sig.direction < 0 ? 'tight' : 'loose';
+  // The magnitude is the whole point of the richer shape — it is the difference
+  // between a complaint and a correction. Show it when it is there.
+  return `${k.replace(/_/g, ' ')} ${word}${sig.cm ? ` ${sig.cm}cm` : ''}`;
+};
 
 export const FitFeedbackPage: React.FC = () => {
   const navigate = useNavigate();
@@ -170,7 +198,9 @@ export const FitFeedbackPage: React.FC = () => {
               </tr>
             ) : (
               rows.map((r) => {
-                const off = Object.entries(r.fit_areas || {}).filter(([, v]) => v !== 0);
+                const off = Object.entries(r.fit_areas || {})
+                  .map(([k, v]) => [k, readSignal(v)] as const)
+                  .filter(([, sig]) => sig !== null && sig.direction !== 0);
                 return (
                   <tr key={r.id} className={styles.row}>
                     <td className={styles.total}>{r.order_number ?? r.order_id.slice(0, 8)}</td>
@@ -185,13 +215,13 @@ export const FitFeedbackPage: React.FC = () => {
                       {off.length === 0 ? (
                         <span style={{ color: 'var(--color-primary)' }}>perfect</span>
                       ) : (
-                        off.map(([k, v]) => (
+                        off.map(([k, sig]) => (
                           <span
                             key={k}
                             className={`${styles.stagePill} ${styles.stageWarning}`}
                             style={{ marginRight: 4 }}
                           >
-                            {areaLabel(k, v as number)}
+                            {areaLabel(k, sig!)}
                           </span>
                         ))
                       )}
