@@ -3522,7 +3522,10 @@ export interface FitFeedbackEntry {
   customer_name: string | null;
   customer_phone: string | null;
   overall_fit: number;
-  fit_areas: Record<string, number>;
+  /** Either shape: the legacy bare direction, or `{direction, cm}` (SUP-34-5).
+   *  The API accepts and stores both, so a reader that assumes a number is a
+   *  reader that will one day be wrong. Normalise with `readFitSignal`. */
+  fit_areas: Record<string, number | { direction: number; cm?: number }>;
   notes: string | null;
   created_at: string;
 }
